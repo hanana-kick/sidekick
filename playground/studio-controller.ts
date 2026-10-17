@@ -1,7 +1,7 @@
 import { createAccessory, createDesign, equipAccessory, migrateDesign, patchDesign, serializeDesign, ACCESSORY_PRESETS, ACCESSORY_SLOTS_BY_PRESET, ACCESSORY_LABELS } from '../src/core/design.js';
 import type { AccessoryPreset, AccessorySlot, Activity, AvatarDesign, DesignPatch } from '../src/core/design.js';
-import { CAMERA_PRESETS } from '../src/core/camera.js';
-import type { CameraAngles, CameraPreset } from '../src/core/camera.js';
+import { createCamera } from '../src/core/camera.js';
+import type { CameraState, CameraPreset } from '../src/core/camera.js';
 import { eyeExpressionWeights } from '../src/core/expressions.js';
 import type { EyeExpression } from '../src/core/expressions.js';
 import type { MaterialShapeName } from '../src/core/shapes.js';
@@ -24,7 +24,7 @@ export type AvatarPort = Pick<SidekickAvatar, 'design' | 'camera' | 'paused' | '
 export interface SavedRecovery { raw: string; key: string; error: string }
 export interface StudioState {
   design: AvatarDesign;
-  camera: CameraAngles;
+  camera: CameraState;
   duration: number;
   easing: 'smooth' | 'linear';
   activity: Activity;
@@ -67,7 +67,7 @@ export class StudioController {
       }
     } catch { storageError = true; }
     this.state = {
-      design, camera: { ...CAMERA_PRESETS.front }, duration: 450, easing: 'smooth', activity: 'idle', paused: false, trackingMode: 'off',
+      design, camera: createCamera(), duration: 450, easing: 'smooth', activity: 'idle', paused: false, trackingMode: 'off',
       movedFace: false, gaze: { x: 0, y: 0 }, time: 0, motion: {}, motionDuration: 400, motionEasing: 'smooth', interaction: 'box', background: 'checker', jsonDraft: recovery?.raw ?? serializeScene(createScene({ design, interaction: 'box' })),
       jsonError: recovery?.error ?? '', warnings, recovery, recoverySaved: false,
       status: recovery ? '저장된 원본을 보존했습니다. JSON에서 수정하거나 내려받으세요.' : storageError ? '브라우저 저장소를 읽을 수 없습니다. JSON으로 내보내세요.' : '디자인 변경은 이 브라우저에 저장됩니다.',
@@ -166,7 +166,7 @@ export class StudioController {
     if (this.state.motion.eyes) { const eyes = { ...this.state.motion.eyes }; delete eyes[side]; this.update({ motion: { ...this.state.motion, eyes } }); }
     this.commit(next);
   };
-  setCamera = (patch: Partial<CameraAngles>): void => { this.avatar?.setCamera(patch); if (this.avatar) this.runtime({ camera: { ...this.avatar.camera } }); };
+  setCamera = (patch: Partial<CameraState>): void => { this.avatar?.setCamera(patch); if (this.avatar) this.runtime({ camera: { ...this.avatar.camera } }); };
   setCameraPreset = (preset: CameraPreset): void => { this.avatar?.setCameraPreset(preset); if (this.avatar) this.runtime({ camera: { ...this.avatar.camera } }); };
   resetCamera = (): void => { this.avatar?.resetCamera(); if (this.avatar) this.runtime({ camera: { ...this.avatar.camera } }); };
   setActivity = (activity: Activity): void => { this.avatar?.setActivity(activity); this.runtime({ activity }); };
@@ -218,7 +218,7 @@ export class StudioController {
       avatar.lookAt({ space: 'view', x: 0, y: 0 }); avatar.resetCamera(); avatar.seek(0); avatar.setActivity('idle');
       avatar.design = defaultStudioDesign(); this.watch(avatar.setShape('square', { duration: 0 }));
     }
-    this.update({ duration: 450, easing: 'smooth', paused: false, trackingMode: 'off', activity: 'idle', movedFace: false, gaze: { x: 0, y: 0 }, time: 0, motion: {}, motionDuration: 400, motionEasing: 'smooth', interaction: 'box', warnings: [], camera: { ...CAMERA_PRESETS.front } });
+    this.update({ duration: 450, easing: 'smooth', paused: false, trackingMode: 'off', activity: 'idle', movedFace: false, gaze: { x: 0, y: 0 }, time: 0, motion: {}, motionDuration: 400, motionEasing: 'smooth', interaction: 'box', warnings: [], camera: createCamera() });
     this.commit(defaultStudioDesign(), '기본 디자인으로 초기화했습니다.');
   };
   exportScene = (): SidekickScene => this.scene();

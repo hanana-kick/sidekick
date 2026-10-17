@@ -1,5 +1,5 @@
 import { ACTIVITIES, createAccessory, createDesign, equipAccessory, finite, parseDesign } from '../core/design.js';
-import { cameraPreset, createCamera } from '../core/camera.js';
+import { CAMERA_ZOOM_RANGE, cameraPreset, createCamera } from '../core/camera.js';
 import { eyeExpressionWeights } from '../core/expressions.js';
 import { MotionTimeline, validateMotionOptions } from '../core/motion.js';
 import { validateShapeMotionOptions } from '../core/shape-motion.js';
@@ -10,7 +10,7 @@ export const SIDEKICK_ATTRIBUTES = Object.freeze([
     'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'accessories',
     'head-accessory', 'head-color', 'eyes-accessory', 'eyes-color', 'mouth-accessory', 'mouth-color',
     'neck-accessory', 'neck-color', 'left-ear-accessory', 'left-ear-color', 'right-ear-accessory', 'right-ear-color',
-    'camera', 'camera-yaw', 'camera-pitch', 'camera-roll', 'gaze-x', 'gaze-y', 'activity', 'paused',
+    'camera', 'camera-yaw', 'camera-pitch', 'camera-roll', 'camera-zoom', 'gaze-x', 'gaze-y', 'activity', 'paused',
     'interaction', 'mouse-tracking', 'tracking-mode', 'render-style', 'shape-duration', 'shape-easing', 'motion-duration', 'motion-easing', 'motion', 'time',
 ]);
 export class SidekickAttributeError extends TypeError {
@@ -98,11 +98,12 @@ export function resolveSidekickAttributes(attributes) {
                 accessory.color = tint;
         }
     }
-    let camera = read('camera', value => cameraPreset(value), createCamera());
+    let camera = read('camera', value => createCamera(cameraPreset(value)), createCamera());
     for (const axis of ['yaw', 'pitch', 'roll']) {
         const limit = axis === 'yaw' ? 360 : axis === 'pitch' ? 90 : 180;
         camera = { ...camera, [axis]: read(`camera-${axis}`, value => number(value, -limit, limit, `camera-${axis}`), camera[axis]) };
     }
+    camera.zoom = read('camera-zoom', value => number(value, CAMERA_ZOOM_RANGE.min, CAMERA_ZOOM_RANGE.max, 'camera-zoom'), 1);
     const options = (prefix) => {
         const duration = read(`${prefix}-duration`, value => number(value, 0, 60000, 'duration'), prefix === 'shape' ? 450 : 400);
         const easing = read(`${prefix}-easing`, value => choice(value, ['linear', 'smooth']), 'smooth');

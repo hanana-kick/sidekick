@@ -1,12 +1,12 @@
 import type { Activity, AvatarDesign } from './design.js';
-import type { CameraAngles } from './camera.js';
+import type { CameraState } from './camera.js';
 import type { MotionTarget } from './motion.js';
 import type { TrackingMode } from './tracking.js';
 export declare const MAX_SCENE_BYTES = 65536;
 export interface SidekickScene {
     sceneVersion: 2;
     design: AvatarDesign;
-    camera: CameraAngles;
+    camera: CameraState;
     activity: Activity;
     paused: boolean;
     trackingMode: TrackingMode;
@@ -26,7 +26,7 @@ export interface SidekickScene {
 export type SceneInput = Partial<Omit<SidekickScene, 'sceneVersion' | 'camera' | 'gaze'>> & {
     /** Legacy eyes-only input; an explicit trackingMode takes precedence. */
     mouseTracking?: boolean;
-    camera?: Partial<CameraAngles>;
+    camera?: Partial<CameraState>;
     gaze?: Partial<SidekickScene['gaze']>;
 };
 /** Strict pure validation: no element, storage or active animation is touched. */

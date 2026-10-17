@@ -365,8 +365,18 @@ test('motion settles, superseded motion cancels, and pause freezes rendering', a
     return { first: await first, second: await second, pose: a.pose };
   });
   assert.equal(result.first.finished, false); assert.equal(result.second.finished, true); assert.deepEqual(result.pose.face, [-0.2, 0.15]);
-  await page.locator('#flat').evaluate(a => { a.paused = true; }); const frames = await page.locator('#flat').evaluate(a => a.diagnostics.frames);
-  await page.waitForTimeout(100); assert.equal(await page.locator('#flat').evaluate(a => a.diagnostics.frames), frames);
+  const paused = await page.locator('#flat').evaluate(async a => {
+    a.paused = true;
+    // Pausing is a worker command. Order its final draw before the frozen baseline.
+    await a.capturePixelsAsync();
+    return { diagnostics: a.diagnostics, pose: a.pose };
+  });
+  assert.equal(paused.diagnostics.acknowledgedRevision, paused.diagnostics.revision);
+  assert.equal(paused.diagnostics.running, false);
+  await page.waitForTimeout(100);
+  const later = await page.locator('#flat').evaluate(a => ({ diagnostics: a.diagnostics, pose: a.pose }));
+  assert.equal(later.diagnostics.frames, paused.diagnostics.frames);
+  assert.equal(later.diagnostics.time, paused.diagnostics.time); assert.deepEqual(later.pose, paused.pose);
 });
 
 test('reduced motion stays static; gaze is bounded and surface motion remains controllable', async t => {
@@ -796,7 +806,7 @@ test('Studio import and reset settle interrupted shapes and reset camera/express
   await tab(page, '카메라'); await page.locator('[data-camera-preset=side]').click();
   await page.locator('#reset').click();
   const reset = await designOf(page); assert.equal(reset.body.shape, 'square'); assert.deepEqual(reset.eyes.left.weights, { smile: 0, blink: 0 });
-  assert.deepEqual(await page.locator('#flat').evaluate(a => a.camera), { yaw: 0, pitch: 0, roll: 0 });
+  assert.deepEqual(await page.locator('#flat').evaluate(a => a.camera), { yaw: 0, pitch: 0, roll: 0, zoom: 1 });
   await tab(page, '애니메이션'); assert.equal(await rangeValue(page, 'shape-duration'), 450); assert.match(await page.locator('#shape-easing').textContent(), /부드럽게/);
 });
 
@@ -861,7 +871,7 @@ test('Studio camera degree controls, presets, API and orbit stay synchronized wi
   const page = await pageFor(t); await page.locator('#flat').evaluate(a => { a.paused = true; a.setActivity('still'); });
   const initial = await page.locator('#flat').evaluate(a => ({ pose: a.pose, design: a.design }));
   await tab(page, '카메라'); await setRange(page, 'view-yaw', 52); await setRange(page, 'view-pitch', -23); await setRange(page, 'view-roll', 17);
-  assert.deepEqual(await page.locator('#flat').evaluate(a => a.camera), { yaw: 52, pitch: -23, roll: 17 });
+  assert.deepEqual(await page.locator('#flat').evaluate(a => a.camera), { yaw: 52, pitch: -23, roll: 17, zoom: 1 });
   assert.deepEqual(await page.locator('#flat').evaluate(a => a.pose), initial.pose); assert.deepEqual(await designOf(page), initial.design);
   await page.locator('[data-camera-preset=side]').click(); assert.equal(await rangeValue(page, 'view-yaw'), 90);
   await page.locator('#flat').evaluate(a => a.setCamera({ yaw: 21, pitch: 12, roll: 9 }));
@@ -872,7 +882,7 @@ test('Studio camera degree controls, presets, API and orbit stay synchronized wi
   const camera = await page.locator('#flat').evaluate(a => a.camera);
   assert.notEqual(camera.yaw, 21); assert.equal(camera.roll, 9); assert.ok(Math.abs(await rangeValue(page, 'view-yaw') - camera.yaw) < .001);
   assert.deepEqual(await page.locator('#flat').evaluate(a => a.pose), initial.pose);
-  await page.locator('#reset-camera').click(); assert.deepEqual(await page.locator('#flat').evaluate(a => a.camera), { yaw: 0, pitch: 0, roll: 0 });
+  await page.locator('#reset-camera').click(); assert.deepEqual(await page.locator('#flat').evaluate(a => a.camera), { yaw: 0, pitch: 0, roll: 0, zoom: 1 });
 });
 
 test('Studio saved v7 design restores all equipment, colors and independent weights on reload', async t => {
@@ -916,4 +926,18 @@ test('Studio failed recovery backup protects the original while allowing an expo
   await tab(page, '외형'); await setColor(page, 'body-color', '#bbccdd');
   assert.equal((await designOf(page)).body.color, '#bbccdd'); assert.equal(await page.evaluate(() => localStorage.getItem('sidekick.design.v7')), raw);
   assert.equal(await page.locator('#status').getAttribute('data-error'), 'true');
+});
+
+test('preview wheel zoom leaves settings-panel scrolling and camera slider synchronization intact', async t => {
+  const page = await pageFor(t, { viewport: { width: 1280, height: 700 } });
+  const preview = await page.locator('#flat').boundingBox();
+  await page.mouse.move(preview.x + preview.width / 2, preview.y + preview.height / 2); await page.mouse.wheel(0, -100);
+  await page.waitForFunction(() => document.getElementById('flat').camera.zoom > 1);
+  const zoom = await page.locator('#flat').evaluate(avatar => avatar.camera.zoom);
+  const settings = page.locator('.settings-scroll'), box = await settings.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel(0, 400);
+  await page.waitForFunction(() => document.querySelector('.settings-scroll').scrollTop > 0);
+  assert.equal(await page.locator('#flat').evaluate(avatar => avatar.camera.zoom), zoom);
+  await page.locator('#camera-tab').click(); assert.ok(Math.abs(await rangeValue(page, 'view-zoom') - zoom) < .001);
+  await page.locator('#reset-camera').click(); assert.equal(await rangeValue(page, 'view-zoom'), 1);
 });

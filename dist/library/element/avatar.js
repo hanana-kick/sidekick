@@ -4,7 +4,7 @@ import { clamp } from '../core/math.js';
 import { MotionTimeline, validateMotionOptions } from '../core/motion.js';
 import { validateShapeMotionOptions } from '../core/shape-motion.js';
 import { expressionDuration, eyeExpressionWeights, patchEyeState } from '../core/expressions.js';
-import { cameraPreset, createCamera, patchCamera } from '../core/camera.js';
+import { cameraPreset, createCamera, patchCamera, pinchZoom, wheelZoom } from '../core/camera.js';
 import { validateSnapshotOptions } from '../core/pixels.js';
 import { LocalRenderBridge, WorkerRenderBridge, supportsRenderWorker } from '../runtime/render-bridge.js';
 import { ACCESSORY_ATTRIBUTE_SLOTS, SIDEKICK_ATTRIBUTES, SidekickAttributeError, resolveSidekickAttributes } from './attributes.js';
@@ -33,6 +33,12 @@ export class SidekickAvatar extends HTMLElementBase {
     pendingResize = false;
     pendingPointer;
     pendingDrag;
+    pendingZoom;
+    pointers = new Map();
+    pinch;
+    pendingPinchDistance;
+    wheelTimer;
+    wheelGesture = false;
     connected = false;
     transferred = false;
     captureCanvas;
@@ -213,19 +219,19 @@ export class SidekickAvatar extends HTMLElementBase {
     get diagnostics() {
         return { ready: this.ready, running: this.ready && (this.snapshotState?.running ?? false), frames: this.snapshotState?.frames ?? 0, drawCalls: this.snapshotState?.drawCalls ?? 0, buffers: this.ready ? this.snapshotState?.buffers ?? 0 : 0, backend: this.bridge?.backend ?? 'none', generation: this.generation, revision: this.bridge?.revision ?? 0, acknowledgedRevision: this.acknowledgedRevision, time: this.snapshotState?.time ?? this.elapsed, renderCpu: { ...(this.snapshotState?.renderCpu ?? { lastMs: 0, totalMs: 0, maxMs: 0 }) }, renderedRotation: [...(this.snapshotState?.renderedRotation ?? [0, 0, 0])] };
     }
-    /** Camera viewing angles in degrees. Reads return an independent snapshot. */
+    /** Viewing angles in degrees and centered zoom. Reads return an independent snapshot. */
     get camera() { return { ...this.cameraAngles }; }
     set camera(value) { this.setCamera(value); }
     setCamera(angles) {
         const next = patchCamera(this.cameraAngles, angles);
-        if (next.yaw === this.cameraAngles.yaw && next.pitch === this.cameraAngles.pitch && next.roll === this.cameraAngles.roll)
+        if (next.yaw === this.cameraAngles.yaw && next.pitch === this.cameraAngles.pitch && next.roll === this.cameraAngles.roll && next.zoom === this.cameraAngles.zoom)
             return;
         this.cameraAngles = next;
         this.send({ kind: 'state', state: { camera: this.camera } });
         this.emit('sidekick-camera-change', { camera: this.camera });
     }
     setCameraPreset(preset) { this.setCamera(cameraPreset(preset)); }
-    resetCamera() { this.setCameraPreset('front'); }
+    resetCamera() { this.clearDrag(); this.setCamera(createCamera()); }
     /** Legacy radians API; yaw/pitch update the camera while preserving its roll. */
     setView(yaw, pitch = 0) {
         const nextYaw = finite(yaw, -Math.PI * 2, Math.PI * 2, 'yaw'), nextPitch = finite(pitch, -Math.PI / 2, Math.PI / 2, 'pitch');
@@ -305,9 +311,9 @@ export class SidekickAvatar extends HTMLElementBase {
             const shadow = this.attachShadow({ mode: 'open' });
             shadow.innerHTML = `<style>
         :host{display:inline-block;position:relative;width:200px;height:200px;contain:layout style;pointer-events:none;vertical-align:middle}
-        :host{pointer-events:var(--sidekick-pointer-events,none);cursor:var(--sidekick-cursor,auto);touch-action:pan-y}
+        :host{pointer-events:var(--sidekick-pointer-events,none);cursor:var(--sidekick-cursor,auto);touch-action:auto}
         :host(:focus-visible){outline:2px solid currentColor;outline-offset:3px;border-radius:12px}
-        canvas{display:block;width:100%;height:100%;object-fit:contain;background:transparent}
+        canvas{touch-action:var(--sidekick-touch-action,auto);display:block;width:100%;height:100%;object-fit:contain;background:transparent}
         span{position:absolute;inset:0;display:grid;place-items:center;padding:16px;text-align:center;font:13px/1.5 system-ui;color:currentColor}
         [hidden]{display:none!important}
       </style><canvas part="canvas" aria-hidden="true"></canvas><span part="fallback" hidden></span>`;
@@ -472,7 +478,7 @@ export class SidekickAvatar extends HTMLElementBase {
                     this.setCamera(resolved.camera);
                 else {
                     const camera = {};
-                    for (const axis of ['yaw', 'pitch', 'roll'])
+                    for (const axis of ['yaw', 'pitch', 'roll', 'zoom'])
                         if (touched(`camera-${axis}`))
                             camera[axis] = resolved.camera[axis];
                     if (Object.keys(camera).length)
@@ -646,10 +652,10 @@ export class SidekickAvatar extends HTMLElementBase {
     }
     runtimeState() {
         const rect = this.getBoundingClientRect();
-        return { design: this.design, camera: this.camera, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.drag ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
+        return { design: this.design, camera: this.camera, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
     }
     syncState() {
-        this.send({ kind: 'state', state: { activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.drag ? undefined : this.trackedGaze } });
+        this.send({ kind: 'state', state: { activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze } });
         if (this.paused || this.reduced) {
             this.currentPose.gaze = [...this.gazeTarget];
             this.poseRevision = this.bridge?.revision ?? 0;
@@ -660,6 +666,8 @@ export class SidekickAvatar extends HTMLElementBase {
         this.canvas.addEventListener('pointermove', this.onPointerMove);
         this.canvas.addEventListener('pointerup', this.onPointerUp);
         this.canvas.addEventListener('pointercancel', this.onPointerCancel);
+        this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
+        this.canvas.addEventListener('lostpointercapture', this.onLostPointerCapture);
         this.canvas.addEventListener('webglcontextrestored', this.onContextRestored);
     }
     detachCanvasListeners() {
@@ -667,6 +675,8 @@ export class SidekickAvatar extends HTMLElementBase {
         this.canvas?.removeEventListener('pointermove', this.onPointerMove);
         this.canvas?.removeEventListener('pointerup', this.onPointerUp);
         this.canvas?.removeEventListener('pointercancel', this.onPointerCancel);
+        this.canvas?.removeEventListener('wheel', this.onWheel);
+        this.canvas?.removeEventListener('lostpointercapture', this.onLostPointerCapture);
         this.canvas?.removeEventListener('webglcontextrestored', this.onContextRestored);
     }
     replaceCanvas() {
@@ -683,13 +693,14 @@ export class SidekickAvatar extends HTMLElementBase {
         this.setAttribute('role', this.interaction === 'box' ? 'button' : 'img');
         this.tabIndex = this.interaction === 'box' ? 0 : -1;
         this.style.setProperty('--sidekick-pointer-events', this.interaction === 'box' ? 'auto' : 'none');
+        this.style.setProperty('--sidekick-touch-action', this.interaction === 'box' ? 'none' : 'auto');
         this.style.setProperty('--sidekick-cursor', this.interaction === 'box' ? 'grab' : 'auto');
     }
     resize = () => { this.pendingResize = true; this.queueInput(); };
     queueInput() { if (!this.inputFrame && this.connected)
         this.inputFrame = requestAnimationFrame(this.flushInput); }
     cancelInput() { if (this.inputFrame)
-        cancelAnimationFrame(this.inputFrame); this.inputFrame = 0; this.pendingResize = false; this.pendingPointer = undefined; this.pendingDrag = undefined; }
+        cancelAnimationFrame(this.inputFrame); this.inputFrame = 0; this.pendingResize = false; this.pendingPointer = undefined; this.pendingDrag = undefined; this.pendingZoom = undefined; this.pendingPinchDistance = undefined; }
     flushInput = () => {
         if (this.inputFrame)
             cancelAnimationFrame(this.inputFrame);
@@ -698,8 +709,23 @@ export class SidekickAvatar extends HTMLElementBase {
             return;
         const dragged = this.pendingDrag;
         this.pendingDrag = undefined;
+        const camera = {};
         if (dragged && this.drag)
-            this.setCamera({ yaw: clamp(this.drag.camera.yaw + (dragged.x - this.drag.x) * .01 * 180 / Math.PI, -360, 360), pitch: clamp(this.drag.camera.pitch + (dragged.y - this.drag.y) * .007 * 180 / Math.PI, -90, 90) });
+            Object.assign(camera, { yaw: clamp(this.drag.camera.yaw + (dragged.x - this.drag.x) * .01 * 180 / Math.PI, -360, 360), pitch: clamp(this.drag.camera.pitch + (dragged.y - this.drag.y) * .007 * 180 / Math.PI, -90, 90) });
+        const pinch = this.pinch, distance = this.pendingPinchDistance;
+        this.pendingPinchDistance = undefined;
+        if (this.pendingZoom !== undefined) {
+            camera.zoom = this.pendingZoom;
+            this.pendingZoom = undefined;
+        }
+        if (pinch && distance !== undefined)
+            camera.zoom = pinchZoom(camera.zoom ?? pinch.zoom, pinch.distance, distance);
+        if (Object.keys(camera).length)
+            this.setCamera(camera);
+        if (pinch && this.pinch === pinch && distance !== undefined) {
+            pinch.distance = distance;
+            pinch.zoom = this.cameraAngles.zoom;
+        }
         const pointer = this.pendingPointer;
         this.pendingPointer = undefined;
         if (this.pendingResize || pointer) {
@@ -708,7 +734,7 @@ export class SidekickAvatar extends HTMLElementBase {
                 this.pendingResize = false;
                 this.send({ kind: 'resize', width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 });
             }
-            if (pointer && this.trackingDocument && !this.drag && rect.width > 0 && rect.height > 0) {
+            if (pointer && this.trackingDocument && !this.gesturing && rect.width > 0 && rect.height > 0) {
                 this.trackedGaze = [clamp((pointer.x - rect.left - rect.width / 2) / (rect.width / 2), -1, 1), clamp((rect.top + rect.height / 2 - pointer.y) / (rect.height / 2), -1, 1)];
                 this.setGazeTarget(this.trackedGaze);
             }
@@ -750,16 +776,44 @@ export class SidekickAvatar extends HTMLElementBase {
     onTrackingOut = (event) => { if (event.relatedTarget === null)
         this.onTrackingLeave(event); };
     onTrackedPointerMove = (event) => {
-        if (!this.trackingDocument || !this.mouseTracking || this.drag || (event.pointerType && event.pointerType !== 'mouse'))
+        if (!this.trackingDocument || !this.mouseTracking || this.gesturing || (event.pointerType && event.pointerType !== 'mouse'))
             return;
         this.pendingPointer = { x: event.clientX, y: event.clientY };
         this.queueInput();
     };
+    get gesturing() { return this.pointers.size > 0 || this.wheelGesture; }
     clearDrag() {
         this.pendingDrag = undefined;
-        if (this.drag && this.canvas?.hasPointerCapture(this.drag.id))
-            this.canvas.releasePointerCapture(this.drag.id);
+        this.pendingZoom = undefined;
+        this.pendingPinchDistance = undefined;
         this.drag = undefined;
+        this.pinch = undefined;
+        const ids = [...this.pointers.keys()];
+        this.pointers.clear();
+        for (const id of ids)
+            if (this.canvas?.hasPointerCapture(id))
+                this.canvas.releasePointerCapture(id);
+        if (this.wheelTimer !== undefined)
+            clearTimeout(this.wheelTimer);
+        this.wheelTimer = undefined;
+        this.wheelGesture = false;
+        this.restoreManualTracking();
+    }
+    /** Rebase at each pointer-count transition, after flushing the previous gesture. */
+    rebasePointers(moved = true) {
+        this.pendingDrag = undefined;
+        this.pendingPinchDistance = undefined;
+        this.pinch = undefined;
+        this.drag = undefined;
+        const entries = [...this.pointers.entries()];
+        if (entries.length === 1) {
+            const [id, point] = entries[0];
+            this.drag = { id, x: point.x, y: point.y, camera: this.camera, moved };
+        }
+        else if (entries.length === 2) {
+            const a = entries[0][1], b = entries[1][1];
+            this.pinch = { distance: Math.hypot(b.x - a.x, b.y - a.y), zoom: this.cameraAngles.zoom };
+        }
     }
     onKey = (event) => {
         if (this.interaction === 'box' && (event.key === 'Enter' || event.key === ' ')) {
@@ -767,34 +821,76 @@ export class SidekickAvatar extends HTMLElementBase {
             this.emit('sidekick-activate', {});
         }
     };
-    onPointerDown = (event) => {
-        if (this.interaction !== 'box' || event.button !== 0)
+    onWheel = (event) => {
+        // Read the unit before the delta (some browsers adapt legacy wheel units).
+        const mode = event.deltaMode, delta = event.deltaY;
+        if (this.interaction !== 'box' || !this.connected || !Number.isFinite(delta) || delta === 0)
             return;
-        this.drag = { id: event.pointerId, x: event.clientX, y: event.clientY, camera: this.camera, moved: false };
-        this.trackedGaze = undefined;
-        this.updateTrackingBody();
+        event.preventDefault();
+        if (!this.gesturing)
+            this.resetTracking();
+        this.wheelGesture = true;
+        if (this.wheelTimer !== undefined)
+            clearTimeout(this.wheelTimer);
+        this.wheelTimer = setTimeout(() => { this.wheelTimer = undefined; this.wheelGesture = false; }, 150);
+        this.pendingZoom = wheelZoom(this.pendingZoom ?? this.cameraAngles.zoom, delta, mode, this.getBoundingClientRect().height);
+        this.queueInput();
+    };
+    onPointerDown = (event) => {
+        if (this.interaction !== 'box' || event.button !== 0 || this.pointers.has(event.pointerId) || this.pointers.size >= 2)
+            return;
+        // A second pointer participates only in a two-finger touch gesture.
+        if (this.pointers.size && (event.pointerType !== 'touch' || [...this.pointers.values()].some(point => point.type !== 'touch')))
+            return;
+        const generation = this.generation, canvas = this.canvas;
+        this.flushInput();
+        // Camera-change listeners may disconnect, reconnect or disable interaction.
+        if (!this.connected || this.generation !== generation || this.canvas !== canvas || this.interaction !== 'box')
+            return;
+        const first = this.pointers.size === 0;
+        this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, type: event.pointerType ?? 'mouse' });
+        this.rebasePointers(!first);
+        if (first)
+            this.resetTracking();
         this.canvas.setPointerCapture(event.pointerId);
     };
     onPointerMove = (event) => {
-        if (!this.drag || this.drag.id !== event.pointerId)
+        const point = this.pointers.get(event.pointerId);
+        if (!point)
             return;
-        const dx = event.clientX - this.drag.x, dy = event.clientY - this.drag.y;
-        if (Math.hypot(dx, dy) > 4)
-            this.drag.moved = true;
-        this.pendingDrag = { x: event.clientX, y: event.clientY };
+        point.x = event.clientX;
+        point.y = event.clientY;
+        if (this.pinch) {
+            const [a, b] = [...this.pointers.values()];
+            // Both finger events contribute before clamping. Translating the centroid
+            // at either limit must not turn sequential events into a scale change.
+            this.pendingPinchDistance = Math.hypot(b.x - a.x, b.y - a.y);
+        }
+        else if (this.drag) {
+            if (Math.hypot(point.x - this.drag.x, point.y - this.drag.y) > 4)
+                this.drag.moved = true;
+            this.pendingDrag = { x: point.x, y: point.y };
+        }
         this.queueInput();
     };
     onPointerUp = (event) => {
-        if (this.drag?.id !== event.pointerId)
+        if (!this.pointers.has(event.pointerId))
             return;
         this.flushInput();
-        if (!this.drag.moved)
-            this.emit('sidekick-activate', {});
+        const activate = this.pointers.size === 1 && this.drag && !this.drag.moved;
+        // Remove before releasing: lostpointercapture may dispatch synchronously.
+        this.pointers.delete(event.pointerId);
+        this.rebasePointers();
         if (this.canvas?.hasPointerCapture(event.pointerId))
             this.canvas.releasePointerCapture(event.pointerId);
-        this.drag = undefined;
+        if (activate)
+            this.emit('sidekick-activate', {});
+        if (!this.pointers.size)
+            this.restoreManualTracking();
     };
     onPointerCancel = () => { this.clearDrag(); };
+    onLostPointerCapture = (event) => { if (this.pointers.has(event.pointerId))
+        this.clearDrag(); };
     onContextRestored = () => { if (this.connected && !this.ready && this.bridge?.backend !== 'worker') {
         this.disposeBridge(new Error('Graphics context restored'));
         this.initializeRenderer(true);

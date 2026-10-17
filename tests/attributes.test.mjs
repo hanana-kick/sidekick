@@ -58,7 +58,7 @@ test('all design sources resolve independently of attribute order and without ca
   assert.deepEqual(a.design.eyes.left.weights, { smile: .4, blink: .6 });
   assert.deepEqual(a.design.eyes.right.weights, { smile: .4, blink: 0 });
   assert.deepEqual(a.design.accessories.map(x => [x.slot, x.preset, x.color]), [['eyes', 'glasses', '#31323d'], ['head', 'beret', '#123456']]);
-  assert.deepEqual(a.camera, { yaw: 20, pitch: 0, roll: 0 });
+  assert.deepEqual(a.camera, { yaw: 20, pitch: 0, roll: 0, zoom: 1 });
   assert.equal(design.body.shape, 'circle');
 });
 
@@ -144,7 +144,7 @@ test('global mouse tracking ignores touch/drag and restores manual gaze without 
   const a = avatar(t); a.paused = true; a.lookAt({ space: 'view', x: .2, y: -.3 }); a.mouseTracking = true;
   pointer(210, 20); assert.deepEqual(a.pose.gaze, [1, 1]); assert.equal(a.interaction, 'none');
   pointer(10, 120, 'touch'); assert.deepEqual(a.pose.gaze, [1, 1]);
-  a.drag = { id: 7 }; pointer(10, 120); assert.deepEqual(a.pose.gaze, [1, 1]); a.drag = undefined;
+  a.pointers.set(7, { x: 0, y: 0, type: 'mouse' }); pointer(10, 120); assert.deepEqual(a.pose.gaze, [1, 1]); a.pointers.clear();
   a.mouseTracking = false; assert.deepEqual(a.pose.gaze, [.2, -.3]); pointer(10, 120); assert.deepEqual(a.pose.gaze, [.2, -.3]);
   a.paused = false; const motion = a.motion.to({ body: { rotation: [0, 0, 1] } }, { duration: 1000 }); runtimes.get(a).advanceMotion(250); const rotation = a.pose.rotation;
   a.mouseTracking = true; pointer(210, 20); a.mouseTracking = false;
@@ -192,4 +192,19 @@ test('imperative setters remain reliable while an unrelated invalid HTML batch i
   a.setActivity('still'); assert.equal(a.activity, 'still');
   await flush(); assert.equal(a.paused, true); assert.equal(a.design.body.shape, 'square');
   a.removeAttribute('design'); await flush(); assert.equal(a.design.body.shape, 'heart'); assert.equal(a.paused, true);
+});
+
+test('camera zoom precedence, removal, range validation and rejected batches are atomic', async t => {
+  const a = avatar(t);
+  a.setAttribute('camera', 'side'); a.setAttribute('camera-zoom', '1.7'); await flush();
+  assert.deepEqual(a.camera, { yaw: 90, pitch: 0, roll: 0, zoom: 1.7 });
+  a.setCamera({ yaw: 22 }); a.removeAttribute('camera-zoom'); await flush();
+  assert.deepEqual(a.camera, { yaw: 22, pitch: 0, roll: 0, zoom: 1 });
+  const before = a.camera, design = a.design;
+  a.setAttribute('camera-zoom', '4'); a.setAttribute('camera-yaw', '13'); a.setAttribute('body-color', '#abcdef'); await flush();
+  assert.deepEqual(a.camera, before); assert.deepEqual(a.design, design);
+  a.setAttribute('camera-zoom', '2'); await flush();
+  assert.equal(a.camera.zoom, 2); assert.equal(a.camera.yaw, 13); assert.equal(a.design.body.color, '#abcdef');
+  a.removeAttribute('camera'); a.removeAttribute('camera-zoom'); a.removeAttribute('camera-yaw'); await flush();
+  assert.deepEqual(a.camera, { yaw: 0, pitch: 0, roll: 0, zoom: 1 });
 });

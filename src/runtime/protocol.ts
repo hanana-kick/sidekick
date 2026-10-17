@@ -1,5 +1,5 @@
 import type { Activity, AvatarDesign, Vec2 } from '../core/design.js';
-import type { CameraAngles } from '../core/camera.js';
+import type { CameraState } from '../core/camera.js';
 import type { MotionOptions, MotionResult, MotionTarget, Pose } from '../core/motion.js';
 import type { ShapeMotionOptions } from '../core/shape-motion.js';
 import type { MaterialShapeName } from '../core/shapes.js';
@@ -9,7 +9,7 @@ import type { PixelBuffer, SnapshotOptions } from '../core/pixels.js';
 /** Private wire format. A generation owns exactly one transferred surface. */
 export const PROTOCOL_VERSION = 1;
 export interface RuntimeState {
-  design: AvatarDesign; camera: CameraAngles; pose: Pose; activity: Activity;
+  design: AvatarDesign; camera: CameraState; pose: Pose; activity: Activity;
   paused: boolean; reduced: boolean; active: boolean; time: number;
   gaze: Vec2; trackingMode: TrackingMode; trackedGaze?: Vec2;
   width: number; height: number; dpr: number;

@@ -17,22 +17,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 버전을 고정하려면 릴리스 태그를 지정합니다.
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.2.1
+npm install https://github.com/hanana-kick/sidekick.git#v0.3.0
 ```
 
-빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.2.1`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.3.0`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
 
 npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. ESM과 일반 `<script>`용 JS, 전용 렌더링 worker를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
 
 ### GitHub Release에서 다운로드
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases)를 엽니다.
-2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.2.1.zip` 또는 `hanana-kick-sidekick-0.2.1.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
+2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.3.0.zip` 또는 `hanana-kick-sidekick-0.3.0.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
 3. 일반 HTML 사이트에서는 브라우저 ZIP을 풀고 아래 파일을 사이트의 정적 파일 디렉터리에 복사합니다. 동봉된 `START-HERE.txt`를 읽고 `esm.html`, `classic.html`, `react.html` 중 원하는 예제를 열면 됩니다. 예제의 `/vendor/sidekick/`은 **사용자 사이트의 경로**입니다. 배포 경로에 맞게 바꾸세요.
 
 | 빌드된 파일 | 용도 | 필요한 파일·의존성 |
 | --- | --- | --- |
-| `sidekick-browser-0.2.1.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
+| `sidekick-browser-0.3.0.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
 | `sidekick.js` | 브라우저 ESM. `import`와 `<script type="module">` 사용 | `sidekick.worker.js`를 같은 디렉터리에 유지 |
 | `sidekick.iife.js` | 일반 classic `<script>`. API는 `window.Sidekick` | `sidekick.worker.js`를 같은 디렉터리에 유지. `type="module"` 사용 안 함 |
 | `sidekick-react.js` | React 19용 ESM 컴포넌트 | `sidekick-element.js`·`sidekick-fallback.js`·`sidekick.worker.js`를 같은 디렉터리에 유지하고 `react` peer를 제공 |
@@ -40,7 +40,7 @@ npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.co
 | `sidekick-fallback.js` | worker를 사용할 수 없을 때 React 요소가 불러오는 렌더러 | 직접 import하지 않음. 나머지 파일과 같은 버전 사용 |
 | `sidekick.worker.js` | OffscreenCanvas 전용 worker | 브라우저 진입 파일 옆에 배치. 별도 script 태그로 불러오지 않음 |
 | `vendor/react.js`, `vendor/react-dom-client.js` | 브라우저 ZIP의 선택적 React 19/ReactDOM ESM | 아래 빌드 없는 React 예제용. import map으로 연결하며 React를 이미 제공하는 앱에는 불필요 |
-| `hanana-kick-sidekick-0.2.1.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
+| `hanana-kick-sidekick-0.3.0.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
 | `SHA256SUMS` | ZIP과 tarball의 다운로드 무결성 확인 | 같은 Release의 체크섬 파일 |
 
 ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보관하세요. **GitHub Release 자산은 다운로드한 뒤 본인 사이트에서 제공하세요.** 다운로드 URL은 브라우저 JS 호스팅용 URL이 아니며 자산 응답의 MIME·CORS 동작이 정적 호스팅과 다릅니다. 아래 예제의 `src`/`import`는 내려받은 파일을 제공하는 사이트 경로를 사용합니다.
@@ -52,7 +52,7 @@ ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보�
 Release에서 받은 tarball을 사용할 프로젝트에서 설치합니다. 이 명령은 Sidekick 소스를 컴파일하거나 Studio를 빌드하지 않습니다.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.2.1.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.3.0.tgz
 ```
 
 React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 마운트하는 `react-dom`도 사용자가 같은 버전으로 준비합니다. 코어만 쓰는 프로젝트에는 React가 필요 없습니다.
@@ -397,10 +397,11 @@ const design = createDesign({
 | `interaction` | `interaction` | `'none' \| 'box'` | 기본 `none`. `box`는 드래그/클릭/키보드 활성화 |
 | `tracking-mode` | `trackingMode` | `TrackingMode` | `off`(기본), `eyes`, `eyes-and-body`. 눈만 또는 눈과 몸 추적 |
 | `mouse-tracking` | `mouseTracking` | `boolean` | 이전 눈 추적 별칭. `true` → `eyes`, `false` → `off`. 명시적인 `tracking-mode`가 우선 |
-| `camera` | `camera` | `CameraPreset \| Partial<CameraAngles>` | HTML은 `front` / `three-quarter` / `side`, 기본 `front`. React는 `{yaw,pitch,roll}` 부분 객체도 허용 |
+| `camera` | `camera` | `CameraPreset \| Partial<CameraState>` | HTML은 `front` / `three-quarter` / `side`, 기본 `front`. React는 `{yaw,pitch,roll,zoom}` 부분 객체도 허용 |
 | `camera-yaw` | `cameraYaw` | `number` | -360~360도. camera 프리셋의 yaw, 없으면 0 |
 | `camera-pitch` | `cameraPitch` | `number` | -90~90도. camera 프리셋의 pitch, 없으면 0 |
 | `camera-roll` | `cameraRoll` | `number` | -180~180도. camera 프리셋의 roll, 없으면 0 |
+| `camera-zoom` | `cameraZoom` | `number` | 0.5~3배, 기본 1. 중앙 기준 확대/축소. 제거하면 1로 복원 |
 | `gaze-x` | `gazeX` | `number` | -1~1. 기본 0. 마우스 추적을 끄면 사용하는 명시적 시선 |
 | `gaze-y` | `gazeY` | `number` | -1~1. 기본 0 |
 | `shape-duration` | `shapeDuration` | `number` | 도형 속성 전환 시간 0~60000ms. 기본 450 |
@@ -410,7 +411,7 @@ const design = createDesign({
 | `motion` | `motion` | `MotionTarget` | HTML은 JSON 문자열. 초기 포즈는 회전·얼굴 이동 0, 공통 눈 뜨기 1, 좌우 눈은 디자인 가중치 |
 | `time` | `time` | `number` | 반복 애니메이션 시간 0~86400초. 기본 0. 프레임마다 변경되는 readback 값이 아닌 seek 입력 |
 
-React의 `camera={{ yaw: 35 }}`는 `camera-yaw` 속성으로 연결됩니다. 같은 축의 별도 prop인 `cameraYaw`를 함께 주면 별도 prop이 우선합니다. 생략한 객체 축은 새 요소에서는 0이고, 이전에 래퍼가 소유한 축을 제거하면 선언적 기본값으로 돌아갑니다. 명령형 `setCamera({yaw:35})`는 지정하지 않은 현재 축을 유지합니다.
+React의 `camera={{ yaw: 35 }}`는 `camera-yaw` 속성으로 연결됩니다. 같은 축의 별도 prop인 `cameraYaw`를 함께 주면 별도 prop이 우선합니다. `camera={{zoom:1.4}}`와 `cameraZoom`도 같은 방식이며, `cameraZoom`을 제거하면 객체의 zoom 또는 기본 1이 적용됩니다. 생략한 객체 축은 새 요소에서는 0이고, 이전에 래퍼가 소유한 축을 제거하면 선언적 기본값으로 돌아갑니다. 명령형 `setCamera({yaw:35})`는 지정하지 않은 현재 축을 유지합니다.
 
 `MotionTarget`은 부분 목표이며 지정하지 않은 채널은 유지합니다. 지원하는 중첩 필드는 전부 다음과 같습니다.
 
@@ -437,7 +438,7 @@ React의 `camera={{ yaw: 35 }}`는 `camera-yaw` 속성으로 연결됩니다. �
 | `onReady` | `SidekickEventHandler<'sidekick-ready'>` | `CustomEvent<{}>`. props 적용 후 렌더 준비 완료 |
 | `onError` | `SidekickEventHandler<'sidekick-error'>` | `CustomEvent<SidekickErrorDetail>`. `message: string`, 선택 `attribute: string`, `value: string \| null`, `recoverable: boolean` |
 | `onDesignChange` | `SidekickEventHandler<'sidekick-design-change'>` | `CustomEvent<{design: AvatarDesign}>` |
-| `onCameraChange` | `SidekickEventHandler<'sidekick-camera-change'>` | `CustomEvent<{camera: CameraAngles}>` |
+| `onCameraChange` | `SidekickEventHandler<'sidekick-camera-change'>` | `CustomEvent<{camera: CameraState}>` |
 | `onMotionEnd` | `SidekickEventHandler<'sidekick-motion-end'>` | `CustomEvent<{finished: boolean}>` |
 | `onShapeEnd` | `SidekickEventHandler<'sidekick-shape-end'>` | `CustomEvent<{finished: boolean}>` |
 | `onActivate` | `SidekickEventHandler<'sidekick-activate'>` | `CustomEvent<{}>`. 클릭 또는 Enter/Space 활성화 |
@@ -604,7 +605,8 @@ await bot.setExpression('both', 'neutral');
 ```ts
 bot.setCamera({ yaw: 35, pitch: 12, roll: -5 }); // 도(degree)
 bot.setCameraPreset('three-quarter'); // yaw 45°, pitch/roll 0°
-bot.resetCamera();                    // 세 축 모두 0°
+bot.setCamera({ zoom: 1.5 });          // 중앙 기준 150% 확대
+bot.resetCamera();                    // 세 축 모두 0°, zoom 1
 bot.trackingMode = 'off';
 bot.lookAt({ space: 'view', x: 0.6, y: 0.2 });
 
@@ -616,6 +618,13 @@ await bot.motion.to({
   accessories: { hat: { rotation: [0, 0.2, 0] } },
 }, { duration: 500, easing: 'smooth' });
 ```
+
+`CameraAngles`는 기존 회전 전용 타입이며, `CameraState`는 여기에 `zoom: number`를 더한 카메라 상태입니다. `createCamera()`의 zoom 기본값은 1이고 허용 범위는 0.5~3입니다. `setCamera()`는 지정한 값만 변경하며, `setCameraPreset()`은 zoom을 유지하고 `resetCamera()`는 zoom도 1로 복원합니다. 기존 sceneVersion 1/2 장면에서 camera.zoom이 없으면 1로 읽고, 새 장면 JSON과 HTML/React 코드는 zoom을 포함합니다. 디자인 JSON에는 카메라를 넣지 않습니다.
+
+`interaction="box"` 미리보기에서 한 손가락/마우스 드래그는 회전, 휠·트랙패드(핀치의 Ctrl+wheel 포함)와 두 손가락 핀치는 중앙 기준 확대입니다. 픽셀/줄/페이지 휠 단위를 정규화하고 곱셈 배율로 변경합니다. 핀치 중심점 이동은 패닝을 만들지 않습니다. 설정 패널의 스크롤은 그대로 유지되며, `interaction="none"`에서는 회전·확대를 받지 않습니다. 확대 중에도 도형·몸·눈 애니메이션은 이어지고 커서 추적은 중립으로 돌아갔다가 새 포인터 이동부터 다시 시작합니다.
+
+높은 배율에서는 아바타나 액세서리가 캔버스 경계 밖으로 잘릴 수 있습니다. PNG는 현재 확대된 화면에서 보이는 픽셀만 저장하므로, 전체 모습을 내보내려면 먼저 보기를 초기화하거나 배율을 낮추세요. 확대는 렌더러의 직교 투영에만 적용되어 모델 크기와 종횡비는 바뀌지 않습니다.
+
 
 카메라는 모델 원점을 중심으로 하는 직교 보기 회전입니다. `front`는 yaw 0°, `three-quarter`는 45°, `side`는 90°이며 각 프리셋의 pitch·roll은 0°입니다. 양의 yaw는 정면을 화면 오른쪽으로, 양의 pitch는 아래로, 양의 roll은 화면 반시계 방향으로 돌립니다. 카메라 값은 디자인과 포즈를 바꾸지 않습니다.
 
@@ -635,8 +644,8 @@ await bot.motion.to({
 | `resetTracking()` | 실시간 포인터 시선·몸 오프셋을 즉시 초기화하고 마지막 수동 시선을 복원. 모드·기본 포즈·카메라는 유지 |
 | `trackingMode`, `mouseTracking`, `paused`, `interaction`, `renderStyle` | 해당 동작 읽기/설정 |
 | `lookAt({space:'view',x,y})` | -1~1 범위의 명시적 시선 |
-| `camera`, `setCamera(patch)` | 도 단위 카메라 읽기/설정. getter는 복사본 |
-| `setCameraPreset(name)`, `resetCamera()` | 프리셋/정면 초기화 |
+| `camera`, `setCamera(patch)` | `CameraState` 읽기/부분 설정. 각도는 도, zoom은 0.5~3배. getter는 복사본 |
+| `setCameraPreset(name)`, `resetCamera()` | 프리셋은 확대 유지, 명시적 초기화는 정면 + zoom 1 |
 | `setView(yaw,pitch)` | 이전 라디안 API. roll은 유지 |
 | `motion.to(target,options)`, `motion.cancel()` | 포즈 전환/모든 포즈 채널 취소 |
 | `seek(seconds)` | 반복 애니메이션 시간 0~86400초 지정 |

@@ -1,7 +1,8 @@
 /** Framework-free, DOM-independent design and motion API. */
 export * from './core/design.js';
 export * from './core/motion.js';
-export * from './core/camera.js';
+export { CAMERA_PRESETS, CAMERA_ZOOM_RANGE, createCamera, patchCamera, cameraPreset, cameraViewMatrix } from './core/camera.js';
+export type { CameraAngles, CameraState, CameraPreset } from './core/camera.js';
 
 export { EYE_EXPRESSIONS, EYE_STATE_DEFAULTS, EYE_STATE_RANGES, createEyeState, parseEyeState, patchEyeState, eyeExpressionWeights } from './core/expressions.js';
 export type { EyeExpression, EyeShapeWeights, EyeState, EyeStatePatch, EyeStateInputPatch } from './core/expressions.js';

@@ -155,3 +155,51 @@ test('attribute transactions use one worker packet and fresh capture flushes que
   assert.equal(sent[0].commands.find(command => command.kind === 'state' && command.state.camera).state.camera.yaw, 33);
   assert.equal(sent.at(-1).kind, 'capture'); assert.equal(image.pixels[3], 255); avatar.remove();
 });
+
+test('canvas wheel input is nonpassive, frame-coalesced and excluded from disabled preview/settings', async () => {
+  const avatar = await createAvatar(), worker = workers.at(-1), canvas = avatar.shadowRoot.querySelector('canvas');
+  avatar.interaction = 'box'; const start = worker.messages.length;
+  for (let i = 0; i < 100; i++) {
+    const event = new dom.window.WheelEvent('wheel', { deltaY: -1, cancelable: true, bubbles: true });
+    canvas.dispatchEvent(event); assert.equal(event.defaultPrevented, true);
+  }
+  assert.equal(worker.messages.slice(start).filter(message => message.command?.state?.camera).length, 0);
+  await avatar.capturePixelsAsync();
+  const updates = worker.messages.slice(start).filter(message => message.command?.state?.camera);
+  assert.equal(updates.length, 1); assert.ok(Math.abs(updates[0].command.state.camera.zoom - Math.exp(.2)) < 1e-10);
+  const settings = document.createElement('section'); document.body.append(settings);
+  const scroll = new dom.window.WheelEvent('wheel', { deltaY: 100, bubbles: true, cancelable: true }); settings.dispatchEvent(scroll); assert.equal(scroll.defaultPrevented, false);
+  avatar.interaction = 'none'; const disabled = new dom.window.WheelEvent('wheel', { deltaY: -100, cancelable: true }); canvas.dispatchEvent(disabled); assert.equal(disabled.defaultPrevented, false);
+  assert.equal(avatar.style.getPropertyValue('--sidekick-touch-action'), 'auto');
+  settings.remove(); avatar.remove();
+});
+
+test('disconnect drops uncommitted pinch motion, releases both captures and reconnects with accepted zoom', async () => {
+  const avatar = await createAvatar(), old = workers.at(-1), canvas = avatar.shadowRoot.querySelector('canvas'), captures = new Set();
+  canvas.setPointerCapture = id => captures.add(id); canvas.hasPointerCapture = id => captures.has(id); canvas.releasePointerCapture = id => captures.delete(id);
+  avatar.interaction = 'box';
+  const down = (id, x) => avatar.onPointerDown({ pointerId: id, pointerType: 'touch', button: 0, clientX: x, clientY: 100 });
+  down(1, 50); down(2, 150);
+  avatar.onPointerMove({ pointerId: 2, clientX: 200, clientY: 100 }); await avatar.capturePixelsAsync();
+  assert.equal(avatar.camera.zoom, 1.5);
+  avatar.onPointerMove({ pointerId: 2, clientX: 250, clientY: 100 }); avatar.remove();
+  assert.equal(captures.size, 0); assert.equal(avatar.pointers.size, 0); assert.equal(avatar.camera.zoom, 1.5);
+  document.body.append(avatar); await avatar.capturePixelsAsync();
+  const worker = workers.at(-1); assert.notEqual(worker, old); assert.equal(worker.messages[0].state.camera.zoom, 1.5);
+  assert.equal(avatar.shadowRoot.querySelector('canvas').hasPointerCapture?.(1) ?? false, false);
+  avatar.remove();
+});
+
+test('camera listeners disconnecting or reconnecting during pointer-down flush cannot capture stale pointers', async () => {
+  for (const reconnect of [false, true]) {
+    const avatar = await createAvatar(), canvas = avatar.shadowRoot.querySelector('canvas'), captures = new Set();
+    canvas.setPointerCapture = id => captures.add(id); canvas.hasPointerCapture = id => captures.has(id); canvas.releasePointerCapture = id => captures.delete(id);
+    avatar.interaction = 'box';
+    avatar.onPointerDown({ pointerId: 1, pointerType: 'touch', button: 0, clientX: 50, clientY: 100 });
+    avatar.onPointerMove({ pointerId: 1, clientX: 70, clientY: 100 });
+    avatar.addEventListener('sidekick-camera-change', () => { avatar.remove(); if (reconnect) document.body.append(avatar); }, { once: true });
+    avatar.onPointerDown({ pointerId: 2, pointerType: 'touch', button: 0, clientX: 150, clientY: 100 });
+    assert.equal(captures.size, 0); assert.equal(avatar.pointers.size, 0);
+    if (reconnect) await avatar.capturePixelsAsync(); avatar.remove();
+  }
+});

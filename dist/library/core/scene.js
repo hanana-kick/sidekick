@@ -60,8 +60,8 @@ export function parseScene(input) {
     for (const key of keys)
         if (!Object.hasOwn(data, key))
             throw new TypeError(`scene.${key}: 필수 항목입니다.`);
-    const cameraData = record(data.camera, ['yaw', 'pitch', 'roll'], 'scene.camera');
-    const design = parseDesign(data.design), camera = createCamera({ yaw: finite(cameraData.yaw, -360, 360, 'scene.camera.yaw'), pitch: finite(cameraData.pitch, -90, 90, 'scene.camera.pitch'), roll: finite(cameraData.roll, -180, 180, 'scene.camera.roll') });
+    const cameraData = record(data.camera, ['yaw', 'pitch', 'roll', 'zoom'], 'scene.camera');
+    const design = parseDesign(data.design), camera = createCamera({ yaw: finite(cameraData.yaw, -360, 360, 'scene.camera.yaw'), pitch: finite(cameraData.pitch, -90, 90, 'scene.camera.pitch'), roll: finite(cameraData.roll, -180, 180, 'scene.camera.roll'), ...(Object.hasOwn(cameraData, 'zoom') ? { zoom: cameraData.zoom } : {}) });
     if (!ACTIVITIES.includes(data.activity))
         throw new TypeError('scene.activity: 지원하지 않는 활동입니다.');
     if (data.interaction !== 'none' && data.interaction !== 'box')
@@ -95,7 +95,7 @@ export function parseScene(input) {
 export function createScene(input = {}) {
     const data = record(input, [...KEYS.filter(key => key !== 'sceneVersion'), 'mouseTracking'], 'scene.input');
     if (input.camera !== undefined)
-        record(input.camera, ['yaw', 'pitch', 'roll'], 'scene.input.camera');
+        record(input.camera, ['yaw', 'pitch', 'roll', 'zoom'], 'scene.input.camera');
     if (input.gaze !== undefined)
         record(input.gaze, ['x', 'y'], 'scene.input.gaze');
     const { mouseTracking, ...canonical } = data;

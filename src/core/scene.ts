@@ -1,7 +1,7 @@
 import { createDesign, finite, migrateDesign, parseDesign, ACTIVITIES } from './design.js';
 import type { Activity, AvatarDesign } from './design.js';
 import { createCamera } from './camera.js';
-import type { CameraAngles } from './camera.js';
+import type { CameraState } from './camera.js';
 import { MotionTimeline, validateMotionOptions } from './motion.js';
 import type { MotionTarget } from './motion.js';
 import { parseTrackingMode } from './tracking.js';
@@ -12,7 +12,7 @@ export const MAX_SCENE_BYTES = 65536;
 export interface SidekickScene {
   sceneVersion: 2;
   design: AvatarDesign;
-  camera: CameraAngles;
+  camera: CameraState;
   activity: Activity;
   paused: boolean;
   trackingMode: TrackingMode;
@@ -29,7 +29,7 @@ export interface SidekickScene {
 export type SceneInput = Partial<Omit<SidekickScene, 'sceneVersion' | 'camera' | 'gaze'>> & {
   /** Legacy eyes-only input; an explicit trackingMode takes precedence. */
   mouseTracking?: boolean;
-  camera?: Partial<CameraAngles>;
+  camera?: Partial<CameraState>;
   gaze?: Partial<SidekickScene['gaze']>;
 };
 const KEYS = ['sceneVersion', 'design', 'camera', 'activity', 'paused', 'trackingMode', 'interaction', 'renderStyle', 'gaze', 'time', 'motion', 'shapeDuration', 'shapeEasing', 'motionDuration', 'motionEasing'];
@@ -73,8 +73,8 @@ export function parseScene(input: unknown): SidekickScene {
   const keys = data.sceneVersion === 1 ? KEYS.map(key => key === 'trackingMode' ? 'mouseTracking' : key) : KEYS;
   record(data, keys, 'scene');
   for (const key of keys) if (!Object.hasOwn(data, key)) throw new TypeError(`scene.${key}: 필수 항목입니다.`);
-  const cameraData = record(data.camera, ['yaw', 'pitch', 'roll'], 'scene.camera');
-  const design = parseDesign(data.design), camera = createCamera({ yaw: finite(cameraData.yaw, -360, 360, 'scene.camera.yaw'), pitch: finite(cameraData.pitch, -90, 90, 'scene.camera.pitch'), roll: finite(cameraData.roll, -180, 180, 'scene.camera.roll') });
+  const cameraData = record(data.camera, ['yaw', 'pitch', 'roll', 'zoom'], 'scene.camera');
+  const design = parseDesign(data.design), camera = createCamera({ yaw: finite(cameraData.yaw, -360, 360, 'scene.camera.yaw'), pitch: finite(cameraData.pitch, -90, 90, 'scene.camera.pitch'), roll: finite(cameraData.roll, -180, 180, 'scene.camera.roll'), ...(Object.hasOwn(cameraData, 'zoom') ? { zoom: cameraData.zoom as number } : {}) });
   if (!ACTIVITIES.includes(data.activity as Activity)) throw new TypeError('scene.activity: 지원하지 않는 활동입니다.');
   if (data.interaction !== 'none' && data.interaction !== 'box') throw new TypeError('scene.interaction: none 또는 box가 필요합니다.');
   if (data.renderStyle !== 'flat') throw new TypeError('scene.renderStyle: flat이 필요합니다.');
@@ -101,7 +101,7 @@ export function parseScene(input: unknown): SidekickScene {
 /** Complete a scene with runtime defaults; geometry remains solely in the design contract. */
 export function createScene(input: SceneInput = {}): SidekickScene {
   const data = record(input, [...KEYS.filter(key => key !== 'sceneVersion'), 'mouseTracking'], 'scene.input');
-  if (input.camera !== undefined) record(input.camera, ['yaw', 'pitch', 'roll'], 'scene.input.camera');
+  if (input.camera !== undefined) record(input.camera, ['yaw', 'pitch', 'roll', 'zoom'], 'scene.input.camera');
   if (input.gaze !== undefined) record(input.gaze, ['x', 'y'], 'scene.input.gaze');
   const { mouseTracking, ...canonical } = data;
   if (Object.hasOwn(data, 'mouseTracking')) boolean(mouseTracking, 'scene.input.mouseTracking');

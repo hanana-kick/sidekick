@@ -1,5 +1,5 @@
 import { resolveDesign } from '../core/resolved-design.js';
-import { cameraViewMatrix } from '../core/camera.js';
+import { cameraViewMatrix, createCamera } from '../core/camera.js';
 import { activityFrame } from '../core/motion.js';
 import { EyeBlinkGate, composeEyePose } from '../core/expressions.js';
 import { clamp, multiply, orthographic, spring, transform } from '../core/math.js';
@@ -259,7 +259,7 @@ export class AvatarRenderer {
         const design = this.resolvedInput;
         const gl = this.gl, { pose } = state, activity = activityFrame(state.activity, state.time, state.reduced);
         const roll = pose.rotation[2] + activity.roll;
-        const camera = state.camera ?? { yaw: (state.view?.[0] ?? 0) * 180 / Math.PI, pitch: (state.view?.[1] ?? 0) * 180 / Math.PI, roll: 0 };
+        const camera = createCamera(state.camera ?? { yaw: (state.view?.[0] ?? 0) * 180 / Math.PI, pitch: (state.view?.[1] ?? 0) * 180 / Math.PI, roll: 0 });
         // View orientation is independent of the body's animated local pose. Matrix
         // composition preserves combined yaw/pitch/roll, unlike adding Euler angles.
         const model = transform([0, activity.bob, 0], [pose.rotation[0], pose.rotation[1], roll]);
@@ -296,7 +296,7 @@ export class AvatarRenderer {
             this.frameSpan = Math.max(Math.max(...BODY_SIZE) * 1.25 + 0.9, (radius + accessory) * 2 + 0.34);
             this.framingKey = framingKey;
         }
-        const span = this.frameSpan;
+        const span = this.frameSpan / camera.zoom;
         const height = span * Math.max(1, 1 / aspect), width = height * aspect;
         gl.viewport(0, 0, this.canvas.width, this.canvas.height);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

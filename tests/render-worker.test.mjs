@@ -322,3 +322,12 @@ test('idle pacing resets across activity, visibility and recreated engine lifecy
   const next = fixture({ activity: 'idle', time: resumedTime }); next.step(10000); next.step(20);
   assert.equal(next.draws.length, 1); next.step(20); near(next.draws.at(-1).delta, .04); near(next.engine.snapshot.time, resumedTime + .04); next.engine.dispose();
 });
+
+test('zoom-only worker state redraws once without restarting demand-only frames', () => {
+  const f = fixture({ camera: { yaw: 0, pitch: 0, roll: 0, zoom: 1 } });
+  for (let i = 1; i <= 100; i++) f.engine.command({ kind: 'state', state: { camera: { yaw: 0, pitch: 0, roll: 0, zoom: 1 + i / 100 } } });
+  assert.equal(f.callbacks.size, 1); assert.equal(f.draws.length, 1);
+  f.step(); assert.equal(f.draws.length, 2); assert.equal(f.draws.at(-1).camera.zoom, 2); assert.equal(f.callbacks.size, 0);
+  f.engine.command({ kind: 'state', state: { camera: { yaw: 0, pitch: 0, roll: 0, zoom: 2 } } });
+  assert.equal(f.callbacks.size, 0); assert.equal(f.draws.length, 2); f.engine.dispose();
+});

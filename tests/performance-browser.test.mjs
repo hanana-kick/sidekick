@@ -144,15 +144,34 @@ async function responsiveness(page, backend, rate) {
     requestAnimationFrame(frame);
     const timer = setInterval(() => { const now = performance.now(); timerDelays.push(Math.max(0, now - previousTimer - 16)); previousTimer = now; }, 16);
     const handler = event => eventTimes.push(Math.max(0, performance.now() - event.timeStamp)); probe.addEventListener('pointerdown', handler);
-    const start = performance.now();
-    // Same real geometry workload and wall-clock transitions in both backends.
-    const first = avatar.setShape('pixelTriangle', { duration: 1200, easing: 'smooth' });
-    await new Promise(resolve => setTimeout(resolve, 450));
+    const start = performance.now(), initialPose = avatar.pose;
+    // A throttled main renderer can delay timers past a short morph's endpoint.
+    // Retarget only after acknowledged animation progress, with the first morph
+    // deliberately long enough to remain pending in both backends.
+    let firstSettled = false;
+    const first = avatar.setShape('pixelTriangle', { duration: 60000, easing: 'smooth' });
+    void first.then(() => { firstSettled = true; });
+    const interruption = await new Promise((resolve, reject) => {
+      const check = () => {
+        const state = avatar.diagnostics, elapsedMs = performance.now() - start;
+        if (firstSettled) { reject(new Error('First morph completed before the interruption milestone')); return; }
+        if (state.time - before.time >= .1 && state.frames > before.frames) {
+          resolve({ elapsedMs, animationTime: state.time - before.time, frames: state.frames - before.frames, firstPending: true }); return;
+        }
+        if (elapsedMs > 30000) { reject(new Error('Morph did not acknowledge animation progress')); return; }
+        requestAnimationFrame(check);
+      };
+      check();
+    });
     const second = avatar.setShape('boom', { duration: 1200, easing: 'smooth' });
     const results = await Promise.all([first, second]);
     await new Promise(resolve => setTimeout(resolve, 100));
     active = false; clearInterval(timer); observer.disconnect(); probe.removeEventListener('pointerdown', handler);
-    return { elapsedMs: performance.now() - start, callbacks, rafTimes, timerDelays, eventTimes, longTasks, renderSamples, results, before, after: avatar.diagnostics, audit: structuredClone(window.performanceAudit) };
+    const elapsedMs = performance.now() - start, after = avatar.diagnostics;
+    // Readback validates the exact finished target outside the timed window.
+    const image = await avatar.capturePixelsAsync();
+    const final = { shape: avatar.design.body.shape, pose: avatar.pose, diagnostics: avatar.diagnostics, nontransparent: image.pixels.some((value, index) => index % 4 === 3 && value > 0) };
+    return { elapsedMs, callbacks, rafTimes, timerDelays, eventTimes, longTasks, renderSamples, results, interruption, initialPose, final, before, after, audit: structuredClone(window.performanceAudit) };
   });
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 }); await cdp.detach();
   return { backend, throttleRate: rate, calibration, ...result, rafIntervals: distribution(result.rafTimes), timerDelay: distribution(result.timerDelays), inputDelay: distribution(result.eventTimes), longTaskCount: result.longTasks.length, longTaskTotalMs: result.longTasks.reduce((sum, entry) => sum + entry.duration, 0), renderedFrames: result.after.frames - result.before.frames, renderCpu: { totalMs: result.after.renderCpu.totalMs - result.before.renderCpu.totalMs, maxSinceInitMs: result.after.renderCpu.maxMs, observedFrameDurations: distribution(result.renderSamples), observation: 'Latest actual render CPU duration sampled once per main RAF when acknowledged frame number changes; sample count may be lower than rendered frame count.' } };
@@ -169,6 +188,9 @@ test('shipped worker and safe fallback report throttled main-thread responsivene
     try { result = await responsiveness(page, backend, rate); }
     finally { clicking = false; await input; }
     assert.equal(result.after.backend, backend); assert.ok(result.renderedFrames > 0); assert.ok(result.callbacks > 0); assert.deepEqual(result.results, [{ finished: false }, { finished: true }]);
+    assert.equal(result.interruption.firstPending, true); assert.ok(result.interruption.animationTime >= .1); assert.ok(result.interruption.frames > 0);
+    assert.equal(result.final.shape, 'boom'); assert.deepEqual(result.final.pose, result.initialPose);
+    assert.equal(result.final.diagnostics.backend, backend); assert.equal(result.final.diagnostics.running, false); assert.equal(result.final.nontransparent, true);
     assert.ok(result.rafIntervals.count > 0 && result.timerDelay.count > 0, 'Real main-thread probes collected samples');
     if (backend === 'worker') { assert.equal(result.audit.htmlWebGLContexts, 0); assert.equal(result.audit.transfers, 1); assert.ok(result.audit.workerFrames > 0); }
     else { assert.equal(result.audit.constructed, 0); assert.equal(result.audit.transfers, 0); assert.ok(result.audit.htmlWebGLContexts >= 1); }

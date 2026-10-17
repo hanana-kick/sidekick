@@ -3,14 +3,14 @@ import type { TrackingMode } from '../core/tracking.js';
 import type { ShapeMotionOptions, ShapeMotionResult } from '../core/shape-motion.js';
 import type { MaterialShapeName } from '../core/shapes.js';
 import type { EyeExpression, EyeShapeWeights } from '../core/expressions.js';
-import type { CameraAngles, CameraPreset } from '../core/camera.js';
+import type { CameraAngles, CameraState, CameraPreset } from '../core/camera.js';
 import type { MotionOptions, MotionResult, MotionTarget, Pose } from '../core/motion.js';
 import type { SnapshotOptions } from '../core/pixels.js';
 import type { PixelBuffer } from '../core/pixels.js';
 import type { SidekickEventMap } from './attributes.js';
 declare const HTMLElementBase: typeof HTMLElement;
 export declare class SidekickAvatar extends HTMLElementBase {
-    static observedAttributes: ("shape" | "smile" | "blink" | "expression" | "accessories" | "design" | "motion" | "camera" | "activity" | "paused" | "interaction" | "time" | "body-color" | "eye-color" | "left-expression" | "right-expression" | "left-smile" | "right-smile" | "left-blink" | "right-blink" | "head-accessory" | "head-color" | "eyes-accessory" | "eyes-color" | "mouth-accessory" | "mouth-color" | "neck-accessory" | "neck-color" | "left-ear-accessory" | "left-ear-color" | "right-ear-accessory" | "right-ear-color" | "camera-yaw" | "camera-pitch" | "camera-roll" | "gaze-x" | "gaze-y" | "mouse-tracking" | "tracking-mode" | "render-style" | "shape-duration" | "shape-easing" | "motion-duration" | "motion-easing")[];
+    static observedAttributes: ("shape" | "smile" | "blink" | "expression" | "accessories" | "design" | "motion" | "camera" | "activity" | "paused" | "interaction" | "time" | "body-color" | "eye-color" | "left-expression" | "right-expression" | "left-smile" | "right-smile" | "left-blink" | "right-blink" | "head-accessory" | "head-color" | "eyes-accessory" | "eyes-color" | "mouth-accessory" | "mouth-color" | "neck-accessory" | "neck-color" | "left-ear-accessory" | "left-ear-color" | "right-ear-accessory" | "right-ear-color" | "camera-yaw" | "camera-pitch" | "camera-roll" | "camera-zoom" | "gaze-x" | "gaze-y" | "mouse-tracking" | "tracking-mode" | "render-style" | "shape-duration" | "shape-easing" | "motion-duration" | "motion-easing")[];
     addEventListener<K extends keyof SidekickEventMap>(type: K, listener: (this: SidekickAvatar, event: SidekickEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
     addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
     addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions): void;
@@ -33,6 +33,12 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private pendingResize;
     private pendingPointer?;
     private pendingDrag?;
+    private pendingZoom?;
+    private pointers;
+    private pinch?;
+    private pendingPinchDistance?;
+    private wheelTimer?;
+    private wheelGesture;
     private connected;
     private transferred;
     private captureCanvas?;
@@ -115,10 +121,10 @@ export declare class SidekickAvatar extends HTMLElementBase {
         };
         renderedRotation: Pose['rotation'];
     };
-    /** Camera viewing angles in degrees. Reads return an independent snapshot. */
-    get camera(): CameraAngles;
-    set camera(value: CameraAngles);
-    setCamera(angles: Partial<CameraAngles>): void;
+    /** Viewing angles in degrees and centered zoom. Reads return an independent snapshot. */
+    get camera(): CameraState;
+    set camera(value: CameraAngles & Partial<Pick<CameraState, 'zoom'>>);
+    setCamera(angles: Partial<CameraState>): void;
     setCameraPreset(preset: CameraPreset): void;
     resetCamera(): void;
     /** Legacy radians API; yaw/pitch update the camera while preserving its roll. */
@@ -177,12 +183,17 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private onTrackingLeave;
     private onTrackingOut;
     private onTrackedPointerMove;
+    private get gesturing();
     private clearDrag;
+    /** Rebase at each pointer-count transition, after flushing the previous gesture. */
+    private rebasePointers;
     private onKey;
+    private onWheel;
     private onPointerDown;
     private onPointerMove;
     private onPointerUp;
     private onPointerCancel;
+    private onLostPointerCapture;
     private onContextRestored;
 }
 export declare function defineSidekick(tagName?: string): void;

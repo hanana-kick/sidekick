@@ -1,5 +1,5 @@
 import type { Activity, AvatarDesign, Vec2 } from '../core/design.js';
-import type { CameraAngles, CameraPreset } from '../core/camera.js';
+import type { CameraState, CameraPreset } from '../core/camera.js';
 import type { EyeExpression } from '../core/expressions.js';
 import type { MotionOptions, MotionResult, MotionTarget } from '../core/motion.js';
 import type { TrackingMode } from '../core/tracking.js';
@@ -38,6 +38,7 @@ export interface SidekickAttributes {
     'camera-yaw'?: NumericAttribute;
     'camera-pitch'?: NumericAttribute;
     'camera-roll'?: NumericAttribute;
+    'camera-zoom'?: NumericAttribute;
     'gaze-x'?: NumericAttribute;
     'gaze-y'?: NumericAttribute;
     activity?: Activity;
@@ -62,7 +63,7 @@ export declare const ACCESSORY_ATTRIBUTE_SLOTS: Readonly<{
     readonly 'left-ear': "leftEar";
     readonly 'right-ear': "rightEar";
 }>;
-export declare const SIDEKICK_ATTRIBUTES: readonly ["design", "shape", "body-color", "eye-color", "expression", "left-expression", "right-expression", "smile", "blink", "left-smile", "right-smile", "left-blink", "right-blink", "accessories", "head-accessory", "head-color", "eyes-accessory", "eyes-color", "mouth-accessory", "mouth-color", "neck-accessory", "neck-color", "left-ear-accessory", "left-ear-color", "right-ear-accessory", "right-ear-color", "camera", "camera-yaw", "camera-pitch", "camera-roll", "gaze-x", "gaze-y", "activity", "paused", "interaction", "mouse-tracking", "tracking-mode", "render-style", "shape-duration", "shape-easing", "motion-duration", "motion-easing", "motion", "time"];
+export declare const SIDEKICK_ATTRIBUTES: readonly ["design", "shape", "body-color", "eye-color", "expression", "left-expression", "right-expression", "smile", "blink", "left-smile", "right-smile", "left-blink", "right-blink", "accessories", "head-accessory", "head-color", "eyes-accessory", "eyes-color", "mouth-accessory", "mouth-color", "neck-accessory", "neck-color", "left-ear-accessory", "left-ear-color", "right-ear-accessory", "right-ear-color", "camera", "camera-yaw", "camera-pitch", "camera-roll", "camera-zoom", "gaze-x", "gaze-y", "activity", "paused", "interaction", "mouse-tracking", "tracking-mode", "render-style", "shape-duration", "shape-easing", "motion-duration", "motion-easing", "motion", "time"];
 export interface SidekickErrorDetail {
     message: string;
     attribute?: string;
@@ -73,7 +74,7 @@ export interface SidekickDesignChangeDetail {
     design: AvatarDesign;
 }
 export interface SidekickCameraChangeDetail {
-    camera: CameraAngles;
+    camera: CameraState;
 }
 export interface SidekickEventMap {
     'sidekick-ready': CustomEvent<Record<string, never>>;
@@ -87,7 +88,7 @@ export interface SidekickEventMap {
 export type AttributeValues = ReadonlyMap<string, string>;
 export interface ResolvedAttributes {
     design: AvatarDesign;
-    camera: CameraAngles;
+    camera: CameraState;
     gaze: Vec2;
     activity: Activity;
     paused: boolean;

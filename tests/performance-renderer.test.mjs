@@ -85,3 +85,21 @@ test('a late accessory allocation failure releases its partial mesh without leak
   const failed = fixture.snapshot(); assert.equal(failed.liveBuffers, before.liveBuffers); assert.equal(failed.liveVAOs, before.liveVAOs); assert.equal(failed.livePrograms, before.livePrograms);
   renderer.dispose(); const disposed = fixture.snapshot(); assert.equal(disposed.liveBuffers, 0); assert.equal(disposed.liveVAOs, 0); assert.equal(disposed.livePrograms, 0);
 });
+
+test('centered zoom changes only projection, preserves aspect and never uploads existing geometry', () => {
+  for (const [width, height] of [[600, 200], [200, 600], [4096, 512], [512, 4096]]) {
+    const fixture = countingCanvas(), renderer = new AvatarRenderer(fixture.canvas), design = createDesign(), frame = state('circle');
+    let projection, models = [];
+    fixture.gl.uniformMatrix4fv = (location, _transpose, value) => { if (location.name === 'projection') projection = [...value]; else if (location.name === 'model') models.push([...value]); };
+    renderer.resize(width, height, 2); frame.camera = { yaw: 20, pitch: -5, roll: 9, zoom: 1 }; renderer.render(design, frame);
+    const original = projection, originalModels = models, before = fixture.snapshot(); models = [];
+    frame.camera.zoom = 2; renderer.render(design, frame);
+    assert.equal(projection[0], original[0] * 2); assert.equal(projection[5], original[5] * 2);
+    assert.ok(Math.abs(projection[5] / projection[0] - width / height) < 1e-5);
+    assert.equal(projection[12], original[12] * 2); assert.equal(projection[13], original[13] * 2);
+    assert.equal(projection[13] / projection[5], original[13] / original[5], 'the original world-space viewing center is unchanged');
+    assert.equal(projection[14], original[14]); assert.deepEqual(models, originalModels);
+    assert.equal(fixture.snapshot().uploadedBytes, before.uploadedBytes);
+    renderer.dispose();
+  }
+});

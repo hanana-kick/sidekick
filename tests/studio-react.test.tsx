@@ -5,8 +5,8 @@ import { JSDOM } from 'jsdom';
 import { createElement, act, StrictMode } from 'react';
 import { createAccessory, createDesign, migrateDesign, parseDesign, patchDesign, serializeDesign } from '../src/core/design.js';
 import type { AvatarDesign, DesignPatch, Activity } from '../src/core/design.js';
-import { CAMERA_PRESETS } from '../src/core/camera.js';
-import type { CameraAngles, CameraPreset } from '../src/core/camera.js';
+import { CAMERA_PRESETS, createCamera } from '../src/core/camera.js';
+import type { CameraState, CameraPreset } from '../src/core/camera.js';
 import { eyeExpressionWeights } from '../src/core/expressions.js';
 import type { EyeExpression, EyeShapeWeights } from '../src/core/expressions.js';
 import type { MaterialShapeName } from '../src/core/shapes.js';
@@ -29,7 +29,7 @@ HTMLElement.prototype.releasePointerCapture = () => {};
 
 class MockAvatar extends HTMLElement {
   current = createDesign();
-  cameraValue = { ...CAMERA_PRESETS.front };
+  cameraValue = createCamera();
   paused = false;
   trackingMode: 'off' | 'eyes' | 'eyes-and-body' = 'off';
   get mouseTracking() { return this.trackingMode !== 'off'; }
@@ -53,14 +53,14 @@ class MockAvatar extends HTMLElement {
   get design() { return parseDesign(this.current); }
   set design(value: AvatarDesign) { this.assignments++; if (value.body.shape !== this.current.body.shape) this.morphing = false; this.current = parseDesign(value); }
   get camera() { return { ...this.cameraValue }; }
-  set camera(value: CameraAngles) { this.setCamera(value); }
+  set camera(value: CameraState) { this.setCamera(value); }
   updateDesign(patch: DesignPatch) { this.patchCalls.push(patch); const next = patchDesign(this.current, patch); if (next.body.shape !== this.current.body.shape) this.morphing = false; this.current = next; return Promise.resolve(); }
   setShape(shape: MaterialShapeName, options: { duration?: number } = {}) { this.shapeCalls.push({ shape, before: this.current.body.shape, options }); this.current = patchDesign(this.current, { body: { shape } }); this.morphing = !!options.duration; return Promise.resolve({ finished: true }); }
   setEyeWeights(side: 'left' | 'right', weights: Partial<EyeShapeWeights>) { this.eyeCalls.push({ side, weights }); this.current = patchDesign(this.current, { eyes: { [side]: { weights } } }); return Promise.resolve({ finished: true }); }
   setExpression(side: 'left' | 'right', expression: EyeExpression) { return this.setEyeWeights(side, eyeExpressionWeights(expression)); }
-  setCamera(value: Partial<CameraAngles>) { this.cameraValue = { ...this.cameraValue, ...value }; this.dispatchEvent(new CustomEvent('sidekick-camera-change')); }
+  setCamera(value: Partial<CameraState>) { this.cameraValue = { ...this.cameraValue, ...value }; this.dispatchEvent(new CustomEvent('sidekick-camera-change')); }
   setCameraPreset(preset: CameraPreset) { this.setCamera(CAMERA_PRESETS[preset]); }
-  resetCamera() { this.setCamera(CAMERA_PRESETS.front); }
+  resetCamera() { this.setCamera(createCamera()); }
   setActivity(activity: Activity) { this.activity = activity; }
   lookAt(target: { x: number; y: number }) { this.gaze = { x: target.x, y: target.y }; }
   seek(time: number) { this.time = time; }
@@ -137,7 +137,7 @@ test('keyboard tabs/sliders and shape focus update through React without remount
   await f.click(f.node('appearance-tab')); await f.input('eye-color', '#121212');
   assert.equal(f.node('flat'), avatar); assert.equal(avatar.connections, 1); assert.equal(avatar.disconnections, 0);
   assert.equal(avatar.assignments, assignments); assert.equal(avatar.morphing, true);
-  assert.deepEqual(avatar.camera, { yaw: 43, pitch: 11, roll: 7 });
+  assert.deepEqual(avatar.camera, { yaw: 43, pitch: 11, roll: 7, zoom: 1 });
   assert.equal(f.container.querySelector('[data-shape="heart"]'), heart);
 });
 
@@ -350,7 +350,7 @@ test('motion duration, independent expressions, pause/activity, full import and 
   assert.deepEqual(f.avatar.shapeCalls.at(-1)!.options, { duration: 0 });
   await f.click(f.node('reset'));
   assert.equal(f.avatar.design.body.shape, 'square'); assert.equal(f.avatar.paused, false); assert.equal(f.avatar.activity, 'idle');
-  assert.deepEqual(f.avatar.camera, CAMERA_PRESETS.front); assert.equal(f.controller.getSnapshot().duration, 450); assert.equal(f.controller.getSnapshot().easing, 'smooth');
+  assert.deepEqual(f.avatar.camera, createCamera()); assert.equal(f.controller.getSnapshot().duration, 450); assert.equal(f.controller.getSnapshot().easing, 'smooth');
   assert.deepEqual(f.avatar.design.eyes.left.weights, { smile: 0, blink: 0 });
   assert.deepEqual(JSON.parse(f.storage.values.get(STORAGE_KEY)!), f.avatar.design);
 });
@@ -456,4 +456,17 @@ test('scene import and Studio reset clear transient tracking from the actual ren
     await avatar.motion.to({ body: { rotation: [0, 0, 0] } }, { duration: 0 });
     tilt(); controller.reset(); assert.deepEqual(rendered(), [0, 0, 0]); assert.equal(avatar.trackingMode, 'off');
   } finally { unbind(); avatar.disconnectedCallback(); }
+});
+
+test('Studio zoom slider, camera events, reset, scene JSON and snippets stay synchronized', async t => {
+  const f = await fixture(t); await f.click(f.node('camera-tab'));
+  await f.key('view-zoom', 'ArrowRight'); assert.equal(f.avatar.camera.zoom, 1.01);
+  await act(async () => { f.avatar.setCamera({ yaw: 28, zoom: 2.2 }); });
+  assert.equal(f.node('view-zoom').getAttribute('aria-valuenow'), '2.2');
+  assert.equal(f.controller.exportScene().camera.zoom, 2.2);
+  const snippets = sceneSnippets(f.controller.exportScene());
+  assert.match(snippets.html, /camera-zoom="2.2"/); assert.match(snippets.react, /cameraZoom=\{2.2\}/);
+  await f.click(f.container.querySelector<HTMLElement>('[data-camera-preset="side"]')!); assert.equal(f.avatar.camera.zoom, 2.2);
+  await f.click(f.node('reset-camera')); assert.deepEqual(f.avatar.camera, createCamera());
+  assert.equal(f.node('view-zoom').getAttribute('aria-valuenow'), '1');
 });

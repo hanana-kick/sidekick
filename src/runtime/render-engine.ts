@@ -130,7 +130,7 @@ export class RenderEngine {
         const changed = Object.entries(command.state).some(([key, value]) => {
           const previous = this.state[key as keyof RuntimeState];
           if (Array.isArray(value) && Array.isArray(previous)) return value.length !== previous.length || value.some((part, index) => part !== previous[index]);
-          if (key === 'camera' && value && typeof value === 'object') { const camera = value as RuntimeState['camera']; return camera.yaw !== this.state.camera.yaw || camera.pitch !== this.state.camera.pitch || camera.roll !== this.state.camera.roll; }
+          if (key === 'camera' && value && typeof value === 'object') { const camera = value as RuntimeState['camera']; return camera.yaw !== this.state.camera.yaw || camera.pitch !== this.state.camera.pitch || camera.roll !== this.state.camera.roll || camera.zoom !== this.state.camera.zoom; }
           return value !== previous;
         });
         if (!changed) { this.notify({ kind: 'frame', snapshot: this.snapshot }, this.revision); return; }

@@ -216,3 +216,11 @@ test('React forwards canonical trackingMode independently from the legacy boolea
   await f.render({ mouseTracking: true });
   assert.equal(f.avatar.hasAttribute('tracking-mode'), false); assert.equal(f.avatar.getAttribute('mouse-tracking'), 'true');
 });
+
+test('React cameraZoom overrides object zoom and removal restores object/default declarations', async t => {
+  const f = await fixture(t, { camera: { yaw: 12, zoom: 1.4 }, cameraZoom: 2 });
+  assert.equal(f.avatar.getAttribute('camera-zoom'), '2');
+  await f.render({ camera: { yaw: 12, zoom: 1.4 } }); assert.equal(f.avatar.getAttribute('camera-zoom'), '1.4');
+  await f.render({ camera: { yaw: 12 } }); assert.equal(f.avatar.hasAttribute('camera-zoom'), false);
+  assert.equal(f.avatar.getAttribute('camera-yaw'), '12');
+});

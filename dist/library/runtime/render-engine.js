@@ -170,7 +170,7 @@ export class RenderEngine {
                         return value.length !== previous.length || value.some((part, index) => part !== previous[index]);
                     if (key === 'camera' && value && typeof value === 'object') {
                         const camera = value;
-                        return camera.yaw !== this.state.camera.yaw || camera.pitch !== this.state.camera.pitch || camera.roll !== this.state.camera.roll;
+                        return camera.yaw !== this.state.camera.yaw || camera.pitch !== this.state.camera.pitch || camera.roll !== this.state.camera.roll || camera.zoom !== this.state.camera.zoom;
                     }
                     return value !== previous;
                 });

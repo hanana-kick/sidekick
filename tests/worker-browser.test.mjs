@@ -14,8 +14,8 @@ before(async () => {
 });
 after(async () => { await browser?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
 
-async function pageFor(t, { entry = 'native', csp = '', failWorker = '', contextLoss = false } = {}) {
-  const page = await browser.newPage({ viewport: { width: 1000, height: 800 }, reducedMotion: 'no-preference' }), errors = [];
+async function pageFor(t, { entry = 'native', csp = '', failWorker = '', contextLoss = false, touch = false } = {}) {
+  const page = await browser.newPage({ viewport: { width: 1000, height: 800 }, reducedMotion: 'no-preference', hasTouch: touch }), errors = [];
   page.on('pageerror', error => errors.push(error.message));
   t.after(async () => { await page.close(); assert.deepEqual(errors, [], 'No uncaught page exceptions'); });
   await page.addInitScript(({ failWorker }) => {
@@ -74,7 +74,7 @@ test('fresh readback flushes immediate CSS size/design/camera changes and export
     return { edgeSamples, maxEdgeError, size: [image.width, image.height], expected: [Math.round(511 * Math.min(devicePixelRatio, 2)), Math.round(233 * Math.min(devicePixelRatio, 2))], png: [canvas.width, canvas.height], bounds: [maxX - minX + 1 + 14, maxY - minY + 1 + 14], alphaSum, exportedAlpha, type: blob.type, camera: avatar.camera, color: avatar.design.body.color };
   });
   assert.deepEqual(result.size, result.expected); assert.deepEqual(result.png, result.bounds); assert.equal(result.type, 'image/png'); assert.equal(result.exportedAlpha, result.alphaSum); assert.ok(result.edgeSamples > 0); assert.ok(result.maxEdgeError <= 2, `PNG edge color drift ${result.maxEdgeError}`);
-  assert.deepEqual(result.camera, { yaw: 33, pitch: 9, roll: -8 }); assert.equal(result.color, '#3366aa');
+  assert.deepEqual(result.camera, { yaw: 33, pitch: 9, roll: -8, zoom: 1 }); assert.equal(result.color, '#3366aa');
 });
 
 test('independent worker motion requests survive color edits and settle cancellation on disconnect', async t => {
@@ -143,4 +143,97 @@ test('demand-only synchronous capture uses acknowledged worker dimensions after 
   assert.deepEqual(result.presentedSize, result.freshSize); assert.equal(result.unchanged, true);
   assert.ok(result.presentedBounds[0] > 0 && result.presentedBounds[1] > 0);
   for (let i = 0; i < 2; i++) assert.ok(Math.abs(result.presentedBounds[i] - result.freshBounds[i]) <= 1);
+});
+
+for (const failWorker of ['', 'constructor']) test(`${failWorker ? 'fallback' : 'worker'}: real wheel and Ctrl+wheel zoom only the preview`, async t => {
+  const page = await pageFor(t, { failWorker });
+  await page.locator('#avatar').evaluate(avatar => { avatar.interaction = 'box'; avatar.paused = true; });
+  await page.mouse.move(160, 140); await page.mouse.wheel(0, -100);
+  await page.waitForFunction(() => document.getElementById('avatar').camera.zoom > 1);
+  const first = await page.locator('#avatar').evaluate(avatar => avatar.camera.zoom);
+  assert.ok(Math.abs(first - Math.exp(.2)) < .001);
+  await page.keyboard.down('Control'); await page.mouse.wheel(0, -40); await page.keyboard.up('Control');
+  await page.waitForFunction(previous => document.getElementById('avatar').camera.zoom > previous, first);
+  assert.equal(await page.evaluate(() => visualViewport.scale), 1);
+  const before = await page.locator('#avatar').evaluate(avatar => { avatar.interaction = 'none'; return avatar.camera; });
+  await page.mouse.wheel(0, -200);
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  assert.deepEqual(await page.locator('#avatar').evaluate(avatar => avatar.camera), before);
+});
+
+for (const failWorker of ['', 'constructor']) test(`${failWorker ? 'fallback' : 'worker'}: centered zoom preserves wide/tall aspect and PNG exports visible clipped pixels`, async t => {
+  const page = await pageFor(t, { failWorker });
+  const result = await page.evaluate(async () => {
+    const avatar = document.getElementById('avatar'); avatar.paused = true; await avatar.updateDesign({ body: { shape: 'circle' } });
+    const bounds = image => {
+      let left = image.width, right = -1, bottom = image.height, top = -1, alpha = 0;
+      for (let y = 0; y < image.height; y++) for (let x = 0; x < image.width; x++) { const value = image.pixels[(y * image.width + x) * 4 + 3]; alpha += value; if (value) { left = Math.min(left, x); right = Math.max(right, x); bottom = Math.min(bottom, y); top = Math.max(top, y); } }
+      return { width: right - left + 1, height: top - bottom + 1, center: [(right + left + 1) / 2, (top + bottom + 1) / 2], alpha };
+    };
+    const cases = [];
+    for (const [width, height] of [[480, 240], [240, 480]]) {
+      avatar.style.width = `${width}px`; avatar.style.height = `${height}px`; avatar.resetCamera();
+      const normal = bounds(await avatar.capturePixelsAsync()); avatar.setCamera({ zoom: 1.5 }); const zoomed = bounds(await avatar.capturePixelsAsync());
+      cases.push({ width, height, normal, zoomed });
+    }
+    avatar.style.width = '240px'; avatar.style.height = '240px'; avatar.setCamera({ zoom: 3 });
+    const clipped = bounds(await avatar.capturePixelsAsync()), blob = await avatar.snapshot({ padding: 0 }), bitmap = await createImageBitmap(blob), output = document.createElement('canvas');
+    output.width = bitmap.width; output.height = bitmap.height; const context = output.getContext('2d'); context.drawImage(bitmap, 0, 0); bitmap.close();
+    const pixels = context.getImageData(0, 0, output.width, output.height).data; let alpha = 0; for (let i = 3; i < pixels.length; i += 4) alpha += pixels[i];
+    return { cases, clipped, png: { width: output.width, height: output.height, alpha } };
+  });
+  for (const { width, height, normal, zoomed } of result.cases) {
+    assert.ok(Math.abs(normal.width / normal.height - 1) < .02); assert.ok(Math.abs(zoomed.width / zoomed.height - 1) < .02);
+    assert.ok(Math.abs(zoomed.width / normal.width - 1.5) < .04);
+    assert.ok(Math.abs((zoomed.center[0] - width / 2) - 1.5 * (normal.center[0] - width / 2)) <= 1);
+    assert.ok(Math.abs((zoomed.center[1] - height / 2) - 1.5 * (normal.center[1] - height / 2)) <= 1);
+  }
+  assert.equal(result.png.width, result.clipped.width); assert.equal(result.png.height, result.clipped.height); assert.equal(result.png.alpha, result.clipped.alpha);
+  assert.equal(result.clipped.width, 240, 'high zoom intentionally clips at canvas edge');
+});
+
+test('real two-finger touch transitions orbit → pinch → orbit without jumps, pan or activation', async t => {
+  const page = await pageFor(t, { touch: true }), cdp = await page.context().newCDPSession(page);
+  t.after(() => cdp.detach());
+  await page.locator('#avatar').evaluate(avatar => { avatar.interaction = 'box'; avatar.paused = true; window.activations = 0; avatar.addEventListener('sidekick-activate', () => activations++); });
+  const touch = async (type, points) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points.map(([id, x, y]) => ({ id, x, y, radiusX: 4, radiusY: 4, force: 1 })) });
+  const camera = () => page.locator('#avatar').evaluate(async avatar => { await avatar.capturePixelsAsync(); return avatar.camera; });
+  await touch('touchStart', [[1, 100, 100]]); await touch('touchMove', [[1, 120, 100]]); const orbit = await camera(); assert.ok(orbit.yaw > 0);
+  await touch('touchStart', [[1, 120, 100], [2, 220, 100]]);
+  await touch('touchMove', [[1, 100, 100], [2, 240, 100]]); const pinch = await camera();
+  assert.ok(Math.abs(pinch.zoom - 1.4) < .01); assert.equal(pinch.yaw, orbit.yaw); assert.equal(pinch.pitch, orbit.pitch);
+  await touch('touchMove', [[1, 120, 130], [2, 260, 130]]); const translated = await camera();
+  assert.ok(Math.abs(translated.zoom - pinch.zoom) < .01); assert.equal(translated.yaw, pinch.yaw); assert.equal(translated.pitch, pinch.pitch);
+  await touch('touchEnd', [[1, 120, 130]]); const released = await camera(); assert.deepEqual(released, translated);
+  await touch('touchMove', [[1, 130, 130]]); const resumed = await camera();
+  assert.ok(Math.abs(resumed.yaw - released.yaw - .1 * 180 / Math.PI) < .01); assert.equal(resumed.zoom, released.zoom);
+  await touch('touchEnd', []); assert.equal(await page.evaluate(() => activations), 0);
+  await touch('touchStart', [[1, 100, 100], [2, 200, 100]]); await touch('touchMove', [[1, 90, 100], [2, 210, 100]]);
+  const accepted = await camera(); await touch('touchCancel', []); assert.deepEqual(await camera(), accepted);
+  const reconnected = await page.locator('#avatar').evaluate(async avatar => { avatar.remove(); document.body.append(avatar); await avatar.capturePixelsAsync(); return avatar.camera; });
+  assert.deepEqual(reconnected, accepted);
+});
+
+test('real wheel zoom during concurrent shape, eye and body motion preserves every completion', async t => {
+  const page = await pageFor(t);
+  await page.locator('#avatar').evaluate(avatar => {
+    avatar.interaction = 'box'; avatar.trackingMode = 'eyes-and-body';
+    window.motionResults = Promise.all([
+      avatar.setShape('heart', { duration: 1600, easing: 'linear' }),
+      avatar.setEyeWeights('left', { smile: 1 }, { duration: 1600, easing: 'linear' }),
+      avatar.motion.to({ body: { rotation: [.2, .3, .4] } }, { duration: 1600, easing: 'linear' }),
+    ]);
+  });
+  await page.waitForFunction(() => { const value = document.getElementById('avatar').pose.eyes.left.smile; return value > .1 && value < .8; });
+  const before = await page.locator('#avatar').evaluate(avatar => ({ pose: avatar.pose, camera: avatar.camera }));
+  await page.mouse.move(160, 140); await page.mouse.wheel(0, -100);
+  await page.waitForFunction(() => document.getElementById('avatar').camera.zoom > 1);
+  const result = await page.evaluate(async () => {
+    const completions = await motionResults, avatar = document.getElementById('avatar'); await avatar.capturePixelsAsync();
+    return { completions, pose: avatar.pose, shape: avatar.design.body.shape, camera: avatar.camera };
+  });
+  assert.ok(before.pose.eyes.left.smile > 0 && before.pose.eyes.left.smile < 1);
+  assert.deepEqual(result.completions, [{ finished: true }, { finished: true }, { finished: true }]);
+  assert.equal(result.shape, 'heart'); assert.equal(result.pose.eyes.left.smile, 1); assert.deepEqual(result.pose.rotation, [.2, .3, .4]);
+  assert.equal(result.camera.yaw, before.camera.yaw); assert.equal(result.camera.pitch, before.camera.pitch); assert.equal(result.camera.roll, before.camera.roll); assert.ok(result.camera.zoom > 1);
 });

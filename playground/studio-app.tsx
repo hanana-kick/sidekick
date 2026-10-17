@@ -105,14 +105,15 @@ function AnimationPanel({ state, controller }: { state: StudioState; controller:
 
 function CameraPanel({ state, controller }: { state: StudioState; controller: StudioController }) {
   const preset = (Object.keys(CAMERA_PRESETS) as CameraPreset[]).find(name => (['yaw', 'pitch', 'roll'] as const).every(axis => Math.abs(state.camera[axis] - CAMERA_PRESETS[name][axis]) < .0001)) ?? '';
-  return <FieldGroup><div className="section-heading"><h2>보는 각도</h2><Button id="reset-camera" variant="ghost" size="sm" onClick={controller.resetCamera}><RotateCcw data-icon="inline-start" />각도 초기화</Button></div>
+  return <FieldGroup><div className="section-heading"><h2>보는 각도</h2><Button id="reset-camera" variant="ghost" size="sm" onClick={controller.resetCamera}><RotateCcw data-icon="inline-start" />보기 초기화</Button></div>
     <ToggleGroup type="single" variant="outline" value={preset} onValueChange={value => { if (value) controller.setCameraPreset(value as CameraPreset); }} aria-label="카메라 프리셋" className="camera-presets">
       {(Object.keys(CAMERA_LABELS) as CameraPreset[]).map(name => <ToggleGroupItem key={name} value={name} data-camera-preset={name}>{CAMERA_LABELS[name]}</ToggleGroupItem>)}
     </ToggleGroup>
     <RangeField id="view-yaw" label="좌우 각도 · Yaw" value={state.camera.yaw} min={-360} max={360} suffix="°" onChange={yaw => controller.setCamera({ yaw })} />
     <RangeField id="view-pitch" label="상하 각도 · Pitch" value={state.camera.pitch} min={-90} max={90} suffix="°" onChange={pitch => controller.setCamera({ pitch })} />
     <RangeField id="view-roll" label="화면 기울기 · Roll" value={state.camera.roll} min={-180} max={180} suffix="°" onChange={roll => controller.setCamera({ roll })} />
-    <FieldDescription>미리보기를 드래그해도 같은 각도가 바뀝니다. 카메라 각도는 디자인 JSON과 별개인 미리보기 설정입니다.</FieldDescription>
+    <RangeField id="view-zoom" label="확대 · Zoom" value={state.camera.zoom} min={.5} max={3} step={.01} format={value => `${Math.round(value * 100)}%`} onChange={zoom => controller.setCamera({ zoom })} />
+    <FieldDescription>드래그로 회전하고 휠·트랙패드 또는 두 손가락으로 확대하세요. 확대는 중앙 기준이며 높은 배율에서는 화면 밖이 잘릴 수 있습니다. PNG도 현재 보이는 부분을 저장합니다.</FieldDescription>
   </FieldGroup>;
 }
 
@@ -167,7 +168,7 @@ export function StudioApp({ controller }: { controller: StudioController }) {
       <section className="stage" aria-label="고정 캐릭터 미리보기">
         <div className="stage-header"><div><h1>나만의 작은 동료.</h1><p>형태를 고르고, 개성을 더하세요.</p></div><ToggleGroup type="single" variant="outline" size="sm" value={state.background} onValueChange={value => { if (value) controller.setBackground(value as StudioState['background']); }} aria-label="미리보기 배경" className="background-options">{([['checker', '투명'], ['light', '밝게'], ['dark', '어둡게']] as const).map(([value, label]) => <ToggleGroupItem key={value} value={value} data-background={value}>{label}</ToggleGroupItem>)}</ToggleGroup></div>
         <div className="previews" data-background={state.background}><div className="preview"><AvatarPreview controller={controller} /></div></div>
-        <footer className="preview-footer"><span className="preview-shape">{MATERIAL_SHAPE_LABELS[state.design.body.shape]}<Badge variant="secondary">Flat</Badge></span><span className="preview-hint"><Move aria-hidden="true" />드래그로 돌려보기</span></footer>
+        <footer className="preview-footer"><span className="preview-shape">{MATERIAL_SHAPE_LABELS[state.design.body.shape]}<Badge variant="secondary">Flat</Badge></span><span className="preview-hint"><Move aria-hidden="true" />드래그 회전 · 휠/핀치 확대</span></footer>
       </section>
       <aside className="inspector" aria-label="캐릭터 디자인 설정">
         <Tabs value={tab} onValueChange={changeTab} className="settings-tabs"><div className="settings-nav"><TabsList className="w-full" aria-label="디자인 항목"><TabsTrigger value="appearance" id="appearance-tab" aria-controls="appearance-panel">외형</TabsTrigger><TabsTrigger value="animation" id="animation-tab" aria-controls="animation-panel">애니메이션</TabsTrigger><TabsTrigger value="camera" id="camera-tab" aria-controls="camera-panel">카메라</TabsTrigger><TabsTrigger value="json" id="json-tab" aria-controls="json-panel">JSON</TabsTrigger></TabsList></div>

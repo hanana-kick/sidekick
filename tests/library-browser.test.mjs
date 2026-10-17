@@ -301,10 +301,10 @@ test('prebuilt React release runs directly through an import map, lazily registe
     };
   });
   assert.equal(initial.refMatches, true); assert.equal(initial.ready, true); assert.equal(initial.design.body.shape, 'puffy');
-  assert.deepEqual(initial.camera, { yaw: 12, pitch: 5, roll: -4 });
+  assert.deepEqual(initial.camera, { yaw: 12, pitch: 5, roll: -4, zoom: 1 });
   const readyEvents = initial.events.filter(event => event.name === 'Ready');
   assert.ok(readyEvents.length > 0);
-  for (const event of readyEvents) assert.deepEqual(event.configured, { shape: 'puffy', camera: { yaw: 12, pitch: 5, roll: -4 }, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } });
+  for (const event of readyEvents) assert.deepEqual(event.configured, { shape: 'puffy', camera: { yaw: 12, pitch: 5, roll: -4, zoom: 1 }, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } });
   assert.deepEqual(initial.events.filter(event => event.name === 'Error'), []);
   await page.evaluate(() => { window.prebuiltReactHost = window.consumer.element; window.renderConsumer({ shape: 'heart', bodyColor: '#b7a5ce', mouseTracking: false }); });
   await page.waitForFunction(() => window.consumer.element.design.body.shape === 'heart'); await settle(page);
@@ -383,7 +383,7 @@ test('complete declarative config has order-independent JSON, scalar, expression
   assert.deepEqual(state.design.accessories.map(a => [a.slot, a.preset, a.color]), [
     ['head', 'halo', '#102030'], ['eyes', 'glasses', '#203040'], ['mouth', 'moustache', '#304050'], ['neck', 'scarf', '#405060'], ['leftEar', 'earring', '#506070'], ['rightEar', 'earring', '#607080'],
   ]);
-  assert.deepEqual(state.camera, { yaw: 27, pitch: -13, roll: 17 }); assert.deepEqual(state.pose.gaze, [0.25, -0.35]);
+  assert.deepEqual(state.camera, { yaw: 27, pitch: -13, roll: 17, zoom: 1 }); assert.deepEqual(state.pose.gaze, [0.25, -0.35]);
   assert.deepEqual(state.pose.rotation, [0.1, 0.2, 0.3]); assert.deepEqual(state.pose.face, [0.1, -0.2]);
   assert.equal(state.paused, true); assert.equal(state.activity, 'still'); assert.equal(state.interaction, 'box'); assert.equal(state.tracking, false); assert.equal(state.ready, true);
 });
@@ -436,7 +436,7 @@ test('removing scalar and slot overrides reveals JSON and defaults without losin
     return { revealed, expected: design, removed, restored, defaults: element.design, expectedDefaults: api.createDesign(), camera: element.camera, face: element.pose.face };
   });
   assert.deepEqual(result.revealed, result.expected); assert.deepEqual(result.removed, []); assert.deepEqual(result.restored, result.expected.accessories);
-  assert.deepEqual(result.defaults, result.expectedDefaults); assert.deepEqual(result.camera, { yaw: 31, pitch: 7, roll: -12 }); assert.deepEqual(result.face, [0.15, -0.1]);
+  assert.deepEqual(result.defaults, result.expectedDefaults); assert.deepEqual(result.camera, { yaw: 31, pitch: 7, roll: -12, zoom: 1 }); assert.deepEqual(result.face, [0.15, -0.1]);
 });
 
 test('paused and mouse-tracking support explicit false/zero/removal and live declarative animations emit completion events', async t => {
@@ -463,18 +463,21 @@ test('mouse tracking is opt-in, bounded, ignores touch, preserves camera, and re
   const result = await page.locator('#bare').evaluate(async element => {
     const move = (x, y, pointerType = 'mouse') => document.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y, pointerType, bubbles: true }));
     element.lookAt({ space: 'view', x: 0.2, y: -0.3 }); element.setCamera({ yaw: 25, pitch: 4, roll: -5 });
-    move(10000, -10000); const disabled = element.pose.gaze;
+    // Pointer events are coalesced until the next frame. A fresh capture orders
+    // each input (or ignored input) before inspecting the acknowledged pose.
+    move(10000, -10000); await element.capturePixelsAsync(); const disabled = element.pose.gaze;
     element.mouseTracking = true; await Promise.resolve(); const enabledListeners = window.listenerAudit(element).globalPointer;
-    move(10000, -10000); const rightTop = element.pose.gaze;
-    move(-10000, 10000, 'touch'); const touch = element.pose.gaze;
-    move(-10000, 10000); const leftBottom = element.pose.gaze;
-    element.mouseTracking = false; await Promise.resolve(); const restored = element.pose.gaze;
-    move(10000, -10000); return { disabled, enabledListeners, rightTop, touch, leftBottom, restored, afterDisabledMove: element.pose.gaze, listeners: window.listenerAudit(element).globalPointer, camera: element.camera };
+    move(10000, -10000); await element.capturePixelsAsync(); const rightTop = element.pose.gaze;
+    move(-10000, 10000, 'touch'); await element.capturePixelsAsync(); const touch = element.pose.gaze;
+    move(-10000, 10000); await element.capturePixelsAsync(); const leftBottom = element.pose.gaze;
+    element.mouseTracking = false; await element.capturePixelsAsync(); const restored = element.pose.gaze;
+    move(10000, -10000); await element.capturePixelsAsync();
+    return { disabled, enabledListeners, rightTop, touch, leftBottom, restored, afterDisabledMove: element.pose.gaze, listeners: window.listenerAudit(element).globalPointer, camera: element.camera };
   });
   assert.deepEqual(result.disabled, [0.2, -0.3]); assert.equal(result.enabledListeners, 1);
   assert.deepEqual(result.rightTop, [1, 1]); assert.deepEqual(result.touch, result.rightTop); assert.deepEqual(result.leftBottom, [-1, -1]);
   assert.deepEqual(result.restored, [0.2, -0.3]); assert.deepEqual(result.afterDisabledMove, result.restored); assert.equal(result.listeners, 0);
-  assert.deepEqual(result.camera, { yaw: 25, pitch: 4, roll: -5 });
+  assert.deepEqual(result.camera, { yaw: 25, pitch: 4, roll: -5, zoom: 1 });
 });
 
 test('tracking listeners release on disconnect, reconnect once, and stop responding while detached', async t => {
@@ -580,16 +583,16 @@ test('typed React entry renders real pixels, forwards the element ref and callba
   });
   assert.equal(initial.same, true); assert.equal(initial.tag, 'sidekick-avatar'); assert.equal(initial.design.body.shape, 'puffy'); assert.equal(initial.design.body.color, '#8bba9c');
   assert.equal(initial.design.eyes.left.weights.smile, 0.25); assert.equal(initial.design.eyes.right.weights.blink, 0.15);
-  assert.deepEqual(initial.camera, { yaw: 12, pitch: 5, roll: -4 }); assert.deepEqual(initial.gaze, [0.2, -0.1]);
+  assert.deepEqual(initial.camera, { yaw: 12, pitch: 5, roll: -4, zoom: 1 }); assert.deepEqual(initial.gaze, [0.2, -0.1]);
   assert.equal(initial.tracking, true); assert.equal(initial.paused, true); assert.equal(initial.aria, 'React companion'); assert.equal(initial.consumer, 'react'); assert.equal(initial.className, 'consumer-avatar');
   assert.ok(initial.events.some(event => event.name === 'Ready')); assert.ok(initial.events.every(event => event.native));
-  for (const event of initial.events.filter(event => event.name === 'Ready')) assert.deepEqual(event.configured, { shape: 'puffy', camera: { yaw: 12, pitch: 5, roll: -4 }, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } }, 'onReady observes applied props through the published ref');
+  for (const event of initial.events.filter(event => event.name === 'Ready')) assert.deepEqual(event.configured, { shape: 'puffy', camera: { yaw: 12, pitch: 5, roll: -4, zoom: 1 }, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } }, 'onReady observes applied props through the published ref');
   await page.evaluate(() => { window.originalReactElement = window.consumer.element; window.renderConsumer({ shape: 'heart', bodyColor: '#b7a5ce', leftSmile: 0.8, rightBlink: undefined, paused: false, mouseTracking: false, camera: { yaw: -25, pitch: 3, roll: 8 } }); });
   await page.waitForFunction(() => window.consumer.element?.design.body.shape === 'heart'); await settle(page);
   const next = await stateOf(page, '#react-avatar');
   assert.equal(await page.evaluate(() => window.originalReactElement === window.consumer.element), true);
   assert.equal(next.design.body.color, '#b7a5ce'); assert.equal(next.design.eyes.left.weights.smile, 0.8); assert.equal(next.design.eyes.right.weights.blink, 0);
-  assert.deepEqual(next.camera, { yaw: -25, pitch: 3, roll: 8 }); assert.equal(next.paused, false); assert.equal(next.mouseTracking, false);
+  assert.deepEqual(next.camera, { yaw: -25, pitch: 3, roll: 8, zoom: 1 }); assert.equal(next.paused, false); assert.equal(next.mouseTracking, false);
   assert.equal(await page.locator('#react-avatar').getAttribute('right-blink'), null);
 });
 
@@ -616,7 +619,7 @@ test('React StrictMode rerenders keep native callbacks single and unmount releas
   assert.equal(await page.evaluate(() => window.listenerAudit(window.consumer.element).globalPointer), 1);
   const readySnapshots = await page.evaluate(() => window.consumer.events.filter(event => event.name === 'Ready').map(event => event.configured));
   assert.ok(readySnapshots.length >= 2, 'A newly mounted host receives ready even after registration');
-  for (const snapshot of readySnapshots) assert.deepEqual(snapshot, { shape: 'puffy', camera: { yaw: 12, pitch: 5, roll: -4 }, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } });
+  for (const snapshot of readySnapshots) assert.deepEqual(snapshot, { shape: 'puffy', camera: { yaw: 12, pitch: 5, roll: -4, zoom: 1 }, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } });
 });
 
 test('React SSR hydration preserves the server host and repeated renders retain canvas, imperative camera and motion state', async t => {
@@ -798,13 +801,37 @@ for (const name of ['root', 'project']) for (const route of ['production-react.h
     assert.equal(await page.evaluate(() => window.consumer.events.filter(event => event.name === 'Activate').length), 1);
     await page.waitForLoadState('networkidle');
     const diagnostics = assertDeploymentResources(page, deployment);
-    const dynamicKeys = [...new Set(Object.values(fixture.productionReactManifest).flatMap(chunk => chunk.dynamicImports ?? []))];
-    assert.ok(dynamicKeys.length > 0, 'This production consumer must retain an actual dynamic renderer import');
-    for (const key of dynamicKeys) {
-      const chunk = fixture.productionReactManifest[key]; assert.ok(chunk?.isDynamicEntry, key);
-      const url = new URL(chunk.file, deployment.url).href;
-      assert.ok(diagnostics.responses.some(response => response.url === url && response.type === 'script'), `The actual lazy chunk was not loaded: ${url}`);
-    }
+    const manifest = fixture.productionReactManifest;
+    const elementKey = Object.keys(manifest).find(key => key.endsWith('/element/avatar.js'));
+    const fallbackKey = Object.keys(manifest).find(key => key.endsWith('/runtime/render-engine.js'));
+    assert.ok(elementKey && fallbackKey, 'The production graph retains separate element and fallback boundaries');
+    const elementChunk = manifest[elementKey], fallbackChunk = manifest[fallbackKey];
+    assert.equal(elementChunk.isDynamicEntry, true); assert.equal(fallbackChunk.isDynamicEntry, true);
+    assert.ok(elementChunk.dynamicImports.includes(fallbackKey));
+    const elementURL = new URL(elementChunk.file, deployment.url).href;
+    const fallbackURL = new URL(fallbackChunk.file, deployment.url).href;
+    assert.ok(diagnostics.responses.some(response => response.url === elementURL && response.type === 'script'), 'React loaded its actual lazy custom-element chunk');
+    assert.ok(!diagnostics.resources.some(resource => resource.url === fallbackURL), 'Healthy worker startup must not load the main-thread fallback engine');
+    assert.equal(await page.locator('#react-avatar').evaluate(element => element.diagnostics.backend), 'worker');
+    const workerURLs = (elementChunk.assets ?? []).filter(file => /render-worker.*\.js$/.test(file)).map(file => new URL(file, deployment.url).href);
+    assert.equal(workerURLs.length, 1, 'The built element points to one emitted render worker');
+    assert.ok(page.workers().some(worker => worker.url() === workerURLs[0]), 'The actual emitted worker runs at the deployment-relative URL');
+  });
+}
+
+for (const name of ['root', 'project']) {
+  test(`production React lazy fallback resolves at ${name}:playground/production-react.html`, async t => {
+    const deployment = fixture.productionReactDeployments.find(item => item.name === name);
+    const page = await pageFor(t, 'react', { forceMain: true }, new URL('playground/production-react.html', deployment.url).href);
+    await compareReactPixelsToNative(t, page, `library-production-react-${name}-fallback`);
+    assert.equal(await page.locator('#react-avatar').evaluate(element => element.diagnostics.backend), 'main');
+    assert.equal(page.workers().length, 0);
+    await page.waitForLoadState('networkidle');
+    const diagnostics = assertDeploymentResources(page, deployment);
+    const key = Object.keys(fixture.productionReactManifest).find(key => key.endsWith('/runtime/render-engine.js'));
+    const chunk = fixture.productionReactManifest[key]; assert.equal(chunk?.isDynamicEntry, true);
+    const url = new URL(chunk.file, deployment.url).href;
+    assert.ok(diagnostics.responses.some(response => response.url === url && response.type === 'script'), 'The fallback chunk loads when worker rendering is unavailable');
   });
 }
 
@@ -844,7 +871,7 @@ test('Studio JSON file import applies a complete scene and export round-trips it
   await input.setInputFiles(file(scene)); await page.waitForFunction(() => document.getElementById('json-error').textContent === '');
   const legacy = { ...scene.design, body: { shape: 'puffy', color: '#81b5a1' } };
   await input.setInputFiles(file(legacy)); await page.waitForFunction(() => document.getElementById('flat').design.body.shape === 'puffy');
-  const migrated = await stateOf(page, '#flat'); assert.deepEqual(migrated.design, legacy); assert.deepEqual(migrated.camera, { yaw: 0, pitch: 0, roll: 0 });
+  const migrated = await stateOf(page, '#flat'); assert.deepEqual(migrated.design, legacy); assert.deepEqual(migrated.camera, { yaw: 0, pitch: 0, roll: 0, zoom: 1 });
   assert.equal(migrated.mouseTracking, false); assert.equal(migrated.paused, false); assert.equal(migrated.activity, 'idle');
 });
 
@@ -917,7 +944,9 @@ test('named tracking precedence, viewport leave, reduced-motion changes and reco
   });
   await page.waitForFunction(() => window.trackingRotation?.[1] > .2);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.waitForFunction(() => window.trackingRotation.every(value => Math.abs(value) < .00001));
+  // The neutral spring keeps running until both displacement and velocity settle.
+  // Require its exact stopped endpoint before comparing an exact neutral pose.
+  await page.waitForFunction(() => !document.getElementById('bare').diagnostics.running && window.trackingRotation.every(value => value === 0));
   const reduced = await page.locator('#bare').evaluate(async element => {
     document.dispatchEvent(new PointerEvent('pointermove', { clientX: -9000, clientY: 9000, pointerType: 'mouse' }));
     await element.capturePixelsAsync();

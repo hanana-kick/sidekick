@@ -9,7 +9,7 @@ export function sceneSnippets(input: SidekickScene): { html: string; react: stri
   const scene = parseScene(input);
   const values: [string, string, unknown][] = [
     ['design', 'design', scene.design],
-    ['camera-yaw', 'cameraYaw', scene.camera.yaw], ['camera-pitch', 'cameraPitch', scene.camera.pitch], ['camera-roll', 'cameraRoll', scene.camera.roll],
+    ['camera-yaw', 'cameraYaw', scene.camera.yaw], ['camera-pitch', 'cameraPitch', scene.camera.pitch], ['camera-roll', 'cameraRoll', scene.camera.roll], ['camera-zoom', 'cameraZoom', scene.camera.zoom],
     ['tracking-mode', 'trackingMode', scene.trackingMode], ['activity', 'activity', scene.activity], ['paused', 'paused', scene.paused], ['interaction', 'interaction', scene.interaction],
     ['gaze-x', 'gazeX', scene.gaze.x], ['gaze-y', 'gazeY', scene.gaze.y], ['time', 'time', scene.time],
     ['shape-duration', 'shapeDuration', scene.shapeDuration], ['shape-easing', 'shapeEasing', scene.shapeEasing],
