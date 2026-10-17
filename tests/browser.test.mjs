@@ -254,11 +254,22 @@ test('curated eyes and independent expressions cannot protrude beyond the body s
 test('independent expression transitions persist and rapid edits finish both eyes', async t => {
   const page = await pageFor(t, { reducedMotion: 'no-preference' });
   const result = await page.locator('#flat').evaluate(async a => {
-    a.setActivity('still');
+    a.setActivity('still'); a.style.width = '256px'; a.style.height = '256px';
     a.design = window.fixtureAPI.createDesign({ eyes: { left: { weights: { blink: 0.3 } }, right: { weights: { blink: 0.1 } } } });
-    const left = a.setExpression('left', 'smile', { duration: 300 });
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const left = a.setExpression('left', 'smile', { duration: 800 });
     const initial = a.pose.eyes;
-    await new Promise(resolve => setTimeout(resolve, 80));
+    // Observe an actual rendered animation step; wall-clock sleeps can expire before
+    // the first software-GPU frame is delivered on a busy CI runner.
+    await new Promise((resolve, reject) => {
+      const deadline = performance.now() + 5000;
+      const sample = () => {
+        if (a.pose.eyes.left.smile > 0) resolve();
+        else if (performance.now() > deadline) reject(new Error('Eye animation did not advance on RAF'));
+        else requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
     const midway = a.pose.eyes;
     const right = a.setExpression('right', 'blink', { duration: 180 });
     const savedImmediately = a.design.eyes;
@@ -268,7 +279,7 @@ test('independent expression transitions persist and rapid edits finish both eye
     return { initial, midway, savedImmediately, leftResult, rightResult, finished, reopened: a.pose.eyes };
   });
   assert.equal(result.initial.left.smile, 0); assert.equal(result.initial.right.smile, 0);
-  assert.ok(result.midway.left.smile > 0 && result.midway.left.smile < 1);
+  assert.ok(result.midway.left.smile > 0 && result.midway.left.smile < 1, JSON.stringify(result.midway));
   assert.equal(result.midway.right.openness, 0.9);
   assert.deepEqual(result.savedImmediately.left.weights, { smile: 1, blink: 0 }); assert.deepEqual(result.savedImmediately.right.weights, { smile: 0, blink: 1 });
   assert.equal(result.leftResult.finished, true); assert.equal(result.rightResult.finished, true);
@@ -428,10 +439,21 @@ test('surface eye ink follows rounded geometry, can remain at true side view, an
 test('setEyeWeights preserves other weights, color edits and independent running eye channels', async t => {
   const page = await pageFor(t, { reducedMotion: 'no-preference' });
   const result = await page.locator('#flat').evaluate(async a => {
-    a.setActivity('still'); a.seek(0);
+    a.setActivity('still'); a.seek(0); a.style.width = '256px'; a.style.height = '256px';
     a.design = window.fixtureAPI.createDesign();
-    const left = a.setEyeWeights('left', { smile: 0.8 }, { duration: 400 });
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const left = a.setEyeWeights('left', { smile: 0.8 }, { duration: 800 });
+    // Observe an actual rendered animation step; wall-clock sleeps can expire before
+    // the first software-GPU frame is delivered on a busy CI runner.
+    await new Promise((resolve, reject) => {
+      const deadline = performance.now() + 5000;
+      const sample = () => {
+        if (a.pose.eyes.left.smile > 0) resolve();
+        else if (performance.now() > deadline) reject(new Error('Eye animation did not advance on RAF'));
+        else requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
     const midway = a.pose.eyes;
     const right = a.setEyeWeights('right', { blink: 0.65 }, { duration: 120 });
     await a.updateDesign({ eyes: { color: '#121212' } });
@@ -443,7 +465,7 @@ test('setEyeWeights preserves other weights, color edits and independent running
     await a.setEyeWeights('both', { smile: 0.25 }, { duration: 0 });
     return { midway, immediately, leftResult, rightResult, endpoint, partial, both: a.design.eyes };
   });
-  assert.ok(result.midway.left.smile > 0 && result.midway.left.smile < 0.8);
+  assert.ok(result.midway.left.smile > 0 && result.midway.left.smile < 0.8, JSON.stringify(result.midway));
   assert.deepEqual(result.midway.right, { openness: 1, smile: 0 });
   assert.deepEqual(result.immediately.eyes.left.weights, { smile: 0.8, blink: 0 });
   assert.deepEqual(result.immediately.eyes.right.weights, { smile: 0, blink: 0.65 });
@@ -738,8 +760,10 @@ test('Studio fixed preview stays visible while settings scroll at desktop, phone
   for (const [width, height] of [[1440, 1040], [390, 844], [320, 480], [390, 500], [667, 375], [568, 320]]) {
     await page.setViewportSize({ width, height }); await tab(page, '외형');
     await page.locator('.settings-scroll').evaluate(el => { el.scrollTop = 0; });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    if (screenshots) await page.screenshot({ path: screenshots + '/studio-layout-' + width + 'x' + height + '.png' });
     const before = await page.locator('.stage').boundingBox();
-    assert.ok(before.x >= -1 && before.y >= -1 && before.x + before.width <= width + 1 && before.y + before.height <= height + 1, `${width}×${height} preview visible`);
+    assert.ok(before.x >= -1 && before.y >= -1 && before.x + before.width <= width + 1 && before.y + before.height <= height + 1, `${width}×${height} preview visible: ${JSON.stringify(before)}`);
     const metrics = await page.evaluate(() => { const s = document.querySelector('.settings-scroll'); return { pageWidth: document.documentElement.scrollWidth, pageHeight: document.documentElement.scrollHeight, client: s.clientHeight, scroll: s.scrollHeight }; });
     assert.ok(metrics.pageWidth <= width + 1 && metrics.pageHeight <= height + 1, `${width}×${height} no page overflow`);
     assert.ok(metrics.client >= 50 && metrics.scroll > metrics.client, `${width}×${height} usable independent settings scroll`);
@@ -763,6 +787,8 @@ test('Studio fixed preview stays visible while settings scroll at desktop, phone
 test('Studio keyboard tabs, named slider thumbs and Select Escape retain accessible focus', async t => {
   const page = await pageFor(t);
   await page.locator('#appearance-tab').focus(); await page.locator('#appearance-tab').press('ArrowRight');
+  // Radix roving focus activates a tab on its deferred focus task.
+  await page.waitForFunction(() => document.getElementById('animation-tab').getAttribute('aria-selected') === 'true');
   assert.equal(await page.locator('#animation-tab').getAttribute('aria-selected'), 'true');
   assert.equal(await page.locator('#animation-panel').getAttribute('aria-labelledby'), 'animation-tab');
   assert.equal(await page.locator('#animation-tab').getAttribute('aria-controls'), 'animation-panel');

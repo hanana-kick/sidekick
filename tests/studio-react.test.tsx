@@ -252,3 +252,21 @@ test('layout source confines scrolling to settings and config contains real Slat
   assert.match(css, /button:not\(:disabled\)[\s\S]*?cursor: pointer/);
   assert.match(css, /\.shape-tile\[aria-pressed="true"\]/);
 });
+
+test('narrow-phone source constrains the shell column and preserves the compact JSON action name', async t => {
+  const f = await fixture(t);
+  const css = readFileSync(new URL('../playground/style.css', import.meta.url), 'utf8');
+  const shell = css.match(/\.studio-shell\s*\{([^}]+)\}/s)![1]!;
+  assert.match(shell, /position: fixed; inset: 0/);
+  assert.match(shell, /grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(shell, /width: 100%; max-width: 100%; min-width: 0/);
+  assert.match(css, /\.app-header\s*\{[^}]*min-width: 0/);
+  assert.match(css, /\.workspace\s*\{[^}]*min-width: 0/);
+  assert.match(css, /@media \(max-width: 359px\)[\s\S]*?#export-json\s*\{[^}]*width: 32px/);
+  const compactName = css.match(/#export-json > span\s*\{([^}]+)\}/s)![1]!;
+  assert.match(compactName, /position: absolute/);
+  assert.match(compactName, /clip: rect\(0, 0, 0, 0\)/);
+  assert.doesNotMatch(compactName, /display:\s*none|visibility:\s*hidden/);
+  assert.equal(f.node('export-json').textContent, 'JSON 내보내기');
+  assert.equal(f.node('export-json').querySelector('span')!.hasAttribute('aria-hidden'), false);
+});
