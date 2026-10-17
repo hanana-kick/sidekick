@@ -16,7 +16,7 @@ const legacy = (shape, bodyPatch = {}) => ({
 test('v7 default is one square catalog selection and flat color', () => {
   const a = createDesign(), b = createDesign();
   assert.equal(a.version, 7);
-  assert.deepEqual(a.body, { shape: 'square', color: '#e9b64d' });
+  assert.deepEqual(a.body, { shape: 'square', color: '#ffcc37' });
   assert.deepEqual(Object.keys(a.eyes).sort(), ['color','left','right']);
   a.body.shape = 'heart'; a.eyes.left.weights.smile = 1;
   assert.equal(b.body.shape, 'square');

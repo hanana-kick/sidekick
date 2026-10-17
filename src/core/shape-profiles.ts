@@ -93,7 +93,7 @@ function defaults(shape: MaterialShapeName, depth: number, eyes: readonly [numbe
       moustache: front(mouthY, size, mouthTilt),
       goatee: front(mouthY - .015, size * .88, mouthTilt),
       bowTie: tie ? front(...tie) : front(neckY, size, neckTilt),
-      scarf: front(neckY, size),
+      scarf: front(shape === 'softBoom' ? -.46 : neckY, size),
       necklace: front(tie ? tie[0] + .03 : neckY + .055, size * .92),
       leftStarEarring: { anchor: { region: 'left', uv: [0, leftEarV], offset: 0 }, rotation: [0, Math.PI / 2, 0], scale: earSize },
       rightStarEarring: { anchor: { region: 'right', uv: [0, rightEarV], offset: 0 }, rotation: [0, -Math.PI / 2, 0], scale: earSize },

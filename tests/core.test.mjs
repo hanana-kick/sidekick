@@ -12,6 +12,12 @@ test('default designs are isolated and support lossless JSON round trips', () =>
   assert.equal(b.body.shape, 'square');
   assert.deepEqual(parseDesign(serializeDesign(b)), b);
 });
+test('the default body is FFCC37 while explicit saved colors remain unchanged', () => {
+  assert.equal(createDesign().body.color, '#ffcc37');
+  const custom = createDesign({ body: { color: '#193a78' } });
+  assert.equal(parseDesign(serializeDesign(custom)).body.color, '#193a78');
+  assert.equal(patchDesign(custom, { body: { shape: 'heart' } }).body.color, '#193a78');
+});
 test('partial patches preserve the rest of the design and do not alias arrays', () => {
   const before = createDesign({ accessories: [createAccessory('beret')] });
   const after = patchDesign(before, { eyes: { left: { weights: { smile: 0.2 } } } });

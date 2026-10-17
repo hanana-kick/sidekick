@@ -17,28 +17,28 @@ npm install https://github.com/hanana-kick/sidekick.git
 배포 버전을 고정하려면 버전 태그를 지정합니다.
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.2.0
+npm install https://github.com/hanana-kick/sidekick.git#v0.2.1
 ```
 
-빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 소스의 버전은 `0.2.0`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 소스의 버전은 `0.2.1`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
 
 npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. 단일 ESM과 일반 `<script>`용 JS를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
 
 ### GitHub Release에서 다운로드
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases)를 엽니다.
-2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.2.0.zip` 또는 `hanana-kick-sidekick-0.2.0.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
+2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.2.1.zip` 또는 `hanana-kick-sidekick-0.2.1.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
 3. 일반 HTML 사이트에서는 브라우저 ZIP을 풀고 아래 파일을 사이트의 정적 파일 디렉터리에 복사합니다. 동봉된 `START-HERE.txt`를 읽고 `esm.html`, `classic.html`, `react.html` 중 원하는 예제를 열면 됩니다. 예제의 `/vendor/sidekick/`은 **사용자 사이트의 경로**입니다. 배포 경로에 맞게 바꾸세요.
 
 | 빌드된 파일 | 용도 | 필요한 파일·의존성 |
 | --- | --- | --- |
-| `sidekick-browser-0.2.0.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 4개, 선택적 `vendor/`, README·고지 포함 |
+| `sidekick-browser-0.2.1.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 4개, 선택적 `vendor/`, README·고지 포함 |
 | `sidekick.js` | 브라우저 ESM. `import`와 `<script type="module">` 사용 | 이 JS 파일 하나. 런타임 외부 import 없음 |
 | `sidekick.iife.js` | 일반 classic `<script>`. API는 `window.Sidekick` | 이 JS 파일 하나. `type="module"` 사용 안 함 |
 | `sidekick-react.js` | React 19용 ESM 컴포넌트 | `sidekick-element.js`를 같은 디렉터리에 유지하고 `react` peer를 제공 |
 | `sidekick-element.js` | React 래퍼가 지연 로딩하는 렌더러 | 직접 import하지 않음. `sidekick-react.js`와 같은 버전 사용 |
 | `vendor/react.js`, `vendor/react-dom-client.js` | 브라우저 ZIP의 선택적 React 19/ReactDOM ESM | 아래 빌드 없는 React 예제용. import map으로 연결하며 React를 이미 제공하는 앱에는 불필요 |
-| `hanana-kick-sidekick-0.2.0.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
+| `hanana-kick-sidekick-0.2.1.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
 | `SHA256SUMS` | ZIP과 tarball의 다운로드 무결성 확인 | 같은 Release의 체크섬 파일 |
 
 ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보관하세요. **GitHub Release 자산은 다운로드한 뒤 본인 사이트에서 제공하세요.** 다운로드 URL은 브라우저 JS 호스팅용 URL이 아니며 자산 응답의 MIME·CORS 동작이 정적 호스팅과 다릅니다. 아래 예제의 `src`/`import`는 내려받은 파일을 제공하는 사이트 경로를 사용합니다.
@@ -50,7 +50,7 @@ ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보�
 Release에서 받은 tarball을 사용할 프로젝트에서 설치합니다. 이 명령은 Sidekick 소스를 컴파일하거나 Studio를 빌드하지 않습니다.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.2.0.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.2.1.tgz
 ```
 
 React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 마운트하는 `react-dom`도 사용자가 같은 버전으로 준비합니다. 코어만 쓰는 프로젝트에는 React가 필요 없습니다.
@@ -78,7 +78,7 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 <sidekick-avatar></sidekick-avatar>
 ```
 
-등록이 끝나면 200 × 200px의 투명 캐릭터가 표시됩니다. 기본값은 노란 `square`, 어두운 눈, 액세서리 없음, `idle` 상태입니다. 크기는 일반 CSS로 정합니다. 외형은 카탈로그/장비 선택과 색상으로 설정하며 각 파츠의 기하 크기·깊이·위치는 공개하지 않습니다.
+등록이 끝나면 200 × 200px의 투명 캐릭터가 표시됩니다. 기본값은 `#FFCC37` 노란 `square`, 어두운 눈, 액세서리 없음, `idle` 상태입니다. 크기는 일반 CSS로 정합니다. 외형은 카탈로그/장비 선택과 색상으로 설정하며 각 파츠의 기하 크기·깊이·위치는 공개하지 않습니다.
 
 ### 완전한 HTML 예제: ESM import
 
@@ -94,7 +94,7 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
   <style>sidekick-avatar { width: 200px; height: 200px; }</style>
 </head>
 <body>
-  <sidekick-avatar id="bot" shape="verySunny" body-color="#e9b64d"
+  <sidekick-avatar id="bot" shape="verySunny" body-color="#ffcc37"
     eye-color="#24242c" head-accessory="beret" head-color="#b84742"
     mouse-tracking interaction="box" shape-duration="450"
     aria-label="작업 도우미"></sidekick-avatar>
@@ -338,7 +338,7 @@ const design = createDesign({
 | --- | --- | --- | --- |
 | `design` | `design` | `AvatarDesign` | HTML은 완전한 디자인 JSON 문자열. 기본 `createDesign()`의 v7 디자인 |
 | `shape` | `shape` | `MaterialShapeName` | 35개 카탈로그 이름. 상위 디자인의 도형, 없으면 `square` |
-| `body-color` | `bodyColor` | `string` | `#RRGGBB`. 상위 디자인 색, 없으면 `#e9b64d` |
+| `body-color` | `bodyColor` | `string` | `#RRGGBB`. 상위 디자인 색, 없으면 `#ffcc37` |
 | `eye-color` | `eyeColor` | `string` | `#RRGGBB`. 상위 디자인 색, 없으면 `#24242c` |
 | `expression` | `expression` | `EyeExpression` | `neutral` / `smile` / `blink`. 생략 시 디자인의 양쪽 가중치 유지, 초기 `neutral` |
 | `left-expression` | `leftExpression` | `EyeExpression` | 왼쪽 `neutral` / `smile` / `blink`. 생략 시 공통 expression/디자인 사용 |
@@ -747,3 +747,7 @@ SIDEKICK_HEADED=1 xvfb-run -a npm run test:browser
 
 - Material 윤곽: 고정된 [AndroidX MaterialShapes 소스](https://github.com/androidx/androidx/blob/9a589fa61f8661e0cbef9123dcc98d3c1f655fc7/compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/MaterialShapes.kt), `graphics-shapes-android:1.1.0`으로 계산. Apache 2.0 고지/출처는 [`third_party/material-shapes/`](third_party/material-shapes/). 재생성은 `scripts/generate-material-shapes.mjs`이며 이 작업에만 Java 21+·unzip·네트워크가 필요합니다.
 - Studio shadcn/ui 소스: [`playground/components/ui/LICENSE.md`](playground/components/ui/LICENSE.md). 정적 Studio 빌드에도 해당 고지를 포함합니다.
+
+### 0.2.1 목도리 개선
+
+목도리는 양쪽 접힘에서 지지되는 둥근 둘레와, 몸체 표면을 따라 늘리지 않는 두 개의 아래로 처지는 천 끝으로 구성됩니다. 매듭과 천 끝은 실제 부피가 겹쳐 연결됩니다. 35개 도형과 어려운 모프·여러 시점에서 접합부와 여유 공간을 검사했습니다. 실시간 옷감 물리 시뮬레이션은 아닙니다. 기본 몸체 색은 `#FFCC37`이며 저장된 사용자 색은 유지합니다.

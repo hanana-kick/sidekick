@@ -23,7 +23,7 @@ export const ACTIVITIES = Object.freeze(['idle', 'thinking', 'listening', 'speak
 const regions = ['face', 'crown', 'left', 'right'];
 const defaults = {
     version: 7,
-    body: { shape: 'square', color: '#e9b64d' },
+    body: { shape: 'square', color: '#ffcc37' },
     eyes: { color: '#24242c', left: createEyeState(), right: createEyeState() },
     accessories: [],
 };
