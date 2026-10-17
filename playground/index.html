@@ -1,95 +1,13 @@
 <!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f8f9fb">
-  <title>Sidekick Studio — 나만의 봇 디자인</title>
-  <link rel="stylesheet" href="/playground/style.css">
-  <script type="module" src="/playground/app.js"></script>
-</head>
-<body>
-  <header class="app-header">
-    <a class="brand" href="/" aria-label="Sidekick Studio 홈">sidekick<span>studio</span></a>
-    <div class="header-actions">
-      <button id="reset" class="quiet">초기화</button>
-      <button id="export-png" class="secondary">PNG 저장</button>
-      <button id="export-json" class="primary">JSON 내보내기 <span aria-hidden="true">↗</span></button>
-    </div>
-  </header>
-  <div class="workspace">
-    <aside class="inspector" aria-label="캐릭터 디자인 설정">
-      <div class="inspector-intro"><h1>나만의 작은 동료.</h1><p>형태를 만들고, 개성을 더하세요.</p></div>
-      <div class="tabs" role="tablist" aria-label="디자인 항목">
-        <button role="tab" id="body-tab" aria-controls="body-panel" aria-selected="true" data-tab="body">몸체</button>
-        <button role="tab" id="eyes-tab" aria-controls="eyes-panel" aria-selected="false" tabindex="-1" data-tab="eyes">눈</button>
-        <button role="tab" id="accessories-tab" aria-controls="accessories-panel" aria-selected="false" tabindex="-1" data-tab="accessories">액세서리</button>
-      </div>
-      <section id="body-panel" role="tabpanel" aria-labelledby="body-tab">
-        <h2>기본 형태</h2>
-        <div class="choices" id="body-choices">
-          <button data-shape="orb" aria-pressed="false"><span class="shape-symbol orb" aria-hidden="true"></span>오브</button>
-          <button data-shape="rounded-box" aria-pressed="true"><span class="shape-symbol rounded" aria-hidden="true"></span>라운드</button>
-          <button data-shape="droplet" aria-pressed="false"><span class="shape-symbol drop" aria-hidden="true"></span>물방울</button>
-        </div>
-        <label class="color-field" for="body-color"><span>몸체 색상</span><span class="color-value" id="body-color-value"></span><input id="body-color" type="color" value="#e9b64d"></label>
-        <h2>비율과 볼륨</h2>
-        <label class="range-label" for="body-width">너비<output for="body-width"></output></label><input id="body-width" type="range" min="0.4" max="2" step="0.01">
-        <label class="range-label" for="body-height">높이<output for="body-height"></output></label><input id="body-height" type="range" min="0.4" max="2" step="0.01">
-        <label class="range-label" for="body-depth">깊이<output for="body-depth"></output></label><input id="body-depth" type="range" min="0.4" max="2" step="0.01">
-        <label class="range-label" for="roundness">둥근 정도<output for="roundness"></output></label><input id="roundness" type="range" min="0.15" max="1" step="0.01">
-        <h2>형태 변형</h2>
-        <label class="range-label" for="taper">위아래 굵기<output for="taper"></output></label><input id="taper" type="range" min="-0.45" max="0.45" step="0.01">
-        <label class="range-label" for="bulge">부풀기<output for="bulge"></output></label><input id="bulge" type="range" min="-0.2" max="0.4" step="0.01">
-        <label class="range-label" for="bend">휘어짐<output for="bend"></output></label><input id="bend" type="range" min="-0.35" max="0.35" step="0.01">
-      </section>
-      <section id="eyes-panel" role="tabpanel" aria-labelledby="eyes-tab" hidden>
-        <h2>눈 디자인</h2>
-        <div class="choices eye-choices">
-          <button data-eyes="capsule" aria-pressed="true"><span aria-hidden="true">▮ ▮</span>캡슐</button>
-          <button data-eyes="round" aria-pressed="false"><span aria-hidden="true">● ●</span>동그라미</button>
-          <button data-eyes="arc" aria-pressed="false"><span aria-hidden="true">⌒ ⌒</span>웃는 눈</button>
-        </div>
-        <label class="color-field" for="eye-color"><span>눈 색상</span><input id="eye-color" type="color"></label>
-        <label class="range-label" for="eye-spacing">눈 사이 간격<output for="eye-spacing"></output></label><input id="eye-spacing" type="range" min="0.2" max="1" step="0.01">
-        <label class="range-label" for="eye-scale">눈 크기<output for="eye-scale"></output></label><input id="eye-scale" type="range" min="0.4" max="1.8" step="0.01">
-        <h2>표면 위 배치</h2>
-        <label class="range-label" for="face-x">좌우 위치<output for="face-x"></output></label><input id="face-x" type="range" min="-0.45" max="0.45" step="0.01">
-        <label class="range-label" for="face-y">상하 위치<output for="face-y"></output></label><input id="face-y" type="range" min="-0.6" max="0.6" step="0.01">
-        <label class="range-label" for="openness">눈 뜨기<output for="openness">1.00</output></label><input id="openness" type="range" min="0" max="1" step="0.01" value="1">
-        <p class="helper">눈은 몸체의 표면 좌표를 따라 움직입니다. 몸체를 변형해도 부착 위치가 유지됩니다.</p>
-      </section>
-      <section id="accessories-panel" role="tabpanel" aria-labelledby="accessories-tab" hidden>
-        <h2>개성 더하기</h2><p class="helper">여러 액세서리를 함께 조합할 수 있습니다.</p>
-        <label class="accessory-choice"><input type="checkbox" data-accessory="beret"><span>베레모<small>살짝 기울어진 작은 모자</small></span></label>
-        <label class="accessory-choice"><input type="checkbox" data-accessory="halo"><span>헤일로<small>머리 위에 떠 있는 고리</small></span></label>
-        <label class="accessory-choice"><input type="checkbox" data-accessory="glasses"><span>안경<small>얼굴과 함께 움직이는 프레임</small></span></label>
-        <div id="accessory-settings">
-          <h2>장착과 움직임</h2>
-          <label class="select-label" for="accessory-target">편집할 액세서리</label><select id="accessory-target"></select>
-          <label class="color-field" for="accessory-color"><span>색상</span><input id="accessory-color" type="color"></label>
-          <label class="range-label" for="accessory-x">좌우 위치<output for="accessory-x"></output></label><input id="accessory-x" type="range" min="-0.6" max="0.6" step="0.01">
-          <label class="range-label" for="accessory-offset">표면과의 거리<output for="accessory-offset"></output></label><input id="accessory-offset" type="range" min="0" max="0.5" step="0.01">
-          <label class="range-label" for="accessory-rotation">기울기<output for="accessory-rotation"></output></label><input id="accessory-rotation" type="range" min="-1" max="1" step="0.01">
-          <label class="range-label" for="accessory-follow">따라 흔들리기<output for="accessory-follow"></output></label><input id="accessory-follow" type="range" min="0" max="1" step="0.01">
-        </div>
-      </section>
-      <div class="preset-section"><h2>레시피에서 시작하기</h2><div class="preset-list"><button data-recipe="sunny"><span class="swatch sunny"></span>Sunny</button><button data-recipe="pebble"><span class="swatch pebble"></span>Pebble</button><button data-recipe="orbit"><span class="swatch orbit"></span>Orbit</button></div></div>
-    </aside>
-    <main class="stage">
-      <div class="stage-header"><div><h2>하나의 캐릭터, 두 가지 표현</h2><p>같은 메시와 움직임을 다른 스타일로 확인하세요.</p></div><div class="background-options" aria-label="미리보기 배경"><button data-background="checker" aria-pressed="true">투명</button><button data-background="light" aria-pressed="false">밝게</button><button data-background="dark" aria-pressed="false">어둡게</button></div></div>
-      <div class="previews" data-background="checker">
-        <section class="preview" aria-label="Flat 미리보기"><div class="preview-heading"><h3>Flat</h3><span>색과 실루엣</span></div><sidekick-avatar id="flat" render-style="flat" interaction="box" aria-label="Flat 캐릭터, 드래그로 회전"></sidekick-avatar><span class="preview-note">UNLIT · ORTHOGRAPHIC</span></section>
-        <section class="preview" aria-label="3D 미리보기"><div class="preview-heading"><h3>3D</h3><span>빛과 볼륨</span></div><sidekick-avatar id="solid" render-style="3d" interaction="box" aria-label="3D 캐릭터, 드래그로 회전"></sidekick-avatar><span class="preview-note">LIT · ORTHOGRAPHIC</span></section>
-      </div>
-      <section class="motion-panel" aria-label="애니메이션 미리보기">
-        <div class="motion-heading"><h2>움직임에 생명을 더하세요</h2><button id="pause" class="secondary" aria-pressed="false">일시 정지</button></div>
-        <div class="activity-options" aria-label="봇 상태"><button data-activity="idle" aria-pressed="true">대기</button><button data-activity="thinking" aria-pressed="false">생각 중</button><button data-activity="listening" aria-pressed="false">듣는 중</button><button data-activity="speaking" aria-pressed="false">말하는 중</button><button data-activity="celebrating" aria-pressed="false">축하</button><button data-activity="still" aria-pressed="false">정적</button></div>
-        <div class="view-controls"><div><label class="range-label" for="view-yaw">몸체 회전<output for="view-yaw">0°</output></label><input id="view-yaw" type="range" min="-180" max="180" step="1" value="0"></div><div class="motion-actions"><button id="look-left">왼쪽 보기</button><button id="look-center">정면 보기</button><button id="look-right">오른쪽 보기</button><button id="face-motion">얼굴 이동</button></div></div>
-      </section>
-      <details class="code-panel" id="code-panel"><summary><span>디자인 JSON & API</span><span>코드로도 같은 캐릭터를 만들 수 있습니다.</span></summary><div class="code-content"><label for="design-json">디자인 JSON</label><textarea id="design-json" spellcheck="false" aria-describedby="json-error"></textarea><p id="json-error" role="alert"></p><div class="code-actions"><button id="import-json" class="primary">JSON 적용</button><button id="copy-json" class="secondary">복사</button></div><pre id="api-example"></pre></div></details>
-      <footer class="stage-footer"><span>Web Component · WebGL2 · 투명 Canvas</span><span id="status" role="status" aria-live="polite">디자인 준비 중</span></footer>
-    </main>
-  </div>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f8fafc" />
+    <title>Sidekick Studio · 나만의 작은 동료</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/playground/main.tsx"></script>
+  </body>
 </html>

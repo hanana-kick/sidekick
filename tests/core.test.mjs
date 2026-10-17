@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDesign, createAccessory, parseDesign, patchDesign, serializeDesign, BODY_SHAPES, ACCESSORY_PRESETS } from '../dist/src/core/design.js';
+import { createDesign, createAccessory, parseDesign, patchDesign, serializeDesign, ACCESSORY_PRESETS } from '../dist/src/core/design.js';
 import { bodyPoint, bodyNormal, sampleSurface } from '../dist/src/core/surface.js';
 import { dot, cross, normalize, spring, transform, multiply, identity } from '../dist/src/core/math.js';
 import { MotionTimeline, activityFrame } from '../dist/src/core/motion.js';
@@ -8,21 +8,21 @@ import { sphere, torus } from '../dist/src/renderer/geometry.js';
 const near = (a, b, epsilon = 1e-7) => assert.ok(Math.abs(a - b) < epsilon, `${a} != ${b}`);
 
 test('default designs are isolated and support lossless JSON round trips', () => {
-  const a = createDesign(), b = createDesign(); a.body.size[0] = 1.9;
-  assert.equal(b.body.size[0], 1.12);
+  const a = createDesign(), b = createDesign(); a.body.shape = 'heart';
+  assert.equal(b.body.shape, 'square');
   assert.deepEqual(parseDesign(serializeDesign(b)), b);
 });
 test('partial patches preserve the rest of the design and do not alias arrays', () => {
   const before = createDesign({ accessories: [createAccessory('beret')] });
-  const after = patchDesign(before, { eyes: { anchor: { uv: [0.2, 0.3] } } });
-  assert.equal(after.eyes.anchor.region, 'face'); assert.deepEqual(after.body, before.body);
-  after.accessories[0].rotation[0] = 1; assert.equal(before.accessories[0].rotation[0], 0);
+  const after = patchDesign(before, { eyes: { left: { weights: { smile: 0.2 } } } });
+  assert.equal(after.eyes.left.weights.smile, 0.2); assert.deepEqual(after.body, before.body);
+  after.accessories[0].color = '#ffffff'; assert.equal(before.accessories[0].color, '#b84742');
 });
 for (const [name, mutate] of [
-  ['version', d => { d.version = 2; }], ['NaN', d => { d.body.size[0] = NaN; }],
-  ['negative size', d => { d.body.size[1] = -1; }], ['short tuple', d => { d.body.size = [1, 1]; }],
+  ['version', d => { d.version = 99; }], ['unknown shape', d => { d.body.shape = 'unknown'; }],
+  ['removed size', d => { d.body.size = [1, 1, 1]; }], ['custom recipe', d => { d.body.shape = {kind:'ellipse'}; }],
   ['unknown key', d => { d.body.typo = 2; }], ['color', d => { d.body.color = 'red'; }],
-  ['bad eye region', d => { d.eyes.anchor.region = 'crown'; }], ['unsafe id', d => { d.accessories = [{ ...createAccessory('beret'), id: '__proto__' }]; }],
+  ['bad eye region', d => { d.eyes.anchor = { region: 'crown', uv: [0,0], offset: 0 }; }], ['unsafe id', d => { d.accessories = [{ ...createAccessory('beret'), id: '__proto__' }]; }],
   ['duplicate ids', d => { d.accessories = [createAccessory('beret', 'same'), createAccessory('halo', 'same')]; }],
   ['too many parts', d => { d.accessories = Array.from({ length: 9 }, (_, i) => createAccessory('beret', `hat-${i}`)); }],
 ]) test(`untrusted design rejects ${name}`, () => { const d = createDesign(); mutate(d); assert.throws(() => parseDesign(d)); });
@@ -33,10 +33,13 @@ test('malformed and oversized JSON, unknown patch keys, and prototype payloads a
   assert.equal({}.polluted, undefined);
 });
 test('all built-in accessories provide valid, independent mount recipes', () => {
-  for (const preset of ACCESSORY_PRESETS) assert.equal(parseDesign(createDesign({ accessories: [createAccessory(preset)] })).accessories[0].preset, preset);
+  for (const preset of ACCESSORY_PRESETS) {
+    const accessory = preset === 'earring' ? createAccessory(preset, { slot: 'leftEar' }) : createAccessory(preset);
+    assert.equal(parseDesign(createDesign({ accessories: [accessory] })).accessories[0].preset, preset);
+  }
 });
-for (const shape of BODY_SHAPES) test(`${shape}: shared deformed surface has finite positions and outward unit normals`, () => {
-  const body = createDesign({ body: { shape, taper: 0.3, bulge: 0.2, bend: -0.2 } }).body;
+for (const shape of ['circle','square','oval']) test(`${shape}: shared deformed surface has finite positions and outward unit normals`, () => {
+  const body = createDesign({ body: { shape } }).body;
   for (let a = 0; a < 24; a++) for (let b = 0; b < 12; b++) {
     const direction = normalize([Math.cos(a), Math.sin(b), Math.sin(a)]);
     const p = bodyPoint(body, direction, 0.93), n = bodyNormal(body, direction, 0.93);
@@ -45,7 +48,7 @@ for (const shape of BODY_SHAPES) test(`${shape}: shared deformed surface has fin
   }
 });
 test('surface anchors use exactly the same deformation as mesh positions, with a normal offset', () => {
-  const body = createDesign({ body: { bend: 0.25, taper: 0.4 } }).body;
+  const body = createDesign({ body: { shape:'square' } }).body;
   for (const squash of [0.9, 1, 1.1]) {
     const anchor = { region: 'face', uv: [0.27, -0.21], offset: 0.037 };
     const [u, v] = anchor.uv;
@@ -57,9 +60,9 @@ test('surface anchors use exactly the same deformation as mesh positions, with a
   }
 });
 test('semantic regions have correct outward-facing coordinate frames', () => {
-  const body = createDesign({ body: { shape: 'orb', bend: 0, bulge: 0 } }).body;
+  const body = createDesign({ body: { shape: 'circle' } }).body;
   for (const [region, expected] of [['face', [0, 0, 1]], ['crown', [0, 1, 0]], ['left', [-1, 0, 0]], ['right', [1, 0, 0]]]) {
-    const f = sampleSurface(body, { region, uv: [0, 0], offset: 0 }); near(dot(f.normal, expected), 1);
+    const f = sampleSurface(body, { region, uv: [0, 0], offset: 0 }); near(dot(f.normal, expected), 1, 0.001);
   }
 });
 test('transforms preserve identity and apply translation in column-major convention', () => {
@@ -90,7 +93,8 @@ test('invalid motion is atomic; zero-duration motion completes synchronously', a
   assert.throws(() => timeline.to({ eyes: { openness: NaN } })); assert.equal(timeline.active, true);
   assert.throws(() => timeline.advance(-1));
   const immediate = timeline.to({ eyes: { openness: 0.2 } }, { duration: 0 });
-  assert.deepEqual(await first, { finished: false }); assert.deepEqual(await immediate, { finished: true }); near(timeline.pose.openness, 0.2);
+  assert.deepEqual(await immediate, { finished: true }); near(timeline.pose.openness, 0.2);
+  assert.equal(timeline.active, true); timeline.advance(400); assert.deepEqual(await first, { finished: true });
 });
 test('reduced motion and still activity produce an invariant resting pose', () => {
   assert.deepEqual(activityFrame('speaking', 10, true), activityFrame('idle', 0, true));

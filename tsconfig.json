@@ -3,7 +3,11 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
@@ -14,7 +18,18 @@
     "outDir": "dist",
     "rootDir": ".",
     "skipLibCheck": true,
-    "types": []
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./playground/*"
+      ]
+    },
+    "jsx": "react-jsx"
   },
-  "include": ["src/**/*.ts", "playground/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "playground/shape-palette.ts",
+    "playground/studio-controller.ts"
+  ]
 }
