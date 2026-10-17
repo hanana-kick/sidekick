@@ -10,6 +10,9 @@ import type { CameraAngles, CameraPreset } from '../src/core/camera.js';
 import { eyeExpressionWeights } from '../src/core/expressions.js';
 import type { EyeExpression, EyeShapeWeights } from '../src/core/expressions.js';
 import type { MaterialShapeName } from '../src/core/shapes.js';
+import { createScene, parseScene, serializeScene, migrateScene, MAX_SCENE_BYTES } from '../src/core/scene.js';
+import { sceneSnippets, escapeHTMLAttribute } from '../playground/studio-snippets.js';
+import ts from 'typescript';
 import { StudioController, STORAGE_KEY } from '../playground/studio-controller.js';
 
 // Deliberately layout-free: real ReactDOM + Radix interactions against a mock
@@ -28,6 +31,12 @@ class MockAvatar extends HTMLElement {
   current = createDesign();
   cameraValue = { ...CAMERA_PRESETS.front };
   paused = false;
+  mouseTracking = false;
+  interaction: 'none' | 'box' = 'none';
+  cancelCalls = 0;
+  motionCalls: unknown[] = [];
+  gaze = { x: 0, y: 0 };
+  time = 0;
   activity: Activity = 'idle';
   connections = 0;
   disconnections = 0;
@@ -36,7 +45,7 @@ class MockAvatar extends HTMLElement {
   patchCalls: DesignPatch[] = [];
   eyeCalls: { side: string; weights: unknown }[] = [];
   morphing = false;
-  motion = { cancel() {}, to: () => Promise.resolve({ finished: true }) };
+  motion = { cancel: () => { this.cancelCalls++; }, to: (target: unknown) => { this.motionCalls.push(target); return Promise.resolve({ finished: true }); } };
   connectedCallback() { this.connections++; }
   disconnectedCallback() { this.disconnections++; }
   get design() { return parseDesign(this.current); }
@@ -51,8 +60,8 @@ class MockAvatar extends HTMLElement {
   setCameraPreset(preset: CameraPreset) { this.setCamera(CAMERA_PRESETS[preset]); }
   resetCamera() { this.setCamera(CAMERA_PRESETS.front); }
   setActivity(activity: Activity) { this.activity = activity; }
-  lookAt() {}
-  seek() {}
+  lookAt(target: { x: number; y: number }) { this.gaze = { x: target.x, y: target.y }; }
+  seek(time: number) { this.time = time; }
   snapshot() { return Promise.resolve(new Blob(['mock'], { type: 'image/png' })); }
 }
 dom.window.customElements.define('sidekick-avatar', MockAvatar);
@@ -128,6 +137,155 @@ test('keyboard tabs/sliders and shape focus update through React without remount
   assert.equal(avatar.assignments, assignments); assert.equal(avatar.morphing, true);
   assert.deepEqual(avatar.camera, { yaw: 43, pitch: 11, roll: 7 });
   assert.equal(f.container.querySelector('[data-shape="heart"]'), heart);
+});
+
+test('mouse tracking toggles the element independently, survives UI edits and resets without a remount', async t => {
+  const f = await fixture(t), avatar = f.avatar, assignments = avatar.assignments;
+  const stored = f.storage.values.get(STORAGE_KEY), writes = f.storage.writes.length;
+  await f.click(f.node('animation-tab'));
+  const toggle = f.node('mouse-tracking');
+  assert.equal(toggle.getAttribute('data-slot'), 'toggle');
+  assert.equal(toggle.getAttribute('aria-label'), '마우스 시선 추적');
+  assert.equal(toggle.getAttribute('aria-pressed'), 'false');
+  assert.equal(avatar.mouseTracking, false);
+  await f.click(toggle);
+  assert.equal(toggle.getAttribute('aria-pressed'), 'true');
+  assert.equal(avatar.mouseTracking, true); assert.equal(f.controller.getSnapshot().mouseTracking, true);
+  assert.equal(f.storage.values.get(STORAGE_KEY), stored); assert.equal(f.storage.writes.length, writes);
+  await f.click(f.node('camera-tab')); await f.key('view-yaw', 'ArrowRight');
+  await f.shape('heart'); await f.input('body-color', '#aabbcc');
+  assert.equal(avatar.mouseTracking, true); assert.equal(avatar.morphing, true);
+  assert.equal(f.node('flat'), avatar); assert.equal(avatar.assignments, assignments);
+  await f.click(f.node('animation-tab')); await f.click(toggle);
+  assert.equal(avatar.mouseTracking, false); assert.equal(toggle.getAttribute('aria-pressed'), 'false');
+  await f.click(toggle); await f.click(f.node('reset'));
+  assert.equal(avatar.mouseTracking, false); assert.equal(f.controller.getSnapshot().mouseTracking, false);
+  assert.equal(toggle.getAttribute('aria-pressed'), 'false'); assert.equal(avatar.connections, 1);
+  assert.equal('mouseTracking' in JSON.parse(f.storage.values.get(STORAGE_KEY)!), false);
+});
+
+test('live HTML and React examples reflect the complete scene and copy exact current values', async t => {
+  const f = await fixture(t), copied: string[] = [];
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (value: string) => { copied.push(value); } } });
+  await act(async () => { f.controller.setMouseTracking(true); f.controller.setCamera({ yaw: 42, pitch: -8, roll: 5 }); f.controller.setWeight('left', 'smile', .72); f.controller.look(.6); });
+  await f.equipment('head', 'crown'); await f.input('accessory-color-head', '#aabbcc');
+  await f.click(f.node('json-tab'));
+  const scene = f.controller.exportScene(), snippets = sceneSnippets(scene);
+  assert.equal(f.node('api-example').textContent, snippets.html);
+  assert.equal(f.node('react-example').textContent, snippets.react);
+  assert.match(snippets.html, /@hanana-kick\/sidekick\/auto/);
+  assert.match(snippets.html, /mouse-tracking="true"/); assert.match(snippets.html, /camera-yaw="42"/);
+  const markup = document.createElement('template'); markup.innerHTML = snippets.html;
+  const element = markup.content.querySelector('sidekick-avatar')!;
+  assert.deepEqual(JSON.parse(element.getAttribute('design')!), scene.design);
+  assert.deepEqual(JSON.parse(element.getAttribute('motion')!), scene.motion);
+  assert.equal(element.getAttribute('gaze-x'), '.6'.replace(/^\./, '0.'));
+  const compiled = ts.transpileModule(snippets.react, { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.ESNext }, reportDiagnostics: true });
+  assert.deepEqual(compiled.diagnostics, []); assert.match(compiled.outputText, /SidekickAvatar/);
+  await f.click(f.node('copy-html')); await f.click(f.node('copy-react'));
+  assert.deepEqual(copied, [snippets.html, snippets.react]);
+  assert.equal(f.node('usage-guide').getAttribute('href'), 'https://github.com/hanana-kick/sidekick#readme');
+  assert.equal(f.container.querySelectorAll('.usage-example[open]').length, 1);
+  assert.equal(f.node('import-scene-file').getAttribute('accept'), '.json,application/json');
+  assert.equal(f.container.querySelectorAll('[data-equipment="head"] img').length, 3);
+});
+
+test('scene parser round-trips public runtime state, rejects hidden geometry and never evaluates accessors', () => {
+  const scene = createScene({ design: createDesign({ body: { shape: 'heart' }, accessories: [createAccessory('crown', 'crown')] }),
+    camera: { yaw: 34 }, gaze: { x: .4 }, mouseTracking: true, activity: 'thinking', paused: true, interaction: 'box',
+    time: 12, shapeDuration: 800, motionDuration: 250, motion: { face: { uv: [.2, -.1] }, accessories: { crown: { rotation: [0, .2, 0] } } } });
+  assert.deepEqual(parseScene(serializeScene(scene)), scene);
+  assert.deepEqual(migrateScene(serializeScene(scene)), { scene, warnings: [], legacyDesign: false });
+  assert.equal(migrateScene(serializeDesign(scene.design)).legacyDesign, true);
+  for (const patch of [{ sceneVersion: 2 }, { camera: { yaw: 500, pitch: 0, roll: 0 } }, { gaze: { x: 5, y: 0 } }, { time: Infinity }, { shapeDuration: undefined }, { motionDuration: -1 }, { paused: 'false' }, { extra: 1 }, { motion: { accessories: { missing: { rotation: [0, 0, 0] } } } }]) {
+    assert.throws(() => parseScene({ ...scene, ...patch }));
+  }
+  assert.throws(() => createScene({ motion: { body: { rotation: [0, 0, 10] } } }));
+  assert.throws(() => parseScene({ ...scene, design: { ...scene.design, body: { ...scene.design.body, depth: .3 } } }));
+  let reads = 0;
+  const getter = { get x() { reads++; return 0; } };
+  assert.throws(() => createScene({ gaze: getter }));
+  assert.throws(() => createScene({ camera: { get yaw() { reads++; return 0; } } }));
+  assert.equal(reads, 0);
+  assert.throws(() => parseScene(' '.repeat(MAX_SCENE_BYTES + 1)));
+  assert.throws(() => parseScene('가'.repeat(MAX_SCENE_BYTES / 2)));
+  const hostile = '&"<>\' </script><img src=x onerror=alert(1)>';
+  const template = document.createElement('template'); template.innerHTML = `<div data-value="${escapeHTMLAttribute(hostile)}"></div>`;
+  assert.equal(template.content.querySelector('div')!.getAttribute('data-value'), hostile);
+  assert.equal(template.content.querySelectorAll('img,script').length, 0);
+});
+
+test('file import is validated atomically, preserves clocks on errors, and restores scene settings', async t => {
+  const f = await fixture(t);
+  await f.shape('heart');
+  await act(async () => { f.controller.setMouseTracking(true); f.controller.setCamera({ yaw: 32 }); });
+  const before = f.controller.exportScene(), writes = [...f.storage.writes], assignments = f.avatar.assignments, cancels = f.avatar.cancelCalls;
+  const motions = f.avatar.motionCalls.length, shapes = f.avatar.shapeCalls.length;
+  const invalid = [
+    '{broken', JSON.stringify({ ...before, sceneVersion: 99 }), JSON.stringify({ ...before, camera: { yaw: 500, pitch: 0, roll: 0 } }),
+    JSON.stringify({ ...before, motion: { accessories: { absent: { rotation: [0, 0, 0] } } } }),
+  ];
+  for (const raw of invalid) {
+    await act(async () => { assert.equal(await f.controller.importFile({ size: raw.length, text: async () => raw }), false); });
+    assert.deepEqual(f.controller.exportScene(), before); assert.deepEqual(f.storage.writes, writes);
+    assert.equal(f.avatar.assignments, assignments); assert.equal(f.avatar.cancelCalls, cancels); assert.equal(f.avatar.motionCalls.length, motions); assert.equal(f.avatar.shapeCalls.length, shapes);
+    assert.equal(f.avatar.morphing, true); assert.ok(f.controller.getSnapshot().jsonError);
+  }
+  let reads = 0;
+  await act(async () => { assert.equal(await f.controller.importFile({ size: MAX_SCENE_BYTES + 1, text: async () => { reads++; return ''; } }), false); });
+  assert.equal(reads, 0);
+  const next = createScene({ design: createDesign({ body: { shape: 'boom' }, accessories: [createAccessory('necklace')] }), camera: { yaw: 75, pitch: -12, roll: 8 },
+    mouseTracking: true, interaction: 'box', paused: true, activity: 'thinking', gaze: { x: -.7, y: .3 }, time: 17, shapeDuration: 900, shapeEasing: 'linear', motionDuration: 250,
+    motion: { face: { uv: [.2, .1] } } });
+  const raw = serializeScene(next);
+  await act(async () => { assert.equal(await f.controller.importFile({ size: raw.length, text: async () => raw }), true); });
+  assert.deepEqual(f.controller.exportScene(), next); assert.deepEqual(JSON.parse(f.controller.exportJSON()), next);
+  assert.deepEqual(f.avatar.design, next.design); assert.deepEqual(f.avatar.camera, next.camera); assert.deepEqual(f.avatar.gaze, next.gaze);
+  assert.equal(f.avatar.time, 17); assert.equal(f.avatar.paused, true); assert.equal(f.avatar.mouseTracking, true);
+  assert.equal(f.controller.getSnapshot().jsonError, ''); assert.deepEqual(f.avatar.motionCalls.at(-1), next.motion);
+  await act(async () => { f.controller.setWeight('left', 'smile', .2); });
+  assert.equal(f.controller.exportScene().design.eyes.left.weights.smile, .2);
+});
+
+test('same-design scene import resets transient eye channels using the real element timeline', async () => {
+  const { SidekickAvatar } = await import('../src/element/avatar.js');
+  dom.window.customElements.define('sidekick-scene-regression', class extends SidekickAvatar {});
+  const avatar = document.createElement('sidekick-scene-regression') as InstanceType<typeof SidekickAvatar>;
+  const controller = new StudioController(store()), unbind = controller.bindAvatar(avatar);
+  try {
+    const neutral = controller.exportJSON();
+    await avatar.motion.to({ eyes: { left: { weights: { smile: 1, blink: .7 } }, right: { weights: { smile: .5, blink: .4 } } } }, { duration: 0 });
+    assert.equal(avatar.pose.eyes.left.smile, 1); assert.ok(Math.abs(avatar.pose.eyes.left.openness - .3) < 1e-12);
+    assert.deepEqual(avatar.design.eyes.left.weights, { smile: 0, blink: 0 });
+    assert.equal(controller.importJSON(neutral), true);
+    assert.deepEqual(avatar.pose.eyes, { left: { smile: 0, openness: 1 }, right: { smile: 0, openness: 1 } });
+    const partial = createScene({ design: avatar.design, motion: { eyes: { left: { weights: { smile: .6 } } } } });
+    await avatar.motion.to({ eyes: { left: { weights: { blink: .8 } }, right: { weights: { blink: 1 } } } }, { duration: 0 });
+    assert.equal(controller.importJSON(serializeScene(partial)), true);
+    assert.deepEqual(avatar.pose.eyes, { left: { smile: .6, openness: 1 }, right: { smile: 0, openness: 1 } });
+  } finally { unbind(); }
+});
+
+test('latest file selection wins and reset, editor changes, and unmount cancel pending reads', async t => {
+  const f = await fixture(t);
+  const deferred = () => { let resolve!: (text: string) => void; const promise = new Promise<string>(done => { resolve = done; }); return { file: { size: 100, text: () => promise }, resolve }; };
+  const one = deferred(), two = deferred();
+  let first!: Promise<boolean>, second!: Promise<boolean>;
+  await act(async () => { first = f.controller.importFile(one.file); second = f.controller.importFile(two.file); });
+  const newest = createScene({ design: createDesign({ body: { shape: 'puffy' } }), mouseTracking: true });
+  await act(async () => { two.resolve(serializeScene(newest)); assert.equal(await second, true); });
+  await act(async () => { one.resolve('{broken'); assert.equal(await first, false); });
+  assert.deepEqual(f.controller.exportScene(), newest); assert.equal(f.controller.getSnapshot().jsonError, '');
+  for (const cancel of [() => f.controller.reset(), () => f.controller.editJSON('draft')]) {
+    const pending = deferred(); let result!: Promise<boolean>;
+    await act(async () => { result = f.controller.importFile(pending.file); cancel(); });
+    const before = f.controller.getSnapshot();
+    await act(async () => { pending.resolve(serializeScene(newest)); assert.equal(await result, false); });
+    assert.equal(f.controller.getSnapshot(), before);
+  }
+  const pending = deferred(), result = f.controller.importFile(pending.file);
+  await f.unmount(); const before = f.controller.getSnapshot(); pending.resolve(serializeScene(newest));
+  assert.equal(await result, false); assert.equal(f.controller.getSnapshot(), before);
 });
 
 test('Radix Select keyboard selection updates easing and expressions and restores trigger focus', async t => {

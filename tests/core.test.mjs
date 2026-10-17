@@ -34,7 +34,7 @@ test('malformed and oversized JSON, unknown patch keys, and prototype payloads a
 });
 test('all built-in accessories provide valid, independent mount recipes', () => {
   for (const preset of ACCESSORY_PRESETS) {
-    const accessory = preset === 'earring' ? createAccessory(preset, { slot: 'leftEar' }) : createAccessory(preset);
+    const accessory = preset === 'earring' || preset === 'starEarring' ? createAccessory(preset, { slot: 'leftEar' }) : createAccessory(preset);
     assert.equal(parseDesign(createDesign({ accessories: [accessory] })).accessories[0].preset, preset);
   }
 });

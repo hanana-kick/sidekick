@@ -8,7 +8,10 @@ function avatarForTest(connected = false) {
   avatar.isConnected = connected;
   avatar.hasAttribute = name => attributes.has(name);
   avatar.getAttribute = name => attributes.get(name) ?? null;
-  avatar.setAttribute = (name, value) => attributes.set(name, String(value));
+  avatar.setAttribute = (name, value) => {
+    const old = attributes.get(name) ?? null; attributes.set(name, String(value));
+    if (SidekickAvatar.observedAttributes.includes(name)) avatar.attributeChangedCallback(name, old, String(value));
+  };
   avatar.dispatchEvent = event => { events.push(event); return true; };
   return { avatar, events, attributes };
 }
@@ -94,7 +97,7 @@ test('camera changes preserve in-flight body and shape animation and render sepa
 });
 
 test('pointer orbit updates the same degree camera, preserves roll, clamps axes and emits no activation after drag', () => {
-  const { avatar, events, attributes } = avatarForTest(); attributes.set('interaction', 'box');
+  const { avatar, events } = avatarForTest(); avatar.interaction = 'box';
   let captured = false;
   avatar.canvas = { setPointerCapture() { captured = true; }, hasPointerCapture() { return captured; }, releasePointerCapture() { captured = false; } };
   avatar.setCamera({ yaw: 10, pitch: 15, roll: 25 }); const pose = avatar.pose;

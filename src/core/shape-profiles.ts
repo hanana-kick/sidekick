@@ -20,8 +20,8 @@ export interface ShapeEyeProfile { width: number; height: number; spacing: numbe
  * halo plane in an upright crown frame, never the radial direction to that lobe.
  */
 export interface CuratedAccessoryMount { anchor: Anchor; rotation: Vec3; scale: number }
-export type CuratedAccessoryKey = Exclude<AccessoryPreset, 'earring'> | 'leftEarring' | 'rightEarring';
-const CURATED_ACCESSORY_KEYS: readonly CuratedAccessoryKey[] = ['beret', 'halo', 'glasses', 'moustache', 'bowTie', 'scarf', 'leftEarring', 'rightEarring'];
+export type CuratedAccessoryKey = Exclude<AccessoryPreset, 'earring' | 'starEarring'> | 'leftEarring' | 'rightEarring' | 'leftStarEarring' | 'rightStarEarring';
+const CURATED_ACCESSORY_KEYS: readonly CuratedAccessoryKey[] = ['beret', 'halo', 'crown', 'glasses', 'sunglasses', 'moustache', 'goatee', 'bowTie', 'scarf', 'necklace', 'leftEarring', 'rightEarring', 'leftStarEarring', 'rightStarEarring'];
 /** Legacy calibration is validated on import, never used as a public slot map. */
 export interface ShapeProfile { depth: number; mounts: Record<'head' | 'face', ShapeMount>; eyes: ShapeEyeProfile; accessories: Record<CuratedAccessoryKey, CuratedAccessoryMount> }
 /** Older saved depth/mount overrides may omit eyes; resolution fills shape defaults. */
@@ -86,11 +86,17 @@ function defaults(shape: MaterialShapeName, depth: number, eyes: readonly [numbe
     mounts: { head: { uv: [0, 0], offset: 0 }, face: { uv: [0, 0], offset: 0 } },
     accessories: {
       beret: { anchor: { region: 'crown', uv: [beretU, 0], offset: 0 }, rotation: [0, beretTilt, 0], scale: beretScale },
+      crown: { anchor: { region: 'crown', uv: [beretU, 0], offset: 0 }, rotation: [0, beretTilt * .5, 0], scale: beretScale * .98 },
       halo: { anchor: { region: 'crown', uv: [0, 0], offset: haloHeight }, rotation: [0, 0, 0], scale: 1 },
       glasses: { anchor: { region: 'face', uv: [0, 0.1], offset: 0 }, rotation: [0, 0, 0], scale: glassesScale },
+      sunglasses: { anchor: { region: 'face', uv: [0, 0.1], offset: 0 }, rotation: [0, 0, 0], scale: glassesScale },
       moustache: front(mouthY, size, mouthTilt),
+      goatee: front(mouthY - .015, size * .88, mouthTilt),
       bowTie: tie ? front(...tie) : front(neckY, size, neckTilt),
       scarf: front(neckY, size),
+      necklace: front(tie ? tie[0] + .03 : neckY + .055, size * .92),
+      leftStarEarring: { anchor: { region: 'left', uv: [0, leftEarV], offset: 0 }, rotation: [0, Math.PI / 2, 0], scale: earSize },
+      rightStarEarring: { anchor: { region: 'right', uv: [0, rightEarV], offset: 0 }, rotation: [0, -Math.PI / 2, 0], scale: earSize },
       leftEarring: { anchor: { region: 'left', uv: [0, leftEarV], offset: 0 }, rotation: [0, Math.PI / 2, 0], scale: earSize },
       rightEarring: { anchor: { region: 'right', uv: [0, rightEarV], offset: 0 }, rotation: [0, -Math.PI / 2, 0], scale: earSize },
     },
@@ -226,9 +232,10 @@ export function resolveShapeEyeGeometry(eyes: ShapeEyeGeometry, profile: ShapePr
 }
 /** Internal calibrated position. Public designs contain no placement controls. */
 export function accessoryMountProfile(accessory: Pick<ResolvedAccessoryDesign, 'preset'> & { slot?: AccessorySlot }, profile: ShapeProfile): CuratedAccessoryMount {
-  if (accessory.preset !== 'earring') return profile.accessories[accessory.preset];
-  if (accessory.slot !== 'leftEar' && accessory.slot !== 'rightEar') throw new TypeError('earring: an explicit leftEar or rightEar slot is required.');
-  return profile.accessories[accessory.slot === 'leftEar' ? 'leftEarring' : 'rightEarring'];
+  if (accessory.preset !== 'earring' && accessory.preset !== 'starEarring') return profile.accessories[accessory.preset];
+  if (accessory.slot !== 'leftEar' && accessory.slot !== 'rightEar') throw new TypeError(`${accessory.preset}: an explicit leftEar or rightEar slot is required.`);
+  const left = accessory.slot === 'leftEar';
+  return profile.accessories[accessory.preset === 'starEarring' ? (left ? 'leftStarEarring' : 'rightStarEarring') : (left ? 'leftEarring' : 'rightEarring')];
 }
 export function accessoryMountAnchor(accessory: Pick<ResolvedAccessoryDesign, 'preset'> & { slot?: AccessorySlot }, profile: ShapeProfile): Anchor {
   const anchor = accessoryMountProfile(accessory, profile).anchor;

@@ -12,7 +12,14 @@ const near = (a,b,e=1e-12) => assert.ok(Math.abs(a-b)<=e, `${a} != ${b}`);
 const keys=['width','height','spacing','offsetY'];
 const withEyes=(shape,eyes)=>({...copy(resolveShapeProfile(shape)),eyes:{...resolveShapeProfile(shape).eyes,...eyes}});
 const legacyProfile=p=>({depth:p.depth,mounts:copy(p.mounts),eyes:copy(p.eyes)});
-function avatarForTest(){const a=new SidekickAvatar();a.hasAttribute=()=>false;a.isConnected=true;a.dispatchEvent=()=>true;return a;}
+function avatarForTest(){
+  const avatar = new SidekickAvatar();
+  const attributes = new Map();
+  avatar.hasAttribute = name => attributes.has(name);
+  avatar.setAttribute = (name, value) => { const old = attributes.get(name) ?? null; attributes.set(name, String(value)); avatar.attributeChangedCallback(name, old, String(value)); };
+  avatar.toggleAttribute = (name, enabled) => { const old = attributes.get(name) ?? null; if (enabled) attributes.set(name, ''); else attributes.delete(name); avatar.attributeChangedCallback(name, old, enabled ? '' : null); };
+  avatar.isConnected = true; avatar.dispatchEvent = () => true; return avatar;
+}
 
 test('all 35 internally curated eye profiles are explicit varied bounded and immutable',()=>{
  assert.equal(MATERIAL_SHAPE_NAMES.length,35); assert.deepEqual(EYE_PROFILE_SCALE_RANGE,[.5,1.5]); assert.deepEqual(EYE_PROFILE_OFFSET_Y_RANGE,[-.35,.35]);
@@ -54,7 +61,7 @@ test('color and equipment edits preserve the active morph and independent expres
  a.timeline.advance(400);assert.deepEqual(await right,{finished:true});near(a.pose.eyes.left.smile,.48);near(a.pose.eyes.left.openness,.76);a.shapeTimeline.advance(600);assert.deepEqual(await shape,{finished:true});assert.deepEqual(a.shapeTimeline.profile,resolveShapeProfile('heart'));a.timeline.advance(400);assert.deepEqual(await left,{finished:true});near(a.pose.eyes.left.smile,.8);assert.deepEqual(Object.keys(a.design.eyes.left),['weights']);
 });
 test('paused shape changes select curated eye geometry without touching persisted weights',async()=>{
- const a=avatarForTest();a.design=createDesign({eyes:{left:{weights:{smile:.4}}}});const eyes=a.design.eyes;a.hasAttribute=n=>n==='paused';assert.deepEqual(await a.setShape('boom'),{finished:true});assert.deepEqual(a.shapeTimeline.profile.eyes,DEFAULT_SHAPE_PROFILES.boom.eyes);assert.deepEqual(a.design.eyes,eyes);
+ const a=avatarForTest();a.design=createDesign({eyes:{left:{weights:{smile:.4}}}});const eyes=a.design.eyes;a.paused=true;assert.deepEqual(await a.setShape('boom'),{finished:true});assert.deepEqual(a.shapeTimeline.profile.eyes,DEFAULT_SHAPE_PROFILES.boom.eyes);assert.deepEqual(a.design.eyes,eyes);
 });
 test('equipment exposes color and identity while its baseline transform is internally resolved',()=>{
  for(const preset of['beret','halo','glasses']){const a=createAccessory(preset);assert.deepEqual(Object.keys(a).sort(),['color','id','preset','slot']);const d=createDesign({accessories:[a]}),r=resolveDesign(d).accessories[0];assert.ok(r.anchor&&r.rotation&&r.scale);assert.equal('anchor'in d.accessories[0],false);}

@@ -13,6 +13,7 @@ import type { ShapeProfile } from '../core/shape-profiles.js';
 import { torus } from './geometry.js';
 import { projectEyes } from './eye-projection.js';
 import { glassesGeometry } from './glasses-geometry.js';
+import type { GlassesGeometry } from './glasses-geometry.js';
 import { beretGeometry, beretBandColor } from './beret-geometry.js';
 import type { BeretGeometry } from './beret-geometry.js';
 import { catalogAccessoryGeometry, accessoryDetailColor, CATALOG_ACCESSORY_EXTENT } from './catalog-accessory-geometry.js';
@@ -281,11 +282,11 @@ export class AvatarRenderer {
       const rotation = accessory.rotation.map((v, i) => v + extra[i]!) as Vec3;
       if (accessory.anchor.region === 'crown') rotation[1] -= (lag[0] - roll) * accessory.follow;
       else rotation[2] += (lag[0] - roll) * accessory.follow;
-      if (accessory.preset === 'glasses') {
+      if (accessory.preset === 'glasses' || accessory.preset === 'sunglasses') {
         // Equipment follows the fitted neutral eye layout and face motion. Gaze
         // stays inside the lenses; camera/weights never rebuild the frame mesh.
         const frameEyes = projectEyes(design, root, pose.face, [0, 0], activity.squash, contour, profile);
-        const key = JSON.stringify([frameEyes.left.localCenter, frameEyes.right.localCenter, frameEyes.size, activity.squash, profile.depth, profile.accessories.glasses, accessory.anchor, accessory.scale, rotation]);
+        const key = JSON.stringify([accessory.preset, frameEyes.left.localCenter, frameEyes.right.localCenter, frameEyes.size, activity.squash, profile.depth, accessoryMountProfile(accessory, profile), accessory.anchor, accessory.scale, rotation]);
         const mesh = this.meshes.glasses;
         if (this.glassesContour !== contour || this.glassesKey !== key) {
           const data = glassesGeometry(design, accessory, frameEyes, activity.squash, contour, profile, rotation);
@@ -299,10 +300,12 @@ export class AvatarRenderer {
           mesh.data = data; mesh.count = data.indices.length;
           this.glassesContour = contour; this.glassesKey = key;
         }
-        this.draw(mesh, root, accessory.color);
+        const data = mesh.data as GlassesGeometry;
+        this.draw(mesh, root, accessory.color, data.frameIndexCount);
+        if (data.fillIndexCount) this.draw(mesh, root, accessoryDetailColor(accessoryDetailColor(accessory.color)), data.fillIndexCount, data.frameIndexCount);
         continue;
       }
-      if (accessory.preset === 'moustache' || accessory.preset === 'bowTie' || accessory.preset === 'scarf' || accessory.preset === 'earring') {
+      if (accessory.preset === 'moustache' || accessory.preset === 'goatee' || accessory.preset === 'bowTie' || accessory.preset === 'scarf' || accessory.preset === 'necklace' || accessory.preset === 'earring' || accessory.preset === 'starEarring') {
         const key = JSON.stringify([accessory.preset, accessory.slot, activity.squash, profile.depth, accessoryMountProfile(accessory, profile), accessory.scale, rotation]);
         let cached = this.catalogMeshes.get(accessory.slot);
         if (!cached || cached.contour !== contour || cached.key !== key) {
@@ -327,8 +330,8 @@ export class AvatarRenderer {
       const frame = sampleAccessorySurface(design.body, accessory, activity.squash, contour, profile);
       const mounted = multiply(multiply(root, frame.matrix), transform([0, 0, 0], rotation));
       const parent = multiply(mounted, transform([0, 0, 0], [0, 0, 0], Array(3).fill(accessory.scale * accessoryMountProfile(accessory, profile).scale) as Vec3));
-      if (accessory.preset === 'beret') {
-        const key = JSON.stringify([activity.squash, profile.depth, profile.accessories.beret, accessory.scale, rotation]);
+      if (accessory.preset === 'beret' || accessory.preset === 'crown') {
+        const key = JSON.stringify([accessory.preset, activity.squash, profile.depth, accessoryMountProfile(accessory, profile), accessory.scale, rotation]);
         const mesh = this.meshes.beret;
         if (this.beretContour !== contour || this.beretKey !== key) {
           const data: BeretGeometry = beretGeometry(design.body, accessory, activity.squash, contour, profile, rotation);

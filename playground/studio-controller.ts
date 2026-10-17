@@ -1,4 +1,4 @@
-import { createAccessory, createDesign, equipAccessory, migrateDesign, parseDesign, patchDesign, serializeDesign } from '../src/core/design.js';
+import { createAccessory, createDesign, equipAccessory, migrateDesign, patchDesign, serializeDesign, ACCESSORY_PRESETS, ACCESSORY_SLOTS_BY_PRESET, ACCESSORY_LABELS } from '../src/core/design.js';
 import type { AccessoryPreset, AccessorySlot, Activity, AvatarDesign, DesignPatch } from '../src/core/design.js';
 import { CAMERA_PRESETS } from '../src/core/camera.js';
 import type { CameraAngles, CameraPreset } from '../src/core/camera.js';
@@ -6,20 +6,19 @@ import { eyeExpressionWeights } from '../src/core/expressions.js';
 import type { EyeExpression } from '../src/core/expressions.js';
 import type { MaterialShapeName } from '../src/core/shapes.js';
 import type { SidekickAvatar } from '../src/element/avatar.js';
+import { createScene, migrateScene, serializeScene, MAX_SCENE_BYTES } from '../src/core/scene.js';
+import type { SidekickScene } from '../src/core/scene.js';
+import type { MotionTarget } from '../src/core/motion.js';
 
 export const STORAGE_KEY = 'sidekick.design.v7';
 export const LEGACY_STORAGE_KEYS = [6, 5, 4, 3, 2, 1].map(version => `sidekick.design.v${version}`);
-export const ACCESSORY_NAMES: Record<AccessoryPreset, string> = { beret: '베레모', halo: '헤일로', glasses: '안경', moustache: '콧수염', bowTie: '보타이', scarf: '스카프', earring: '귀걸이' };
+export const ACCESSORY_NAMES = ACCESSORY_LABELS;
 export const SLOT_NAMES: Record<AccessorySlot, string> = { head: '머리', eyes: '눈', mouth: '입', neck: '목', leftEar: '왼쪽 귀', rightEar: '오른쪽 귀' };
-export const EQUIPMENT_GROUPS: readonly { slot: AccessorySlot; presets: readonly AccessoryPreset[] }[] = [
-  { slot: 'head', presets: ['beret', 'halo'] }, { slot: 'eyes', presets: ['glasses'] },
-  { slot: 'mouth', presets: ['moustache'] }, { slot: 'neck', presets: ['bowTie', 'scarf'] },
-  { slot: 'leftEar', presets: ['earring'] }, { slot: 'rightEar', presets: ['earring'] },
-];
+export const EQUIPMENT_GROUPS: readonly { slot: AccessorySlot; presets: readonly AccessoryPreset[] }[] = (Object.keys(SLOT_NAMES) as AccessorySlot[]).map(slot => ({ slot, presets: ACCESSORY_PRESETS.filter(preset => ACCESSORY_SLOTS_BY_PRESET[preset].includes(slot)) }));
 // Keep the previous Studio starting design. New equipment is always opt-in.
 export const defaultStudioDesign = (): AvatarDesign => createDesign({ body: { shape: 'square' }, accessories: [createAccessory('beret', 'hat')] });
 export interface StoragePort { getItem(key: string): string | null; setItem(key: string, value: string): void }
-export type AvatarPort = Pick<SidekickAvatar, 'design' | 'camera' | 'paused' | 'updateDesign' | 'setShape' | 'setExpression' | 'setEyeWeights' | 'setCamera' | 'setCameraPreset' | 'resetCamera' | 'setActivity' | 'lookAt' | 'seek' | 'motion' | 'snapshot' | 'addEventListener' | 'removeEventListener'>;
+export type AvatarPort = Pick<SidekickAvatar, 'design' | 'camera' | 'paused' | 'mouseTracking' | 'interaction' | 'updateDesign' | 'setShape' | 'setExpression' | 'setEyeWeights' | 'setCamera' | 'setCameraPreset' | 'resetCamera' | 'setActivity' | 'lookAt' | 'seek' | 'motion' | 'snapshot' | 'addEventListener' | 'removeEventListener'>;
 export interface SavedRecovery { raw: string; key: string; error: string }
 export interface StudioState {
   design: AvatarDesign;
@@ -28,7 +27,14 @@ export interface StudioState {
   easing: 'smooth' | 'linear';
   activity: Activity;
   paused: boolean;
+  mouseTracking: boolean;
   movedFace: boolean;
+  gaze: { x: number; y: number };
+  time: number;
+  motion: MotionTarget;
+  motionDuration: number;
+  motionEasing: 'smooth' | 'linear';
+  interaction: 'none' | 'box';
   background: 'checker' | 'light' | 'dark';
   jsonDraft: string;
   jsonError: string;
@@ -46,6 +52,7 @@ export class StudioController {
   private readonly listeners = new Set<() => void>();
   private readonly initialized = new WeakSet<AvatarPort>();
   private avatar: AvatarPort | undefined;
+  private importGeneration = 0;
   constructor(private readonly storage?: StoragePort) {
     let design = defaultStudioDesign(), recovery: SavedRecovery | undefined;
     let warnings: string[] = [], storageError = false;
@@ -58,10 +65,10 @@ export class StudioController {
       }
     } catch { storageError = true; }
     this.state = {
-      design, camera: { ...CAMERA_PRESETS.front }, duration: 450, easing: 'smooth', activity: 'idle', paused: false,
-      movedFace: false, background: 'checker', jsonDraft: recovery?.raw ?? serializeDesign(design),
+      design, camera: { ...CAMERA_PRESETS.front }, duration: 450, easing: 'smooth', activity: 'idle', paused: false, mouseTracking: false,
+      movedFace: false, gaze: { x: 0, y: 0 }, time: 0, motion: {}, motionDuration: 400, motionEasing: 'smooth', interaction: 'box', background: 'checker', jsonDraft: recovery?.raw ?? serializeScene(createScene({ design, interaction: 'box' })),
       jsonError: recovery?.error ?? '', warnings, recovery, recoverySaved: false,
-      status: recovery ? '저장된 원본을 보존했습니다. JSON에서 수정하거나 내려받으세요.' : storageError ? '브라우저 저장소를 읽을 수 없습니다. JSON으로 내보내세요.' : '모든 변경은 이 브라우저에 저장됩니다.',
+      status: recovery ? '저장된 원본을 보존했습니다. JSON에서 수정하거나 내려받으세요.' : storageError ? '브라우저 저장소를 읽을 수 없습니다. JSON으로 내보내세요.' : '디자인 변경은 이 브라우저에 저장됩니다.',
       statusError: !!recovery || storageError,
     };
   }
@@ -72,7 +79,7 @@ export class StudioController {
   private watch(result: Promise<unknown> | undefined): void { void result?.catch(error => this.report(errorMessage(error), true)); }
   bindAvatar(avatar: AvatarPort): () => void {
     this.avatar = avatar;
-    const cameraChanged = (): void => this.update({ camera: { ...avatar.camera } });
+    const cameraChanged = (): void => this.runtime({ camera: { ...avatar.camera } });
     const failed = (event: Event): void => this.report((event as CustomEvent<{ message: string }>).detail.message, true);
     avatar.addEventListener('sidekick-camera-change', cameraChanged);
     avatar.addEventListener('sidekick-error', failed);
@@ -81,11 +88,13 @@ export class StudioController {
       this.initialized.add(avatar);
       if (!this.state.recovery) this.persist();
     }
+    avatar.mouseTracking = this.state.mouseTracking;
+    avatar.interaction = this.state.interaction;
     cameraChanged();
     return () => {
       avatar.removeEventListener('sidekick-camera-change', cameraChanged);
       avatar.removeEventListener('sidekick-error', failed);
-      if (this.avatar === avatar) this.avatar = undefined;
+      if (this.avatar === avatar) { this.avatar = undefined; this.importGeneration++; }
     };
   }
   private persist(message = '디자인이 이 브라우저에 저장되었습니다.'): void {
@@ -100,8 +109,19 @@ export class StudioController {
       this.report(this.state.recovery ? '저장 원본을 보호하기 위해 자동 저장하지 않았습니다. 수정한 디자인은 JSON으로 내보내세요.' : '브라우저 저장소를 사용할 수 없습니다. JSON으로 내보내세요.', true);
     }
   }
+  private scene(state = this.state): SidekickScene {
+    return createScene({ design: state.design, camera: state.camera, activity: state.activity, paused: state.paused, mouseTracking: state.mouseTracking,
+      interaction: state.interaction, gaze: state.gaze, time: state.time, motion: state.motion,
+      shapeDuration: state.duration, shapeEasing: state.easing, motionDuration: state.motionDuration, motionEasing: state.motionEasing });
+  }
+  private runtime(patch: Partial<StudioState>): void {
+    const next = { ...this.state, ...patch };
+    this.update({ ...patch, jsonDraft: this.state.recovery && !this.state.recoverySaved ? this.state.jsonDraft : serializeScene(this.scene(next)) });
+  }
   private commit(design: AvatarDesign, message?: string): void {
-    this.update({ design, jsonDraft: serializeDesign(design), jsonError: '' });
+    const motion = { ...this.state.motion };
+    if (motion.accessories) motion.accessories = Object.fromEntries(Object.entries(motion.accessories).filter(([id]) => design.accessories.some(item => item.id === id)));
+    this.update({ design, motion, jsonDraft: serializeScene(this.scene({ ...this.state, design, motion })), jsonError: '' });
     this.persist(message);
   }
   patch = (patch: DesignPatch): void => {
@@ -116,14 +136,14 @@ export class StudioController {
     this.watch(this.avatar?.setShape(shape, { duration: this.state.duration, easing: this.state.easing }));
     this.commit(next, '선택한 도형으로 부드럽게 전환합니다.');
   };
-  setDuration = (duration: number): void => this.update({ duration });
-  setEasing = (easing: 'smooth' | 'linear'): void => this.update({ easing });
+  setDuration = (duration: number): void => this.runtime({ duration });
+  setEasing = (easing: 'smooth' | 'linear'): void => this.runtime({ easing });
   setBackground = (background: StudioState['background']): void => this.update({ background });
   setEquipment = (slot: AccessorySlot, preset: AccessoryPreset | ''): void => {
     if (!preset) { this.patch({ accessories: this.state.design.accessories.filter(item => item.slot !== slot) }); return; }
     const current = this.state.design.accessories.find(item => item.slot === slot);
     if (current?.preset === preset) return;
-    const base = preset === 'earring' ? `${slot === 'leftEar' ? 'left' : 'right'}-earring` : preset === 'beret' ? 'hat' : preset === 'bowTie' ? 'bow-tie' : preset;
+    const base = (preset === 'earring' || preset === 'starEarring') ? `${slot === 'leftEar' ? 'left' : 'right'}-earring` : preset === 'beret' ? 'hat' : preset === 'bowTie' ? 'bow-tie' : preset;
     const used = new Set(this.state.design.accessories.filter(item => item.slot !== slot).map(item => item.id));
     let id = base, suffix = 2;
     while (used.has(id)) id = `${base}-${suffix++}`;
@@ -135,41 +155,70 @@ export class StudioController {
   setExpression = (side: 'left' | 'right', expression: EyeExpression): void => {
     const next = patchDesign(this.state.design, { eyes: { [side]: { weights: eyeExpressionWeights(expression) } } });
     this.watch(this.avatar?.setExpression(side, expression));
+    if (this.state.motion.eyes) { const eyes = { ...this.state.motion.eyes }; delete eyes[side]; this.update({ motion: { ...this.state.motion, eyes } }); }
     this.commit(next);
   };
   setWeight = (side: 'left' | 'right', key: 'smile' | 'blink', weight: number): void => {
     const next = patchDesign(this.state.design, { eyes: { [side]: { weights: { [key]: weight } } } });
     this.watch(this.avatar?.setEyeWeights(side, { [key]: weight }, { duration: 0 }));
+    if (this.state.motion.eyes) { const eyes = { ...this.state.motion.eyes }; delete eyes[side]; this.update({ motion: { ...this.state.motion, eyes } }); }
     this.commit(next);
   };
-  setCamera = (patch: Partial<CameraAngles>): void => { this.avatar?.setCamera(patch); if (this.avatar) this.update({ camera: { ...this.avatar.camera } }); };
-  setCameraPreset = (preset: CameraPreset): void => { this.avatar?.setCameraPreset(preset); if (this.avatar) this.update({ camera: { ...this.avatar.camera } }); };
-  resetCamera = (): void => { this.avatar?.resetCamera(); if (this.avatar) this.update({ camera: { ...this.avatar.camera } }); };
-  setActivity = (activity: Activity): void => { this.avatar?.setActivity(activity); this.update({ activity }); };
-  togglePause = (): void => { const paused = !this.state.paused; if (this.avatar) this.avatar.paused = paused; this.update({ paused }); };
-  look = (x: number): void => this.avatar?.lookAt({ space: 'view', x, y: 0 });
-  toggleFace = (): void => { const movedFace = !this.state.movedFace; this.watch(this.avatar?.motion.to({ face: { uv: movedFace ? [0.23, 0.13] : [0, 0] } }, { duration: 650 })); this.update({ movedFace }); };
-  editJSON = (jsonDraft: string): void => this.update({ jsonDraft });
-  importJSON = (): boolean => {
+  setCamera = (patch: Partial<CameraAngles>): void => { this.avatar?.setCamera(patch); if (this.avatar) this.runtime({ camera: { ...this.avatar.camera } }); };
+  setCameraPreset = (preset: CameraPreset): void => { this.avatar?.setCameraPreset(preset); if (this.avatar) this.runtime({ camera: { ...this.avatar.camera } }); };
+  resetCamera = (): void => { this.avatar?.resetCamera(); if (this.avatar) this.runtime({ camera: { ...this.avatar.camera } }); };
+  setActivity = (activity: Activity): void => { this.avatar?.setActivity(activity); this.runtime({ activity }); };
+  setMouseTracking = (mouseTracking: boolean): void => { if (this.avatar) this.avatar.mouseTracking = mouseTracking; this.runtime({ mouseTracking }); };
+  togglePause = (): void => { const paused = !this.state.paused; if (this.avatar) this.avatar.paused = paused; this.runtime({ paused }); };
+  look = (x: number): void => { this.avatar?.lookAt({ space: 'view', x, y: 0 }); this.runtime({ gaze: { x, y: 0 } }); };
+  toggleFace = (): void => { const movedFace = !this.state.movedFace; this.watch(this.avatar?.motion.to({ face: { uv: movedFace ? [0.23, 0.13] : [0, 0] } }, { duration: 650 })); this.runtime({ movedFace, motion: { ...this.state.motion, face: { uv: movedFace ? [0.23, 0.13] : [0, 0] } } }); };
+  editJSON = (jsonDraft: string): void => { this.importGeneration++; this.update({ jsonDraft }); };
+  importJSON = (raw = this.state.jsonDraft): boolean => {
+    this.importGeneration++;
     try {
-      const migrated = migrateDesign(this.state.jsonDraft);
-      if (this.avatar) { this.avatar.design = migrated.design; this.watch(this.avatar.setShape(migrated.design.body.shape, { duration: 0 })); }
-      this.update({ warnings: migrated.warnings });
-      this.commit(migrated.design, 'JSON 디자인을 적용했습니다.');
+      // Parse every field before touching the renderer, animation clocks or persistence.
+      const migrated = migrateScene(raw), scene = migrated.legacyDesign ? createScene({ design: migrated.scene.design, interaction: 'box' }) : migrated.scene;
+      const avatar = this.avatar;
+      if (avatar) {
+        avatar.mouseTracking = false; avatar.paused = true; avatar.motion.cancel();
+        avatar.design = scene.design;
+        this.watch(avatar.setShape(scene.design.body.shape, { duration: 0 }));
+        this.watch(avatar.motion.to({ body: { rotation: [0, 0, 0] }, face: { uv: [0, 0] }, eyes: { openness: 1, left: { weights: scene.design.eyes.left.weights }, right: { weights: scene.design.eyes.right.weights } }, accessories: Object.fromEntries(scene.design.accessories.map(item => [item.id, { rotation: [0, 0, 0] as [number, number, number] }])) }, { duration: 0 }));
+        this.watch(avatar.motion.to(scene.motion, { duration: 0 }));
+        avatar.setCamera(scene.camera); avatar.lookAt({ space: 'view', ...scene.gaze }); avatar.seek(scene.time); avatar.setActivity(scene.activity);
+        avatar.interaction = scene.interaction; avatar.paused = scene.paused; avatar.mouseTracking = scene.mouseTracking;
+      }
+      this.update({ design: scene.design, camera: scene.camera, duration: scene.shapeDuration, easing: scene.shapeEasing,
+        activity: scene.activity, paused: scene.paused, mouseTracking: scene.mouseTracking, interaction: scene.interaction,
+        gaze: scene.gaze, time: scene.time, motion: scene.motion, motionDuration: scene.motionDuration, motionEasing: scene.motionEasing,
+        movedFace: !!scene.motion.face?.uv.some(value => value !== 0), warnings: migrated.warnings,
+        jsonDraft: serializeScene(scene), jsonError: '' });
+      this.persist(migrated.legacyDesign ? '디자인 JSON을 가져왔습니다. 미리보기 설정은 기본값입니다.' : '장면 JSON과 미리보기 설정을 적용했습니다.');
       return true;
     } catch (error) { this.update({ jsonError: errorMessage(error) }); return false; }
   };
+  importFile = async (file: Pick<File, 'size' | 'text'>): Promise<boolean> => {
+    const generation = ++this.importGeneration;
+    try {
+      if (file.size > MAX_SCENE_BYTES) throw new RangeError('장면 JSON 파일은 64 KiB 이하여야 합니다.');
+      const raw = await file.text();
+      if (generation !== this.importGeneration) return false;
+      return this.importJSON(raw);
+    } catch (error) { if (generation === this.importGeneration) this.update({ jsonError: errorMessage(error) }); return false; }
+  };
   reset = (): void => {
+    this.importGeneration++;
     const avatar = this.avatar;
     if (avatar) {
-      avatar.paused = false; avatar.motion.cancel();
+      avatar.paused = false; avatar.mouseTracking = false; avatar.interaction = 'box'; avatar.motion.cancel();
       this.watch(avatar.motion.to({ body: { rotation: [0, 0, 0] }, face: { uv: [0, 0] }, eyes: { openness: 1, left: { weights: { smile: 0, blink: 0 } }, right: { weights: { smile: 0, blink: 0 } } } }, { duration: 0 }));
       avatar.lookAt({ space: 'view', x: 0, y: 0 }); avatar.resetCamera(); avatar.seek(0); avatar.setActivity('idle');
       avatar.design = defaultStudioDesign(); this.watch(avatar.setShape('square', { duration: 0 }));
     }
-    this.update({ duration: 450, easing: 'smooth', paused: false, activity: 'idle', movedFace: false, warnings: [], camera: { ...CAMERA_PRESETS.front } });
+    this.update({ duration: 450, easing: 'smooth', paused: false, mouseTracking: false, activity: 'idle', movedFace: false, gaze: { x: 0, y: 0 }, time: 0, motion: {}, motionDuration: 400, motionEasing: 'smooth', interaction: 'box', warnings: [], camera: { ...CAMERA_PRESETS.front } });
     this.commit(defaultStudioDesign(), '기본 디자인으로 초기화했습니다.');
   };
-  exportJSON = (): string => serializeDesign(parseDesign(this.state.design));
+  exportScene = (): SidekickScene => this.scene();
+  exportJSON = (): string => serializeScene(this.scene());
   snapshot = (): Promise<Blob> => this.avatar ? this.avatar.snapshot() : Promise.reject(new Error('미리보기가 아직 준비되지 않았습니다.'));
 }

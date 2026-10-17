@@ -1,0 +1,531 @@
+import test, { after, before } from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { mkdir, readFile } from 'node:fs/promises';
+import { chromium } from 'playwright-core';
+import { createLibraryBrowserFixture } from './library-browser-fixture.mjs';
+import { createAppServer } from '../scripts/serve.mjs';
+
+let browser, fixture, studioServer, studioURL;
+const screenshots = process.env.SIDEKICK_SCREENSHOTS;
+before(async () => {
+  fixture = await createLibraryBrowserFixture();
+  studioServer = createAppServer(); await new Promise(resolve => studioServer.listen(0, '127.0.0.1', resolve));
+  studioURL = 'http://127.0.0.1:' + studioServer.address().port;
+  const executablePath = process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
+  browser = await chromium.launch({ executablePath, headless: process.env.SIDEKICK_HEADED !== '1', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
+  if (screenshots) await mkdir(screenshots, { recursive: true });
+});
+after(async () => { await browser?.close(); await fixture?.cleanup(); if (studioServer) await new Promise(resolve => studioServer.close(resolve)); });
+
+async function pageFor(t, entry = 'vanilla', options = {}) {
+  const page = await browser.newPage({ viewport: { width: 1080, height: 800 }, reducedMotion: 'reduce', ...options });
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  t.after(async () => { await page.close(); assert.deepEqual(errors, [], 'No consumer browser errors or React hydration warnings'); });
+  await page.addInitScript(() => {
+    // Observe the real listener lifecycle without wrapping or changing any callbacks.
+    const active = [];
+    const add = EventTarget.prototype.addEventListener, remove = EventTarget.prototype.removeEventListener;
+    const capture = options => typeof options === 'boolean' ? options : !!options?.capture;
+    EventTarget.prototype.addEventListener = function (type, listener, options) {
+      const result = add.call(this, type, listener, options);
+      if (listener && !active.some(item => item.target === this && item.type === type && item.listener === listener && item.capture === capture(options))) active.push({ target: this, type, listener, capture: capture(options) });
+      return result;
+    };
+    EventTarget.prototype.removeEventListener = function (type, listener, options) {
+      const result = remove.call(this, type, listener, options);
+      const index = active.findIndex(item => item.target === this && item.type === type && item.listener === listener && item.capture === capture(options));
+      if (index !== -1) active.splice(index, 1);
+      return result;
+    };
+    window.listenerAudit = element => ({
+      globalPointer: active.filter(item => (item.target === document || item.target === window) && item.type === 'pointermove').length,
+      elementEvents: active.filter(item => item.target === element && item.type.startsWith('sidekick-')).length,
+    });
+  });
+  await page.goto(entry === 'studio' ? studioURL : entry === 'pages' ? fixture.pagesURL : `${fixture.baseURL}/${entry}.html`);
+  const id = entry === 'studio' || entry === 'pages' ? 'flat' : entry === 'vanilla' ? 'bare' : entry === 'react' ? 'react-avatar' : entry === 'hydration' ? 'hydrated-avatar' : 'cdn-avatar';
+  await page.waitForFunction(id => document.getElementById(id)?.ready === true, id);
+  if (entry === 'studio') await page.evaluate(async () => { window.libraryAPI = await import('/src/index.js'); });
+  await settle(page);
+  return page;
+}
+async function settle(page) { await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))); }
+async function stateOf(page, selector = '#bare') {
+  return page.locator(selector).evaluate(element => ({ design: element.design, camera: element.camera, gaze: element.pose.gaze, activity: element.activity, paused: element.paused, interaction: element.interaction, mouseTracking: element.mouseTracking }));
+}
+
+test('packed root import registers a bare element with real default pixels and no Studio dependency', async t => {
+  const page = await pageFor(t);
+  const result = await page.locator('#bare').evaluate(element => {
+    const capture = element.capturePixels();
+    let opaque = 0, body = 0, eyes = 0;
+    for (let i = 0; i < capture.pixels.length; i += 4) {
+      if (capture.pixels[i + 3] === 255) opaque++;
+      if (capture.pixels[i] === 233 && capture.pixels[i + 1] === 182 && capture.pixels[i + 2] === 77 && capture.pixels[i + 3] === 255) body++;
+      if (capture.pixels[i] === 36 && capture.pixels[i + 1] === 36 && capture.pixels[i + 2] === 44 && capture.pixels[i + 3] === 255) eyes++;
+    }
+    window.libraryAPI.defineSidekick(); window.libraryAPI.defineSidekick();
+    window.libraryAPI.defineSidekick('test-sidekick');
+    const alias = document.createElement('test-sidekick'); document.getElementById('sandbox').append(alias);
+    const aliasReady = alias.ready; alias.remove();
+    return { registered: customElements.get('sidekick-avatar') === window.libraryAPI.SidekickAvatar,
+      design: element.design, defaults: window.libraryAPI.createDesign(), width: capture.width, height: capture.height,
+      corner: capture.pixels[3], opaque, body, eyes, role: element.getAttribute('role'), tabindex: element.tabIndex,
+      tracking: element.mouseTracking, listeners: window.listenerAudit(element).globalPointer, aliasReady,
+    };
+  });
+  assert.equal(result.registered, true); assert.deepEqual(result.design, result.defaults);
+  assert.ok(result.width >= 200 && result.height >= 200); assert.equal(result.corner, 0);
+  assert.ok(result.opaque > 10000); assert.ok(result.body > 10000); assert.ok(result.eyes > 100);
+  assert.equal(result.role, 'img'); assert.equal(result.tabindex, -1); assert.equal(result.tracking, false);
+  assert.equal(result.listeners, 0); assert.equal(result.aliasReady, true);
+  if (screenshots) await page.screenshot({ path: `${screenshots}/library-vanilla-consumer.png` });
+});
+
+test('packed auto entry runs as a direct script tag without React, source files, or a bundler', async t => {
+  const page = await pageFor(t, 'cdn');
+  const result = await page.locator('#cdn-avatar').evaluate(element => {
+    const { pixels } = element.capturePixels();
+    return { ready: element.ready, shape: element.design.body.shape, visible: pixels.some((value, index) => index % 4 === 3 && value === 255), transparent: pixels[3] === 0 };
+  });
+  assert.deepEqual(result, { ready: true, shape: 'square', visible: true, transparent: true });
+});
+
+test('complete declarative config has order-independent JSON, scalar, expression, slot, camera and motion precedence', async t => {
+  const page = await pageFor(t);
+  const result = await page.evaluate(async () => {
+    const api = window.libraryAPI;
+    const design = api.createDesign({ body: { shape: 'circle', color: '#112233' }, eyes: { color: '#223344', left: { weights: { smile: 0.11, blink: 0.12 } }, right: { weights: { smile: 0.13, blink: 0.14 } } }, accessories: [api.createAccessory('halo', 'json-halo')] });
+    const attrs = {
+      design: JSON.stringify(design), shape: 'heart', 'body-color': '#A4B8C9', 'eye-color': '#121212',
+      expression: 'smile', 'left-expression': 'blink', 'right-expression': 'neutral', smile: '0.4', blink: '0.3', 'left-smile': '0.2', 'right-blink': '0.7',
+      accessories: JSON.stringify([api.createAccessory('beret', 'json-hat')]),
+      'head-accessory': 'halo', 'head-color': '#102030', 'eyes-accessory': 'glasses', 'eyes-color': '#203040',
+      'mouth-accessory': 'moustache', 'mouth-color': '#304050', 'neck-accessory': 'scarf', 'neck-color': '#405060',
+      'left-ear-accessory': 'earring', 'left-ear-color': '#506070', 'right-ear-accessory': 'earring', 'right-ear-color': '#607080',
+      camera: 'three-quarter', 'camera-yaw': '27', 'camera-pitch': '-13', 'camera-roll': '17', 'gaze-x': '0.25', 'gaze-y': '-0.35',
+      activity: 'still', paused: 'true', interaction: 'box', 'mouse-tracking': 'false',
+      'shape-duration': '125', 'shape-easing': 'linear', 'motion-duration': '150', 'motion-easing': 'smooth',
+      motion: JSON.stringify({ body: { rotation: [0.1, 0.2, 0.3] }, face: { uv: [0.1, -0.2] } }), time: '2.5',
+    };
+    const make = entries => { const element = document.createElement('sidekick-avatar'); for (const [key, value] of entries) element.setAttribute(key, value); document.getElementById('sandbox').append(element); return element; };
+    const a = make(Object.entries(attrs)), b = make(Object.entries(attrs).reverse());
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    const snapshot = element => ({ design: element.design, camera: element.camera, pose: element.pose, paused: element.paused, activity: element.activity, interaction: element.interaction, tracking: element.mouseTracking, ready: element.ready });
+    const result = { first: snapshot(a), reversed: snapshot(b) }; a.remove(); b.remove(); return result;
+  });
+  assert.deepEqual(result.first, result.reversed);
+  const state = result.first;
+  assert.deepEqual(state.design.body, { shape: 'heart', color: '#a4b8c9' }); assert.equal(state.design.eyes.color, '#121212');
+  assert.deepEqual(state.design.eyes.left.weights, { smile: 0.2, blink: 0.3 }); assert.deepEqual(state.design.eyes.right.weights, { smile: 0.4, blink: 0.7 });
+  assert.deepEqual(state.design.accessories.map(a => [a.slot, a.preset, a.color]), [
+    ['head', 'halo', '#102030'], ['eyes', 'glasses', '#203040'], ['mouth', 'moustache', '#304050'], ['neck', 'scarf', '#405060'], ['leftEar', 'earring', '#506070'], ['rightEar', 'earring', '#607080'],
+  ]);
+  assert.deepEqual(state.camera, { yaw: 27, pitch: -13, roll: 17 }); assert.deepEqual(state.pose.gaze, [0.25, -0.35]);
+  assert.deepEqual(state.pose.rotation, [0.1, 0.2, 0.3]); assert.deepEqual(state.pose.face, [0.1, -0.2]);
+  assert.equal(state.paused, true); assert.equal(state.activity, 'still'); assert.equal(state.interaction, 'box'); assert.equal(state.tracking, false); assert.equal(state.ready, true);
+});
+
+test('invalid live attribute batches leave design, camera and pose unchanged, report the offending field, and recover atomically', async t => {
+  const page = await pageFor(t);
+  const results = await page.locator('#bare').evaluate(async element => {
+    element.setAttribute('paused', 'true'); element.setAttribute('activity', 'still'); await Promise.resolve();
+    const snapshot = () => JSON.stringify({ design: element.design, camera: element.camera, pose: element.pose, paused: element.paused, activity: element.activity, interaction: element.interaction, tracking: element.mouseTracking });
+    const invalid = [
+      ['body-color', 'red'], ['eye-color', '#123'], ['design', '{'], ['accessories', '[{}]'],
+      ['left-smile', '1.2'], ['right-blink', 'NaN'], ['left-expression', 'angry'], ['camera-pitch', '91'],
+      ['gaze-x', '2'], ['head-accessory', 'glasses'], ['left-ear-color', 'transparent'], ['paused', 'yes'],
+      ['mouse-tracking', 'yes'], ['interaction', 'orbit'], ['activity', 'unknown'], ['motion', '{"body":{"rotation":[0,0,"bad"]}}'],
+      ['shape-duration', '-1'], ['motion-easing', 'ease'], ['time', 'Infinity'],
+    ];
+    const errors = []; element.addEventListener('sidekick-error', event => errors.push(event.detail));
+    const results = [];
+    for (const [attribute, value] of invalid) {
+      const before = snapshot(), previous = element.getAttribute(attribute), target = element.design.body.shape === 'heart' ? 'puffy' : 'heart';
+      element.setAttribute('shape', target); element.setAttribute('camera-yaw', '19'); element.setAttribute(attribute, value);
+      await Promise.resolve();
+      results.push({ attribute, unchanged: before === snapshot(), rawPreserved: element.getAttribute(attribute) === value, error: errors.at(-1) });
+      if (previous === null) element.removeAttribute(attribute); else element.setAttribute(attribute, previous);
+      await Promise.resolve();
+      results.at(-1).recovered = element.design.body.shape === target && element.camera.yaw === 19;
+    }
+    return results;
+  });
+  for (const result of results) {
+    assert.equal(result.unchanged, true, JSON.stringify(result)); assert.equal(result.rawPreserved, true, result.attribute);
+    assert.equal(result.error.attribute, result.attribute, JSON.stringify(result)); assert.equal(typeof result.error.message, 'string');
+    assert.equal(result.recovered, true, JSON.stringify(result));
+  }
+});
+
+test('removing scalar and slot overrides reveals JSON and defaults without losing unrelated imperative camera or motion', async t => {
+  const page = await pageFor(t);
+  const result = await page.locator('#bare').evaluate(async element => {
+    const api = window.libraryAPI;
+    const design = api.createDesign({ body: { shape: 'circle', color: '#123456' }, eyes: { left: { weights: { smile: 0.35, blink: 0.45 } } }, accessories: [api.createAccessory('beret', 'saved-hat')] });
+    for (const [key, value] of Object.entries({ design: JSON.stringify(design), shape: 'heart', 'body-color': '#abcdef', 'left-smile': '0.8', 'head-accessory': 'halo', 'head-color': '#102030', paused: 'true', activity: 'still' })) element.setAttribute(key, value);
+    await Promise.resolve();
+    element.setCamera({ yaw: 31, pitch: 7, roll: -12 }); await element.motion.to({ face: { uv: [0.15, -0.1] } }, { duration: 0 });
+    for (const key of ['shape', 'body-color', 'left-smile', 'head-accessory', 'head-color']) element.removeAttribute(key);
+    await Promise.resolve(); const revealed = element.design;
+    element.setAttribute('head-accessory', 'none'); await Promise.resolve(); const removed = element.design.accessories;
+    element.removeAttribute('head-accessory'); await Promise.resolve(); const restored = element.design.accessories;
+    element.removeAttribute('design'); await Promise.resolve();
+    return { revealed, expected: design, removed, restored, defaults: element.design, expectedDefaults: api.createDesign(), camera: element.camera, face: element.pose.face };
+  });
+  assert.deepEqual(result.revealed, result.expected); assert.deepEqual(result.removed, []); assert.deepEqual(result.restored, result.expected.accessories);
+  assert.deepEqual(result.defaults, result.expectedDefaults); assert.deepEqual(result.camera, { yaw: 31, pitch: 7, roll: -12 }); assert.deepEqual(result.face, [0.15, -0.1]);
+});
+
+test('paused and mouse-tracking support explicit false/zero/removal and live declarative animations emit completion events', async t => {
+  const page = await pageFor(t, 'vanilla', { reducedMotion: 'no-preference' });
+  const states = await page.locator('#bare').evaluate(async element => {
+    const results = [];
+    for (const value of ['', 'true', '1', 'false', '0', null]) {
+      for (const name of ['paused', 'mouse-tracking']) { if (value === null) element.removeAttribute(name); else element.setAttribute(name, value); }
+      await Promise.resolve(); results.push({ value, paused: element.paused, tracking: element.mouseTracking });
+    }
+    element.setAttribute('activity', 'still'); element.setAttribute('shape-duration', '80'); element.setAttribute('motion-duration', '80');
+    window.declarativeEnds = [];
+    for (const type of ['sidekick-shape-end', 'sidekick-motion-end']) element.addEventListener(type, event => window.declarativeEnds.push({ type, detail: event.detail }));
+    element.setAttribute('shape', 'heart'); element.setAttribute('expression', 'smile');
+    return results;
+  });
+  for (const item of states) assert.deepEqual([item.paused, item.tracking], ['', 'true', '1'].includes(item.value) ? [true, true] : [false, false]);
+  await page.waitForFunction(() => window.declarativeEnds.some(event => event.type === 'sidekick-shape-end' && event.detail.finished) && window.declarativeEnds.some(event => event.type === 'sidekick-motion-end' && event.detail.finished));
+  const completed = await stateOf(page); assert.equal(completed.design.body.shape, 'heart'); assert.deepEqual(completed.design.eyes.left.weights, { smile: 1, blink: 0 });
+});
+
+test('mouse tracking is opt-in, bounded, ignores touch, preserves camera, and returns to explicit gaze when disabled', async t => {
+  const page = await pageFor(t);
+  const result = await page.locator('#bare').evaluate(async element => {
+    const move = (x, y, pointerType = 'mouse') => document.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y, pointerType, bubbles: true }));
+    element.lookAt({ space: 'view', x: 0.2, y: -0.3 }); element.setCamera({ yaw: 25, pitch: 4, roll: -5 });
+    move(10000, -10000); const disabled = element.pose.gaze;
+    element.mouseTracking = true; await Promise.resolve(); const enabledListeners = window.listenerAudit(element).globalPointer;
+    move(10000, -10000); const rightTop = element.pose.gaze;
+    move(-10000, 10000, 'touch'); const touch = element.pose.gaze;
+    move(-10000, 10000); const leftBottom = element.pose.gaze;
+    element.mouseTracking = false; await Promise.resolve(); const restored = element.pose.gaze;
+    move(10000, -10000); return { disabled, enabledListeners, rightTop, touch, leftBottom, restored, afterDisabledMove: element.pose.gaze, listeners: window.listenerAudit(element).globalPointer, camera: element.camera };
+  });
+  assert.deepEqual(result.disabled, [0.2, -0.3]); assert.equal(result.enabledListeners, 1);
+  assert.deepEqual(result.rightTop, [1, 1]); assert.deepEqual(result.touch, result.rightTop); assert.deepEqual(result.leftBottom, [-1, -1]);
+  assert.deepEqual(result.restored, [0.2, -0.3]); assert.deepEqual(result.afterDisabledMove, result.restored); assert.equal(result.listeners, 0);
+  assert.deepEqual(result.camera, { yaw: 25, pitch: 4, roll: -5 });
+});
+
+test('tracking listeners release on disconnect, reconnect once, and stop responding while detached', async t => {
+  const page = await pageFor(t);
+  const result = await page.locator('#bare').evaluate(async element => {
+    element.mouseTracking = true; await Promise.resolve();
+    const parent = element.parentElement, rounds = [];
+    for (let i = 0; i < 3; i++) {
+      const attachedListeners = window.listenerAudit(element).globalPointer;
+      element.remove(); const gaze = element.pose.gaze;
+      document.dispatchEvent(new PointerEvent('pointermove', { clientX: 9000, clientY: 9000, pointerType: 'mouse' }));
+      rounds.push({ attachedListeners, detachedListeners: window.listenerAudit(element).globalPointer, unchanged: JSON.stringify(gaze) === JSON.stringify(element.pose.gaze), ready: element.ready, buffers: element.diagnostics.buffers });
+      parent.append(element); await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+    return { rounds, finalListeners: window.listenerAudit(element).globalPointer, ready: element.ready, canvases: element.shadowRoot.querySelectorAll('canvas').length };
+  });
+  for (const round of result.rounds) assert.deepEqual(round, { attachedListeners: 1, detachedListeners: 0, unchanged: true, ready: false, buffers: 0 });
+  assert.equal(result.finalListeners, 1); assert.equal(result.ready, true); assert.equal(result.canvases, 1);
+});
+
+test('tracking releases global listeners while offscreen or WebGL is lost, then resumes once on recovery', async t => {
+  const page = await pageFor(t);
+  await page.locator('#bare').evaluate(element => { element.mouseTracking = true; element.style.position = 'fixed'; element.style.top = '-2000px'; });
+  await page.waitForFunction(() => window.listenerAudit(document.getElementById('bare')).globalPointer === 0);
+  await page.locator('#bare').evaluate(element => { element.style.position = ''; element.style.top = ''; });
+  await page.waitForFunction(() => window.listenerAudit(document.getElementById('bare')).globalPointer === 1);
+  const supported = await page.locator('#bare').evaluate(element => {
+    window.trackingContext = element.shadowRoot.querySelector('canvas').getContext('webgl2').getExtension('WEBGL_lose_context');
+    window.trackingContext?.loseContext(); return !!window.trackingContext;
+  });
+  assert.equal(supported, true);
+  await page.waitForFunction(() => !document.getElementById('bare').ready && window.listenerAudit(document.getElementById('bare')).globalPointer === 0);
+  await page.waitForTimeout(100); await page.evaluate(() => window.trackingContext.restoreContext());
+  await page.waitForFunction(() => document.getElementById('bare').ready && window.listenerAudit(document.getElementById('bare')).globalPointer === 1);
+});
+
+test('orbit drag controls camera without competing with tracking, which resumes after pointer release', async t => {
+  const page = await pageFor(t);
+  await page.locator('#bare').evaluate(element => { element.interaction = 'box'; element.mouseTracking = true; });
+  await settle(page);
+  const bounds = await page.locator('#bare').boundingBox();
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  const before = await stateOf(page);
+  await page.mouse.down(); await page.mouse.move(bounds.x + bounds.width / 2 + 65, bounds.y + bounds.height / 2 + 30, { steps: 5 });
+  const dragged = await stateOf(page); await page.mouse.up();
+  assert.notEqual(dragged.camera.yaw, before.camera.yaw); assert.notEqual(dragged.camera.pitch, before.camera.pitch); assert.deepEqual(dragged.gaze, before.gaze);
+  await page.mouse.move(1040, 60); const resumed = await stateOf(page);
+  assert.notDeepEqual(resumed.gaze, dragged.gaze); assert.deepEqual(resumed.camera, dragged.camera);
+});
+
+test('PNG snapshots crop to the real alpha bounds, preserve every rendered alpha pixel, and support transparent padding or full canvas', async t => {
+  const page = await pageFor(t);
+  const checks = await page.locator('#bare').evaluate(async element => {
+    element.paused = true; element.setActivity('still');
+    const inspect = async blob => {
+      const bitmap = await createImageBitmap(blob), canvas = document.createElement('canvas');
+      canvas.width = bitmap.width; canvas.height = bitmap.height;
+      const context = canvas.getContext('2d'); context.drawImage(bitmap, 0, 0); bitmap.close();
+      return { width: canvas.width, height: canvas.height, pixels: context.getImageData(0, 0, canvas.width, canvas.height).data, type: blob.type };
+    };
+    const checks = [];
+    for (const shape of ['square', 'puffy', 'heart']) {
+      element.design = window.libraryAPI.createDesign({ body: { shape }, accessories: [window.libraryAPI.createAccessory('beret'), window.libraryAPI.createAccessory('scarf'), window.libraryAPI.createAccessory('earring', { slot: 'leftEar' })] });
+      element.setCamera({ yaw: 15, pitch: -5, roll: 12 });
+      const source = element.capturePixels();
+      let minX = source.width, minY = source.height, maxX = -1, maxY = -1, sourceVisible = 0;
+      for (let y = 0; y < source.height; y++) for (let x = 0; x < source.width; x++) {
+        if (!source.pixels[(y * source.width + x) * 4 + 3]) continue;
+        sourceVisible++; minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+      }
+      const cropped = await inspect(await element.snapshot()), padded = await inspect(await element.snapshot({ padding: 12 })), full = await inspect(await element.snapshot({ crop: false }));
+      let alphaDifferences = 0, paddingVisible = 0, croppedVisible = 0;
+      for (let y = 0; y < cropped.height; y++) for (let x = 0; x < cropped.width; x++) {
+        const alpha = cropped.pixels[(y * cropped.width + x) * 4 + 3];
+        if (alpha) croppedVisible++;
+        if (alpha !== source.pixels[((maxY - y) * source.width + minX + x) * 4 + 3]) alphaDifferences++;
+      }
+      for (let y = 0; y < padded.height; y++) for (let x = 0; x < padded.width; x++) {
+        if ((x < 12 || y < 12 || x >= padded.width - 12 || y >= padded.height - 12) && padded.pixels[(y * padded.width + x) * 4 + 3]) paddingVisible++;
+      }
+      checks.push({ shape, expected: [maxX - minX + 1, maxY - minY + 1], cropped: [cropped.width, cropped.height], padded: [padded.width, padded.height], full: [full.width, full.height], source: [source.width, source.height], sourceVisible, croppedVisible, alphaDifferences, paddingVisible, type: cropped.type });
+    }
+    return checks;
+  });
+  for (const check of checks) {
+    assert.deepEqual(check.cropped, check.expected, check.shape); assert.deepEqual(check.padded, check.expected.map(value => value + 24));
+    assert.deepEqual(check.full, check.source); assert.ok(check.cropped[0] < check.full[0] && check.cropped[1] < check.full[1]);
+    assert.equal(check.alphaDifferences, 0, JSON.stringify(check)); assert.equal(check.croppedVisible, check.sourceVisible); assert.ok(check.sourceVisible > 1000);
+    assert.equal(check.paddingVisible, 0); assert.equal(check.type, 'image/png');
+  }
+});
+
+test('typed React entry renders real pixels, forwards the element ref and callbacks, and applies updated and removed props', async t => {
+  const page = await pageFor(t, 'react');
+  const initial = await page.evaluate(() => {
+    const element = window.consumer.element, { pixels } = element.capturePixels();
+    return { same: element === document.getElementById('react-avatar'), tag: element.localName, design: element.design, camera: element.camera, gaze: element.pose.gaze, tracking: element.mouseTracking, paused: element.paused,
+      aria: element.getAttribute('aria-label'), consumer: element.dataset.consumer, className: element.className,
+      opaque: pixels.filter((value, index) => index % 4 === 3 && value === 255).length, events: window.consumer.events };
+  });
+  assert.equal(initial.same, true); assert.equal(initial.tag, 'sidekick-avatar'); assert.equal(initial.design.body.shape, 'puffy'); assert.equal(initial.design.body.color, '#8bba9c');
+  assert.equal(initial.design.eyes.left.weights.smile, 0.25); assert.equal(initial.design.eyes.right.weights.blink, 0.15);
+  assert.deepEqual(initial.camera, { yaw: 12, pitch: 5, roll: -4 }); assert.deepEqual(initial.gaze, [0.2, -0.1]);
+  assert.equal(initial.tracking, true); assert.equal(initial.paused, true); assert.equal(initial.aria, 'React companion'); assert.equal(initial.consumer, 'react'); assert.equal(initial.className, 'consumer-avatar');
+  assert.ok(initial.opaque > 10000); assert.ok(initial.events.some(event => event.name === 'Ready')); assert.ok(initial.events.every(event => event.native));
+  for (const event of initial.events.filter(event => event.name === 'Ready')) assert.deepEqual(event.configured, { shape: 'puffy', camera: { yaw: 12, pitch: 5, roll: -4 }, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } }, 'onReady observes applied props through the published ref');
+  if (screenshots) await page.screenshot({ path: `${screenshots}/library-react-consumer.png` });
+  await page.evaluate(() => { window.originalReactElement = window.consumer.element; window.renderConsumer({ shape: 'heart', bodyColor: '#b7a5ce', leftSmile: 0.8, rightBlink: undefined, paused: false, mouseTracking: false, camera: { yaw: -25, pitch: 3, roll: 8 } }); });
+  await page.waitForFunction(() => window.consumer.element?.design.body.shape === 'heart'); await settle(page);
+  const next = await stateOf(page, '#react-avatar');
+  assert.equal(await page.evaluate(() => window.originalReactElement === window.consumer.element), true);
+  assert.equal(next.design.body.color, '#b7a5ce'); assert.equal(next.design.eyes.left.weights.smile, 0.8); assert.equal(next.design.eyes.right.weights.blink, 0);
+  assert.deepEqual(next.camera, { yaw: -25, pitch: 3, roll: 8 }); assert.equal(next.paused, false); assert.equal(next.mouseTracking, false);
+  assert.equal(await page.locator('#react-avatar').getAttribute('right-blink'), null);
+});
+
+test('React StrictMode rerenders keep native callbacks single and unmount releases refs, event handlers, tracking and GPU resources', async t => {
+  const page = await pageFor(t, 'react');
+  for (let i = 0; i < 3; i++) { await page.evaluate(() => window.renderConsumer({})); await settle(page); }
+  await page.locator('#react-avatar').focus(); await page.keyboard.press('Enter');
+  let activations = await page.evaluate(() => window.consumer.events.filter(event => event.name === 'Activate'));
+  assert.equal(activations.length, 1); assert.equal(activations[0].type, 'sidekick-activate'); assert.equal(activations[0].native, true);
+  const eventResult = await page.evaluate(async () => {
+    const element = window.consumer.element;
+    const before = window.consumer.events.filter(event => event.name === 'MotionEnd').length;
+    await element.motion.to({ face: { uv: [0.2, 0.1] } }, { duration: 0 });
+    return { added: window.consumer.events.filter(event => event.name === 'MotionEnd').length - before, face: element.pose.face };
+  });
+  assert.equal(eventResult.added, 1); assert.deepEqual(eventResult.face, [0.2, 0.1]);
+  await page.evaluate(() => { window.unmountedElement = window.consumer.element; window.unmountConsumer(); });
+  await page.waitForFunction(() => window.consumer.element === null);
+  const unmounted = await page.evaluate(() => ({ connected: window.unmountedElement.isConnected, ready: window.unmountedElement.ready, buffers: window.unmountedElement.diagnostics.buffers, running: window.unmountedElement.diagnostics.running, ...window.listenerAudit(window.unmountedElement) }));
+  assert.deepEqual(unmounted, { connected: false, ready: false, buffers: 0, running: false, globalPointer: 0, elementEvents: 0 });
+  await page.evaluate(() => window.mountConsumer()); await page.waitForFunction(() => window.consumer.element?.ready); await settle(page);
+  await page.locator('#react-avatar').focus(); await page.keyboard.press('Enter');
+  activations = await page.evaluate(() => window.consumer.events.filter(event => event.name === 'Activate')); assert.equal(activations.length, 2);
+  assert.equal(await page.evaluate(() => window.listenerAudit(window.consumer.element).globalPointer), 1);
+  const readySnapshots = await page.evaluate(() => window.consumer.events.filter(event => event.name === 'Ready').map(event => event.configured));
+  assert.ok(readySnapshots.length >= 2, 'A newly mounted host receives ready even after registration');
+  for (const snapshot of readySnapshots) assert.deepEqual(snapshot, { shape: 'puffy', camera: { yaw: 12, pitch: 5, roll: -4 }, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } });
+});
+
+test('React SSR hydration preserves the server host and repeated renders retain canvas, imperative camera and motion state', async t => {
+  const page = await pageFor(t, 'hydration');
+  await page.waitForFunction(() => window.hydration.ref?.ready);
+  const first = await page.evaluate(async () => {
+    const element = window.hydration.ref;
+    element.setCamera({ yaw: 33, pitch: 6, roll: 11 });
+    await element.motion.to({ face: { uv: [0.18, -0.11] }, body: { rotation: [0, 0, 0.2] } }, { duration: 0 });
+    window.hydration.canvas = element.shadowRoot.querySelector('canvas');
+    return { hostPreserved: element === window.hydration.before, design: element.design, camera: element.camera, pose: element.pose, errors: window.hydration.errors };
+  });
+  assert.equal(first.hostPreserved, true); assert.equal(first.design.body.shape, 'heart'); assert.equal(first.design.body.color, '#b7a5ce'); assert.deepEqual(first.errors, []);
+  const readyEvents = await page.evaluate(() => window.hydration.events);
+  assert.ok(readyEvents.length > 0); assert.ok(readyEvents.every(event => event.configured?.shape === 'heart' && event.configured.color === '#b7a5ce'));
+  for (let i = 0; i < 3; i++) { await page.evaluate(() => window.rerenderHydration()); await settle(page); }
+  const after = await page.evaluate(() => {
+    const element = window.hydration.ref;
+    return { hostPreserved: element === window.hydration.before, canvasPreserved: element.shadowRoot.querySelector('canvas') === window.hydration.canvas, camera: element.camera, pose: element.pose, errors: window.hydration.errors, ready: element.ready };
+  });
+  assert.equal(after.hostPreserved, true); assert.equal(after.canvasPreserved, true); assert.equal(after.ready, true);
+  assert.deepEqual(after.camera, first.camera); assert.deepEqual(after.pose, first.pose); assert.deepEqual(after.errors, []);
+});
+
+test('Studio generated HTML and React snippets match live controls, copy the displayed code, and HTML renders in the packed consumer', async t => {
+  const page = await pageFor(t, 'studio', { viewport: { width: 1440, height: 1040 } });
+  await page.locator('[data-shape="heart"]').click();
+  await page.locator('#body-color').evaluate(input => { input.value = '#92a8cf'; input.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.locator('[data-equipment="eyes"][data-accessory="glasses"]').click();
+  await page.getByRole('tab', { name: '애니메이션', exact: true }).click();
+  await page.locator('#pause').click(); await page.locator('#mouse-tracking').click(); await page.locator('#look-right').click();
+  await page.locator('#left-expression').click(); await page.getByRole('option', { name: '웃음', exact: true }).click();
+  await page.getByRole('tab', { name: '카메라', exact: true }).click(); await page.locator('[data-camera-preset="three-quarter"]').click();
+  await page.getByRole('tab', { name: 'JSON', exact: true }).click();
+  const snippets = await page.evaluate(() => {
+    const html = document.getElementById('api-example').textContent, react = document.getElementById('react-example').textContent;
+    const host = new DOMParser().parseFromString(html, 'text/html').querySelector('sidekick-avatar');
+    const attrs = Object.fromEntries([...host.attributes].map(attribute => [attribute.name, attribute.value]));
+    const props = {};
+    for (const match of react.matchAll(/^\s+([A-Za-z]+)=\{(.+)\}$/gm)) { if (match[1] !== 'style') props[match[1]] = JSON.parse(match[2]); }
+    return { html, react, attrs, props, scene: JSON.parse(document.getElementById('design-json').value), design: document.getElementById('flat').design };
+  });
+  assert.match(snippets.html, /@hanana-kick\/sidekick\/auto/); assert.match(snippets.react, /@hanana-kick\/sidekick\/react/);
+  assert.deepEqual(JSON.parse(snippets.attrs.design), snippets.design); assert.deepEqual(snippets.props.design, snippets.design);
+  assert.equal(snippets.design.body.shape, 'heart'); assert.equal(snippets.design.body.color, '#92a8cf'); assert.equal(snippets.design.eyes.left.weights.smile, 1);
+  assert.ok(snippets.design.accessories.some(accessory => accessory.preset === 'glasses'));
+  for (const [attribute, prop, expected] of [
+    ['camera-yaw', 'cameraYaw', 45], ['camera-pitch', 'cameraPitch', 0], ['camera-roll', 'cameraRoll', 0],
+    ['mouse-tracking', 'mouseTracking', true], ['paused', 'paused', true], ['gaze-x', 'gazeX', 0.9], ['gaze-y', 'gazeY', 0],
+    ['activity', 'activity', 'idle'], ['interaction', 'interaction', 'box'], ['shape-duration', 'shapeDuration', 450], ['motion-duration', 'motionDuration', 400],
+  ]) { assert.equal(snippets.attrs[attribute], String(expected), attribute); assert.equal(snippets.props[prop], expected, prop); }
+  assert.deepEqual(JSON.parse(snippets.attrs.motion), snippets.scene.motion); assert.deepEqual(snippets.props.motion, snippets.scene.motion);
+  await page.evaluate(() => { window.copiedSnippets = []; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.copiedSnippets.push(text); } } }); });
+  await page.locator('#copy-html').click();
+  await page.locator('.usage-example summary').filter({ hasText: 'React · JSX' }).click(); await page.locator('#copy-react').click();
+  assert.deepEqual(await page.evaluate(() => window.copiedSnippets), [snippets.html, snippets.react]);
+  if (screenshots) await page.screenshot({ path: `${screenshots}/library-studio-snippets.png` });
+  const consumer = await pageFor(t);
+  const rendered = await consumer.evaluate(async html => {
+    const template = document.createElement('template'); template.innerHTML = html;
+    template.content.querySelectorAll('script').forEach(script => script.remove());
+    const host = template.content.querySelector('sidekick-avatar'); document.getElementById('sandbox').append(host);
+    await Promise.resolve();
+    const result = { ready: host.ready, design: host.design, camera: host.camera, paused: host.paused, tracking: host.mouseTracking, gaze: host.pose.gaze, interaction: host.interaction };
+    host.remove(); return result;
+  }, snippets.html);
+  assert.equal(rendered.ready, true); assert.deepEqual(rendered.design, snippets.scene.design); assert.deepEqual(rendered.camera, snippets.scene.camera);
+  assert.equal(rendered.paused, true); assert.equal(rendered.tracking, true); assert.deepEqual(rendered.gaze, [0.9, 0]); assert.equal(rendered.interaction, 'box');
+});
+
+test('Studio equipment palette serves a real decodable preview for every catalog accessory and slot', async t => {
+  const page = await pageFor(t, 'studio', { viewport: { width: 1440, height: 1040 } });
+  const result = await page.evaluate(async () => {
+    const tiles = [...document.querySelectorAll('[data-equipment][data-accessory]')];
+    const previews = new Map(tiles.map(tile => [tile.dataset.accessory, tile.querySelector('img')?.src]));
+    const decoded = [];
+    for (const [preset, url] of previews) {
+      if (!url) throw new Error('Missing preview image: ' + preset);
+      const response = await fetch(url); if (!response.ok) throw new Error('Missing preview asset: ' + url);
+      const bitmap = await createImageBitmap(await response.blob()); decoded.push({ preset, width: bitmap.width, height: bitmap.height }); bitmap.close();
+    }
+    return { decoded, expected: [...window.libraryAPI.ACCESSORY_PRESETS], slots: [...new Set(tiles.map(tile => tile.dataset.equipment))] };
+  });
+  assert.deepEqual(result.decoded.map(preview => preview.preset).sort(), result.expected.sort());
+  assert.deepEqual(result.slots.sort(), ['head', 'eyes', 'mouth', 'neck', 'leftEar', 'rightEar'].sort());
+  assert.ok(result.decoded.every(preview => preview.width >= 72 && preview.height >= 72));
+  await page.locator('[data-equipment="head"][data-accessory="halo"]').scrollIntoViewIfNeeded();
+  if (screenshots) await page.screenshot({ path: `${screenshots}/library-accessory-catalog.png` });
+});
+
+test('the actual /sidekick/ Pages build loads its scripts, fonts and every computed preview URL under the deployment base', async t => {
+  const page = await pageFor(t, 'pages', { viewport: { width: 1440, height: 1040 } });
+  await page.locator('[data-shape="puffy"]').click();
+  assert.equal(await page.locator('#flat').evaluate(element => element.design.body.shape), 'puffy');
+  const result = await page.evaluate(async () => {
+    const images = [...document.querySelectorAll('[data-equipment] img')];
+    for (const image of images) image.loading = 'eager';
+    await Promise.all(images.map(image => image.decode()));
+    await document.fonts.ready;
+    return { images: images.map(image => ({ src: image.src, width: image.naturalWidth })),
+      local: performance.getEntriesByType('resource').map(entry => new URL(entry.name)).filter(url => url.origin === location.origin && url.pathname !== '/favicon.ico').map(url => url.pathname),
+      home: new URL(document.querySelector('.brand').href).pathname,
+    };
+  });
+  assert.ok(result.images.length >= 8); assert.ok(result.images.every(image => image.width >= 72 && new URL(image.src).pathname.startsWith('/sidekick/accessory-previews/')));
+  assert.ok(result.local.length > 5); assert.ok(result.local.every(path => path.startsWith('/sidekick/')), JSON.stringify(result.local)); assert.equal(result.home, '/sidekick/');
+  if (screenshots) await page.screenshot({ path: `${screenshots}/library-pages-base.png` });
+});
+
+test('Studio JSON file import applies a complete scene and export round-trips it; rejected files preserve live state and storage', async t => {
+  const page = await pageFor(t, 'studio', { viewport: { width: 1440, height: 1040 } });
+  await page.getByRole('tab', { name: 'JSON', exact: true }).click();
+  const scene = await page.evaluate(() => window.libraryAPI.createScene({
+    design: window.libraryAPI.createDesign({ body: { shape: 'heart', color: '#b7a5ce' }, eyes: { left: { weights: { smile: 0.7, blink: 0.2 } } }, accessories: [window.libraryAPI.createAccessory('glasses', 'frames')] }),
+    camera: { yaw: 32, pitch: -8, roll: 7 }, activity: 'thinking', paused: true, mouseTracking: false, interaction: 'box',
+    gaze: { x: -0.4, y: 0.3 }, time: 1.5, shapeDuration: 250, shapeEasing: 'linear', motionDuration: 160, motionEasing: 'linear',
+    motion: { body: { rotation: [0, 0.1, 0.3] }, face: { uv: [0.2, -0.1] }, accessories: { frames: { rotation: [0, 0.1, 0] } } },
+  }));
+  const input = page.locator('#import-scene-file');
+  const file = value => ({ name: 'scene.json', mimeType: 'application/json', buffer: Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)) });
+  await input.setInputFiles(file(scene));
+  await page.waitForFunction(() => document.getElementById('flat').design.body.color === '#b7a5ce');
+  const loaded = await stateOf(page, '#flat');
+  assert.deepEqual(loaded.design, scene.design); assert.deepEqual(loaded.camera, scene.camera); assert.deepEqual(loaded.gaze, [-0.4, 0.3]);
+  assert.equal(loaded.activity, scene.activity); assert.equal(loaded.paused, true); assert.equal(loaded.mouseTracking, false);
+  assert.deepEqual(JSON.parse(await page.locator('#design-json').inputValue()), scene);
+  assert.deepEqual(await page.locator('#flat').evaluate(element => [element.pose.rotation, element.pose.face, element.pose.accessories.frames]), [[0, 0.1, 0.3], [0.2, -0.1], [0, 0.1, 0]]);
+  const downloadEvent = page.waitForEvent('download'); await page.locator('#export-json').click(); const download = await downloadEvent;
+  assert.equal(download.suggestedFilename(), 'sidekick.scene.json'); assert.deepEqual(JSON.parse(await readFile(await download.path(), 'utf8')), scene);
+  const snapshot = () => page.locator('#flat').evaluate(element => ({ design: element.design, camera: element.camera, pose: element.pose, paused: element.paused, tracking: element.mouseTracking, activity: element.activity, storage: Object.fromEntries(Object.entries(localStorage)), json: document.getElementById('design-json').value }));
+  const before = await snapshot();
+  for (const [bad, message] of [
+    ['{', /./], [{ ...scene, camera: { ...scene.camera, pitch: 91 } }, /camera\.pitch/],
+    [{ ...scene, motion: { accessories: { 'missing-accessory': { rotation: [0, 0, 0] } } } }, /missing-accessory/],
+    [{ ...scene, unexpected: true }, /unexpected/], [' '.repeat(65537), /64 KiB/],
+  ]) {
+    await input.setInputFiles(file(bad));
+    await page.waitForFunction(source => new RegExp(source).test(document.getElementById('json-error').textContent), message.source);
+    assert.deepEqual(await snapshot(), before, `Invalid file ${message} must be atomic`);
+    assert.equal(await input.inputValue(), '', 'The same filename can be selected again');
+  }
+  // Repair using exactly the same filename, then accept the supported legacy design-only shape.
+  await input.setInputFiles(file(scene)); await page.waitForFunction(() => document.getElementById('json-error').textContent === '');
+  const legacy = { ...scene.design, body: { shape: 'puffy', color: '#81b5a1' } };
+  await input.setInputFiles(file(legacy)); await page.waitForFunction(() => document.getElementById('flat').design.body.shape === 'puffy');
+  const migrated = await stateOf(page, '#flat'); assert.deepEqual(migrated.design, legacy); assert.deepEqual(migrated.camera, { yaw: 0, pitch: 0, roll: 0 });
+  assert.equal(migrated.mouseTracking, false); assert.equal(migrated.paused, false); assert.equal(migrated.activity, 'idle');
+});
+
+test('Studio PNG download contains the tightly cropped transparent image at its actual alpha dimensions', async t => {
+  const page = await pageFor(t, 'studio');
+  const expected = await page.locator('#flat').evaluate(element => {
+    const { width, height, pixels } = element.capturePixels();
+    let minX = width, minY = height, maxX = -1, maxY = -1, visible = 0;
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (pixels[(y * width + x) * 4 + 3]) {
+      visible++; minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+    }
+    return { width: maxX - minX + 1, height: maxY - minY + 1, sourceWidth: width, sourceHeight: height, visible };
+  });
+  const downloadEvent = page.waitForEvent('download'); await page.locator('#export-png').click(); const download = await downloadEvent;
+  const data = await readFile(await download.path());
+  assert.equal(download.suggestedFilename(), 'sidekick.png'); assert.equal(data.subarray(1, 4).toString(), 'PNG');
+  assert.equal(data.readUInt32BE(16), expected.width); assert.equal(data.readUInt32BE(20), expected.height);
+  assert.ok(expected.width < expected.sourceWidth && expected.height < expected.sourceHeight);
+  const image = await page.evaluate(async bytes => {
+    const bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/png' })), canvas = document.createElement('canvas');
+    canvas.width = bitmap.width; canvas.height = bitmap.height; const context = canvas.getContext('2d'); context.drawImage(bitmap, 0, 0); bitmap.close();
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data; let visible = 0, transparent = 0;
+    for (let i = 3; i < pixels.length; i += 4) { if (pixels[i]) visible++; else transparent++; }
+    return { visible, transparent };
+  }, [...data]);
+  assert.equal(image.visible, expected.visible); assert.ok(image.transparent > 100, 'PNG retains transparent space outside the curved silhouette');
+});

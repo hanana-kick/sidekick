@@ -11,7 +11,7 @@ import { viewPoint } from './eye-projection.js';
 import { drapedFrontLifts, rigidFrontLift } from './rigid-contact.js';
 import type { Geometry } from './geometry.js';
 
-export type CatalogAccessoryPreset = 'moustache' | 'bowTie' | 'scarf' | 'earring';
+export type CatalogAccessoryPreset = 'moustache' | 'goatee' | 'bowTie' | 'scarf' | 'necklace' | 'earring' | 'starEarring';
 /** Flat structural colors, never directional lighting. */
 export interface CatalogAccessoryGeometry extends Geometry {
   mainIndexCount: number;
@@ -22,7 +22,7 @@ export interface CatalogAccessoryGeometry extends Geometry {
 }
 export const CATALOG_ACCESSORY_CLEARANCE = 0.002;
 /** Conservative local extents used by shape-independent camera framing. */
-export const CATALOG_ACCESSORY_EXTENT: Readonly<Record<CatalogAccessoryPreset, number>> = Object.freeze({ moustache: .24, bowTie: .26, scarf: .47, earring: .23 });
+export const CATALOG_ACCESSORY_EXTENT: Readonly<Record<CatalogAccessoryPreset, number>> = Object.freeze({ moustache: .24, goatee: .20, bowTie: .26, scarf: .47, necklace: .38, earring: .23, starEarring: .23 });
 interface MeshData { points: Vec3[]; indices: number[]; mainIndexCount: number }
 
 /** Small ear-clipped 2D patterns keep the silhouette deliberate and concave. */
@@ -75,6 +75,16 @@ function moustachePattern(): MeshData {
   prism(mesh, [...right, ...right.slice(1, -1).reverse().map(([x, y]): Vec2 => [-x, y])], 0, .034);
   mesh.mainIndexCount = mesh.indices.length; return mesh;
 }
+function goateePattern(): MeshData {
+  const mesh = empty();
+  // A soft split upper edge and a tapered point read as a small, tailored beard.
+  const top: Vec2 = [-.059, .019];
+  const outline: Vec2[] = [top, ...cubic(top, [-.040, .040], [-.015, .035], [0, .018]),
+    ...cubic([0, .018], [.015, .035], [.040, .040], [.059, .019]),
+    ...cubic([.059, .019], [.058, -.025], [.028, -.062], [0, -.082]),
+    ...cubic([0, -.082], [-.028, -.062], [-.058, -.025], top).slice(0, -1)];
+  prism(mesh, outline, 0, .032); mesh.mainIndexCount = mesh.indices.length; return mesh;
+}
 function bowTiePattern(): MeshData {
   const mesh = empty();
   const loop: Vec2[] = [[.026, .028], [.145, .083], [.171, .073], [.181, .045], [.181, -.045], [.163, -.075], [.140, -.080], [.026, -.028]];
@@ -112,7 +122,14 @@ function earringPattern(side: number): MeshData {
   prism(mesh, [[centerX, -.089], [centerX + .018, -.116], [centerX, -.145], [centerX - .018, -.116]], .004, .021);
   mesh.mainIndexCount = mesh.indices.length; return mesh;
 }
-const patterns = { moustache: moustachePattern(), bowTie: bowTiePattern(), leftEarring: earringPattern(-1), rightEarring: earringPattern(1) };
+function starEarringPattern(side: number): MeshData {
+  const mesh = empty(), centerX = side * .044;
+  // A small connecting ring and one full five-point star, joined at its top tip.
+  tube(mesh, Array.from({ length: 24 }, (_, i): Vec3 => { const a = i / 24 * Math.PI * 2; return [centerX + .022 * Math.cos(a), -.028 + .022 * Math.sin(a), .012]; }), .0075, true);
+  const star = Array.from({ length: 10 }, (_, i): Vec2 => { const a = Math.PI / 2 + i / 10 * Math.PI * 2, radius = i % 2 ? .023 : .051; return [centerX + radius * Math.cos(a), -.095 + radius * Math.sin(a)]; });
+  prism(mesh, star, .004, .027); mesh.mainIndexCount = mesh.indices.length; return mesh;
+}
+const patterns = { goatee: goateePattern(), leftStarEarring: starEarringPattern(-1), rightStarEarring: starEarringPattern(1), moustache: moustachePattern(), bowTie: bowTiePattern(), leftEarring: earringPattern(-1), rightEarring: earringPattern(1) };
 
 /** Closed, thin cloth patch. A fixed grid provides coherent cloth silhouettes. */
 function clothPatch(mesh: MeshData, columns: number, rows: number, xy: (u: number, v: number) => Vec2, height: (x: number, y: number) => number, thickness: number, lift = 0): void {
@@ -154,6 +171,25 @@ function scarfPattern(center: Vec3, size: number, height: (x: number, y: number)
   clothPatch(mesh, 5, 3, (u, v) => [x + size * (.105 + (u - .5) * .058), y + size * ((v - .5) * .095)], height, .018 * size, .027 * size);
   return mesh;
 }
+function necklacePattern(center: Vec3, size: number, height: (x: number, y: number) => number): MeshData {
+  const mesh = empty(), [x, y] = center, radius = .0095 * size;
+  // A fine curved chain settles across the lower shoulder, with a centered drop.
+  tube(mesh, Array.from({ length: 41 }, (_, i): Vec3 => {
+    const t = i / 40 * 2 - 1, px = x + .255 * size * t, py = y + size * (.085 * t * t - .020);
+    return [px, py, 0];
+  }), radius);
+  // Author the tube in XY before draping its columns. A steep body shoulder
+  // cannot flip the tube frame or make its projected underside self-intersect.
+  for (const p of mesh.points) p[2] += height(p[0], p[1]) + radius + CATALOG_ACCESSORY_CLEARANCE;
+  mesh.mainIndexCount = mesh.indices.length;
+  const pendant = empty();
+  prism(pendant, [[0, -.014], [.034, -.052], [0, -.103], [-.034, -.052]].map(([px, py]): Vec2 => [x + px! * size, y + py! * size]), 0, .024 * size);
+  // Each pendant face remains a plane; the chain may drape independently.
+  const lift = Math.max(...pendant.points.map(p => height(p[0], p[1]))) + CATALOG_ACCESSORY_CLEARANCE;
+  for (const p of pendant.points) p[2] += lift;
+  const start = mesh.points.length; mesh.points.push(...pendant.points); mesh.indices.push(...pendant.indices.map(i => i + start));
+  return mesh;
+}
 function geometry(mesh: MeshData, attachment: Vec3, seating: number): CatalogAccessoryGeometry {
   const vertices = new Float32Array(mesh.points.length * 6);
   mesh.points.forEach((p, i) => vertices.set(p, i * 6));
@@ -173,26 +209,29 @@ function geometry(mesh: MeshData, attachment: Vec3, seating: number): CatalogAcc
  * Camera, gaze, eye expression, color and frame history never enter the fit.
  */
 export function catalogAccessoryGeometry(body: BodyDesign, accessory: ResolvedAccessoryDesign, squash = 1, contourOverride?: ShapeContour, profileOverride?: ShapeProfile, rotation: Vec3 = accessory.rotation): CatalogAccessoryGeometry {
-  if (!['moustache', 'bowTie', 'scarf', 'earring'].includes(accessory.preset)) throw new TypeError('Expected a lower-body catalog accessory.');
+  if (!['moustache', 'goatee', 'bowTie', 'scarf', 'necklace', 'earring', 'starEarring'].includes(accessory.preset)) throw new TypeError('Expected a lower-body catalog accessory.');
   const contour = contourOverride ?? shapeContour({ kind: 'material', name: body.shape }), profile = profileOverride ?? resolveShapeProfile(body.shape), mount = accessoryMountProfile(accessory, profile);
   const frame = sampleAccessorySurface(body, accessory, squash, contour, profile), size = mount.scale * accessory.scale, stretch = 1 / Math.sqrt(squash);
   const scales: Vec3 = [BODY_SIZE[0] * .5 * stretch, BODY_SIZE[1] * .5 * squash, profile.depth * .5 * stretch];
   const height = (x: number, y: number): number => contourVolumeHeight(contour, x / scales[0], y / scales[1]) * scales[2];
   let mesh: MeshData;
-  if (accessory.preset === 'scarf') {
-    mesh = scarfPattern(frame.position, size, height);
-    const lifts = drapedFrontLifts(mesh.points, mesh.indices, contour, scales);
-    mesh.points.forEach((point, i) => { point[2] += lifts[i]!; });
+  if (accessory.preset === 'scarf' || accessory.preset === 'necklace') {
+    mesh = accessory.preset === 'scarf' ? scarfPattern(frame.position, size, height) : necklacePattern(frame.position, size, height);
+    if (accessory.preset === 'scarf') {
+      const lifts = drapedFrontLifts(mesh.points, mesh.indices, contour, scales);
+      mesh.points.forEach((point, i) => { point[2] += lifts[i]!; });
+    }
     const posed = transform(frame.position, rotation);
     mesh.points = mesh.points.map(point => viewPoint(posed, sub(point, frame.position)));
   } else {
-    const pattern = accessory.preset === 'earring' ? patterns[accessory.slot === 'leftEar' ? 'leftEarring' : 'rightEarring'] : patterns[accessory.preset as 'moustache' | 'bowTie'];
+    const left = accessory.slot === 'leftEar';
+    const pattern = accessory.preset === 'earring' ? patterns[left ? 'leftEarring' : 'rightEarring'] : accessory.preset === 'starEarring' ? patterns[left ? 'leftStarEarring' : 'rightStarEarring'] : patterns[accessory.preset as 'moustache' | 'goatee' | 'bowTie'];
     const posed = transform([0, 0, 0], rotation, [size, size, size]);
     mesh = { points: pattern.points.map(point => viewPoint(frame.matrix, viewPoint(posed, point))), indices: [...pattern.indices], mainIndexCount: pattern.mainIndexCount };
   }
   const seating = rigidFrontLift(mesh.points, mesh.indices, contour, scales, CATALOG_ACCESSORY_CLEARANCE);
   for (const point of mesh.points) point[2] += seating;
-  if (accessory.preset === 'earring') {
+  if (accessory.preset === 'earring' || accessory.preset === 'starEarring') {
     const sign = accessory.slot === 'leftEar' ? -1 : 1, posed = transform([0, 0, 0], rotation, [size, size, size]);
     const end = viewPoint(frame.matrix, viewPoint(posed, [sign * .044, -.006, .012])); end[2] += seating;
     const radius = .0085 * size, start: Vec3 = [frame.position[0], frame.position[1], frame.position[2] + radius + CATALOG_ACCESSORY_CLEARANCE];

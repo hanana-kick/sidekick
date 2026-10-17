@@ -20,6 +20,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm run check:library
       - run: npm run typecheck
       - run: npm test
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium

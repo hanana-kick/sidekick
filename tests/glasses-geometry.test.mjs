@@ -259,3 +259,22 @@ test('eye surface depths and expression weights cannot bend the front', () => {
   design.eyes.left.weights = { smile: 1, blink: .2 }; design.eyes.right.weights = { smile: .3, blink: 1 };
   assert.deepEqual(glassesGeometry(design, accessory, eyeFrame(design)).vertices, base.vertices, 'expression weights do not alter frame geometry');
 });
+
+
+test('sunglasses reuse the rigid coplanar glasses front and add two opaque parallel inserts on all shapes', () => {
+  for (const shape of MATERIAL_SHAPE_NAMES) for (const squash of [.88,1,1.12]) {
+    const design = createDesign({body:{shape}}), contour = shapeContour({kind:'material',name:shape}), profile = resolveShapeProfile(shape), eyes = eyeFrame(design,contour,profile,squash);
+    const accessory = createAccessory('sunglasses'), mesh = glassesGeometry(design,accessory,eyes,squash,contour,profile);
+    checkRigidLenses(mesh);
+    assert.equal(mesh.frameIndexCount + mesh.fillIndexCount,mesh.indices.length); assert.equal(mesh.fillIndexCount,64*12*2);
+    const [left,right] = mesh.lenses;
+    assert.deepEqual(left.normal,right.normal);
+    near(left.normal.reduce((sum,v,i)=>sum+v*(left.center[i]-right.center[i]),0),0,'complete frame shares plane');
+    assert.ok(clearanceBounds(mesh,contour,profile,squash).minimum>0,`${shape}: lens fill clearance`);
+    const start = mesh.bridge.vertexStart + mesh.bridge.vertexCount, count=65;
+    for(let side=0;side<2;side++) for(let face=0;face<2;face++) for(let i=0;i<count;i++) {
+      const lens=mesh.lenses[side], at=(start+side*count*2+face*count+i)*6;
+      near(lens.normal.reduce((sum,v,k)=>sum+v*(mesh.vertices[at+k]-lens.center[k]),0),(face ? 1 : -1)*mesh.tubeRadius*.42,'flat filled lens',1e-7);
+    }
+  }
+});

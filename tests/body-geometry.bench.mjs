@@ -1,4 +1,4 @@
-/** Reproducible CPU/mesh diagnostic: npm run build && node tests/body-geometry.bench.mjs */
+/** Reproducible CPU/mesh diagnostic: npm run build:all && node tests/body-geometry.bench.mjs */
 import { performance } from 'node:perf_hooks';
 import { shapeContour, contourSnapshot } from '../dist/src/core/contours.js';
 import { buildMorph } from '../dist/src/core/morph.js';

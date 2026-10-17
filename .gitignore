@@ -1,6 +1,8 @@
 node_modules/
-dist/
+dist/*
+!dist/library/
 artifacts/
+*.tgz
 .env*
 !.env.example
 *.log

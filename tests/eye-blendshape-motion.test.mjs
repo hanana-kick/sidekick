@@ -8,7 +8,17 @@ import { SidekickAvatar } from '../dist/src/element/avatar.js';
 const near = (a, b, epsilon = 1e-10) => assert.ok(Math.abs(a - b) < epsilon, `${a} != ${b}`);
 function avatarForTest(connected = false) {
   const avatar = new SidekickAvatar(), events = [];
-  avatar.hasAttribute = () => false;
+  const attributes = new Map();
+  avatar.hasAttribute = name => attributes.has(name);
+  avatar.setAttribute = (name, value) => {
+    const old = attributes.get(name) ?? null; attributes.set(name, String(value));
+    avatar.attributeChangedCallback(name, old, String(value));
+  };
+  avatar.toggleAttribute = (name, enabled) => {
+    const old = attributes.get(name) ?? null;
+    if (enabled) attributes.set(name, ''); else attributes.delete(name);
+    avatar.attributeChangedCallback(name, old, enabled ? '' : null);
+  };
   avatar.isConnected = connected;
   avatar.dispatchEvent = event => { events.push(event); return true; };
   return { avatar, events };
@@ -140,7 +150,7 @@ test('a one-eye weight baseline edit affects only that eye, preserving global an
 test('weight API validation is atomic even for paused, disconnected and reduced avatars', async () => {
   for (const mode of ['disconnected', 'paused', 'reduced', 'renderer-unavailable']) {
     const { avatar } = avatarForTest(mode !== 'disconnected');
-    if (mode === 'paused') avatar.hasAttribute = name => name === 'paused';
+    if (mode === 'paused') avatar.paused = true;
     if (mode === 'reduced') avatar.reduced = true;
     if (mode === 'renderer-unavailable') avatar.canvas = {};
     await avatar.setEyeWeights('both', { smile: 0.6, blink: 0.4 }, { duration: 1000 });

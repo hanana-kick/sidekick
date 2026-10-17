@@ -219,12 +219,12 @@ export function sampleAccessorySurface(body: BodyDesign, accessory: Pick<Resolve
     const x = direction[0] / direction[2], y = direction[1] / direction[2], radius = Math.hypot(x, y);
     // Lower-front mounts are individually curated contained XY junctions. The
     // historical glasses chart retains its conservative central-disk fitting.
-    const lowerFront = accessory.preset === 'moustache' || accessory.preset === 'bowTie' || accessory.preset === 'scarf';
+    const lowerFront = accessory.preset === 'moustache' || accessory.preset === 'goatee' || accessory.preset === 'bowTie' || accessory.preset === 'scarf' || accessory.preset === 'necklace';
     const fit = lowerFront ? 1 : Math.min(1, mountChart(contour).faceRadius / Math.max(radius, 1e-12));
     point = lowerFront ? containedFrontPoint(contour, x, y, .012) : contourSurfacePoint(contour, x * fit, y * fit);
   } else {
     point = perimeterMountPoint(contour, direction);
-    if (accessory.preset === 'earring') {
+    if (accessory.preset === 'earring' || accessory.preset === 'starEarring') {
       // A tiny inset lands the stud on the rounded front shoulder. Position
       // follows the continuous perimeter chart; the hoop plane stays upright.
       point = containedFrontPoint(contour, point[0] * .96, point[1] * .96, .006);

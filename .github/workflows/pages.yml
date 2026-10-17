@@ -1,0 +1,63 @@
+name: Sidekick Pages (manual)
+
+# Preparing this workflow does not enable Pages or publish the private repository.
+# A repository owner must configure Pages and explicitly approve public deployment.
+on:
+  workflow_dispatch:
+    inputs:
+      approve_public_deployment:
+        description: 'I approve publishing Sidekick Studio as a public GitHub Pages website'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sidekick-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: ${{ inputs.approve_public_deployment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Read the existing Pages configuration
+        id: pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: false
+      - run: npm run check:library
+      - run: npm run typecheck
+      - run: node --test tests/pages-build.test.mjs
+      - run: npm run build:all
+        env:
+          SIDEKICK_BASE: ${{ steps.pages.outputs.base_path }}/
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy the explicitly approved Studio build
+        id: deployment
+        uses: actions/deploy-pages@v4

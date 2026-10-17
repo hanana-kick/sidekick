@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist/library",
+    "rootDir": "src",
+    "sourceMap": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {}
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "playground",
+    "tests"
+  ]
+}

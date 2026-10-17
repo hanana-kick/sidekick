@@ -1,0 +1,115 @@
+{
+  "size": 192,
+  "background": "transparent",
+  "method": "Unmodified production AvatarRenderer accessory meshes and shaders, isolated and reframed, replayed with native EGL/GLES3 depth testing and back-face culling. 4x supersampled coverage. Static assets require no preview WebGL contexts.",
+  "items": [
+    {
+      "preset": "beret",
+      "color": "#b84742",
+      "view": {
+        "yaw": 18,
+        "pitch": 18
+      },
+      "filename": "beret.png"
+    },
+    {
+      "preset": "halo",
+      "color": "#f7cc5b",
+      "view": {
+        "yaw": 8,
+        "pitch": 25
+      },
+      "filename": "halo.png"
+    },
+    {
+      "preset": "crown",
+      "color": "#e5ad35",
+      "view": {
+        "yaw": 18,
+        "pitch": 18
+      },
+      "filename": "crown.png"
+    },
+    {
+      "preset": "glasses",
+      "color": "#31323d",
+      "view": {
+        "yaw": 8,
+        "pitch": 4
+      },
+      "filename": "glasses.png"
+    },
+    {
+      "preset": "sunglasses",
+      "color": "#31323d",
+      "view": {
+        "yaw": 8,
+        "pitch": 4
+      },
+      "filename": "sunglasses.png"
+    },
+    {
+      "preset": "moustache",
+      "color": "#31323d",
+      "view": {
+        "yaw": 8,
+        "pitch": 4
+      },
+      "filename": "moustache.png"
+    },
+    {
+      "preset": "goatee",
+      "color": "#31323d",
+      "view": {
+        "yaw": 8,
+        "pitch": 4
+      },
+      "filename": "goatee.png"
+    },
+    {
+      "preset": "bowTie",
+      "color": "#b84742",
+      "view": {
+        "yaw": 10,
+        "pitch": 7
+      },
+      "filename": "bowTie.png"
+    },
+    {
+      "preset": "scarf",
+      "color": "#b84742",
+      "view": {
+        "yaw": 8,
+        "pitch": 6
+      },
+      "filename": "scarf.png"
+    },
+    {
+      "preset": "necklace",
+      "color": "#9b6c2a",
+      "view": {
+        "yaw": 0,
+        "pitch": 6
+      },
+      "filename": "necklace.png"
+    },
+    {
+      "preset": "earring",
+      "color": "#f7cc5b",
+      "view": {
+        "yaw": 8,
+        "pitch": 0
+      },
+      "filename": "earring.png"
+    },
+    {
+      "preset": "starEarring",
+      "color": "#a66a22",
+      "view": {
+        "yaw": 8,
+        "pitch": 0
+      },
+      "filename": "starEarring.png"
+    }
+  ]
+}

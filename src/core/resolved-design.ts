@@ -24,15 +24,15 @@ export function resolveDesign(design: AvatarDesign): ResolvedAvatarDesign {
     },
     accessories: design.accessories.map(accessory => {
       let anchor: Anchor, follow: number;
-      if (accessory.preset === 'earring') {
+      if ((accessory.preset === 'earring' || accessory.preset === 'starEarring')) {
         anchor = { region: accessory.slot === 'leftEar' ? 'left' : 'right', uv: [0, -0.15], offset: 0 }; follow = 0.35;
-      } else if (accessory.preset === 'moustache') {
+      } else if ((accessory.preset === 'moustache' || accessory.preset === 'goatee')) {
         anchor = { region: 'face', uv: [0, -0.23], offset: 0 }; follow = 0;
-      } else if (accessory.preset === 'bowTie' || accessory.preset === 'scarf') {
+      } else if (accessory.preset === 'bowTie' || accessory.preset === 'scarf' || accessory.preset === 'necklace') {
         anchor = { region: 'face', uv: [0, -0.55], offset: 0 }; follow = 0.15;
       } else {
-        anchor = { region: accessory.preset === 'glasses' ? 'face' : 'crown', uv: [0, accessory.preset === 'glasses' ? 0.1 : 0], offset: accessory.preset === 'halo' ? 0.22 : accessory.preset === 'glasses' ? 0 : 0.035 };
-        follow = accessory.preset === 'glasses' ? 0 : 0.5;
+        anchor = { region: (accessory.preset === 'glasses' || accessory.preset === 'sunglasses') ? 'face' : 'crown', uv: [0, (accessory.preset === 'glasses' || accessory.preset === 'sunglasses') ? 0.1 : 0], offset: accessory.preset === 'halo' ? 0.22 : (accessory.preset === 'glasses' || accessory.preset === 'sunglasses') ? 0 : 0.035 };
+        follow = (accessory.preset === 'glasses' || accessory.preset === 'sunglasses') ? 0 : 0.5;
       }
       return { ...accessory, anchor, scale: 1, rotation: [0, 0, 0], follow };
     }),

@@ -1,4 +1,4 @@
-import { ACTIVITIES, createDesign, equipAccessory, finite, parseDesign, patchDesign, removeAccessory } from '../core/design.js';
+import { ACTIVITIES, createAccessory, createDesign, equipAccessory, finite, parseDesign, patchDesign, removeAccessory } from '../core/design.js';
 import type { AccessoryDesign, Activity, AvatarDesign, DesignPatch, RenderStyle, Vec2 } from '../core/design.js';
 import { clamp, spring } from '../core/math.js';
 import { MotionTimeline, validateMotionOptions } from '../core/motion.js';
@@ -10,11 +10,23 @@ import { expressionDuration, eyeExpressionWeights, patchEyeState } from '../core
 import { cameraPreset, createCamera, patchCamera } from '../core/camera.js';
 import type { CameraAngles, CameraPreset } from '../core/camera.js';
 import type { MotionOptions, MotionResult, MotionTarget, Pose } from '../core/motion.js';
+import { alphaBounds, validateSnapshotOptions } from '../core/pixels.js';
+import type { SnapshotOptions } from '../core/pixels.js';
 import { AvatarRenderer } from '../renderer/webgl.js';
+import { ACCESSORY_ATTRIBUTE_SLOTS, SIDEKICK_ATTRIBUTES, SidekickAttributeError, resolveSidekickAttributes } from './attributes.js';
+import type { SidekickEventMap } from './attributes.js';
 const HTMLElementBase = (typeof HTMLElement === 'undefined' ? class {} : HTMLElement) as typeof HTMLElement;
 
 export class SidekickAvatar extends HTMLElementBase {
-  static observedAttributes = ['render-style', 'activity', 'paused', 'interaction'];
+  static observedAttributes = [...SIDEKICK_ATTRIBUTES];
+  addEventListener<K extends keyof SidekickEventMap>(type: K, listener: (this: SidekickAvatar, event: SidekickEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions): void { if (listener) super.addEventListener(type, listener, options); }
+  removeEventListener<K extends keyof SidekickEventMap>(type: K, listener: (this: SidekickAvatar, event: SidekickEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
+  removeEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
+  removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions): void;
+  removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions): void { if (listener) super.removeEventListener(type, listener, options); }
   private configuration = createDesign();
   private timeline = new MotionTimeline({ left: this.configuration.eyes.left, right: this.configuration.eyes.right });
   private shapeTimeline = new ShapeTimeline(this.configuration.body.shape);
@@ -34,6 +46,15 @@ export class SidekickAvatar extends HTMLElementBase {
   private currentActivity: Activity = 'idle';
   private cameraAngles = createCamera();
   private gazeTarget: Vec2 = [0, 0];
+  private manualGaze: Vec2 = [0, 0];
+  private pausedState = false;
+  private interactionState: 'none' | 'box' = 'none';
+  private mouseTrackingState = false;
+  private trackingDocument?: Document;
+  private acceptedAttributes = new Map<string, string>();
+  private pendingAttributes = new Map<string, string | null>();
+  private attributesQueued = false;
+  private propertiesUpgraded = false;
   private gazeVelocity: Vec2 = [0, 0];
   private drag?: { id: number; x: number; y: number; camera: CameraAngles; moved: boolean };
   readonly motion = {
@@ -57,12 +78,24 @@ export class SidekickAvatar extends HTMLElementBase {
   async equipAccessory(accessory: AccessoryDesign): Promise<void> { this.applyDesign(equipAccessory(this.configuration, accessory)); }
   /** Remove one instance by ID; the opposite earring and its motion remain independent. */
   async removeAccessory(id: string): Promise<void> { this.applyDesign(removeAccessory(this.configuration, id)); }
-  private applyDesign(value: unknown): void {
+  private applyDesign(value: unknown, transition?: { shape: ShapeMotionOptions; eyes: MotionOptions; eyeSides?: readonly ('left' | 'right')[] }): void {
     const next = parseDesign(value);
     const shapeChanged = next.body.shape !== this.configuration.body.shape;
-    if (shapeChanged) this.shapeTimeline.set(next.body.shape);
-    const changedEyes = (['left', 'right'] as const).filter(side => next.eyes[side].weights.smile !== this.configuration.eyes[side].weights.smile || next.eyes[side].weights.blink !== this.configuration.eyes[side].weights.blink);
-    if (changedEyes.length) this.timeline.setEyes({ left: next.eyes.left, right: next.eyes.right }, changedEyes);
+    if (shapeChanged) {
+      if (transition) {
+        const result = this.shapeTimeline.to(next.body.shape, { ...transition.shape, duration: this.immediateMotion() ? 0 : transition.shape.duration });
+        void result.then(detail => this.emit('sidekick-shape-end', detail));
+      } else this.shapeTimeline.set(next.body.shape);
+    }
+    const changedEyes = (['left', 'right'] as const).filter(side => transition?.eyeSides?.includes(side) || next.eyes[side].weights.smile !== this.configuration.eyes[side].weights.smile || next.eyes[side].weights.blink !== this.configuration.eyes[side].weights.blink);
+    if (changedEyes.length) {
+      if (transition) {
+        const eyes: NonNullable<MotionTarget['eyes']> = {};
+        for (const side of changedEyes) eyes[side] = { weights: next.eyes[side].weights };
+        const result = this.timeline.to({ eyes }, { ...transition.eyes, duration: this.immediateMotion() ? 0 : transition.eyes.duration });
+        void result.then(detail => this.emit('sidekick-motion-end', detail));
+      } else this.timeline.setEyes({ left: next.eyes.left, right: next.eyes.right }, changedEyes);
+    }
     const removedAccessories = this.configuration.accessories.filter(a => !next.accessories.some(nextPart => nextPart.id === a.id)).map(a => a.id);
     if (removedAccessories.length) this.timeline.removeAccessories(removedAccessories);
     this.configuration = next;
@@ -103,19 +136,27 @@ export class SidekickAvatar extends HTMLElementBase {
   set renderStyle(value: RenderStyle) {
     // Legacy JavaScript integrations may still send "3d"; normalize that input.
     if (value !== 'flat' && (value as string) !== '3d') throw new TypeError('renderStyle은 flat입니다.');
-    this.setAttribute('render-style', 'flat');
+    this.reflectAttribute('render-style', 'flat');
   }
   get activity(): Activity { return this.currentActivity; }
   setActivity(value: Activity): void {
     if (!ACTIVITIES.includes(value)) throw new TypeError('지원하지 않는 activity입니다.');
-    this.setAttribute('activity', value);
+    this.reflectAttribute('activity', value);
   }
-  get paused(): boolean { return this.hasAttribute('paused'); }
-  set paused(value: boolean) { this.toggleAttribute('paused', value); }
-  get interaction(): 'none' | 'box' { return this.getAttribute('interaction') === 'box' ? 'box' : 'none'; }
+  get paused(): boolean { return this.pausedState; }
+  set paused(value: boolean) {
+    if (typeof value !== 'boolean') throw new TypeError('paused must be a boolean');
+    this.reflectAttribute('paused', value ? '' : null);
+  }
+  get mouseTracking(): boolean { return this.mouseTrackingState; }
+  set mouseTracking(value: boolean) {
+    if (typeof value !== 'boolean') throw new TypeError('mouseTracking must be a boolean');
+    this.reflectAttribute('mouse-tracking', value ? '' : null);
+  }
+  get interaction(): 'none' | 'box' { return this.interactionState; }
   set interaction(value: 'none' | 'box') {
     if (value !== 'none' && value !== 'box') throw new TypeError('interaction은 none 또는 box입니다.');
-    this.setAttribute('interaction', value);
+    this.reflectAttribute('interaction', value);
   }
   get ready(): boolean { return this.readyState; }
   get pose(): Pose { return structuredClone(this.timeline.pose); }
@@ -140,9 +181,8 @@ export class SidekickAvatar extends HTMLElementBase {
   }
   lookAt(target: { space: 'view'; x: number; y: number }): void {
     if (target.space !== 'view') throw new TypeError('시선 좌표계는 view입니다.');
-    this.gazeTarget = [finite(target.x, -1, 1, 'gaze.x'), finite(target.y, -1, 1, 'gaze.y')];
-    if (this.paused || this.reduced) { this.timeline.pose.gaze = [...this.gazeTarget]; this.gazeVelocity = [0, 0]; }
-    this.draw(); this.wake();
+    this.manualGaze = [finite(target.x, -1, 1, 'gaze.x'), finite(target.y, -1, 1, 'gaze.y')];
+    this.setGazeTarget(this.manualGaze);
   }
   seek(seconds: number): void { this.elapsed = finite(seconds, 0, 86400, 'time'); this.draw(); }
   /** Stable readback for exports/tests without permanently preserving the WebGL buffer. */
@@ -150,18 +190,33 @@ export class SidekickAvatar extends HTMLElementBase {
     if (!this.renderer || !this.canvas || !this.ready) throw new Error('아바타가 렌더링 준비 상태가 아닙니다.');
     this.draw(); return { width: this.canvas.width, height: this.canvas.height, pixels: this.renderer.readPixels() };
   }
-  async snapshot(): Promise<Blob> {
-    if (!this.canvas || !this.ready) throw new Error('아바타가 렌더링 준비 상태가 아닙니다.');
+  async snapshot(options: SnapshotOptions = {}): Promise<Blob> {
+    const { crop, padding } = validateSnapshotOptions(options);
+    if (!this.canvas || !this.renderer || !this.ready) throw new Error('아바타가 렌더링 준비 상태가 아닙니다.');
     this.draw();
-    return new Promise((resolve, reject) => this.canvas!.toBlob(blob => blob ? resolve(blob) : reject(new Error('PNG 내보내기 실패')), 'image/png'));
+    const source = this.canvas;
+    let output = source;
+    if (crop || padding) {
+      const bounds = crop ? alphaBounds({ width: source.width, height: source.height, pixels: this.renderer.readPixels() }) : { x: 0, y: 0, width: source.width, height: source.height };
+      output = this.ownerDocument.createElement('canvas');
+      output.width = (bounds?.width ?? 1) + 2 * padding; output.height = (bounds?.height ?? 1) + 2 * padding;
+      const context = output.getContext('2d');
+      if (!context) throw new Error('PNG 내보내기용 canvas를 만들지 못했습니다.');
+      // WebGL readback begins at the bottom; canvas drawImage begins at the top.
+      // Copy this same freshly rendered canvas before its drawing buffer clears.
+      if (bounds) context.drawImage(source, bounds.x, source.height - bounds.y - bounds.height, bounds.width, bounds.height, padding, padding, bounds.width, bounds.height);
+    }
+    return new Promise((resolve, reject) => output.toBlob(blob => blob ? resolve(blob) : reject(new Error('PNG 내보내기 실패')), 'image/png'));
   }
   connectedCallback(): void {
     if (this.renderer) return;
+    this.flushAttributes();
+    this.upgradeProperties();
     if (!this.shadowRoot) {
       const shadow = this.attachShadow({ mode: 'open' });
       shadow.innerHTML = `<style>
         :host{display:inline-block;position:relative;width:200px;height:200px;contain:layout style;pointer-events:none;vertical-align:middle}
-        :host([interaction="box"]){pointer-events:auto;cursor:grab;touch-action:pan-y}
+        :host{pointer-events:var(--sidekick-pointer-events,none);cursor:var(--sidekick-cursor,auto);touch-action:pan-y}
         :host(:focus-visible){outline:2px solid currentColor;outline-offset:3px;border-radius:12px}
         canvas{display:block;width:100%;height:100%;background:transparent}
         span{position:absolute;inset:0;display:grid;place-items:center;padding:16px;text-align:center;font:13px/1.5 system-ui;color:currentColor}
@@ -186,12 +241,14 @@ export class SidekickAvatar extends HTMLElementBase {
     this.sizeObserver = new ResizeObserver(this.resize); this.sizeObserver.observe(this);
     this.visibilityObserver = new IntersectionObserver(entries => {
       this.visible = entries[0]?.isIntersecting ?? false;
+      this.updateMouseTracking();
       if (this.visible) this.wake(); else this.stop();
     });
     this.visibilityObserver.observe(this);
     this.initializeRenderer();
   }
   disconnectedCallback(): void {
+    this.detachMouseTracking(); this.clearDrag();
     this.stop(); this.timeline.cancel(); this.resetEyes(); this.resetShape(); this.readyState = false;
     this.sizeObserver?.disconnect(); this.visibilityObserver?.disconnect();
     this.media?.removeEventListener('change', this.onMotionPreference);
@@ -205,22 +262,112 @@ export class SidekickAvatar extends HTMLElementBase {
     this.canvas?.removeEventListener('webglcontextrestored', this.onContextRestored);
     this.renderer?.dispose(); this.renderer = undefined; this.drag = undefined;
   }
-  attributeChangedCallback(name: string, _old: string | null, value: string | null): void {
+  attributeChangedCallback(name: string, old: string | null, value: string | null): void {
+    if (old === value) return;
     if (name === 'render-style' && value === '3d') { this.setAttribute('render-style', 'flat'); return; }
-    if (name === 'activity') {
-      if (value === null) this.currentActivity = 'idle';
-      else if (ACTIVITIES.includes(value as Activity)) this.currentActivity = value as Activity;
-      else { this.emit('sidekick-error', { message: '지원하지 않는 activity 속성입니다.' }); return; }
+    this.pendingAttributes.set(name, value);
+    if (!this.attributesQueued) {
+      this.attributesQueued = true;
+      queueMicrotask(() => { this.attributesQueued = false; this.flushAttributes(); });
     }
-    if (name === 'interaction' && this.isConnected) this.updateInteraction();
-    if (this.paused) { this.timeline.advance(60000); this.shapeTimeline.finish(); this.stop(); }
-    this.draw(); this.wake();
   }
+  /** Imperative setters commit independently of an unrelated rejected HTML batch. */
+  private reflectAttribute(name: string, value: string | null): void {
+    const deferred = this.pendingAttributes;
+    this.pendingAttributes = new Map();
+    if (value === null) this.toggleAttribute(name, false); else this.setAttribute(name, value);
+    // Reflection may repeat the existing raw value after a rejected transaction.
+    this.pendingAttributes.set(name, value);
+    this.flushAttributes();
+    deferred.delete(name);
+    for (const [key, text] of deferred) if (!this.pendingAttributes.has(key)) this.pendingAttributes.set(key, text);
+  }
+  /** A synchronous group of DOM writes is one validated transaction. */
+  private flushAttributes(): void {
+    if (!this.pendingAttributes.size) return;
+    const pending = this.pendingAttributes; this.pendingAttributes = new Map();
+    const candidate = new Map(this.acceptedAttributes);
+    for (const [name, value] of pending) { if (value === null) candidate.delete(name); else candidate.set(name, value); }
+    try {
+      const resolved = resolveSidekickAttributes(candidate);
+      const touched = (...names: string[]): boolean => names.some(name => pending.has(name));
+      const allDesign = touched('design');
+      const next = this.design;
+      if (allDesign || touched('shape')) next.body.shape = resolved.design.body.shape;
+      if (allDesign || touched('body-color')) next.body.color = resolved.design.body.color;
+      if (allDesign || touched('eye-color')) next.eyes.color = resolved.design.eyes.color;
+      for (const side of ['left', 'right'] as const) {
+        if (allDesign || touched('expression', `${side}-expression`)) next.eyes[side] = resolved.design.eyes[side];
+        for (const weight of ['smile', 'blink'] as const) {
+          if (allDesign || touched('expression', `${side}-expression`, weight, `${side}-${weight}`)) next.eyes[side].weights[weight] = resolved.design.eyes[side].weights[weight];
+        }
+      }
+      if (allDesign || touched('accessories')) next.accessories = resolved.design.accessories;
+      else for (const [prefix, slot] of Object.entries(ACCESSORY_ATTRIBUTE_SLOTS)) {
+        if (!touched(`${prefix}-accessory`, `${prefix}-color`)) continue;
+        const selected = resolved.design.accessories.find(item => item.slot === slot);
+        const index = next.accessories.findIndex(item => item.slot === slot);
+        if (touched(`${prefix}-accessory`)) {
+          if (selected) { if (index === -1) next.accessories.push(selected); else next.accessories[index] = selected; }
+          else if (index !== -1) next.accessories.splice(index, 1);
+        } else if (index !== -1) {
+          const current = next.accessories[index]!;
+          current.color = candidate.get(`${prefix}-color`)?.toLowerCase() ?? selected?.color ?? createAccessory(current.preset, { slot: current.slot }).color;
+        }
+      }
+      const validated = parseDesign(next);
+      let target: MotionTarget | undefined;
+      if (touched('motion')) {
+        target = resolved.motion ?? {
+          body: { rotation: [0, 0, 0] }, face: { uv: [0, 0] },
+          eyes: { openness: 1, left: { weights: validated.eyes.left.weights }, right: { weights: validated.eyes.right.weights } },
+          accessories: Object.fromEntries(validated.accessories.map(item => [item.id, { rotation: [0, 0, 0] as [number, number, number] }])),
+        };
+        for (const id of Object.keys(target.accessories ?? {})) if (!validated.accessories.some(item => item.id === id)) throw new SidekickAttributeError('motion', candidate.get('motion') ?? null, `unknown accessory: ${id}`);
+        void new MotionTimeline({ left: validated.eyes.left, right: validated.eyes.right }).to(target, { duration: 0 });
+      }
+      // Validation is complete before any live state, request or listener changes.
+      this.acceptedAttributes = candidate;
+      if (touched('paused')) this.pausedState = resolved.paused;
+      if (touched('activity')) this.currentActivity = resolved.activity;
+      if (touched('interaction')) { this.interactionState = resolved.interaction; this.clearDrag(); if (this.isConnected) this.updateInteraction(); }
+      const eyeSides = (['left', 'right'] as const).filter(side => allDesign || touched('expression', `${side}-expression`, 'smile', 'blink', `${side}-smile`, `${side}-blink`));
+      if (eyeSides.length || JSON.stringify(validated) !== JSON.stringify(this.configuration)) this.applyDesign(validated, { shape: resolved.shapeOptions, eyes: resolved.motionOptions, eyeSides });
+      if (touched('camera')) this.setCamera(resolved.camera);
+      else {
+        const camera: Partial<CameraAngles> = {};
+        for (const axis of ['yaw', 'pitch', 'roll'] as const) if (touched(`camera-${axis}`)) camera[axis] = resolved.camera[axis];
+        if (Object.keys(camera).length) this.setCamera(camera);
+      }
+      if (touched('gaze-x', 'gaze-y')) this.lookAt({ space: 'view', x: touched('gaze-x') ? resolved.gaze[0] : this.manualGaze[0], y: touched('gaze-y') ? resolved.gaze[1] : this.manualGaze[1] });
+      if (touched('mouse-tracking')) { this.mouseTrackingState = resolved.mouseTracking; this.updateMouseTracking(); }
+      if (touched('time')) this.seek(resolved.time);
+      if (target) void this.motion.to(target, resolved.motionOptions);
+      if (this.paused) { this.timeline.advance(60000); this.shapeTimeline.finish(); this.timeline.pose.gaze = [...this.gazeTarget]; this.gazeVelocity = [0, 0]; this.stop(); }
+      this.draw(); this.wake();
+    } catch (error) {
+      // Keep rejected writes together: repairing one field retries the original batch.
+      for (const [name, value] of pending) if (!this.pendingAttributes.has(name)) this.pendingAttributes.set(name, value);
+      this.emit('sidekick-error', { message: error instanceof Error ? error.message : String(error), ...(error instanceof SidekickAttributeError ? { attribute: error.attribute, value: error.value } : {}) });
+    }
+  }
+  private upgradeProperties(): void {
+    if (this.propertiesUpgraded) return;
+    this.propertiesUpgraded = true;
+    for (const name of ['design', 'camera', 'renderStyle', 'paused', 'interaction', 'mouseTracking'] as const) {
+      if (!Object.prototype.hasOwnProperty.call(this, name)) continue;
+      const value: unknown = this[name];
+      Reflect.deleteProperty(this, name);
+      try { Reflect.set(this, name, value); }
+      catch (error) { this.emit('sidekick-error', { message: error instanceof Error ? error.message : String(error) }); }
+    }
+  }
+  private immediateMotion(): boolean { return this.paused || this.reduced || !this.isConnected || !this.ready; }
   private initializeRenderer(): void {
     try {
       this.renderer = new AvatarRenderer(this.canvas!); this.readyState = true;
       this.canvas!.hidden = false; this.fallback!.hidden = true;
-      this.resize(); this.wake(); this.emit('sidekick-ready', {});
+      this.resize(); this.updateMouseTracking(); this.wake(); this.emit('sidekick-ready', {});
     } catch (error) {
       this.readyState = false; this.timeline.cancel(); this.resetEyes(); this.resetShape(); this.renderer?.dispose(); this.renderer = undefined;
       const message = error instanceof Error ? error.message : '렌더러를 초기화하지 못했습니다.';
@@ -228,11 +375,15 @@ export class SidekickAvatar extends HTMLElementBase {
       this.emit('sidekick-error', { message });
     }
   }
-  private updateInteraction(): void { this.setAttribute('role', this.interaction === 'box' ? 'button' : 'img'); this.tabIndex = this.interaction === 'box' ? 0 : -1; }
+  private updateInteraction(): void {
+    this.setAttribute('role', this.interaction === 'box' ? 'button' : 'img'); this.tabIndex = this.interaction === 'box' ? 0 : -1;
+    this.style.setProperty('--sidekick-pointer-events', this.interaction === 'box' ? 'auto' : 'none');
+    this.style.setProperty('--sidekick-cursor', this.interaction === 'box' ? 'grab' : 'auto');
+  }
   private resize = (): void => {
     const rect = this.getBoundingClientRect(); this.renderer?.resize(rect.width, rect.height, devicePixelRatio); this.draw();
   };
-  private emit(name: string, detail: unknown): void { this.dispatchEvent(new CustomEvent(name, { detail, bubbles: true, composed: true })); }
+  private emit(name: keyof SidekickEventMap, detail: unknown): void { this.dispatchEvent(new CustomEvent(name, { detail, bubbles: true, composed: true })); }
   private gazeMoving(): boolean { return this.gazeTarget.some((target, i) => Math.abs(target - this.timeline.pose.gaze[i]!) > 0.0001 || Math.abs(this.gazeVelocity[i]!) > 0.0001); }
   private resetShape(): void { this.shapeTimeline.set(this.configuration.body.shape); }
   private resetEyes(): void { this.timeline.setEyes({ left: this.configuration.eyes.left, right: this.configuration.eyes.right }); }
@@ -268,7 +419,39 @@ export class SidekickAvatar extends HTMLElementBase {
     if (this.reduced) { this.timeline.advance(60000); this.shapeTimeline.finish(); this.timeline.pose.gaze = [...this.gazeTarget]; this.gazeVelocity = [0, 0]; this.stop(); }
     this.draw(); this.wake();
   };
-  private onVisibility = (): void => { if (document.hidden) this.stop(); else this.wake(); };
+  private onVisibility = (): void => { this.updateMouseTracking(); if (document.hidden) this.stop(); else this.wake(); };
+  private setGazeTarget(target: Vec2): void {
+    this.gazeTarget = [...target];
+    if (this.paused || this.reduced) { this.timeline.pose.gaze = [...target]; this.gazeVelocity = [0, 0]; }
+    this.draw(); this.wake();
+  }
+  private updateMouseTracking(): void {
+    const enabled = this.mouseTracking && this.isConnected && this.ready && this.visible && !this.ownerDocument.hidden;
+    if (!enabled) { this.detachMouseTracking(); return; }
+    if (this.trackingDocument === this.ownerDocument) return;
+    this.detachMouseTracking();
+    this.trackingDocument = this.ownerDocument;
+    this.trackingDocument.addEventListener('pointermove', this.onTrackedPointerMove, { passive: true });
+    this.trackingDocument.defaultView?.addEventListener('blur', this.onTrackingBlur);
+  }
+  private detachMouseTracking(): void {
+    if (!this.trackingDocument) return;
+    this.trackingDocument?.removeEventListener('pointermove', this.onTrackedPointerMove);
+    this.trackingDocument?.defaultView?.removeEventListener('blur', this.onTrackingBlur);
+    this.trackingDocument = undefined;
+    this.gazeVelocity = [0, 0]; this.setGazeTarget(this.manualGaze);
+  }
+  private onTrackingBlur = (): void => { this.gazeVelocity = [0, 0]; this.setGazeTarget(this.manualGaze); };
+  private onTrackedPointerMove = (event: PointerEvent): void => {
+    if (!this.mouseTracking || this.drag || (event.pointerType && event.pointerType !== 'mouse')) return;
+    const rect = this.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    this.setGazeTarget([clamp((event.clientX - rect.left - rect.width / 2) / (rect.width / 2), -1, 1), clamp((rect.top + rect.height / 2 - event.clientY) / (rect.height / 2), -1, 1)]);
+  };
+  private clearDrag(): void {
+    if (this.drag && this.canvas?.hasPointerCapture(this.drag.id)) this.canvas.releasePointerCapture(this.drag.id);
+    this.drag = undefined;
+  }
   private onKey = (event: KeyboardEvent): void => {
     if (this.interaction === 'box' && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); this.emit('sidekick-activate', {}); }
   };
@@ -289,9 +472,9 @@ export class SidekickAvatar extends HTMLElementBase {
     if (this.canvas?.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
     this.drag = undefined;
   };
-  private onPointerCancel = (): void => { this.drag = undefined; };
+  private onPointerCancel = (): void => { this.clearDrag(); };
   private onContextLost = (event: Event): void => {
-    event.preventDefault(); this.stop(); this.readyState = false; this.timeline.cancel(); this.resetEyes(); this.resetShape();
+    event.preventDefault(); this.stop(); this.readyState = false; this.detachMouseTracking(); this.clearDrag(); this.timeline.cancel(); this.resetEyes(); this.resetShape();
     this.renderer?.dispose(); this.renderer = undefined;
     this.fallback!.textContent = '그래픽 연결을 복구하고 있습니다.'; this.fallback!.hidden = false;
     this.emit('sidekick-error', { message: 'WebGL context lost', recoverable: true });

@@ -115,7 +115,34 @@ function makeTriangle(a: Vec3, b: Vec3, c: Vec3): Triangle | undefined {
   const zy = ((b[0] - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (b[2] - a[2])) / area;
   return { a, b, c, minX: Math.min(a[0], b[0], c[0]), maxX: Math.max(a[0], b[0], c[0]), minY: Math.min(a[1], b[1], c[1]), maxY: Math.max(a[1], b[1], c[1]), minZ: Math.min(a[2], b[2], c[2]), zx, zy, z0: a[2] - zx * a[0] - zy * a[1], area };
 }
-const shell = makeShell();
+/** Five-point open circlet. The lower rolled band is structurally darker. */
+function makeCrownShell(): { geometry: Geometry; bandIndexCount: number } {
+  const segments = 80, points: Vec3[] = [], indices: number[] = [];
+  // Walk a closed wall section from the inner bottom, around the outer band,
+  // over the pointed top and back down the inner wall. There is no solid lid.
+  for (let ring = 0; ring < 7; ring++) for (let i = 0; i < segments; i++) {
+    const angle = i / segments * Math.PI * 2 - Math.PI / 2;
+    const phase = (i / segments * 5) % 1, peak = 1 - Math.abs(phase * 2 - 1);
+    const outer = ring >= 1 && ring <= 3, rx = outer ? .255 : .231, ry = outer ? .196 : .172;
+    const z = ring <= 1 || ring === 6 ? -.030 : ring === 2 || ring === 5 ? .034 : .104 + .132 * peak;
+    points.push([rx * Math.cos(angle), ry * Math.sin(angle), z]);
+  }
+  let bandIndexCount = 0;
+  for (let ring = 0; ring < 6; ring++) {
+    for (let i = 0; i < segments; i++) {
+      const next = (i + 1) % segments, a = ring * segments + i, b = ring * segments + next, c = (ring + 1) * segments + i, d = (ring + 1) * segments + next;
+      indices.push(a, b, c, b, d, c);
+    }
+    if (ring === 1) bandIndexCount = indices.length;
+  }
+  // Weld the repeated inner-bottom ring to keep the shell topologically closed.
+  for (let i = 0; i < indices.length; i++) if (indices[i]! >= 6 * segments) indices[i]! -= 6 * segments;
+  points.length = 6 * segments;
+  const vertices = new Float32Array(points.length * 6); points.forEach((p, i) => vertices.set(p, i * 6));
+  accumulateNormals(vertices, indices);
+  return { geometry: { vertices, indices: new Uint16Array(indices) }, bandIndexCount };
+}
+const shells = { beret: makeShell(), crown: makeCrownShell() };
 interface ProjectedShell {
   vertices: Float32Array;
   lower: Triangle[];
@@ -126,8 +153,8 @@ interface ProjectedShell {
 // rotations replace this entry instead of accumulating animation snapshots.
 let projectedKey = '';
 let projectedShell: ProjectedShell | undefined;
-function projectShell(rotation: Vec3): ProjectedShell {
-  const key = rotation.join(',');
+function projectShell(rotation: Vec3, preset: 'beret' | 'crown'): ProjectedShell {
+  const shell = shells[preset], key = preset + rotation.join(',');
   if (projectedKey === key && projectedShell) return projectedShell;
   const matrix = transform([0, 0, 0], rotation), vertices = new Float32Array(shell.geometry.vertices.length), points: Vec3[] = [];
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity;
@@ -193,10 +220,11 @@ function separation(body: Triangle, hat: Triangle, current: number): number {
 export function beretGeometry(body: BodyDesign, accessory: ResolvedAccessoryDesign, squash = 1, contourOverride?: ShapeContour, profileOverride?: ShapeProfile, rotation: Vec3 = accessory.rotation): BeretGeometry {
   const contour = contourOverride ?? shapeContour({ kind: 'material', name: body.shape });
   const profile = profileOverride ?? resolveShapeProfile(body.shape);
-  const mount = profile.accessories.beret;
-  const neutralProfile: ShapeProfile = { ...profile, accessories: { ...profile.accessories, beret: { ...mount, anchor: { ...mount.anchor, offset: 0 } } } };
+  const preset = accessory.preset === 'crown' ? 'crown' : 'beret', shell = shells[preset];
+  const mount = profile.accessories[preset];
+  const neutralProfile: ShapeProfile = { ...profile, accessories: { ...profile.accessories, [preset]: { ...mount, anchor: { ...mount.anchor, offset: 0 } } } };
   const frame = sampleAccessorySurface(body, accessory, squash, contour, neutralProfile);
-  const size = accessory.scale * mount.scale, projected = projectShell(rotation);
+  const size = accessory.scale * mount.scale, projected = projectShell(rotation, preset);
   const axes: [Vec3, Vec3, Vec3] = [frame.tangent, frame.bitangent, frame.normal];
   const stretch = 1 / Math.sqrt(squash), scales = [BODY_SIZE[0] * 0.5 * stretch, BODY_SIZE[1] * 0.5 * squash, profile.depth * 0.5 * stretch];
   const surface = bodyGeometry(contour), local: Vec3[] = [];

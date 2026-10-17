@@ -3,7 +3,7 @@ import type { ResolvedAccessoryDesign, ResolvedAvatarDesign } from '../core/reso
 import type { ShapeContour } from '../core/contours.js';
 import type { ShapeProfile } from '../core/shape-profiles.js';
 import { shapeContour } from '../core/contours.js';
-import { resolveShapeProfile } from '../core/shape-profiles.js';
+import { accessoryMountProfile, resolveShapeProfile } from '../core/shape-profiles.js';
 import { BODY_SIZE, sampleAccessorySurface } from '../core/surface.js';
 import { add, sub, cross, normalize, scale, multiply, transform } from '../core/math.js';
 import { viewPoint } from './eye-projection.js';
@@ -33,6 +33,9 @@ export interface GlassesGeometry extends Geometry {
   fit: number;
   lenses: [RigidLens, RigidLens];
   bridge: { vertexStart: number; vertexCount: number; indexStart: number; indexCount: number };
+  /** Opaque, rigid lens inserts follow the same single front plane. */
+  frameIndexCount: number;
+  fillIndexCount: number;
 }
 
 /**
@@ -53,13 +56,13 @@ export function glassesGeometry(
   rotation: Vec3 = accessory.rotation,
 ): GlassesGeometry {
   const contour = contourOverride ?? shapeContour({ kind: 'material', name: design.body.shape });
-  const profile = profileOverride ?? resolveShapeProfile(design.body.shape), mount = profile.accessories.glasses;
+  const profile = profileOverride ?? resolveShapeProfile(design.body.shape), mount = accessoryMountProfile(accessory, profile);
   const stretch = 1 / Math.sqrt(squash), sx = BODY_SIZE[0] * 0.5 * stretch, sy = BODY_SIZE[1] * 0.5 * squash, sz = profile.depth * 0.5 * stretch;
   // Scale is uniform and independent from spacing, camera, gaze and expressions.
   const size = accessory.scale * mount.scale;
   const radius = Math.max(eyes.size[0] * 1.28, eyes.size[1] * 0.64) * size;
   const tubeRadius = Math.min(...eyes.size) * GLASSES_TUBE_SCALE * size;
-  const neutralProfile: ShapeProfile = { ...profile, accessories: { ...profile.accessories, glasses: { anchor: { region: 'face', uv: [0, 0.1], offset: 0 }, rotation: [0, 0, 0], scale: 1 } } };
+  const neutralProfile: ShapeProfile = { ...profile, accessories: { ...profile.accessories, [accessory.preset]: { anchor: { region: 'face', uv: [0, 0.1], offset: 0 }, rotation: [0, 0, 0], scale: 1 } } };
   const reference = sampleAccessorySurface(design.body, accessory, squash, contour, neutralProfile);
   const calibrated = sampleAccessorySurface(design.body, accessory, squash, contour, profile);
   const shift: Vec2 = [calibrated.position[0] - reference.position[0], calibrated.position[1] - reference.position[1]];
@@ -108,6 +111,27 @@ export function glassesGeometry(
   // from a torus. Keep outward normals so exact clearance reads its back faces.
   appendTubeIndices(bridge.vertexStart, BRIDGE_SEGMENTS, true);
   bridge.vertexCount = points.length - bridge.vertexStart; bridge.indexCount = indices.length - bridge.indexStart;
+  const frameIndexCount = indices.length;
+  if (accessory.preset === 'sunglasses') {
+    // Two opaque discs are one front assembly with the frame and bridge. The
+    // filled surfaces are parallel, with identical depth and a thin closed edge.
+    for (const lens of lenses) {
+      const start = points.length, innerRadius = radius - tubeRadius * .22, thickness = tubeRadius * .42;
+      for (const depth of [-thickness, thickness]) {
+        points.push(add(lens.center, scale(axes[2], depth)));
+        for (let i = 0; i < RING_SEGMENTS; i++) {
+          const a = i / RING_SEGMENTS * Math.PI * 2;
+          points.push(add(lens.center, add(scale(axes[0], innerRadius * Math.cos(a)), add(scale(axes[1], innerRadius * Math.sin(a)), scale(axes[2], depth)))));
+        }
+      }
+      const front = start + RING_SEGMENTS + 1;
+      for (let i = 0; i < RING_SEGMENTS; i++) {
+        const a = start + 1 + i, b = start + 1 + (i + 1) % RING_SEGMENTS, c = front + 1 + i, d = front + 1 + (i + 1) % RING_SEGMENTS;
+        indices.push(start, b, a, front, c, d, a, b, c, b, d, c);
+      }
+    }
+  }
+  const fillIndexCount = indices.length - frameIndexCount;
   const lift = rigidFrontLift(points, indices, contour, [sx, sy, sz], GLASSES_CLEARANCE + mount.anchor.offset);
   for (const point of points) point[2] += lift;
   for (const lens of lenses) lens.center[2] += lift;
@@ -122,5 +146,5 @@ export function glassesGeometry(
   for (let i = 0; i < vertices.length; i += 6) {
     const normal = normalize([vertices[i + 3]!, vertices[i + 4]!, vertices[i + 5]!]); vertices.set(normal, i + 3);
   }
-  return { vertices, indices: new Uint16Array(indices), centers, radii: [radius, radius], tubeRadius, fit: size, lenses, bridge };
+  return { vertices, indices: new Uint16Array(indices), centers, radii: [radius, radius], tubeRadius, fit: size, lenses, bridge, frameIndexCount, fillIndexCount };
 }

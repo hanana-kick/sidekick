@@ -11,7 +11,10 @@ const eyes = (left = {}, right = {}) => ({ left: createEyeState(left), right: cr
 function avatarForTest(connected = false) {
   const avatar = new SidekickAvatar();
   const events = [];
-  avatar.hasAttribute = () => false;
+  const attributes = new Map();
+  avatar.hasAttribute = name => attributes.has(name);
+  avatar.setAttribute = (name, value) => { const old = attributes.get(name) ?? null; attributes.set(name, String(value)); avatar.attributeChangedCallback(name, old, String(value)); };
+  avatar.toggleAttribute = (name, enabled) => { const old = attributes.get(name) ?? null; if (enabled) attributes.set(name, ''); else attributes.delete(name); avatar.attributeChangedCallback(name, old, enabled ? '' : null); };
   avatar.isConnected = connected;
   avatar.dispatchEvent = event => { events.push(event); return true; };
   return { avatar, events };
@@ -187,7 +190,7 @@ test('setExpression applies exact presets after a transient motion override', as
 
 test('paused expression updates are immediate and still reject invalid timing atomically', async () => {
   const { avatar } = avatarForTest(true);
-  avatar.hasAttribute = name => name === 'paused';
+  avatar.paused = true;
   assert.deepEqual(await avatar.setExpression('both', 'smile', { duration: 60000 }), { finished: true });
   assert.equal(avatar.timeline.active, false); assert.equal(avatar.pose.eyes.left.smile, 1);
   const before = avatar.design;
@@ -283,7 +286,7 @@ test('expression defaults give quick closure and gentler opening, and pause sett
   const open = avatar.setExpression('left', 'neutral'); avatar.timeline.advance(179); assert.equal(avatar.timeline.active, true);
   avatar.timeline.advance(1); assert.deepEqual(await open, { finished: true });
   const smile = avatar.setExpression('both', 'smile'); avatar.timeline.advance(100);
-  avatar.hasAttribute = name => name === 'paused'; avatar.attributeChangedCallback('paused', null, '');
+  avatar.paused = true;
   assert.deepEqual(await smile, { finished: true }); assert.equal(avatar.timeline.active, false);
 });
 

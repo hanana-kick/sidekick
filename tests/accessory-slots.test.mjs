@@ -8,8 +8,8 @@ import { resolveDesign } from '../dist/src/core/resolved-design.js';
 import { SidekickAvatar } from '../dist/src/element/avatar.js';
 import { legacyDesign, legacyAccessory } from './legacy-fixtures.mjs';
 
-const fixedPresets = ['beret', 'halo', 'glasses', 'moustache', 'bowTie', 'scarf'];
-const make = (preset, id, slot = preset === 'earring' ? 'leftEar' : ACCESSORY_SLOT_BY_PRESET[preset]) => createAccessory(preset, { slot, ...(id === undefined ? {} : { id }) });
+const fixedPresets = ['beret', 'halo', 'crown', 'glasses', 'sunglasses', 'moustache', 'goatee', 'bowTie', 'scarf', 'necklace'];
+const make = (preset, id, slot = preset === 'earring' || preset === 'starEarring' ? 'leftEar' : ACCESSORY_SLOT_BY_PRESET[preset]) => createAccessory(preset, { slot, ...(id === undefined ? {} : { id }) });
 const complete = () => ['beret', 'glasses', 'moustache', 'bowTie'].map(preset => createAccessory(preset)).concat([
   createAccessory('earring', { slot: 'leftEar' }), createAccessory('earring', { slot: 'rightEar' }),
 ]);
@@ -29,9 +29,9 @@ function avatarForTest() {
 
 test('v7 slots and all preset mappings are complete, immutable and side-aware', () => {
   assert.equal(createDesign().version, 7);
-  assert.deepEqual(ACCESSORY_PRESETS, [...fixedPresets, 'earring']);
+  assert.deepEqual(ACCESSORY_PRESETS, [...fixedPresets, 'earring', 'starEarring']);
   assert.deepEqual(ACCESSORY_SLOTS, ['head', 'eyes', 'mouth', 'neck', 'leftEar', 'rightEar']);
-  assert.deepEqual(ACCESSORY_SLOT_BY_PRESET, { beret: 'head', halo: 'head', glasses: 'eyes', moustache: 'mouth', bowTie: 'neck', scarf: 'neck' });
+  assert.deepEqual(ACCESSORY_SLOT_BY_PRESET, { beret: 'head', halo: 'head', crown: 'head', glasses: 'eyes', sunglasses: 'eyes', moustache: 'mouth', goatee: 'mouth', bowTie: 'neck', scarf: 'neck', necklace: 'neck' });
   assert.deepEqual(ACCESSORY_SLOTS_BY_PRESET.earring, ['leftEar', 'rightEar']);
   for (const value of [ACCESSORY_PRESETS, ACCESSORY_SLOTS, ACCESSORY_SLOT_BY_PRESET, ACCESSORY_SLOTS_BY_PRESET, ...Object.values(ACCESSORY_SLOTS_BY_PRESET)]) assert.equal(Object.isFrozen(value), true);
   for (const preset of fixedPresets) assert.equal(createAccessory(preset).slot, ACCESSORY_SLOT_BY_PRESET[preset]);
@@ -209,4 +209,23 @@ test('avatar equip/remove preserve unrelated shape, eye and opposite-ear animati
   avatar.timeline.advance(700); avatar.shapeTimeline.advance(700);
   for (const pending of [shape, eyes, body, right]) assert.deepEqual(await pending, { finished: true });
   assert.equal(avatar.pose.accessories['earring-left'], undefined); assert.deepEqual(avatar.pose.accessories['earring-right'], [0, 0, -1]);
+});
+
+
+test('every expanded preset replaces only its exclusive slot, and both star earrings require a side', () => {
+  for (const preset of ACCESSORY_PRESETS) {
+    const sides = preset === 'earring' || preset === 'starEarring' ? ['leftEar', 'rightEar'] : [ACCESSORY_SLOT_BY_PRESET[preset]];
+    if (sides.length === 2) assert.throws(() => createAccessory(preset), /leftEar/);
+    for (const slot of sides) {
+      const before = createDesign({ accessories: complete() }), added = createAccessory(preset, { slot, id: 'new-piece' });
+      const after = equipAccessory(before, added);
+      assert.equal(after.accessories.length, 6);
+      assert.deepEqual(after.accessories.filter(a => a.slot !== slot), before.accessories.filter(a => a.slot !== slot));
+      assert.deepEqual(after.accessories.find(a => a.slot === slot), added);
+      assert.deepEqual(parseDesign(serializeDesign(after)), after);
+      assert.deepEqual(Object.keys(added), ['id', 'preset', 'slot', 'color']);
+    }
+  }
+  assert.equal(createAccessory('starEarring', { slot: 'leftEar' }).id, 'star-earring-left');
+  assert.throws(() => createAccessory('starEarring', { slot: 'head' }));
 });

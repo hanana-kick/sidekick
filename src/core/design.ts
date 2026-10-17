@@ -11,10 +11,11 @@ import type { Anchor, Region } from './resolved-design.js';
 export type Vec2 = [number, number];
 export type Vec3 = [number, number, number];
 export type BodyShape = MaterialShapeName;
-export type AccessoryPreset = 'beret' | 'halo' | 'glasses' | 'moustache' | 'bowTie' | 'scarf' | 'earring';
+export type AccessoryPreset = 'beret' | 'halo' | 'crown' | 'glasses' | 'sunglasses' | 'moustache' | 'goatee' | 'bowTie' | 'scarf' | 'necklace' | 'earring' | 'starEarring';
 export type AccessorySlot = 'head' | 'eyes' | 'mouth' | 'neck' | 'leftEar' | 'rightEar';
 export type EarringSlot = Extract<AccessorySlot, 'leftEar' | 'rightEar'>;
-export type SingleSlotAccessoryPreset = Exclude<AccessoryPreset, 'earring'>;
+export type SideAccessoryPreset = 'earring' | 'starEarring';
+export type SingleSlotAccessoryPreset = Exclude<AccessoryPreset, SideAccessoryPreset>;
 export interface AccessoryOptions { id?: string; slot?: AccessorySlot }
 export interface EarringAccessoryOptions extends AccessoryOptions { slot: EarringSlot }
 /** Flat color is the only public rendering style. Legacy runtime '3d' normalizes to flat. */
@@ -34,17 +35,18 @@ export interface DesignPatch {
 }
 /** Alias of the complete, immutable Material shape catalog. */
 export const BODY_SHAPES: readonly MaterialShapeName[] = MATERIAL_SHAPE_NAMES;
-export const ACCESSORY_PRESETS: readonly AccessoryPreset[] = Object.freeze(['beret', 'halo', 'glasses', 'moustache', 'bowTie', 'scarf', 'earring']);
+export const ACCESSORY_PRESETS: readonly AccessoryPreset[] = Object.freeze(['beret', 'halo', 'crown', 'glasses', 'sunglasses', 'moustache', 'goatee', 'bowTie', 'scarf', 'necklace', 'earring', 'starEarring']);
 /** Equipment slots are exclusive, regardless of an accessory's surface anchor. */
 export const ACCESSORY_SLOTS: readonly AccessorySlot[] = Object.freeze(['head', 'eyes', 'mouth', 'neck', 'leftEar', 'rightEar']);
 /** Unambiguous preset defaults. Earrings deliberately have no default side. */
-export const ACCESSORY_SLOT_BY_PRESET: Readonly<Record<SingleSlotAccessoryPreset, AccessorySlot>> = Object.freeze({ beret: 'head', halo: 'head', glasses: 'eyes', moustache: 'mouth', bowTie: 'neck', scarf: 'neck' });
+export const ACCESSORY_SLOT_BY_PRESET: Readonly<Record<SingleSlotAccessoryPreset, AccessorySlot>> = Object.freeze({ beret: 'head', halo: 'head', crown: 'head', glasses: 'eyes', sunglasses: 'eyes', moustache: 'mouth', goatee: 'mouth', bowTie: 'neck', scarf: 'neck', necklace: 'neck' });
 /** All legal slots, including the two independently occupied earring sides. */
 export const ACCESSORY_SLOTS_BY_PRESET: Readonly<Record<AccessoryPreset, readonly AccessorySlot[]>> = Object.freeze({
-  beret: Object.freeze(['head'] as const), halo: Object.freeze(['head'] as const), glasses: Object.freeze(['eyes'] as const),
-  moustache: Object.freeze(['mouth'] as const), bowTie: Object.freeze(['neck'] as const), scarf: Object.freeze(['neck'] as const),
-  earring: Object.freeze(['leftEar', 'rightEar'] as const),
+  beret: Object.freeze(['head'] as const), halo: Object.freeze(['head'] as const), crown: Object.freeze(['head'] as const), glasses: Object.freeze(['eyes'] as const), sunglasses: Object.freeze(['eyes'] as const),
+  moustache: Object.freeze(['mouth'] as const), goatee: Object.freeze(['mouth'] as const), bowTie: Object.freeze(['neck'] as const), scarf: Object.freeze(['neck'] as const), necklace: Object.freeze(['neck'] as const),
+  earring: Object.freeze(['leftEar', 'rightEar'] as const), starEarring: Object.freeze(['leftEar', 'rightEar'] as const),
 });
+export const ACCESSORY_LABELS: Readonly<Record<AccessoryPreset, string>> = Object.freeze({ beret: 'Beret', halo: 'Halo', crown: 'Crown', glasses: 'Glasses', sunglasses: 'Sunglasses', moustache: 'Moustache', goatee: 'Goatee', bowTie: 'Bow tie', scarf: 'Scarf', necklace: 'Necklace', earring: 'Drop earring', starEarring: 'Star earring' });
 const LEGACY_ACCESSORY_PRESETS = ['beret', 'halo', 'glasses'] as const;
 const LEGACY_ACCESSORY_SLOTS = ['head', 'face'] as const;
 export const ACTIVITIES: readonly Activity[] = Object.freeze(['idle', 'thinking', 'listening', 'speaking', 'celebrating', 'still']);
@@ -263,17 +265,17 @@ export function patchDesign(design: AvatarDesign, patch: DesignPatch): AvatarDes
 }
 export function createDesign(patch: DesignPatch = {}): AvatarDesign { return patchDesign(defaults, patch); }
 /** Fixed-slot presets infer their slot; an earring always names its side explicitly. */
-export function createAccessory(preset: 'earring', options: EarringAccessoryOptions): AccessoryDesign;
+export function createAccessory(preset: SideAccessoryPreset, options: EarringAccessoryOptions): AccessoryDesign;
 export function createAccessory(preset: SingleSlotAccessoryPreset, idOrOptions?: string | AccessoryOptions): AccessoryDesign;
-export function createAccessory<P extends AccessoryPreset>(preset: P, options: P extends 'earring' ? EarringAccessoryOptions : AccessoryOptions & { slot: AccessorySlot }): AccessoryDesign;
+export function createAccessory<P extends AccessoryPreset>(preset: P, options: P extends SideAccessoryPreset ? EarringAccessoryOptions : AccessoryOptions & { slot: AccessorySlot }): AccessoryDesign;
 export function createAccessory(preset: AccessoryPreset, idOrOptions?: string | AccessoryOptions): AccessoryDesign {
   const selected = choice(preset, ACCESSORY_PRESETS, 'accessory.preset');
   const options = typeof idOrOptions === 'string' ? { id: idOrOptions } : idOrOptions === undefined ? {} : record(idOrOptions, 'accessory.options', ['id', 'slot']);
   const slot = Object.hasOwn(options, 'slot') ? choice(options.slot, ACCESSORY_SLOTS, 'accessory.slot')
-    : selected === 'earring' ? undefined : ACCESSORY_SLOT_BY_PRESET[selected];
-  if (slot === undefined) throw new TypeError('accessory.slot: earring의 슬롯은 leftEar 또는 rightEar로 명시해야 합니다.');
-  const defaultID = selected === 'earring' ? `earring-${slot === 'leftEar' ? 'left' : 'right'}` : selected === 'bowTie' ? 'bow-tie' : selected;
-  const colors: Record<AccessoryPreset, string> = { beret: '#b84742', halo: '#f7cc5b', glasses: '#31323d', moustache: '#31323d', bowTie: '#b84742', scarf: '#b84742', earring: '#f7cc5b' };
+    : selected === 'earring' || selected === 'starEarring' ? undefined : ACCESSORY_SLOT_BY_PRESET[selected];
+  if (slot === undefined) throw new TypeError(`accessory.slot: ${selected}의 슬롯은 leftEar 또는 rightEar로 명시해야 합니다.`);
+  const defaultID = selected === 'earring' || selected === 'starEarring' ? `${selected === 'starEarring' ? 'star-earring' : 'earring'}-${slot === 'leftEar' ? 'left' : 'right'}` : selected === 'bowTie' ? 'bow-tie' : selected;
+  const colors: Record<AccessoryPreset, string> = { beret: '#b84742', halo: '#f7cc5b', crown: '#e5ad35', glasses: '#31323d', sunglasses: '#31323d', moustache: '#31323d', goatee: '#31323d', bowTie: '#b84742', scarf: '#b84742', necklace: '#9b6c2a', earring: '#f7cc5b', starEarring: '#a66a22' };
   const accessory = { id: Object.hasOwn(options, 'id') ? options.id : defaultID, preset: selected, slot, color: colors[selected] };
   return parseDesign({ ...defaults, accessories: [accessory] }).accessories[0]!;
 }

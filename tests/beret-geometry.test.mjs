@@ -189,3 +189,36 @@ test('outward fitting is epsilon-continuous through sideways, inverted and combi
     assert.ok(maximum < 2e-5, `no angular fallback pop: axis ${axis}, angle ${angle}, delta ${maximum}`);
   }
 });
+
+
+test('open crown circlets are closed, hollow, and cleanly seated on all 35 shapes', () => {
+  for (const shape of MATERIAL_SHAPE_NAMES) for (const squash of [.88, 1, 1.12]) {
+    const body = createDesign({ body: { shape } }).body, contour = shapeContour({ kind: 'material', name: shape }), profile = resolveShapeProfile(shape);
+    const mesh = beretGeometry(body, createAccessory('crown'), squash, contour, profile);
+    assert.equal(mesh.vertices.length / 6, 480); assert.ok(mesh.vertices.every(Number.isFinite));
+    assert.equal(mesh.bandIndexCount + mesh.crownIndexCount, mesh.indices.length);
+    assertClear(mesh, contour, profile, squash, `${shape}/crown/${squash}`);
+    const edges = new Map(); let volume = 0;
+    for (let i = 0; i < mesh.indices.length; i += 3) {
+      const ids = Array.from(mesh.indices.subarray(i, i + 3)), [a,b,c] = ids.map(j => point(mesh,j));
+      volume += (a[0]*(b[1]*c[2]-b[2]*c[1])+a[1]*(b[2]*c[0]-b[0]*c[2])+a[2]*(b[0]*c[1]-b[1]*c[0]))/6;
+      for (const [from,to] of [[ids[0],ids[1]],[ids[1],ids[2]],[ids[2],ids[0]]]) { const key = `${Math.min(from,to)},${Math.max(from,to)}`, e = edges.get(key) ?? [0,0]; e[0]++; e[1] += from < to ? 1 : -1; edges.set(key,e); }
+    }
+    assert.ok(volume > 0);
+    for (const e of edges.values()) assert.deepEqual(e,[2,0]);
+  }
+});
+
+test('crown contact is deterministic through interrupted concave shape morphs', async () => {
+  for (const [from,to,next] of [['heart','boom','puffy'],['softBoom','pixelTriangle','circle']]) {
+    const timeline = new ShapeTimeline(from), body = createDesign({body:{shape:to}}).body, accessory = createAccessory('crown');
+    const sample = () => beretGeometry(body,accessory,1,timeline.contour,timeline.profile);
+    const pending = timeline.to(to,{duration:1000,easing:'linear'}); timeline.advance(413);
+    const before = sample(), snapshot = timeline.snapshot, nextPending = timeline.to(next,{duration:500,easing:'smooth'});
+    assert.deepEqual(await pending,{finished:false}); assert.strictEqual(timeline.snapshot,snapshot); assert.deepEqual(sample(),before);
+    timeline.advance(.001); const after=sample();
+    for(let i=0;i<after.vertices.length;i+=6) assert.ok(Math.hypot(...[0,1,2].map(k=>after.vertices[i+k]-before.vertices[i+k]))<.003);
+    assertClear(after,timeline.contour,timeline.profile,1,`${from}/${to}/${next}/crown`);
+    timeline.finish();assert.deepEqual(await nextPending,{finished:true});
+  }
+});

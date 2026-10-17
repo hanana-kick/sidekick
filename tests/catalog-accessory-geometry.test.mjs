@@ -14,8 +14,8 @@ import { glassesGeometry } from '../dist/src/renderer/glasses-geometry.js';
 import { identity } from '../dist/src/core/math.js';
 import { initialPose } from '../dist/src/core/motion.js';
 
-const names = ['moustache', 'bowTie', 'scarf', 'leftEar', 'rightEar'];
-const publicAccessory = name => name.endsWith('Ear') ? createAccessory('earring', { slot: name }) : createAccessory(name);
+const names = ['moustache', 'goatee', 'bowTie', 'scarf', 'necklace', 'leftEar', 'rightEar', 'leftStarEar', 'rightStarEar'];
+const publicAccessory = name => name.endsWith('Ear') ? createAccessory(name.includes('Star') ? 'starEarring' : 'earring', { slot: name.startsWith('left') ? 'leftEar' : 'rightEar' }) : createAccessory(name);
 const accessory = name => resolveDesign(createDesign({ accessories: [publicAccessory(name)] })).accessories[0];
 const point = (mesh, i) => Array.from(mesh.vertices.subarray(i * 6, i * 6 + 3));
 const distance = (a, b) => Math.hypot(...a.map((value, i) => value - b[i]));
@@ -73,7 +73,7 @@ test('new catalog pieces have bounded, closed, consistently oriented low-poly co
     }
     assert.ok(volume > 0, name);
     for (const edge of edges.values()) assert.deepEqual(edge, [2, 0], name);
-    assert.equal(mesh.detailIndexCount > 0, name === 'bowTie' || name === 'scarf');
+    assert.equal(mesh.detailIndexCount > 0, name === 'bowTie' || name === 'scarf' || name === 'necklace');
   }
 });
 
@@ -87,7 +87,7 @@ test('all 35 shapes independently fit mouth, neck and both earrings outside actu
       const frame = sampleAccessorySurface(body, a, squash, contour, profile);
       assert.deepEqual(mesh.attachment, frame.position);
       if (name.endsWith('Ear')) {
-        assert.ok(frame.position[0] * (name === 'leftEar' ? -1 : 1) > .12);
+        assert.ok(frame.position[0] * (name.startsWith('left') ? -1 : 1) > .12);
         assert.ok(frame.normal[2] > .99); assert.ok(Math.abs(frame.normal[1]) < 1e-8);
       }
     }
@@ -202,5 +202,63 @@ test('full accessory meshes stay epsilon-continuous inside difficult active morp
       for (let j = 0; j < after.vertices.length; j += 6) assert.ok(distance(Array.from(after.vertices.subarray(j, j + 3)), Array.from(before[i].vertices.subarray(j, j + 3))) < .003, `${from}->${to}/${at}/${name}: epsilon mesh jump`);
     });
     timeline.finish();
+  }
+});
+
+test('every catalog shape supports expanded equipment on interrupted morphs without a mesh jump', async () => {
+  const { beretGeometry } = await import('../dist/src/renderer/beret-geometry.js');
+  for (let i = 0; i < MATERIAL_SHAPE_NAMES.length; i++) {
+    const from = MATERIAL_SHAPE_NAMES[i], to = MATERIAL_SHAPE_NAMES[(i + 13) % MATERIAL_SHAPE_NAMES.length], next = MATERIAL_SHAPE_NAMES[(i + 23) % MATERIAL_SHAPE_NAMES.length];
+    const timeline = new ShapeTimeline(from), design = resolveDesign(createDesign({ body: { shape: to }, accessories: [createAccessory('crown'), createAccessory('sunglasses'), createAccessory('goatee'), createAccessory('necklace'), createAccessory('starEarring', { slot: 'leftEar' }), createAccessory('starEarring', { slot: 'rightEar' })] }));
+    const sample = () => {
+      const eyes = projectEyes(design, identity(), [0,0], [0,0], 1, timeline.contour, timeline.profile);
+      return design.accessories.map(a => a.preset === 'crown' ? beretGeometry(design.body,a,1,timeline.contour,timeline.profile) : a.preset === 'sunglasses' ? glassesGeometry(design,a,eyes,1,timeline.contour,timeline.profile) : catalogAccessoryGeometry(design.body,a,1,timeline.contour,timeline.profile));
+    };
+    const first = timeline.to(to,{duration:1000,easing:'linear'}); timeline.advance(377);
+    const before = sample(), snapshot = timeline.snapshot, pending = timeline.to(next,{duration:600,easing:'smooth'});
+    assert.deepEqual(await first,{finished:false}); assert.strictEqual(timeline.snapshot,snapshot); assert.deepEqual(sample(),before);
+    timeline.advance(.001); const after = sample();
+    for (let mesh = 0; mesh < before.length; mesh++) {
+      assert.equal(after[mesh].vertices.length,before[mesh].vertices.length);
+      for (let j = 0; j < before[mesh].vertices.length; j += 6) assert.ok(Math.hypot(...[0,1,2].map(k=>after[mesh].vertices[j+k]-before[mesh].vertices[j+k])) < .003, `${from}->${to}->${next}/${design.accessories[mesh].preset}: epsilon jump`);
+    }
+    timeline.finish(); assert.deepEqual(await pending,{finished:true});
+  }
+});
+
+test('all mouth and neck preset combinations keep separate silhouettes throughout the squash range', () => {
+  const area = polygon => polygon.reduce((sum, a, i) => { const b = polygon[(i + 1) % polygon.length]; return sum + a[0] * b[1] - b[0] * a[1]; }, 0) / 2;
+  const cross2 = (a, b, p) => (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]);
+  const clip = (polygon, triangle) => {
+    for (let i = 0; i < 3 && polygon.length; i++) {
+      const a = triangle[i], b = triangle[(i + 1) % 3], output = [];
+      for (let j = 0; j < polygon.length; j++) {
+        const p = polygon[j], q = polygon[(j + 1) % polygon.length], cp = cross2(a, b, p), cq = cross2(a, b, q);
+        if (cp >= 0) output.push(p);
+        if ((cp >= 0) !== (cq >= 0)) { const f = cp / (cp - cq); output.push([p[0] + f * (q[0] - p[0]), p[1] + f * (q[1] - p[1])]); }
+      }
+      polygon = output;
+    }
+    return polygon;
+  };
+  const triangles = mesh => {
+    const result = [];
+    for (let i = 0; i < mesh.indices.length; i += 3) {
+      const points = [0, 1, 2].map(j => point(mesh, mesh.indices[i + j]));
+      if (area(points) > 1e-12) result.push({ points, minX: Math.min(...points.map(p => p[0])), maxX: Math.max(...points.map(p => p[0])), minY: Math.min(...points.map(p => p[1])), maxY: Math.max(...points.map(p => p[1])) });
+    }
+    return result;
+  };
+  for (const shape of MATERIAL_SHAPE_NAMES) for (const squash of [.88, 1, 1.12]) {
+    const body = createDesign({ body: { shape } }).body;
+    const meshes = Object.fromEntries(['moustache', 'goatee', 'bowTie', 'scarf', 'necklace'].map(name => [name, triangles(catalogAccessoryGeometry(body, accessory(name), squash))]));
+    for (const mouth of ['moustache', 'goatee']) for (const neck of ['bowTie', 'scarf', 'necklace']) {
+      let overlap = 0;
+      for (const a of meshes[mouth]) for (const b of meshes[neck]) {
+        if (a.minX > b.maxX || a.maxX < b.minX || a.minY > b.maxY || a.maxY < b.minY) continue;
+        const polygon = clip(a.points, b.points); if (polygon.length >= 3) overlap += Math.abs(area(polygon));
+      }
+      assert.ok(overlap < 1e-8, `${shape}/${squash}/${mouth}+${neck}: overlap ${overlap}`);
+    }
   }
 });

@@ -751,7 +751,7 @@ test('Studio JSON export uses applied design rather than an invalid unsaved draf
   await page.locator('#design-json').fill('{invalid'); await page.locator('#import-json').click();
   const pending = page.waitForEvent('download'); await page.locator('#export-json').click(); const download = await pending;
   const exported = JSON.parse(await readFile(await download.path(), 'utf8'));
-  assert.equal(download.suggestedFilename(), 'sidekick.design.json'); assert.equal(exported.version, 7); assert.equal(exported.body.color, '#a4b8c9');
+  assert.equal(download.suggestedFilename(), 'sidekick.scene.json'); assert.equal(exported.sceneVersion, 1); assert.equal(exported.design.version, 7); assert.equal(exported.design.body.color, '#a4b8c9');
   assert.equal(await page.locator('#design-json').inputValue(), '{invalid');
 });
 

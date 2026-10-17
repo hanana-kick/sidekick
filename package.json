@@ -1,63 +1,90 @@
 {
   "name": "@hanana-kick/sidekick",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "API-designed flat companions with transparent rendering and direct contour transitions.",
   "type": "module",
   "private": true,
   "license": "UNLICENSED",
-  "engines": {
-    "node": ">=22.22.2"
-  },
   "exports": {
     ".": {
-      "types": "./dist/src/index.d.ts",
-      "import": "./dist/src/index.js"
+      "types": "./dist/library/index.d.ts",
+      "import": "./dist/library/index.js"
+    },
+    "./auto": {
+      "types": "./dist/library/auto.d.ts",
+      "import": "./dist/library/auto.js"
+    },
+    "./register": {
+      "types": "./dist/library/register.d.ts",
+      "import": "./dist/library/register.js"
     },
     "./core": {
-      "types": "./dist/src/core/design.d.ts",
-      "import": "./dist/src/core/design.js"
-    }
+      "types": "./dist/library/core.d.ts",
+      "import": "./dist/library/core.js"
+    },
+    "./react": {
+      "types": "./dist/library/react.d.ts",
+      "import": "./dist/library/react.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
-    "dist/src",
+    "dist/library",
     "README.md",
     "third_party/material-shapes"
   ],
   "scripts": {
-    "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.studio.json",
     "dev": "vite",
     "start": "node scripts/serve.mjs",
-    "test": "npm run build && node --test tests/core.test.mjs tests/shapes.test.mjs tests/expressions.test.mjs tests/design-v2.test.mjs tests/accessory-slots.test.mjs tests/eye-projection.test.mjs tests/body-geometry.test.mjs tests/morph.test.mjs tests/shape-motion.test.mjs tests/design-v3.test.mjs tests/camera.test.mjs tests/eye-shape-keys.test.mjs tests/eye-blendshape-motion.test.mjs tests/shape-profiles.test.mjs tests/eye-stroke-distance.test.mjs tests/contour-rectangle.test.mjs tests/shape-eye-profiles.test.mjs tests/studio-palette.test.mjs tests/glasses-geometry.test.mjs tests/beret-geometry.test.mjs tests/catalog-accessory-geometry.test.mjs && npm run test:studio",
-    "test:browser": "npm run build && node --test --test-concurrency=1 tests/browser.test.mjs",
-    "check": "npm run typecheck && npm test && npm run test:browser",
-    "test:studio": "TSX_TSCONFIG_PATH=tsconfig.studio.json node --import tsx --test --test-concurrency=1 tests/studio-react.test.tsx"
+    "test": "npm run build:all && node --test tests/core.test.mjs tests/shapes.test.mjs tests/expressions.test.mjs tests/design-v2.test.mjs tests/accessory-slots.test.mjs tests/eye-projection.test.mjs tests/body-geometry.test.mjs tests/morph.test.mjs tests/shape-motion.test.mjs tests/design-v3.test.mjs tests/camera.test.mjs tests/eye-shape-keys.test.mjs tests/eye-blendshape-motion.test.mjs tests/shape-profiles.test.mjs tests/eye-stroke-distance.test.mjs tests/contour-rectangle.test.mjs tests/shape-eye-profiles.test.mjs tests/studio-palette.test.mjs tests/glasses-geometry.test.mjs tests/beret-geometry.test.mjs tests/catalog-accessory-geometry.test.mjs tests/attributes.test.mjs tests/pixels.test.mjs tests/scene.test.mjs tests/pages-build.test.mjs && npm run test:studio && npm run test:package",
+    "test:browser": "npm run build:all && node --test --test-concurrency=1 tests/browser.test.mjs tests/library-browser.test.mjs",
+    "check": "npm run check:library && npm run typecheck && npm test && npm run test:browser",
+    "test:studio": "TSX_TSCONFIG_PATH=tsconfig.studio.json node --import tsx --test --test-concurrency=1 tests/studio-react.test.tsx",
+    "build:all": "node scripts/build.mjs",
+    "build:library": "node scripts/build-library.mjs",
+    "build:studio": "vite build",
+    "check:library": "node scripts/build-library.mjs --check",
+    "pack:library": "npm run build:library && npm pack",
+    "test:package": "node --test --test-concurrency=1 tests/package.test.mjs tests/react-wrapper.test.mjs"
   },
   "devDependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
     "@tailwindcss/vite": "4.3.3",
     "@types/jsdom": "30.0.0",
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
-    "jsdom": "30.1.3",
-    "playwright-core": "1.57.0",
-    "tailwindcss": "4.3.3",
-    "tsx": "4.23.15",
-    "typescript": "5.8.3",
-    "vite": "8.3.4"
-  },
-  "dependencies": {
-    "@fontsource-variable/geist": "^5.3.0",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "cn": "^0.5.0",
+    "jsdom": "30.1.3",
     "lucide-react": "1.59.0",
+    "playwright-core": "1.57.0",
     "radix-ui": "^1.8.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "shadcn": "^4.22.0",
     "tailwind-merge": "3.7.0",
-    "tw-animate-css": "^1.4.0"
+    "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "5.8.3",
+    "vite": "8.3.4"
+  },
+  "main": "./dist/library/index.js",
+  "types": "./dist/library/index.d.ts",
+  "sideEffects": [
+    "./dist/library/index.js",
+    "./dist/library/auto.js"
+  ],
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
   }
 }
