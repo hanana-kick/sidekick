@@ -52,12 +52,18 @@ export class VolumeTriangulation {
   readonly triangles: Triangle[] = [];
   private readonly edges = new Map<number, number>();
   private readonly free: number[] = [];
+  // Scratch belongs to this one triangulation, never a global contour history.
+  // It is reused across insertions and released with the per-frame mesh builder.
+  private readonly cavity = new Set<number>();
+  private readonly pending: number[] = [];
+  private readonly cavityBoundary: number[] = [];
   private cursor = 0;
   constructor(boundary: readonly ContourPoint[]) {
     if (boundary.length >= 32768) throw new RangeError('Volume triangulation exceeds its directed-edge index budget.');
     this.points = [...boundary];
     for (const ids of earClip(boundary)) this.add(ids);
-    const queue = this.triangles.flatMap((_, i) => [i * 3, i * 3 + 1, i * 3 + 2]);
+    const queue: number[] = [];
+    for (let i = 0; i < this.triangles.length; i++) queue.push(i * 3, i * 3 + 1, i * 3 + 2);
     // Lawson flips terminate at a constrained Delaunay triangulation. A hard
     // operation cap is defensive; a valid unflipped triangulation remains.
     const limit = Math.max(1000, boundary.length * boundary.length * 4);
@@ -68,12 +74,14 @@ export class VolumeTriangulation {
       if (neighborIndex < 0) continue;
       const neighbor = this.triangles[neighborIndex]!;
       const a = triangle.ids[edge]!, b = triangle.ids[(edge + 1) % 3]!, c = triangle.ids[(edge + 2) % 3]!;
-      const d = neighbor.ids.find(id => id !== a && id !== b)!;
+      let opposite: number | undefined;
+      for (const id of neighbor.ids) if (id !== a && id !== b) { opposite = id; break; }
+      const d = opposite!;
       if (orient(this.points[c]!, this.points[d]!, this.points[b]!) <= 1e-14 || orient(this.points[d]!, this.points[c]!, this.points[a]!) <= 1e-14) continue;
       if (inCircle(this.points[a]!, this.points[b]!, this.points[c]!, this.points[d]!) <= 1e-14) continue;
       this.remove(index); this.remove(neighborIndex);
       const first = this.add([c, d, b]), second = this.add([d, c, a]);
-      for (const id of [first, second]) queue.push(id * 3, id * 3 + 1, id * 3 + 2);
+      queue.push(first * 3, first * 3 + 1, first * 3 + 2, second * 3, second * 3 + 1, second * 3 + 2);
     }
   }
   private key(a: number, b: number): number { return a * 32768 + b; }
@@ -118,7 +126,9 @@ export class VolumeTriangulation {
     // fallback searches existing triangles, without crossing a constraint.
     for (let i = 0; i < this.triangles.length; i++) {
       const t = this.triangles[i]!;
-      if (t.live && t.ids.every((id, e) => orient(this.points[id]!, this.points[t.ids[(e + 1) % 3]!]!, point) >= -1e-13)) return i;
+      if (!t.live) continue;
+      const [a, b, c] = t.ids;
+      if (orient(this.points[a]!, this.points[b]!, point) >= -1e-13 && orient(this.points[b]!, this.points[c]!, point) >= -1e-13 && orient(this.points[c]!, this.points[a]!, point) >= -1e-13) return i;
     }
     return -1;
   }
@@ -127,8 +137,9 @@ export class VolumeTriangulation {
     const initial = this.locate(point);
     if (initial < 0) return false;
     const first = this.triangles[initial]!;
-    if (first.ids.some(id => Math.hypot(this.points[id]![0] - point[0], this.points[id]![1] - point[1]) < 1e-8)) return false;
-    const cavity = new Set<number>([initial]), queue = [initial];
+    for (const id of first.ids) if (Math.hypot(this.points[id]![0] - point[0], this.points[id]![1] - point[1]) < 1e-8) return false;
+    const cavity = this.cavity, queue = this.pending;
+    cavity.clear(); cavity.add(initial); queue.length = 0; queue.push(initial);
     for (let i = 0; i < queue.length; i++) {
       const t = this.triangles[queue[i]!]!;
       for (let edge = 0; edge < 3; edge++) {
@@ -140,17 +151,17 @@ export class VolumeTriangulation {
         }
       }
     }
-    const boundary: [number, number][] = [];
+    const boundary = this.cavityBoundary; boundary.length = 0;
     for (const index of queue) {
       const t = this.triangles[index]!;
-      for (let edge = 0; edge < 3; edge++) if (!cavity.has(t.neighbors[edge]!)) boundary.push([t.ids[edge]!, t.ids[(edge + 1) % 3]!]);
+      for (let edge = 0; edge < 3; edge++) if (!cavity.has(t.neighbors[edge]!)) boundary.push(t.ids[edge]!, t.ids[(edge + 1) % 3]!);
     }
     // A constrained cavity is star-shaped. Reject roundoff-scale degeneracies
     // instead of punching an unpaired edge into the manifold.
-    if (boundary.some(([a, b]) => orient(this.points[a]!, this.points[b]!, point) <= 1e-15)) return false;
+    for (let i = 0; i < boundary.length; i += 2) if (orient(this.points[boundary[i]!]!, this.points[boundary[i + 1]!]!, point) <= 1e-15) return false;
     for (const index of queue) this.remove(index);
     const id = this.points.length; this.points.push(point);
-    for (const [a, b] of boundary) this.cursor = this.add([a, b, id]);
+    for (let i = 0; i < boundary.length; i += 2) this.cursor = this.add([boundary[i]!, boundary[i + 1]!, id]);
     return true;
   }
 }

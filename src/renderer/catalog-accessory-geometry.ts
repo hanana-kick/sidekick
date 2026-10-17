@@ -166,7 +166,7 @@ function geometry(mesh: MeshData, attachment: Vec3, seating: number): CatalogAcc
 /**
  * Bounded low-poly catalog geometry in body-local coordinates. Rigid pieces
  * retain their authored silhouettes and receive one exact front clearance
- * translation; the scarf hangs from two contact folds before the same solve.
+ * translation. The scarf has its own full-volume closed-wrap fitting.
  * Camera, gaze, eye expression, color and frame history never enter the fit.
  */
 export function catalogAccessoryGeometry(body: BodyDesign, accessory: ResolvedAccessoryDesign, squash = 1, contourOverride?: ShapeContour, profileOverride?: ShapeProfile, rotation: Vec3 = accessory.rotation): CatalogAccessoryGeometry {
@@ -176,8 +176,10 @@ export function catalogAccessoryGeometry(body: BodyDesign, accessory: ResolvedAc
   const scales: Vec3 = [BODY_SIZE[0] * .5 * stretch, BODY_SIZE[1] * .5 * squash, profile.depth * .5 * stretch];
   const height = (x: number, y: number): number => contourVolumeHeight(contour, x / scales[0], y / scales[1]) * scales[2];
   let mesh: MeshData;
-  if (accessory.preset === 'scarf' || accessory.preset === 'necklace') {
-    mesh = accessory.preset === 'scarf' ? drapedScarf(frame.position, size, contour, scales, height) : necklacePattern(frame.position, size, height);
+  if (accessory.preset === 'scarf') {
+    mesh = drapedScarf(frame.position, size, contour, scales, rotation);
+  } else if (accessory.preset === 'necklace') {
+    mesh = necklacePattern(frame.position, size, height);
     const posed = transform(frame.position, rotation);
     mesh.points = mesh.points.map(point => viewPoint(posed, sub(point, frame.position)));
   } else {
@@ -186,7 +188,7 @@ export function catalogAccessoryGeometry(body: BodyDesign, accessory: ResolvedAc
     const posed = transform([0, 0, 0], rotation, [size, size, size]);
     mesh = { points: pattern.points.map(point => viewPoint(frame.matrix, viewPoint(posed, point))), indices: [...pattern.indices], mainIndexCount: pattern.mainIndexCount };
   }
-  const seating = rigidFrontLift(mesh.points, mesh.indices, contour, scales, CATALOG_ACCESSORY_CLEARANCE);
+  const seating = accessory.preset === 'scarf' ? 0 : rigidFrontLift(mesh.points, mesh.indices, contour, scales, CATALOG_ACCESSORY_CLEARANCE);
   for (const point of mesh.points) point[2] += seating;
   if (accessory.preset === 'earring' || accessory.preset === 'starEarring') {
     const sign = accessory.slot === 'leftEar' ? -1 : 1, posed = transform([0, 0, 0], rotation, [size, size, size]);

@@ -44,10 +44,10 @@ function envelope(contour) {
   };
   envelopes.set(contour, sample); return sample;
 }
-function assertClear(mesh, contour, profile, squash, label) {
+function assertClear(mesh, contour, profile, squash, label, wrapped = false) {
   const front = envelope(contour), stretch = 1 / Math.sqrt(squash), sx = .59 * stretch, sy = .59 * squash, sz = profile.depth * .5 * stretch;
   let minimum = Infinity;
-  const check = p => { minimum = Math.min(minimum, p[2] - front(p[0] / sx, p[1] / sy) * sz); };
+  const check = p => { minimum = Math.min(minimum, (wrapped ? Math.abs(p[2]) : p[2]) - front(p[0] / sx, p[1] / sy) * sz); };
   for (let i = 0; i < mesh.vertices.length / 6; i++) check(point(mesh, i));
   for (let i = 0; i < mesh.indices.length; i += 3) {
     const p = [mesh.indices[i], mesh.indices[i + 1], mesh.indices[i + 2]].map(index => point(mesh, index));
@@ -83,7 +83,7 @@ test('all 35 shapes independently fit mouth, neck and both earrings outside actu
     for (const squash of [.88, 1, 1.12]) for (const name of names) {
       const a = accessory(name), mesh = catalogAccessoryGeometry(body, a, squash, contour, profile);
       assert.ok(mesh.vertices.every(Number.isFinite), `${shape}/${name}`);
-      assertClear(mesh, contour, profile, squash, `${shape}/${name}/${squash}`);
+      assertClear(mesh, contour, profile, squash, `${shape}/${name}/${squash}`, name === 'scarf');
       const frame = sampleAccessorySurface(body, a, squash, contour, profile);
       assert.deepEqual(mesh.attachment, frame.position);
       if (name.endsWith('Ear')) {
@@ -115,7 +115,7 @@ test('new attachments and geometry preserve interrupted morph snapshots and epsi
     names.forEach((name, i) => {
       const mesh = catalogAccessoryGeometry(body, accessory(name), 1, timeline.contour, timeline.profile);
       for (let j = 0; j < mesh.vertices.length; j += 6) assert.ok(distance(Array.from(mesh.vertices.slice(j, j + 3)), Array.from(before[i].vertices.slice(j, j + 3))) < .001, `${from}/${name}`);
-      assertClear(mesh, timeline.contour, timeline.profile, 1, `${from}->${to}->${next}/${name}`);
+      assertClear(mesh, timeline.contour, timeline.profile, 1, `${from}->${to}->${next}/${name}`, name === 'scarf');
     });
     timeline.finish(); assert.deepEqual(await pending, { finished: true });
     assert.deepEqual(timeline.profile, interpolateShapeProfile(visible.profile, resolveShapeProfile(next), 1));
@@ -185,7 +185,7 @@ test('thin/deep profiles and posed ornaments remain finite and outside the body'
     const body = createDesign({ body: { shape } }).body, contour = shapeContour({ kind: 'material', name: shape }), profile = structuredClone(resolveShapeProfile(shape)); profile.depth = depth;
     for (const rotation of [[.25, -.3, .2], [Math.PI, 0, 0], [0, Math.PI, 0]]) for (const name of names) {
       const mesh = catalogAccessoryGeometry(body, accessory(name), 1, contour, profile, rotation);
-      assert.ok(mesh.vertices.every(Number.isFinite)); assertClear(mesh, contour, profile, 1, `${shape}/${depth}/${name}/${rotation}`);
+      assert.ok(mesh.vertices.every(Number.isFinite)); assertClear(mesh, contour, profile, 1, `${shape}/${depth}/${name}/${rotation}`, name === 'scarf');
     }
   }
 });

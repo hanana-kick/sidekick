@@ -1,0 +1,2590 @@
+{
+  "purpose": "Exact-output reference captured before the body allocation/query optimization. Changing body tessellation intentionally requires an explicit reviewed fixture update. This does not certify accessory appearance.",
+  "sourceHashes": {
+    "renderer/body-geometry.ts": "cdad4d901605b753d47e5097aeaf3ae530d587f20cb8d07f99c6815e015034d0",
+    "renderer/volume-triangulation.ts": "b3a6c09c194553e9d9fa246115a5ace9da82d3f3047732143359151c0b348ec6",
+    "core/contours.ts": "83487d26f7bfcb0f98a1513214b18079bedc5c74a07e37e5fe3f4a412e50f47a",
+    "core/morph.ts": "8a73f5ae4d7a8b6918f9dc12dd42003421ab654ef5650c9e76577b8a6152ba92",
+    "core/body-volume.ts": "4ce1a93dd06152c5c3ca5d6bd187ded9f18f0ec97693b0bdc442ae2d01ae9d28"
+  },
+  "samples": 41,
+  "combinedGeometryHash": "859ea0bcce996bd5edac9cda691cee151523ff4f040363aab83d1f9d87ab90cc",
+  "cases": [
+    {
+      "name": "static:circle",
+      "group": "static",
+      "contourPoints": 640,
+      "vertices": 1292,
+      "indices": 7740,
+      "bytes": "36e59ac6658c76947d77b7819ba782106a362eb024489160f5aacbbedb21f525"
+    },
+    {
+      "name": "static:square",
+      "group": "static",
+      "contourPoints": 517,
+      "vertices": 1420,
+      "indices": 8508,
+      "bytes": "0f57baeecbd36c02b627a2ef737cf7e1a4e909afd90ccbf5c19cdc08f87fa71c"
+    },
+    {
+      "name": "static:slanted",
+      "group": "static",
+      "contourPoints": 333,
+      "vertices": 1345,
+      "indices": 8058,
+      "bytes": "48abcd2c1d9877e4e25aa09745f03fd3d064dbf2120f2dd7ff045e94b5a1c4af"
+    },
+    {
+      "name": "static:arch",
+      "group": "static",
+      "contourPoints": 388,
+      "vertices": 1484,
+      "indices": 8892,
+      "bytes": "122851a4f248b49e85d96d00efa72b6590671e8ffcd39727e803bf4cd9fe4367"
+    },
+    {
+      "name": "static:fan",
+      "group": "static",
+      "contourPoints": 357,
+      "vertices": 1396,
+      "indices": 8364,
+      "bytes": "32e1e0f6204eef027f362568061b9bbd9e1c03c77635aa7e12e263ab6c983bd6"
+    },
+    {
+      "name": "static:arrow",
+      "group": "static",
+      "contourPoints": 439,
+      "vertices": 1084,
+      "indices": 6492,
+      "bytes": "7c95b53e02c2d4d6587c9a55d8e067f822e9b91bb40c3621cfa4913c7cbee325"
+    },
+    {
+      "name": "static:semiCircle",
+      "group": "static",
+      "contourPoints": 388,
+      "vertices": 1128,
+      "indices": 6756,
+      "bytes": "f6933f38f2ab4f2ab2c955091e9fa9d2b960dc5bdd3b7a8a9d91d17e4a1b7c8a"
+    },
+    {
+      "name": "static:oval",
+      "group": "static",
+      "contourPoints": 513,
+      "vertices": 1198,
+      "indices": 7176,
+      "bytes": "5ed4c6cc1233adc9a48af2a55ec732c6870d75346be4ba18d23cd173a30258a1"
+    },
+    {
+      "name": "static:pill",
+      "group": "static",
+      "contourPoints": 519,
+      "vertices": 1323,
+      "indices": 7926,
+      "bytes": "34ecfefbcfef9850e8d9c7d3cc75815d366a77524e66a45a9d54af7bcbd268bc"
+    },
+    {
+      "name": "static:triangle",
+      "group": "static",
+      "contourPoints": 238,
+      "vertices": 1031,
+      "indices": 6174,
+      "bytes": "38f046a8c1805d464ff3ae08a43d86fd66f3caabcfadede111d75a72fadcf653"
+    },
+    {
+      "name": "static:diamond",
+      "group": "static",
+      "contourPoints": 353,
+      "vertices": 964,
+      "indices": 5772,
+      "bytes": "9f49b8a059ac8ad171198304f2e841ba60f82cc2829bf6ca8e3ea1c9e1c564d2"
+    },
+    {
+      "name": "static:clamShell",
+      "group": "static",
+      "contourPoints": 327,
+      "vertices": 1042,
+      "indices": 6240,
+      "bytes": "98a244dfa0becba3347e6733a03338046638ec6ae5c0aa324f37a7be9f0eaf83"
+    },
+    {
+      "name": "static:pentagon",
+      "group": "static",
+      "contourPoints": 326,
+      "vertices": 1121,
+      "indices": 6714,
+      "bytes": "722dc6432ac89dc366155a4730480541948315ef99fb114fcd95c7c2417f6759"
+    },
+    {
+      "name": "static:gem",
+      "group": "static",
+      "contourPoints": 327,
+      "vertices": 1167,
+      "indices": 6990,
+      "bytes": "5b401fd7a9927c6a521881719b11ca2fa51f8f59e7cbb645dae0a0722ff95185"
+    },
+    {
+      "name": "static:verySunny",
+      "group": "static",
+      "contourPoints": 785,
+      "vertices": 1742,
+      "indices": 10440,
+      "bytes": "6fc9a83af7ba5285f06b8f14bd5eea86303dd0efac79df65900c9a4d7f12daf4"
+    },
+    {
+      "name": "static:sunny",
+      "group": "static",
+      "contourPoints": 528,
+      "vertices": 1358,
+      "indices": 8136,
+      "bytes": "e382aa75519a846f2e12d8c9787470f12d39cf6e1330acff5412db79dbec018b"
+    },
+    {
+      "name": "static:cookie4Sided",
+      "group": "static",
+      "contourPoints": 649,
+      "vertices": 1321,
+      "indices": 7914,
+      "bytes": "d4a823b92f37bdc8bed086ffabde00db032a5da66eea636d500694207fe42192"
+    },
+    {
+      "name": "static:cookie6Sided",
+      "group": "static",
+      "contourPoints": 607,
+      "vertices": 1215,
+      "indices": 7278,
+      "bytes": "79266b268038aa2ded757d8742b0171f6832042b6ca5b35b7c5ff3f63be8f1e2"
+    },
+    {
+      "name": "static:cookie7Sided",
+      "group": "static",
+      "contourPoints": 673,
+      "vertices": 1257,
+      "indices": 7530,
+      "bytes": "ce10207c2980c6a28edad7c45e0f84f955632b84e0151bab3504badad767d4bb"
+    },
+    {
+      "name": "static:cookie9Sided",
+      "group": "static",
+      "contourPoints": 865,
+      "vertices": 1420,
+      "indices": 8508,
+      "bytes": "9f9f01511cea2c9c159d8244c87bd7337dff83e297a155995fbd3bd0c6ac9552"
+    },
+    {
+      "name": "static:cookie12Sided",
+      "group": "static",
+      "contourPoints": 1153,
+      "vertices": 1664,
+      "indices": 9972,
+      "bytes": "1b89189f67a0820fb6d8bbaab6bdbe53eeae5cd5f67be68e59938d90f03190db"
+    },
+    {
+      "name": "static:ghostish",
+      "group": "static",
+      "contourPoints": 582,
+      "vertices": 1372,
+      "indices": 8220,
+      "bytes": "dd9048bda7b2813f35c461bb198bb854fb2b65aea747d1a92b2cccd28503a52c"
+    },
+    {
+      "name": "static:clover4Leaf",
+      "group": "static",
+      "contourPoints": 616,
+      "vertices": 1449,
+      "indices": 8682,
+      "bytes": "a9837e9150a396dbffd4c63433c305c537cbb7124a0707ab6229273d6f8e1677"
+    },
+    {
+      "name": "static:clover8Leaf",
+      "group": "static",
+      "contourPoints": 833,
+      "vertices": 1392,
+      "indices": 8340,
+      "bytes": "0d35639bb3ca80615873a90a018c9a756b6afb0009f7feca5bf571f9625374b8"
+    },
+    {
+      "name": "static:burst",
+      "group": "static",
+      "contourPoints": 409,
+      "vertices": 1814,
+      "indices": 10872,
+      "bytes": "3bfea9da4943681e6207e6276653d4ef88fc2a753dc01f67e0493f6b621e584d"
+    },
+    {
+      "name": "static:softBurst",
+      "group": "static",
+      "contourPoints": 981,
+      "vertices": 1913,
+      "indices": 11466,
+      "bytes": "bdc2d3f1f1c418c18d51f6349f259b1108aad18fdf87dd0c7b10a653d63b279b"
+    },
+    {
+      "name": "static:boom",
+      "group": "static",
+      "contourPoints": 961,
+      "vertices": 3030,
+      "indices": 18168,
+      "bytes": "a499fd7c070626d5b041786ff8c5e66480d20bd6618229c4f3b90fa37862a4ec"
+    },
+    {
+      "name": "static:softBoom",
+      "group": "static",
+      "contourPoints": 2145,
+      "vertices": 4886,
+      "indices": 29304,
+      "bytes": "f653d5784ff76587d5ede71fac496d15a513c6e6adea4bda45d9e188d316c476"
+    },
+    {
+      "name": "static:flower",
+      "group": "static",
+      "contourPoints": 793,
+      "vertices": 1858,
+      "indices": 11136,
+      "bytes": "2ccb995de5c82462a6d732b718e15f49a60d1435a71d61cba9c0087d7e97a27a"
+    },
+    {
+      "name": "static:puffy",
+      "group": "static",
+      "contourPoints": 1115,
+      "vertices": 2070,
+      "indices": 12408,
+      "bytes": "91edb9602b29ff8869f9a3c817f020edb4c126933d817933642af5f6f0173648"
+    },
+    {
+      "name": "static:puffyDiamond",
+      "group": "static",
+      "contourPoints": 880,
+      "vertices": 1692,
+      "indices": 10140,
+      "bytes": "f4acff86bbd68811c56f4ba3e4918bb926c2db45e324ba75ec29c4f204c77316"
+    },
+    {
+      "name": "static:pixelCircle",
+      "group": "static",
+      "contourPoints": 30,
+      "vertices": 1798,
+      "indices": 10776,
+      "bytes": "4f01e24b418bd13d67c10ccab10e06215c69dc7b2cb720f834dab707e1f9be70"
+    },
+    {
+      "name": "static:pixelTriangle",
+      "group": "static",
+      "contourPoints": 26,
+      "vertices": 1557,
+      "indices": 9330,
+      "bytes": "f73c5fa0abe071055df1940992514c1cfb093c879383d43215fbf4c4c1838ed3"
+    },
+    {
+      "name": "static:bun",
+      "group": "static",
+      "contourPoints": 611,
+      "vertices": 1656,
+      "indices": 9924,
+      "bytes": "9cf5b15b55faa614a5af92d61206a4d8e43f63bf0c9ab227e28e5776b8c74cb6"
+    },
+    {
+      "name": "static:heart",
+      "group": "static",
+      "contourPoints": 361,
+      "vertices": 1086,
+      "indices": 6504,
+      "bytes": "208b4afcde8e3d9c371d0ac5a34d89ecc5290e7c9418833a1d9abae8d6f5cf52"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:0/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2145,
+      "vertices": 4886,
+      "indices": 29304,
+      "bytes": "f653d5784ff76587d5ede71fac496d15a513c6e6adea4bda45d9e188d316c476"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:1/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 5024,
+      "indices": 30132,
+      "bytes": "cf2d448d34255cf08783c99d1457f6233129eee3e8f69097520df745d47b370c"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:2/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 5017,
+      "indices": 30090,
+      "bytes": "48dc2342eab79f65386a577d743d9000fcfbd54e3e745f81e03ffd516c2dcaf6"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:3/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 4942,
+      "indices": 29640,
+      "bytes": "8a44f24864185042abc52b46f1e633c41f58d4d1b7f22111456b3b47d47989ca"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:4/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 4937,
+      "indices": 29610,
+      "bytes": "361e4ea5cf1bb1eddadc5818971e971042abede64cdcb1146aeee4ba18a6af60"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:5/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 4900,
+      "indices": 29388,
+      "bytes": "11d11c9075326b5f2bdf544e6395ef2a7f6ed3934054a2990e5c92aa67fd41b6"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:6/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 4701,
+      "indices": 28194,
+      "bytes": "68fc89a32dfc84afbad926323ac58dc341a1b2f081b5d29eb976c764a7ce1c1a"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:7/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 4490,
+      "indices": 26928,
+      "bytes": "782ee8860e0e3ec99a93f029f921670ba24ddfd7ae314a10c643f9728a91ae7b"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:8/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 4270,
+      "indices": 25608,
+      "bytes": "3efdf742f19393453b655c4ae26b195084aba2570f02e24a2a5d76d64ceed5a1"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:9/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 4211,
+      "indices": 25254,
+      "bytes": "59d68c35f8c63b043afbdcc09d3e34ad2124d2043714ebb2d77329885c430ed2"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:10/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 4178,
+      "indices": 25056,
+      "bytes": "c7c7ce89dfc89da4fd9748772fb9d0b9306c749ba5040bc8c218f81aa730fb80"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:11/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 4040,
+      "indices": 24228,
+      "bytes": "d131ace13db4426099bd7fab1b8afe254d2f800ef45b2b100afb566334b5e80b"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:12/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 3967,
+      "indices": 23790,
+      "bytes": "2f55305a8dd883454ccd467dc8c7c928c9b7c0c3dc2666dbe0212d8c3acdc69d"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:13/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 3850,
+      "indices": 23088,
+      "bytes": "2a9473cb774737b241d803fda314f8325896605b0146beccf71b2609c09b72c3"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:14/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 3782,
+      "indices": 22680,
+      "bytes": "a6405d28b0bcc74a1b7d1ea43fd9f10362add37323625785a88308cc08d9810a"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:15/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 3654,
+      "indices": 21912,
+      "bytes": "9b85286cd589daf3527ecf6096ad7f519590dc89bb49de05fef916a1033b410d"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:16/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 3677,
+      "indices": 22050,
+      "bytes": "de043f3b8f6915bb7aa8d663319a8e2ec9c2e5eefb17e7db8efadc30aeabce2c"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:17/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 3638,
+      "indices": 21816,
+      "bytes": "6175883cab9f6d7ceab79d455f68ad2c64543bac8f38414a3dcf94f4a5b2c29b"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:18/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 3453,
+      "indices": 20706,
+      "bytes": "efb129f433e0d24cd8077138bb244fe59f596327eb41671ee17ffdb599e448cb"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:19/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 3236,
+      "indices": 19404,
+      "bytes": "a2e72da792c5b5431a3babebda3f4f9ce5cf4a4290e82d5c987c39abc3dfe2b3"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:20/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 3190,
+      "indices": 19128,
+      "bytes": "663b0f2314e1bcd5f5f002956ecde54e9f7783c2ed07ea903cb46060871706e2"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:21/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 3130,
+      "indices": 18768,
+      "bytes": "14a95a546275b3ae83152c660088f762944e2539af7ab73910c63b60670628c8"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:22/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 3028,
+      "indices": 18156,
+      "bytes": "1d4c0b05b42c8cce7c8fda8b8fb18a6d5fa5ebbb3415d596b4437204293f6d11"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:23/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 2892,
+      "indices": 17340,
+      "bytes": "f14e565c705a3ec347b5f46fe20f8df560b1d8c5e7bd82847669bab8c9074a1c"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:24/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 2864,
+      "indices": 17172,
+      "bytes": "da50105b32b48660ad263aecd682716f67d9e990842fa571210b621027c08aac"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:25/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 2774,
+      "indices": 16632,
+      "bytes": "540856a5cc833fdaf9e5bc58ee45d63cf22b04c3aaa2d572cbf3da1bba53dcda"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:26/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 2631,
+      "indices": 15774,
+      "bytes": "abd1fb5529f13af2f9ef9125d767b39217e553faaa6f4d2d0bce039354385e54"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:27/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 2480,
+      "indices": 14868,
+      "bytes": "beed66eb8730595528c5a721117af09001aeda6ebe7a7c937575bc0e5c67dae8"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:28/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 2415,
+      "indices": 14478,
+      "bytes": "c3a7e2d3dde6975fca2b96720587ff177d65742b1863cee10561b5c72005571c"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:29/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 2425,
+      "indices": 14538,
+      "bytes": "2f725ff3d10801c1537d21e272392878f7f6419578bae7ae7b79f06740fc7f69"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:30/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 2279,
+      "indices": 13662,
+      "bytes": "d3e41b8d9655873a6e53eecc10ca1d61f3af18148dda5239135105b00dada9c1"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:31/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 2236,
+      "indices": 13404,
+      "bytes": "a874e5116ef8a1505cc85e69a1ba96e72365cd91f06c434fbbc94285a34b8afd"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:32/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 2209,
+      "indices": 13242,
+      "bytes": "8b39af1faeed29cfb73128981cdd8af5b7e926826aa5636d5d0d3c455e690559"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:33/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 2072,
+      "indices": 12420,
+      "bytes": "f0df577a984525bf6d39055546101e63d3ae1b268b390707a7f22fb7b6d0a3c8"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:34/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 1951,
+      "indices": 11694,
+      "bytes": "9444b658acda7ad0774f9d405f818b6892da444d3e99a7f895c0f424e403d58f"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:35/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 1884,
+      "indices": 11292,
+      "bytes": "0905e7ebda6f8458676bda9d78719ea01ce20fe4681cf1916970f65b91bb103d"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:36/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 1828,
+      "indices": 10956,
+      "bytes": "4b0b410de7a88037edf897ee1f14c2391e84ceaa33dbc4ab8c6566f007713eae"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:37/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 1741,
+      "indices": 10434,
+      "bytes": "a46e4bfbf77047aaefce113b3297826a53c3c3fa7633d96f95ab153cfc589911"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:38/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 1730,
+      "indices": 10368,
+      "bytes": "337979250e7ea11615a2a3d510ea3332400a02f64b8f1e3ed199782043bc88a3"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:39/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 2171,
+      "vertices": 1719,
+      "indices": 10302,
+      "bytes": "eb5401c29a35d1de09ae2dd3c403fb463c011872ed5530a914b98d740714275b"
+    },
+    {
+      "name": "direct:softBoom:pixelTriangle:40/40",
+      "group": "direct:softBoom:pixelTriangle",
+      "contourPoints": 26,
+      "vertices": 1557,
+      "indices": 9330,
+      "bytes": "f73c5fa0abe071055df1940992514c1cfb093c879383d43215fbf4c4c1838ed3"
+    },
+    {
+      "name": "direct:puffy:heart:0/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1115,
+      "vertices": 2070,
+      "indices": 12408,
+      "bytes": "91edb9602b29ff8869f9a3c817f020edb4c126933d817933642af5f6f0173648"
+    },
+    {
+      "name": "direct:puffy:heart:1/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 2046,
+      "indices": 12264,
+      "bytes": "19a1d8244c4315b1e4937479e44a4195ab0e7fd132c7b6781bb22b3bd87cc6be"
+    },
+    {
+      "name": "direct:puffy:heart:2/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 2030,
+      "indices": 12168,
+      "bytes": "6ff2233d918dafce0ce79105385bc2f2259c0259982b91770dfed523e8d5d51b"
+    },
+    {
+      "name": "direct:puffy:heart:3/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 2029,
+      "indices": 12162,
+      "bytes": "3a7a99f6466bbf11f7be6de0371c2bb3b03013947574000fe60531e9e5491996"
+    },
+    {
+      "name": "direct:puffy:heart:4/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1999,
+      "indices": 11982,
+      "bytes": "0e30331ed74e57c2b300494749d6d5fbf96af21e083abb9b62fd3e8b4b212ef8"
+    },
+    {
+      "name": "direct:puffy:heart:5/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1997,
+      "indices": 11970,
+      "bytes": "3df2a15dd98fe9f5c916277030e44747ace922c7302c9e8010e8397800097c1b"
+    },
+    {
+      "name": "direct:puffy:heart:6/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1944,
+      "indices": 11652,
+      "bytes": "a278f51a677f7825340fe8a14a791c0bbb4b7c24eef98ced0c4b730678fb950d"
+    },
+    {
+      "name": "direct:puffy:heart:7/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1932,
+      "indices": 11580,
+      "bytes": "ef743343beda26f8ad77ade5741f25d88f1b9fad1329f404c389bd83f6d280a5"
+    },
+    {
+      "name": "direct:puffy:heart:8/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1886,
+      "indices": 11304,
+      "bytes": "c0f70ca0b2a4072c401fd1db1ead656a15668b38e22ada29db825f757f74888a"
+    },
+    {
+      "name": "direct:puffy:heart:9/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1815,
+      "indices": 10878,
+      "bytes": "29b735a45527441157e053e769137b01b2ebf11142f16587365ab82a2d796b62"
+    },
+    {
+      "name": "direct:puffy:heart:10/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1795,
+      "indices": 10758,
+      "bytes": "175b71d119a5cbeb2b33485ad0f46ce3211404c8e249a80324dee599907edbd7"
+    },
+    {
+      "name": "direct:puffy:heart:11/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1728,
+      "indices": 10356,
+      "bytes": "d6913672c6bd41e8679449f6b405e88663ee14c8acb8efc2f0510f77c3695da5"
+    },
+    {
+      "name": "direct:puffy:heart:12/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1725,
+      "indices": 10338,
+      "bytes": "33b9e879bc5218b5b62b232b8f2e6fbf20986b8b32a43348a26306cee1ec0852"
+    },
+    {
+      "name": "direct:puffy:heart:13/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1664,
+      "indices": 9972,
+      "bytes": "d013f9bea455db021f7fa67d4a48b39863a600139f7c578409985aac4b181b99"
+    },
+    {
+      "name": "direct:puffy:heart:14/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1702,
+      "indices": 10200,
+      "bytes": "3db853203fe8566687eae05d3593c74ed078e0a5bde3a275dd2de902946020e7"
+    },
+    {
+      "name": "direct:puffy:heart:15/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1703,
+      "indices": 10206,
+      "bytes": "ba6d5fae075480015f990b645f7d0702aa0d87ea8f3ddff61c467a55bc159bc8"
+    },
+    {
+      "name": "direct:puffy:heart:16/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1702,
+      "indices": 10200,
+      "bytes": "2b44e64d56ed8aee3195b5205b99eaa38d3a2ad291c3a25f973171773139e01e"
+    },
+    {
+      "name": "direct:puffy:heart:17/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1662,
+      "indices": 9960,
+      "bytes": "7a97a7f0250ade11c278e3e6a83a1e86009cc6b2deeff5accb3eb1ee4341f0fd"
+    },
+    {
+      "name": "direct:puffy:heart:18/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1647,
+      "indices": 9870,
+      "bytes": "4f961380abece01557e839f3c18adc43cf6ae228adde260b60b8b116d17a8fde"
+    },
+    {
+      "name": "direct:puffy:heart:19/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1561,
+      "indices": 9354,
+      "bytes": "f4b1a35abe8b97d940641ab7dea07c0b3f967c1c206dd80b70ba9a89f86e6bfd"
+    },
+    {
+      "name": "direct:puffy:heart:20/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1571,
+      "indices": 9414,
+      "bytes": "bdc40cba9ee2a57fea086aa8d92964318e9cfa99f9c4928af946cc3a028ce588"
+    },
+    {
+      "name": "direct:puffy:heart:21/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1530,
+      "indices": 9168,
+      "bytes": "307c82a98d3a77e53e650f78828d9f7b8a71b28c9c28fb72bc6ca812c608d05d"
+    },
+    {
+      "name": "direct:puffy:heart:22/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1509,
+      "indices": 9042,
+      "bytes": "e90df19a59ca3c07a698de0c3e7324f78970fb3f6bdfe029be537ed3e4e5aed0"
+    },
+    {
+      "name": "direct:puffy:heart:23/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1525,
+      "indices": 9138,
+      "bytes": "5a1f074b682346e173166372ec15ce5a02d74dcc0d4a6fb7a4bc3ed3a802680b"
+    },
+    {
+      "name": "direct:puffy:heart:24/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1504,
+      "indices": 9012,
+      "bytes": "b947a35ea6d91f73fb8d86965339a21651595021ee56f09ade9676b66d83e529"
+    },
+    {
+      "name": "direct:puffy:heart:25/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1461,
+      "indices": 8754,
+      "bytes": "b8af6caa54d249d9b2878620b35b9bd71af281aa070bd148818d50190d15300c"
+    },
+    {
+      "name": "direct:puffy:heart:26/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1438,
+      "indices": 8616,
+      "bytes": "774958248df3cf1a3995180b82b722175b8bc379ac685794a1c214459aaf8d80"
+    },
+    {
+      "name": "direct:puffy:heart:27/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1396,
+      "indices": 8364,
+      "bytes": "12489ca3ba1dd1199054aa17f1e3f929993f5f2b5f5f9629a3af8530a5ee4c7e"
+    },
+    {
+      "name": "direct:puffy:heart:28/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1361,
+      "indices": 8154,
+      "bytes": "d46d7f73cc6e82853b5a938f6968b9e2d794d38238943aadfd8e99ab299f4f51"
+    },
+    {
+      "name": "direct:puffy:heart:29/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1305,
+      "indices": 7818,
+      "bytes": "6c4b2eb9fae8ff2b9f64f377736cff5c5cf8bd7f520ee11169ac827a9adce76c"
+    },
+    {
+      "name": "direct:puffy:heart:30/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1260,
+      "indices": 7548,
+      "bytes": "c1b6d47adaccaab18d4e5279a7c94293244896dcb16bd956d2af1d7e7ecffe0f"
+    },
+    {
+      "name": "direct:puffy:heart:31/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1224,
+      "indices": 7332,
+      "bytes": "611932dc3f20c674f50f86d407f4655e5ebf7c11ae1c3f1ef01c39ac9d570cbd"
+    },
+    {
+      "name": "direct:puffy:heart:32/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1293,
+      "indices": 7746,
+      "bytes": "733e768c1db157ae298c760bb8427b4b236d2bb1838753b7763d2bf109bdcb82"
+    },
+    {
+      "name": "direct:puffy:heart:33/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1286,
+      "indices": 7704,
+      "bytes": "7e6725c62cb0d9091795cbc31ed775b8dd0c842e26ef363a8eda8a8a876f493d"
+    },
+    {
+      "name": "direct:puffy:heart:34/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1240,
+      "indices": 7428,
+      "bytes": "1f01837f0ddd6f855c9b2cf8ddf69c1dbe0bfad865f95c1e08cc9a920268cd04"
+    },
+    {
+      "name": "direct:puffy:heart:35/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1270,
+      "indices": 7608,
+      "bytes": "994ba1f970a48400e291f393c22ca0247dd75add6132f8680d8eb7af2fb62202"
+    },
+    {
+      "name": "direct:puffy:heart:36/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1383,
+      "indices": 8286,
+      "bytes": "26fa507188749f884b0f28022ebcc16362da5b7e9df7b84fcec6363b39cbf1b9"
+    },
+    {
+      "name": "direct:puffy:heart:37/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1386,
+      "indices": 8304,
+      "bytes": "da46db647dd7b20afb19ce871a7db20ba637e67d8fb5304b5c0fcdf1773feb01"
+    },
+    {
+      "name": "direct:puffy:heart:38/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1351,
+      "indices": 8094,
+      "bytes": "8196089a9d260b85240d0a857e5cbbc8f1ab0dd77505cafbd0063ff23d9a8e79"
+    },
+    {
+      "name": "direct:puffy:heart:39/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 1476,
+      "vertices": 1336,
+      "indices": 8004,
+      "bytes": "f283dd86219b712a724c2564035bcd12d649823588f89aec72339ac97fd61ea6"
+    },
+    {
+      "name": "direct:puffy:heart:40/40",
+      "group": "direct:puffy:heart",
+      "contourPoints": 361,
+      "vertices": 1086,
+      "indices": 6504,
+      "bytes": "208b4afcde8e3d9c371d0ac5a34d89ecc5290e7c9418833a1d9abae8d6f5cf52"
+    },
+    {
+      "name": "direct:boom:circle:0/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 961,
+      "vertices": 3030,
+      "indices": 18168,
+      "bytes": "a499fd7c070626d5b041786ff8c5e66480d20bd6618229c4f3b90fa37862a4ec"
+    },
+    {
+      "name": "direct:boom:circle:1/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2906,
+      "indices": 17424,
+      "bytes": "7b2b1a5357280a7edb0967d7fbec498972a5f0d6b7371e088afdd958b1aabeaa"
+    },
+    {
+      "name": "direct:boom:circle:2/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2757,
+      "indices": 16530,
+      "bytes": "56ef5cc7d9d18e13c062f22acf0e96781bdd7bc5735417d6d32dc7fa077018c6"
+    },
+    {
+      "name": "direct:boom:circle:3/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2712,
+      "indices": 16260,
+      "bytes": "4abce4b0be10378bf378cc7a44029d9b0c1afecb2f6508f496ccc2f04a81b073"
+    },
+    {
+      "name": "direct:boom:circle:4/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2722,
+      "indices": 16320,
+      "bytes": "b65543cc15299f44c280ab33c49352afef6da4cb889d17d9a0a8eb7615c575ef"
+    },
+    {
+      "name": "direct:boom:circle:5/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2634,
+      "indices": 15792,
+      "bytes": "25a92ed93da4b7b50ea7af9f6f6dc05f939e81f19c24f5d6d6d901fed8526a5d"
+    },
+    {
+      "name": "direct:boom:circle:6/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2640,
+      "indices": 15828,
+      "bytes": "3b7ade81ab5323e136ede035817702e54b6522db7be803e8f413b4063d1a867b"
+    },
+    {
+      "name": "direct:boom:circle:7/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2649,
+      "indices": 15882,
+      "bytes": "b8e77a455dab709c38484e0f418364b9c96d55711242f048d28dc766c57d74c9"
+    },
+    {
+      "name": "direct:boom:circle:8/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2644,
+      "indices": 15852,
+      "bytes": "c2177bfdcf110b4cbfa8fe2a3af2c65ade1450a149709d4bd30c1061afdebfb3"
+    },
+    {
+      "name": "direct:boom:circle:9/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2600,
+      "indices": 15588,
+      "bytes": "b4ce5e2cbe6e0e2312d4298786c6fe427d5899f319e589f23c7a3facee11bfff"
+    },
+    {
+      "name": "direct:boom:circle:10/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2645,
+      "indices": 15858,
+      "bytes": "2284e142004300e99d0e7023fa8dd87bbc1c6474e3e03467a4e54217c447cc8d"
+    },
+    {
+      "name": "direct:boom:circle:11/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2710,
+      "indices": 16248,
+      "bytes": "7ef0b470d042cf427fdb0aa3ad1730a0a0cac3c1af1945a249c65d809b64219b"
+    },
+    {
+      "name": "direct:boom:circle:12/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2684,
+      "indices": 16092,
+      "bytes": "9bc5b45a93fd07dda4a37ed1fd971d72d8038b9de2a312e09e969ad8996b8f52"
+    },
+    {
+      "name": "direct:boom:circle:13/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2566,
+      "indices": 15384,
+      "bytes": "dba2f8ad9a882e81cd33bd85d065abc58f4870d166b1c14f6869e8413aa2a1ef"
+    },
+    {
+      "name": "direct:boom:circle:14/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2634,
+      "indices": 15792,
+      "bytes": "151db38fad07b373fe25d3a87371456d51da8092cd907c2ecb19b0962cb07b91"
+    },
+    {
+      "name": "direct:boom:circle:15/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2659,
+      "indices": 15942,
+      "bytes": "d8718579365e19cfdcf0ca72f74291289cbade3ee649af9334b551a538434ce7"
+    },
+    {
+      "name": "direct:boom:circle:16/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2891,
+      "indices": 17334,
+      "bytes": "1dec1369f81452438467af1b59d64f694636d032baf8ba48aafa9b72a67f0c58"
+    },
+    {
+      "name": "direct:boom:circle:17/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2863,
+      "indices": 17166,
+      "bytes": "3599d6eac64ee7a2bd14d307518fe856a690d6ad77041c6c9590f364f1679dd8"
+    },
+    {
+      "name": "direct:boom:circle:18/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2839,
+      "indices": 17022,
+      "bytes": "77ad5ab0360b17c2843751fc798d9f3f427327e9d3f6db7c556b42d65f97975f"
+    },
+    {
+      "name": "direct:boom:circle:19/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2820,
+      "indices": 16908,
+      "bytes": "e68c3bf070da546e2de83f1e4daea50a467593277da3b69d92041f77f27e44be"
+    },
+    {
+      "name": "direct:boom:circle:20/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2740,
+      "indices": 16428,
+      "bytes": "0047fd174366468ac167fc5832cae82b216ee4b987f03ce0834440a0ebed865b"
+    },
+    {
+      "name": "direct:boom:circle:21/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2616,
+      "indices": 15684,
+      "bytes": "5d2bf6c9e4834c245303efa0917de10b35c94db2204f7f62e31bc24387005589"
+    },
+    {
+      "name": "direct:boom:circle:22/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2585,
+      "indices": 15498,
+      "bytes": "abc25d8d1321fa9c5a324ce8d625952cf4278d9cbeb197b889772a0204942e4f"
+    },
+    {
+      "name": "direct:boom:circle:23/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2493,
+      "indices": 14946,
+      "bytes": "f58fdb0968658202b1d35d00b945821261c8f3ee8206a64992f311516f1e9431"
+    },
+    {
+      "name": "direct:boom:circle:24/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2427,
+      "indices": 14550,
+      "bytes": "38d64c61e512fa3a12082d0eff8fd125c05803e30972832db37127381c5565f3"
+    },
+    {
+      "name": "direct:boom:circle:25/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2358,
+      "indices": 14136,
+      "bytes": "f3a7a2cdf36321edfa4f4b64ecbcf21d29bceb3d54428a6acac79a0ac6d310c8"
+    },
+    {
+      "name": "direct:boom:circle:26/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2314,
+      "indices": 13872,
+      "bytes": "c1f94ed22787d795464e34b615abb614569762921c088a6320f7f252dedc593f"
+    },
+    {
+      "name": "direct:boom:circle:27/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2165,
+      "indices": 12978,
+      "bytes": "cc161f659815b09648377497a895f0a1a1f22adda761d9e266b825b3ebdfd0bd"
+    },
+    {
+      "name": "direct:boom:circle:28/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2092,
+      "indices": 12540,
+      "bytes": "71da0277ab0e4dcf91c80ecd74191dfc117bd24653b9829aece22131d61b72e5"
+    },
+    {
+      "name": "direct:boom:circle:29/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 2080,
+      "indices": 12468,
+      "bytes": "3c98a4a98fccce2f9d143a763358c685cd40f9481268109e60649c62cafaedd4"
+    },
+    {
+      "name": "direct:boom:circle:30/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 1872,
+      "indices": 11220,
+      "bytes": "8672318a8c989cd800d82338bace709414d693aa27c131fbd8d83bc1339ed8b7"
+    },
+    {
+      "name": "direct:boom:circle:31/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 1788,
+      "indices": 10716,
+      "bytes": "b48cd60ae3cf26d588725f01fafe7813f8c4643535069c232ddd2966111fd3ac"
+    },
+    {
+      "name": "direct:boom:circle:32/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 1712,
+      "indices": 10260,
+      "bytes": "60dd5f14c31953ed475da26215170312aec63bb91c453361cb1132419dfcbbbe"
+    },
+    {
+      "name": "direct:boom:circle:33/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 1622,
+      "indices": 9720,
+      "bytes": "c686cb5c29ab72fc71f1dfaed2fc9f9ce861dda86653ddeb73f8b3810e2509c6"
+    },
+    {
+      "name": "direct:boom:circle:34/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 1552,
+      "indices": 9300,
+      "bytes": "1e23bddd6619e3ac261219b3d3be4f455682fe2ef67301cd09cb8388ea49efee"
+    },
+    {
+      "name": "direct:boom:circle:35/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 1496,
+      "indices": 8964,
+      "bytes": "b6e37ce92fd62234d06c9494653322783148e53cbaa475bef90fa549e52a73a7"
+    },
+    {
+      "name": "direct:boom:circle:36/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 1436,
+      "indices": 8604,
+      "bytes": "645b7d9c476eeee742bdd9143037602d35d11d5a8069bf3233abb357c16e7d6f"
+    },
+    {
+      "name": "direct:boom:circle:37/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 1318,
+      "indices": 7896,
+      "bytes": "f235cbe1e996a188c3a4fecb68959d0eea1c9df41f60a8274c2f23a7cfed5cbc"
+    },
+    {
+      "name": "direct:boom:circle:38/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 1275,
+      "indices": 7638,
+      "bytes": "82158ff9a0e17e6e8fc633bc9fdbc110968d8d07508a4da1cb63715ae1c3a44a"
+    },
+    {
+      "name": "direct:boom:circle:39/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 1601,
+      "vertices": 1220,
+      "indices": 7308,
+      "bytes": "c6de2d752e514fcb273a792dc846173f20add175bf17cd71bb22f2cc8463fb21"
+    },
+    {
+      "name": "direct:boom:circle:40/40",
+      "group": "direct:boom:circle",
+      "contourPoints": 640,
+      "vertices": 1292,
+      "indices": 7740,
+      "bytes": "36e59ac6658c76947d77b7819ba782106a362eb024489160f5aacbbedb21f525"
+    },
+    {
+      "name": "direct:pixelTriangle:square:0/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 26,
+      "vertices": 1557,
+      "indices": 9330,
+      "bytes": "f73c5fa0abe071055df1940992514c1cfb093c879383d43215fbf4c4c1838ed3"
+    },
+    {
+      "name": "direct:pixelTriangle:square:1/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1609,
+      "indices": 9642,
+      "bytes": "20da06866a8b92be759b424f6e554c93ac7ed6636784f9bcf402cd33860a6172"
+    },
+    {
+      "name": "direct:pixelTriangle:square:2/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1697,
+      "indices": 10170,
+      "bytes": "97ce1a64a98c879f06f2ee456bd765858e52c996a0fd539813d5c5f7712ea9d0"
+    },
+    {
+      "name": "direct:pixelTriangle:square:3/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1643,
+      "indices": 9846,
+      "bytes": "b5fc8306b1ec8ef8f17572954abc35741a17c0d1208386fa3f546e177a8542a9"
+    },
+    {
+      "name": "direct:pixelTriangle:square:4/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1701,
+      "indices": 10194,
+      "bytes": "a71e1c25ac5122ca4df97503d381c16743c75ce23f633992d19700878371d2e7"
+    },
+    {
+      "name": "direct:pixelTriangle:square:5/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1713,
+      "indices": 10266,
+      "bytes": "c841efccf60c38832fdcc4a425e6d5900104720cfdc777e61c754f9accb4729d"
+    },
+    {
+      "name": "direct:pixelTriangle:square:6/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1675,
+      "indices": 10038,
+      "bytes": "9c8fa22a02f9161c5b8aea62ccf5f36dbdfb4e22951092410673f0c2ee527666"
+    },
+    {
+      "name": "direct:pixelTriangle:square:7/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1675,
+      "indices": 10038,
+      "bytes": "f46785e3b7f37eb3a141ff575bbd12f7f45224b72d1fbe93536a0d36314e8f4a"
+    },
+    {
+      "name": "direct:pixelTriangle:square:8/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1630,
+      "indices": 9768,
+      "bytes": "ccaa372c9255e21e57a59b2463a003c30c48704f575b5d1a3dd8f1786c06fc6f"
+    },
+    {
+      "name": "direct:pixelTriangle:square:9/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1555,
+      "indices": 9318,
+      "bytes": "5b50235861b4afd73e6fb4a845d541a089f09d55ef1271992b9ddb95c13b4a38"
+    },
+    {
+      "name": "direct:pixelTriangle:square:10/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1529,
+      "indices": 9162,
+      "bytes": "26d43ee01e551b80b1136fef92fdb9f140ebfcb4a63b92d3d34a84cc4c4a65f5"
+    },
+    {
+      "name": "direct:pixelTriangle:square:11/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1561,
+      "indices": 9354,
+      "bytes": "57c6a4738ee1ec36ee888f42bd6a89e3f4a561055ec3ad02f7f231f6c001fe92"
+    },
+    {
+      "name": "direct:pixelTriangle:square:12/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1565,
+      "indices": 9378,
+      "bytes": "d5f383eecd2453aea48fd41ba162b29da1d6c98b094a28ddc67e5922ff38aa91"
+    },
+    {
+      "name": "direct:pixelTriangle:square:13/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1547,
+      "indices": 9270,
+      "bytes": "59149ab531288c56b30dd44ec5e0b2db6bd76c241b0b9eeb0873913b8ede5b3f"
+    },
+    {
+      "name": "direct:pixelTriangle:square:14/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1522,
+      "indices": 9120,
+      "bytes": "4a463b1d13f73b45a277f293d1123effab91ae55f59a62a6ed3e727aecd19394"
+    },
+    {
+      "name": "direct:pixelTriangle:square:15/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1482,
+      "indices": 8880,
+      "bytes": "c26c9b46b655bb783531c84f90e4d105714e67d8e07258e6ebe41bc797729bf9"
+    },
+    {
+      "name": "direct:pixelTriangle:square:16/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1427,
+      "indices": 8550,
+      "bytes": "744b8cefdd738469e4f11a4e46125390b9828313087e14be3b90ec4a13a10325"
+    },
+    {
+      "name": "direct:pixelTriangle:square:17/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1414,
+      "indices": 8472,
+      "bytes": "e0b8c5ba0024327ce7b7a098ec199d3388c73d44e92c23b0700daaa2bf0aa7d0"
+    },
+    {
+      "name": "direct:pixelTriangle:square:18/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1488,
+      "indices": 8916,
+      "bytes": "764282528e755d02ab1a8a87a8bd2bff1ce455c730ad45e424bcf32b8ccfb564"
+    },
+    {
+      "name": "direct:pixelTriangle:square:19/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1451,
+      "indices": 8694,
+      "bytes": "cdfb08cbdc366006d5876c9319bcdce7be6639d63dcd0a6a256abc0fa8c3a4c3"
+    },
+    {
+      "name": "direct:pixelTriangle:square:20/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1439,
+      "indices": 8622,
+      "bytes": "b181de5b8318ef5595da7be7562ff3c673fc4102a19ae52abed443f045253946"
+    },
+    {
+      "name": "direct:pixelTriangle:square:21/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1385,
+      "indices": 8298,
+      "bytes": "672db0ff2d853db96d3aa21f615c069d4383997c451edc3e68cd96da170d2898"
+    },
+    {
+      "name": "direct:pixelTriangle:square:22/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1415,
+      "indices": 8478,
+      "bytes": "ea4b51a4c77b2ce9a36dbc3b6fc6c42c0f2325a632c23a6d7ea40bbf4c972fdb"
+    },
+    {
+      "name": "direct:pixelTriangle:square:23/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1418,
+      "indices": 8496,
+      "bytes": "315044ee1da2f017545e164541b34b7d982179e83784afca832bdd87f81619e6"
+    },
+    {
+      "name": "direct:pixelTriangle:square:24/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1428,
+      "indices": 8556,
+      "bytes": "723ad4fb7dd29577479fd4f5ac278c4440b2d45a4c60ebc926a9969827cd23bc"
+    },
+    {
+      "name": "direct:pixelTriangle:square:25/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1403,
+      "indices": 8406,
+      "bytes": "0d27936af6858d7179f749412235ede8ad5d91c0a30c591ecc04c1fd158e2291"
+    },
+    {
+      "name": "direct:pixelTriangle:square:26/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1372,
+      "indices": 8220,
+      "bytes": "c5dd2e9fa8c9323d6de1387a0bfe12a528014f085a2fd183a2df71cb09792970"
+    },
+    {
+      "name": "direct:pixelTriangle:square:27/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1434,
+      "indices": 8592,
+      "bytes": "7c27efb126cd006d68e25a1165a86029460b9ff6a0dc979734dee915b37eed12"
+    },
+    {
+      "name": "direct:pixelTriangle:square:28/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1435,
+      "indices": 8598,
+      "bytes": "5595e3d29d812012421e5cc3137bcfc47b6e2cffdf92943f5953da58dba5f648"
+    },
+    {
+      "name": "direct:pixelTriangle:square:29/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1450,
+      "indices": 8688,
+      "bytes": "6471df9f1e7b5aa984aa6a00c79b1b639930f735c51da263518bdcd908f62961"
+    },
+    {
+      "name": "direct:pixelTriangle:square:30/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1454,
+      "indices": 8712,
+      "bytes": "57da2fa4fef7d998780036828330d56b046a2a7b0f0274faa0523c61546caa3e"
+    },
+    {
+      "name": "direct:pixelTriangle:square:31/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1467,
+      "indices": 8790,
+      "bytes": "03d2a09f3ed545bfacad2ac86b77d391b0c3cbf0c6687b202821b96af7afdf5b"
+    },
+    {
+      "name": "direct:pixelTriangle:square:32/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1402,
+      "indices": 8400,
+      "bytes": "7980ab1be0d711de60884d6be67f69b7a52f696f139b74ca0f10769e99a77c42"
+    },
+    {
+      "name": "direct:pixelTriangle:square:33/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1383,
+      "indices": 8286,
+      "bytes": "fa566ec90769be4f2a599ccff28116837c3e606c620a374fa78641efa41bd4ec"
+    },
+    {
+      "name": "direct:pixelTriangle:square:34/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1390,
+      "indices": 8328,
+      "bytes": "24c3226ed776b8bc8c8d0f9632bd8a1e01b5ac6a339f3806631bdacf6628ed6d"
+    },
+    {
+      "name": "direct:pixelTriangle:square:35/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1453,
+      "indices": 8706,
+      "bytes": "303e230f2dcc647cabcbe16f0d93d62393809b7aecf5de68010fee688ed9cfbb"
+    },
+    {
+      "name": "direct:pixelTriangle:square:36/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1478,
+      "indices": 8856,
+      "bytes": "68e9a4886e44538a29fa091a8d1e67c482a6d3ba9597a116ab10c2ed4114be2b"
+    },
+    {
+      "name": "direct:pixelTriangle:square:37/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1495,
+      "indices": 8958,
+      "bytes": "0905e92bf6a8cb0bbd15abe1393a553db8fd8cedab888ee245c26fd03c849bc3"
+    },
+    {
+      "name": "direct:pixelTriangle:square:38/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1477,
+      "indices": 8850,
+      "bytes": "edc123badb6b7f43d78c0557a8145201684f3e66f4d1f3b3153bd69584b69e0d"
+    },
+    {
+      "name": "direct:pixelTriangle:square:39/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 543,
+      "vertices": 1495,
+      "indices": 8958,
+      "bytes": "d82868d15268b584e275dbace22f7a51c9233ac617bf57251d79b91865e803bf"
+    },
+    {
+      "name": "direct:pixelTriangle:square:40/40",
+      "group": "direct:pixelTriangle:square",
+      "contourPoints": 517,
+      "vertices": 1420,
+      "indices": 8508,
+      "bytes": "0f57baeecbd36c02b627a2ef737cf7e1a4e909afd90ccbf5c19cdc08f87fa71c"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:0/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 640,
+      "vertices": 1292,
+      "indices": 7740,
+      "bytes": "36e59ac6658c76947d77b7819ba782106a362eb024489160f5aacbbedb21f525"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:1/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1284,
+      "indices": 7692,
+      "bytes": "9fb2c5e7119c5f9b93d5b02e3dadfe692f89a76e99956e3a2fd7c4f888839d51"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:2/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1277,
+      "indices": 7650,
+      "bytes": "be43a55a885342a11bfa404e6e94e2214c1b8700c17480a15a41a27f2236023a"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:3/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1295,
+      "indices": 7758,
+      "bytes": "a254868840e79ce736e8a945fd031bcfacf5636ee592d2cb0cf8577a4bf4efce"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:4/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1272,
+      "indices": 7620,
+      "bytes": "1953fbe3cf2fce068d6a01727d347327dd5e9d01105c87ab4efa2af1d3eb5e7a"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:5/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1284,
+      "indices": 7692,
+      "bytes": "e2b3a967d31250cf5673d69bb17e884d23e527bca710ac7a9c3f407a1ff9943c"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:6/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1275,
+      "indices": 7638,
+      "bytes": "edfcbb7fe40b32f9561d0d4200cc9ba0103d2bcd463c5c5c6d9e70d49029607f"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:7/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1254,
+      "indices": 7512,
+      "bytes": "b48047eb515796c148692adbef895670eef7469600374b1ea66ed07928993340"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:8/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1260,
+      "indices": 7548,
+      "bytes": "ab77984ef8e3937e39bba6b986f24ded72f1a7d88c718d042f31b5af7c06b1d2"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:9/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1280,
+      "indices": 7668,
+      "bytes": "a8ab9ab484fbb8a2d808091becad7aed71fb943e05aa72d12b2334080bf027eb"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:10/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1270,
+      "indices": 7608,
+      "bytes": "8e324c79bc44abc31167614ef27f2e34acf6390e296616270437fd27ff9c6b86"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:11/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1267,
+      "indices": 7590,
+      "bytes": "830f6b3fbdc87a53220d3015d97e70d81aa30e7eb0361c628ccb1b84ae96a267"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:12/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1261,
+      "indices": 7554,
+      "bytes": "c04511e38158a5d94eadc7c629989c35177983a2e311b9df6301c2f003f473e4"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:13/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1277,
+      "indices": 7650,
+      "bytes": "b51de1fe1a6b8da07fc81162726f4e4fe2a972ac82315fab033ade01f582bc82"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:14/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1283,
+      "indices": 7686,
+      "bytes": "cfc6751d4fb6b73762fa7ed1b4b45d6b481a6663f9b1d418a7056e9163d2d0b3"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:15/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1297,
+      "indices": 7770,
+      "bytes": "c2877b87ce87e77ae6f037b6ab65eea45f9fb506d0a3e6959e56633ce3beab45"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:16/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1266,
+      "indices": 7584,
+      "bytes": "6e39f99901a815bdb838d704bed2b8a508be696357f183f39b42ff5b606362f8"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:17/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1255,
+      "indices": 7518,
+      "bytes": "9c52597f7cf81e5def0c14cef75ee8ff7a9aca3c3ff59f1eb248ae2a050d0eb3"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:18/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1273,
+      "indices": 7626,
+      "bytes": "88fac5ae1be28473b143596d877360abb619ae8e599b0b1d6ad5e307d534bd8f"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:19/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1281,
+      "indices": 7674,
+      "bytes": "da0eca8fcf746c9283cb197e463cdc82cd2ba30e465944a0b6326ec0750dcd16"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:20/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1259,
+      "indices": 7542,
+      "bytes": "b6fdb5e2519a7499777027b8fd7b4d7de7e57913041f7e0a1a97bf6882a49274"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:21/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1246,
+      "indices": 7464,
+      "bytes": "960bfae0fe79d8aefba08f8c1bbfd741541133757f9ea81a43e4d432ee6fa35e"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:22/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1224,
+      "indices": 7332,
+      "bytes": "d8069c3fc25c8b751a5eab3225fe1fa3653e7376a7a6c103f6e310e5214fe777"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:23/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1226,
+      "indices": 7344,
+      "bytes": "b8123336e5ed5a94408d866505e01b63174f6b0c6dd2189d83235c7c87e11e63"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:24/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1218,
+      "indices": 7296,
+      "bytes": "e6efdfaf4e2d4184db6c479ab0e5cd5fd8df256d355aec5de97e6c2ec99223a0"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:25/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1217,
+      "indices": 7290,
+      "bytes": "949de8a3d7ac57b3fa152385f128c7639044a2989541de1b064be10c8bd8651d"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:26/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1219,
+      "indices": 7302,
+      "bytes": "c292bd4741037a83cf154043f50d4d141355649573873b5f63fd153c8f58a13e"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:27/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1234,
+      "indices": 7392,
+      "bytes": "32cc81c4a252f53b0d324bd3b524215cce477a76332e61464d9eb05e8394023c"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:28/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1238,
+      "indices": 7416,
+      "bytes": "7ef13d61eb4a1f8c169f9ff8f0d3b801ede5bd440c2fada14f2f89a1e27acf49"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:29/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1229,
+      "indices": 7362,
+      "bytes": "9bbacb4bd24f8a1628801be707cfc02f952e1eaebb9bd8ef5ecf672284be4138"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:30/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1249,
+      "indices": 7482,
+      "bytes": "65fc54a015a72e024f017cf684e3a48bf01f96cc88da91ad2d0cbf8cfc1b275f"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:31/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1281,
+      "indices": 7674,
+      "bytes": "d37eea0ec1fb6b3cfbf6fefefb34878f887406bc413159d67b442e150d0f371a"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:32/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1273,
+      "indices": 7626,
+      "bytes": "100dee859bfbc8e8e77a20adcb71419bb8cc92020ec8a28367a3371cc7315154"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:33/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1294,
+      "indices": 7752,
+      "bytes": "b53777cadfd97c5688b3f6543fc70120f683b1b7b03af95de27cff2b134efda3"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:34/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1334,
+      "indices": 7992,
+      "bytes": "d923a1a2551ff99fb189eabfd10b042c0dd90b8634b1ac062a490d610af1eddb"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:35/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1334,
+      "indices": 7992,
+      "bytes": "1c8b44dbdcf1fa91b2c5d06ab649cbe2d30738cf13863578a1e1e3cf18bab6c5"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:36/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1351,
+      "indices": 8094,
+      "bytes": "718f0e89ae907395ebe3c1b1487bbfe4d998b71aee19549b26dfcd78bd381483"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:37/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1369,
+      "indices": 8202,
+      "bytes": "09099a15f9c6f10e12752d3618b6350e757ae313e6dd674074e91546d6eb3c83"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:38/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1377,
+      "indices": 8250,
+      "bytes": "b2343b44e20e9e6ac7eb1095314b2938379a7b061c6747ef8f1e6d1987567271"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:39/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 1473,
+      "vertices": 1380,
+      "indices": 8268,
+      "bytes": "644592bb154801f98dde4393ba744c8a98131a2e671d6723325f5c9fb8f99720"
+    },
+    {
+      "name": "direct:circle:clover8Leaf:40/40",
+      "group": "direct:circle:clover8Leaf",
+      "contourPoints": 833,
+      "vertices": 1392,
+      "indices": 8340,
+      "bytes": "0d35639bb3ca80615873a90a018c9a756b6afb0009f7feca5bf571f9625374b8"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:0/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 2171,
+      "vertices": 3670,
+      "indices": 22008,
+      "bytes": "773b6677ae79317d30109195eced17ece877d29e8c05a04ca5f2764c070b100c"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:1/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3608,
+      "indices": 21636,
+      "bytes": "63c6c935c63561d4e6d5a0389c93c15d9873ac0a0f4a7eba822d3fb128081aaf"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:2/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3648,
+      "indices": 21876,
+      "bytes": "e611de3dd76510f809abc74c060a4a9b64365266162931e4cbe53553e24e7c54"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:3/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3507,
+      "indices": 21030,
+      "bytes": "f75fc8b4c3f16d25160444f9f935ebe983ee82273948e36e50082ad58971c5f7"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:4/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3489,
+      "indices": 20922,
+      "bytes": "284f9f43a13d0fe608bac3d54b0531bbf1d7cf9ef35141471173926219ace65f"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:5/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3400,
+      "indices": 20388,
+      "bytes": "ee524ba4d6564b7b25e9b56aa5a51cea46ba59805d2af2f95677b637d15d50dc"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:6/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3449,
+      "indices": 20682,
+      "bytes": "d7832c158d14f6924d18479fa415189d78af31837afae1dab4753d5f0d0f40ba"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:7/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3420,
+      "indices": 20508,
+      "bytes": "7f9272aca055754f6cfd10897167f226444138f19546bffa664e91ce8f7a783a"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:8/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3371,
+      "indices": 20214,
+      "bytes": "f8d007f5b34dab2ba596cfe01f877c8102bc7974a72e20132c3eec8dbb40b3ce"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:9/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3406,
+      "indices": 20424,
+      "bytes": "6c4248564254778aebb5e4da88139acb3db168bdaaa286e9e7211b33c30ddd57"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:10/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3315,
+      "indices": 19878,
+      "bytes": "19f1269b5b39de6e44d002d3ebbffae8c0277af648040ecd041c413bebf29522"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:11/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3428,
+      "indices": 20556,
+      "bytes": "e401e381b361aeb314d8152b939d01b0f097add5aed4a41fa789faa485bef8a7"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:12/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3318,
+      "indices": 19896,
+      "bytes": "c67e4afb0dd34bd1f41cdf65ebb4e2d4b6bfd8b8e5abd63181b387812f277fba"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:13/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3307,
+      "indices": 19830,
+      "bytes": "4d59aa7965041400bf8d3453163944e7857c523fe9b22ec1c1a540e8e2b856a1"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:14/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3244,
+      "indices": 19452,
+      "bytes": "46443d5ba29ace3cf0771d8293f397ef737e3a90e9cbc8c401d61d16a94802dc"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:15/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3147,
+      "indices": 18870,
+      "bytes": "2e52d168cad6a656fd43d3508e8d218e59fed0e5102b938bb64924cf058c005f"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:16/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3110,
+      "indices": 18648,
+      "bytes": "ddf302737923838576083b3dc2071b4d2d1a0771ada3bc6deed555eae3379d27"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:17/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3049,
+      "indices": 18282,
+      "bytes": "4c2e3fdbb6221992b5a3a0e8ab9e93765b5021129d56abd2afcc14121c6398aa"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:18/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3002,
+      "indices": 18000,
+      "bytes": "f37f9d2fa5a7bdeeb823aec8b1fdd7f8dfbd8874cdd56b64aa1ac30bf90b31a1"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:19/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3080,
+      "indices": 18468,
+      "bytes": "fa11cb72f4aa2018b3d471caf5119a45995c77f520c937e8469d15d2e897f05a"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:20/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3103,
+      "indices": 18606,
+      "bytes": "fb2e7d207943a6c8cd0291b402aecb905e8485001cb2ed2800c6b9c9131fe791"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:21/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3157,
+      "indices": 18930,
+      "bytes": "74d505252d0e6901182fea15f7a4cbabd84d907ad31bf76c89859e083769692e"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:22/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3314,
+      "indices": 19872,
+      "bytes": "ca24533793de32f0877f4a53bbbfe713edd7e2b85b99ecfd4d227e3c1be8aa00"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:23/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3423,
+      "indices": 20526,
+      "bytes": "10c1471b99c093844ee10cd4aaea7e6b05a7efd4939fa7fedcaaebbf71ae2822"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:24/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3489,
+      "indices": 20922,
+      "bytes": "fe8d78b24732edbdd2833ef8863503f741271abf6155aca20cc19e98f5f620b8"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:25/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3532,
+      "indices": 21180,
+      "bytes": "e57fdfb5344887da9f58214c88439e26907274aa4b7b031fadc476ad77e84829"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:26/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3726,
+      "indices": 22344,
+      "bytes": "ace9fbe28a754bb65b3368e1bf4c902fc86a9655514f0712798900fa03b35d4e"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:27/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3709,
+      "indices": 22242,
+      "bytes": "42d991d277a50d8726b63ecef72f46456bec07cc615cacb1ec5fa6fd83b41298"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:28/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3606,
+      "indices": 21624,
+      "bytes": "e8da1d0ce5554df9712158c708025cc252366b16d07a852890df5677121d5735"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:29/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3687,
+      "indices": 22110,
+      "bytes": "7f228ef66c469ff0f7996e09c044c36e35467ba80fdde861ab29459ad3b029ca"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:30/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3774,
+      "indices": 22632,
+      "bytes": "b6259f8b19a4a63ef0e2ed49a13a56da1314b4edb3ab1413952df41386cbbda9"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:31/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3830,
+      "indices": 22968,
+      "bytes": "2d001d59738fdc73aad80e8afc83d4d6c3d68fd0a1503ce441a2b2341e445d2e"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:32/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3823,
+      "indices": 22926,
+      "bytes": "0f2aea47e3fb517c5f00ec2a21de4bb1e677cd9657e9eb6fd24ee16a83125554"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:33/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3940,
+      "indices": 23628,
+      "bytes": "e4ca5d1202cf0b28fed0ae010c862880d4fc1a5acbcf7c5b658c193f86ef6281"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:34/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3919,
+      "indices": 23502,
+      "bytes": "9cbe545e4884adb7fe7b662ea28bd8c8c6047c4923e41fe6df4d4b42620532bf"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:35/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 4027,
+      "indices": 24150,
+      "bytes": "16764a9850239f930701386e55728567e9bfa05735fb6d6166a11cd07572a82e"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:36/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3934,
+      "indices": 23592,
+      "bytes": "520d13e8c3c72026cef1a2c8b9461bd1ece3579aebe40d3e6190043e87f7017a"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:37/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3887,
+      "indices": 23310,
+      "bytes": "bf263ddcdf5b37b93669a3058741a72c6ed68e2a0a82464671f49274e3c429be"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:38/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3588,
+      "indices": 21516,
+      "bytes": "57093a2b93f7a66a2cef95fe92149d75d254b229788f7e29c7445758efd9b5c3"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:39/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 3132,
+      "vertices": 3282,
+      "indices": 19680,
+      "bytes": "448ba39aa2c82889bcd7070a186b0cb25ab9c088d174e1df99fafc0347f9b84c"
+    },
+    {
+      "name": "interrupted:softBoom:pixelTriangle:boom:40/40",
+      "group": "interrupted:softBoom:pixelTriangle:boom",
+      "contourPoints": 961,
+      "vertices": 3030,
+      "indices": 18168,
+      "bytes": "a499fd7c070626d5b041786ff8c5e66480d20bd6618229c4f3b90fa37862a4ec"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:0/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 1476,
+      "vertices": 1720,
+      "indices": 10308,
+      "bytes": "a5efde29cbd10b053ec61ea444eea3de45771d95d54c17ef272ed72e4bd1feab"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:1/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1647,
+      "indices": 9870,
+      "bytes": "ec89299885898435e810f62b56d63c4490580ef88201029c339b700f4cdba825"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:2/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1627,
+      "indices": 9750,
+      "bytes": "c2cdad75bea31833ee238657db52cd127d471b436951b4f0989c21caab83ce98"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:3/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1644,
+      "indices": 9852,
+      "bytes": "2958256f49621a9ddd64db0233489c8daca87b9732c38b99cd92585b9acec6e2"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:4/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1616,
+      "indices": 9684,
+      "bytes": "6ac5794b961372fc8a61161cf313493360b18f28a85216974dcab5f78fc84132"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:5/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1622,
+      "indices": 9720,
+      "bytes": "2fa42d02e9cbf9569ef98f53918738c8890019b1440e6dba568a24e07e3f3074"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:6/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1623,
+      "indices": 9726,
+      "bytes": "0ce9ef851aeac164af2de35662c2fefdfc9013ec1e7c753568267c21cd1c7889"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:7/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1611,
+      "indices": 9654,
+      "bytes": "1f69b0ad0aa272a90cbddf4e2a262e44db1ac82f6865076d5ee866f49e91fda9"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:8/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1602,
+      "indices": 9600,
+      "bytes": "0eb570f1b62e17062d7ac54ddd11993c0129bcfc46035446179ef8e778ad862a"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:9/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1545,
+      "indices": 9258,
+      "bytes": "7ddc5a60d8081282784b521f56f3b6c89dd2a2b196482a6f69ccacfd48734aaf"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:10/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1523,
+      "indices": 9126,
+      "bytes": "fe5c55248c710f50bf8c980e36247b2e606b653b6d3360055d1b3ecff5eb5fc9"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:11/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1462,
+      "indices": 8760,
+      "bytes": "d10a98ced7adbe7a37ef7170328a89ce535f666b958dfd810dd7a036cad09969"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:12/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1413,
+      "indices": 8466,
+      "bytes": "b7a1650f5e7e9fdd7ad0fb62892886ca6922185fa6e9ad01e6b74b65bd0f8f4b"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:13/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1397,
+      "indices": 8370,
+      "bytes": "069443d187427fc03c00485e2f0a814dc42263dc85f79089ff53a9691f36f117"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:14/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1386,
+      "indices": 8304,
+      "bytes": "9b4f3da7bb0b721e33ae5f1547d7681a5373c5c975ef552811650777fbc898d4"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:15/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1377,
+      "indices": 8250,
+      "bytes": "de51cfd5557fd67f66e2d6c2e8f5bfbbe132f842077300f578396536e3b7c070"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:16/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1379,
+      "indices": 8262,
+      "bytes": "bb5d0bc5f94ee45ba4d8e955273404db6e8c7d7d369a4981a4420935120e56d7"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:17/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1347,
+      "indices": 8070,
+      "bytes": "8484b85cfd27c23442af55317600652700f7c39b5c98b4065ae4527afd4a813c"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:18/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1323,
+      "indices": 7926,
+      "bytes": "b9563bf0c060bc4e8cd6c9ab4669a7a35365c30fd98634743c2ae037c56403c1"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:19/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1301,
+      "indices": 7794,
+      "bytes": "5b4319a4050fc730699c97b4ea18f41fe9f60b227c8c5d9c5f889ba36eb5adbe"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:20/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1303,
+      "indices": 7806,
+      "bytes": "6e937a62405753cea7d4e436745f9d90530f8bf800ea2e8d389bb328b3e39eb1"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:21/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1303,
+      "indices": 7806,
+      "bytes": "d953f65a21d47324f08246fb6e43ec2190d75986456c590efeefa1481232cfb0"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:22/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1315,
+      "indices": 7878,
+      "bytes": "062e6d3e8b76f4ede1e7d561ef92da6b331b7ef826e674922fcd498894271591"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:23/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1324,
+      "indices": 7932,
+      "bytes": "b537a3a9a9a6e5abbeed1e2981e20154e963f5e9689e4922572e474e39e2fa44"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:24/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1354,
+      "indices": 8112,
+      "bytes": "1ba352c1168eb5d1ca1bf295ae50a8f48d67ff783e78723952ccc07b0809a431"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:25/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1343,
+      "indices": 8046,
+      "bytes": "4c53ce04db8b6c35a24d7e9029d151180d1412190bbb69d23855dd36ba9dfd43"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:26/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1321,
+      "indices": 7914,
+      "bytes": "59576a5a65904a7768118a59edd20f2f6fc9baeeaa3275afd1fb6851a9d05d40"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:27/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1284,
+      "indices": 7692,
+      "bytes": "dc81c790360effffe00438da77cc37ae5f1fc402ac4429e0185200758895ae18"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:28/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1290,
+      "indices": 7728,
+      "bytes": "ae5f37261e88950c6b5f0978d00d354ce07a316ae0a94f3bd49260fff2b27ce1"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:29/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1276,
+      "indices": 7644,
+      "bytes": "4b13e33f2772792d36500969a64160998b1f1c14b0af7393f0cb7107f76ede4e"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:30/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1275,
+      "indices": 7638,
+      "bytes": "7ca48334fb489857214515e29f3c89df545f1274ff080c27263eef389a238444"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:31/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1282,
+      "indices": 7680,
+      "bytes": "b0b829ee6513e86a86d30b11f6796b53db86af3b2b33bd59584be4ff5c99f82e"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:32/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1278,
+      "indices": 7656,
+      "bytes": "fb632b15b125e87040038821524bd009494a526690b709185e5fab16276ef665"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:33/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1260,
+      "indices": 7548,
+      "bytes": "f1540ae9a698494e715ab9271c96032f9c7e1c2e0fd62a8906d631ba5caf8b37"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:34/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1275,
+      "indices": 7638,
+      "bytes": "8bd451afd0ce9ba20932b6f812575a5b7c267ac4faef5ee60a27dfa98cc63a01"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:35/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1261,
+      "indices": 7554,
+      "bytes": "dda40bd6ba9312b78adaa71e3ce7c5850b36feb2c7679f76dfaaada8d4a417b0"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:36/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1265,
+      "indices": 7578,
+      "bytes": "6d6b090e13663aa03202d6325384cbd291b68cca747339e04114694f4809f743"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:37/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1262,
+      "indices": 7560,
+      "bytes": "1a2d72d56e8eb9adc04bf1976b72662ce523a4956b59c8220dca880fb2f8ae93"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:38/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1280,
+      "indices": 7668,
+      "bytes": "88c2fcbac585f3f13150ff119b846b54391d929076e4f75279f0f92734ad62f0"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:39/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 2116,
+      "vertices": 1266,
+      "indices": 7584,
+      "bytes": "938782e8f64540046a3805872361edda58151e5a97c8baec59abcd25612326bb"
+    },
+    {
+      "name": "interrupted:puffy:heart:circle:40/40",
+      "group": "interrupted:puffy:heart:circle",
+      "contourPoints": 640,
+      "vertices": 1292,
+      "indices": 7740,
+      "bytes": "36e59ac6658c76947d77b7819ba782106a362eb024489160f5aacbbedb21f525"
+    }
+  ]
+}

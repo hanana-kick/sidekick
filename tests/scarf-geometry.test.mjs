@@ -1,14 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDesign, createAccessory, MATERIAL_SHAPE_NAMES } from '../dist/src/core/design.js';
-import { resolveDesign } from '../dist/src/core/resolved-design.js';
-import { resolveShapeProfile, accessoryMountProfile } from '../dist/src/core/shape-profiles.js';
-import { shapeContour } from '../dist/src/core/contours.js';
-import { ShapeTimeline } from '../dist/src/core/shape-motion.js';
-import { bodyGeometry } from '../dist/src/renderer/body-geometry.js';
-import { catalogAccessoryGeometry } from '../dist/src/renderer/catalog-accessory-geometry.js';
-import { transform } from '../dist/src/core/math.js';
-import { viewPoint } from '../dist/src/renderer/eye-projection.js';
+const root = process.env.SIDEKICK_SOURCE === '1' ? '../src' : '../dist/src', extension = process.env.SIDEKICK_SOURCE === '1' ? 'ts' : 'js';
+const [{ createDesign, createAccessory, MATERIAL_SHAPE_NAMES }, { resolveDesign }, { resolveShapeProfile, accessoryMountProfile }, { shapeContour, contourSignedDistanceExact }, { ShapeTimeline }, { bodyGeometry }, { catalogAccessoryGeometry }, { transform }, { viewPoint }] = await Promise.all(['core/design', 'core/resolved-design', 'core/shape-profiles', 'core/contours', 'core/shape-motion', 'renderer/body-geometry', 'renderer/catalog-accessory-geometry', 'core/math', 'renderer/eye-projection'].map(path => import(`${root}/${path}.${extension}`)));
 
 const accessory = resolveDesign(createDesign({ accessories: [createAccessory('scarf')] })).accessories[0];
 const point = (mesh, i) => Array.from(mesh.vertices.subarray(i * 6, i * 6 + 3));
@@ -37,13 +30,13 @@ function contains(mesh, point, from, to) {
   });
 }
 function assertJoined(mesh, size, label) {
-  const collarProbe = center(mesh, 0, 20); collarProbe[2] += .006 * size;
-  assert.ok(contains(mesh, collarProbe, 0, 266), `${label}: collar overlap probe outside cloth`);
-  assert.ok(contains(mesh, collarProbe, 478, 536), `${label}: collar and knot are separated`);
-  for (const start of [266, 372]) {
+  const collarProbe = center(mesh, 0, 2); collarProbe[2] += .006 * size;
+  assert.ok(contains(mesh, collarProbe, 0, 320), `${label}: collar overlap probe outside cloth`);
+  assert.ok(contains(mesh, collarProbe, 532, 590), `${label}: collar and knot are separated`);
+  for (const start of [320, 426]) {
     const tailProbe = center(mesh, start, 1);
     assert.ok(contains(mesh, tailProbe, start, start + 106), `${label}: tail overlap probe outside cloth`);
-    assert.ok(contains(mesh, tailProbe, 478, 536), `${label}: knot and tail ${start} are separated`);
+    assert.ok(contains(mesh, tailProbe, 532, 590), `${label}: knot and tail ${start} are separated`);
   }
 }
 const envelopes = new WeakMap();
@@ -73,7 +66,7 @@ function envelope(contour) {
 function assertClear(mesh, contour, profile, squash, label) {
   const front = envelope(contour), stretch = 1 / Math.sqrt(squash), sx = .59 * stretch, sy = .59 * squash, sz = profile.depth * .5 * stretch;
   let minimum = Infinity;
-  const check = p => { minimum = Math.min(minimum, p[2] - front(p[0] / sx, p[1] / sy) * sz); };
+  const check = p => { minimum = Math.min(minimum, Math.abs(p[2]) - front(p[0] / sx, p[1] / sy) * sz); };
   for (let i = 0; i < mesh.vertices.length / 6; i++) check(point(mesh, i));
   for (let i = 0; i < mesh.indices.length; i += 3) {
     const p = [mesh.indices[i], mesh.indices[i + 1], mesh.indices[i + 2]].map(index => point(mesh, index));
@@ -82,40 +75,73 @@ function assertClear(mesh, contour, profile, squash, label) {
   assert.ok(minimum > -2e-6, `${label}: penetration ${-minimum}`);
 }
 
+// True Euclidean contact witnesses on rendered body triangles, including side
+// support outside the front XY projection. A projected Z ray is not a distance.
+function closeSurfaceWitness(mesh, contour, profile, squash, limit) {
+  const { vertices, indices } = bodyGeometry(contour), stretch = 1 / Math.sqrt(squash);
+  const scale = [.59 * stretch, .59 * squash, profile.depth * .5 * stretch], cloth = Array.from({ length: 320 }, (_, i) => point(mesh, i));
+  const subtract = (a, b) => a.map((v, k) => v - b[k]), dot = (a, b) => a.reduce((s, v, k) => s + v * b[k], 0);
+  const segmentDistance = (p, a, b) => {
+    const ab = subtract(b, a), t = Math.max(0, Math.min(1, dot(subtract(p, a), ab) / dot(ab, ab)));
+    return Math.hypot(...p.map((v, k) => v - a[k] - t * ab[k]));
+  };
+  for (let i = 0; i < indices.length; i += 3) {
+    const [a, b, c] = [0, 1, 2].map(j => [0, 1, 2].map(k => vertices[indices[i + j] * 6 + k] * scale[k]));
+    const ab = subtract(b, a), ac = subtract(c, a), aa = dot(ab, ab), bb = dot(ab, ac), cc = dot(ac, ac), determinant = aa * cc - bb * bb;
+    const lo = [0, 1, 2].map(k => Math.min(a[k], b[k], c[k]) - limit), hi = [0, 1, 2].map(k => Math.max(a[k], b[k], c[k]) + limit);
+    for (let j = 0; j < 320; j++) {
+      const p = cloth[j]; if (p[0] < lo[0] || p[0] > hi[0] || p[1] < lo[1] || p[1] > hi[1] || p[2] < lo[2] || p[2] > hi[2]) continue;
+      const ap = subtract(p, a), d = dot(ap, ab), e = dot(ap, ac), u = (cc * d - bb * e) / determinant, v = (aa * e - bb * d) / determinant;
+      const distance = u >= 0 && v >= 0 && u + v <= 1 ? Math.hypot(...ap.map((x, k) => x - u * ab[k] - v * ac[k])) : Math.min(segmentDistance(p, a, b), segmentDistance(p, b, c), segmentDistance(p, c, a));
+      if (distance < limit) return distance;
+    }
+  }
+  return Infinity;
+}
 
-test('all 35 scarves have joined cloth, two supported contacts and genuinely free hanging ends', () => {
+
+test('all 35 scarves form a real front/side/rear loop with joined freely hanging ends', () => {
   for (const shape of MATERIAL_SHAPE_NAMES) for (const squash of [.88, 1, 1.12]) {
     const body = createDesign({ body: { shape } }).body, contour = shapeContour({ kind: 'material', name: shape }), profile = resolveShapeProfile(shape);
     const mesh = catalogAccessoryGeometry(body, accessory, squash), size = accessoryMountProfile(accessory, profile).scale;
-    assert.equal(mesh.vertices.length / 6, 536, 'bounded fixed topology');
-    assert.ok(center(mesh, 0, 28)[0] - center(mesh, 0, 4)[0] > .25 * size, `${shape}/${squash}: collar collapses into the knot`);
+    assert.equal(mesh.vertices.length / 6, 590, 'bounded fixed topology');
     assertClear(mesh, contour, profile, squash, `${shape}/${squash}`);
     assertJoined(mesh, size, `${shape}/${squash}`);
     const front = envelope(contour), stretch = 1 / Math.sqrt(squash);
-    const gap = i => { const [x, y, z] = point(mesh, i); return z - front(x / (.59 * stretch), y / (.59 * squash)) * profile.depth * .5 * stretch; };
-    for (const contact of [0, 256]) {
-      const separation = Math.min(...Array.from({ length: 8 }, (_, j) => gap(contact + j)));
-      assert.ok(separation >= .0019, `${shape}/${squash}: supported fold penetrates`);
-      assert.ok(separation < .030 * size, `${shape}/${squash}: unsupported collar end ${separation}`);
-    }
-    for (const start of [266, 372]) {
-      const free = Array.from({ length: 11 * 8 }, (_, j) => gap(start + 2 * 8 + j)).filter(Number.isFinite);
-      if (free.length) assert.ok(Math.min(...free) > .025 * size, `${shape}/${squash}: tail lies against body`);
+    const gap = i => { const [x, y, z] = point(mesh, i); return Math.abs(z) - front(x / (.59 * stretch), y / (.59 * squash)) * profile.depth * .5 * stretch; };
+    assert.ok(center(mesh, 0, 0)[2] > .02, `${shape}: no front wrap`);
+    assert.ok(center(mesh, 0, 20)[2] < -.02, `${shape}: no rear wrap`);
+    assert.ok(center(mesh, 0, 10)[0] > .05 && center(mesh, 0, 30)[0] < -.05, `${shape}: missing side wrap`);
+    const supported = Array.from({ length: 320 }, (_, i) => gap(i)).filter(Number.isFinite);
+    assert.ok(Math.min(...supported) >= .0019, `${shape}: wrap penetrates`);
+    const contact = closeSurfaceWitness(mesh, contour, profile, squash, .055 * size);
+    assert.ok(Number.isFinite(contact), `${shape}/${squash}: no body-surface contact within ${.055 * size}`);
+    for (const start of [320, 426]) {
       for (let ring = 1; ring < 13; ring++) assert.ok(center(mesh, start, ring)[1] < center(mesh, start, ring - 1)[1], `${shape}: tail does not fall with gravity`);
     }
+    // One connected genus-one surface, rather than separate front/back plates.
+    const edges = new Map(); let faces = 0;
+    for (let i = 0; i < 40 * 8 * 6; i += 3) {
+      faces++; const ids = [...mesh.indices.subarray(i, i + 3)];
+      for (const [a, b] of [[ids[0], ids[1]], [ids[1], ids[2]], [ids[2], ids[0]]]) {
+        const key = `${Math.min(a, b)},${Math.max(a, b)}`, value = edges.get(key) ?? [0, 0]; value[0]++; value[1] += a < b ? 1 : -1; edges.set(key, value);
+      }
+    }
+    for (const edge of edges.values()) assert.deepEqual(edge, [2, 0]);
+    assert.equal(320 - edges.size + faces, 0, `${shape}: wrap is not a closed loop`);
   }
 });
 
-test('free collar and tail folds preserve authored volume instead of projecting each vertex onto the body', () => {
+test('rounded wrap and free tail folds preserve cloth volume instead of projecting vertices onto the body', () => {
   for (const shape of MATERIAL_SHAPE_NAMES) {
     const profile = resolveShapeProfile(shape), size = accessoryMountProfile(accessory, profile).scale;
     const mesh = catalogAccessoryGeometry(createDesign({ body: { shape } }).body, accessory);
-    // Every core collar section lies on the same loose quartic drape in Z.
-    for (let ring = 4; ring <= 28; ring++) {
-      const t = (ring - 4) / 12 - 1;
-      near(center(mesh, 0, ring)[2] - center(mesh, 0, 16)[2], -.115 * size * t ** 4);
+    for (let ring = 0; ring < 40; ring++) {
+      near(point(mesh, ring * 8)[1] - point(mesh, ring * 8 + 4)[1], .110 * size);
+      const a = point(mesh, ring * 8 + 2), b = point(mesh, ring * 8 + 6);
+      near(Math.hypot(...a.map((value, k) => value - b[k])), .030 * size);
     }
-    for (const start of [266, 372]) for (let ring = 0; ring < 13; ring++) {
+    for (const start of [320, 426]) for (let ring = 0; ring < 13; ring++) {
       const a = point(mesh, start + ring * 8 + 2), b = point(mesh, start + ring * 8 + 6);
       near(a[2] - b[2], .020 * size, 1e-7);
       if (ring) {
@@ -138,7 +164,7 @@ test('scarf geometry is deterministic, view-independent and preserves interrupte
     // Every sampled view sees the same non-collapsed 3D cloth; there is no view refit.
     for (const yaw of [-90, -45, 0, 45, 90, 180]) for (const pitch of [-25, 0, 25]) {
       const matrix = transform([0, 0, 0], [pitch * Math.PI / 180, yaw * Math.PI / 180, 0]);
-      const back = viewPoint(matrix, point(before, 266 + 12 * 8 + 6)), front = viewPoint(matrix, point(before, 266 + 12 * 8 + 2));
+      const back = viewPoint(matrix, point(before, 320 + 12 * 8 + 6)), front = viewPoint(matrix, point(before, 320 + 12 * 8 + 2));
       near(Math.hypot(...front.map((value, k) => value - back[k])), .020 * accessoryMountProfile(accessory, timeline.profile).scale);
     }
     timeline.advance(.001); const after = sample();
@@ -146,5 +172,131 @@ test('scarf geometry is deterministic, view-independent and preserves interrupte
     assertClear(after, timeline.contour, timeline.profile, 1, `${from}->${to}->${next}`);
     for (let j = 0; j < after.vertices.length; j += 6) assert.ok(Math.hypot(...[0, 1, 2].map(k => after.vertices[j + k] - before.vertices[j + k])) < .003, `${from}: epsilon jump`);
     timeline.finish(); assert.deepEqual(await interrupted, { finished: true });
+  }
+});
+
+
+test('scarf chart exact distance agrees with the raw contour instead of a changing simplification', () => {
+  for (const shape of MATERIAL_SHAPE_NAMES) {
+    const contour = shapeContour({ kind: 'material', name: shape });
+    for (const [x, y] of [[0, -.4], [.37, -.65], [-.43, -.72], [.91, .13], [-1.03, .77]]) {
+      let squared = Infinity, inside = false;
+      for (let i = 0; i < contour.points.length; i++) {
+        const a = contour.points[i], b = contour.points[(i + 1) % contour.points.length], dx = b[0] - a[0], dy = b[1] - a[1];
+        const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy)));
+        squared = Math.min(squared, (x - a[0] - dx * t) ** 2 + (y - a[1] - dy * t) ** 2);
+        if ((a[1] > y) !== (b[1] > y) && x < dx * (y - a[1]) / dy + a[0]) inside = !inside;
+      }
+      near(contourSignedDistanceExact(contour, x, y), Math.sqrt(squared) * (inside ? 1 : -1), 1e-10);
+    }
+  }
+});
+
+test('dense difficult wrap trajectories have no persistent jumps when the steepest intervals are bisected', () => {
+  const difference = (a, b) => {
+    let maximum = 0;
+    for (let i = 0; i < a.length; i += 6) maximum = Math.max(maximum, Math.hypot(a[i] - b[i], a[i + 1] - b[i + 1], a[i + 2] - b[i + 2]));
+    return maximum;
+  };
+  for (const [from, to] of [['softBoom', 'pixelTriangle'], ['pixelTriangle', 'boom'], ['heart', 'boom'], ['boom', 'puffy']]) {
+    const body = createDesign({ body: { shape: to } }).body;
+    const at = time => {
+      const timeline = new ShapeTimeline(from); timeline.to(to, { duration: 1000, easing: 'linear' }); timeline.advance(time);
+      return catalogAccessoryGeometry(body, accessory, 1, timeline.contour, timeline.profile).vertices;
+    };
+    const candidates = []; let previous = at(0);
+    for (let i = 1; i <= 200; i++) {
+      const current = at(i * 5); candidates.push({ lower: (i - 1) * 5, upper: i * 5, delta: difference(previous, current), left: previous, right: current }); previous = current;
+    }
+    candidates.sort((a, b) => b.delta - a.delta);
+    for (const candidate of candidates.slice(0, 3)) {
+      let { lower, upper, left, right } = candidate;
+      for (let iteration = 0; iteration < 15; iteration++) {
+        const mid = (lower + upper) / 2, middle = at(mid);
+        if (difference(left, middle) >= difference(middle, right)) { upper = mid; right = middle; }
+        else { lower = mid; left = middle; }
+      }
+      assert.ok(difference(left, right) < .00005, `${from}->${to}: persistent wrap jump at ${lower}/${upper}`);
+    }
+  }
+});
+
+
+test('regression: wrap clears the steep Boom to Heart transition and an interrupted return', () => {
+ const timeline = new ShapeTimeline('boom'), body = createDesign({ body: { shape: 'heart' } }).body;
+ timeline.to('heart', { duration: 1000, easing: 'linear' }); let time = 0;
+ for (const next of [100, 125, 140, 150, 150.8, 151, 160, 170, 200]) {
+  timeline.advance(next - time); time = next;
+  const mesh = catalogAccessoryGeometry(body, accessory, 1, timeline.contour, timeline.profile);
+  assertClear(mesh, timeline.contour, timeline.profile, 1, `Boom->Heart at ${time}`);
+  assertJoined(mesh, accessoryMountProfile(accessory, timeline.profile).scale, `Boom->Heart at ${time}`);
+ }
+ timeline.to('pixelTriangle', { duration: 600, easing: 'smooth' });
+ for (const delta of [0.001, 1, 25, 50, 150, 300]) {
+  timeline.advance(delta); const mesh = catalogAccessoryGeometry(body, accessory, 1, timeline.contour, timeline.profile);
+  assertClear(mesh, timeline.contour, timeline.profile, 1, `Boom->Heart->PixelTriangle after ${delta}`);
+  assertJoined(mesh, accessoryMountProfile(accessory, timeline.profile).scale, `Boom->Heart->PixelTriangle after ${delta}`);
+ }
+});
+
+
+test('wrapped equator supports are invariant to cyclic indexing and collinear insertion during accessory rotation', async () => {
+  const { drapedScarf } = await import(`${root}/renderer/scarf-geometry.${extension}`);
+  for (const shape of MATERIAL_SHAPE_NAMES) {
+    const contour = shapeContour({ kind: 'material', name: shape }), depth = resolveShapeProfile(shape).depth;
+    const points = contour.points, shift = Math.floor(points.length / 3);
+    const variants = [
+      { kind: 'contour', points: [...points.slice(shift), ...points.slice(0, shift)] },
+      { kind: 'contour', points: points.flatMap((a, i) => {
+        const b = points[(i + 1) % points.length]; return [a, [a[0] * .63 + b[0] * .37, a[1] * .63 + b[1] * .37]];
+      }) },
+    ];
+    for (const rotation of [[0, 0, 0], [.08, .1, .15], [.25, -.3, .2]]) {
+      const sample = contour => drapedScarf([0, -.3, .2], .6, contour, [.59, .59, depth * .5], rotation);
+      const original = sample(contour);
+      for (const variant of variants) {
+        const changed = sample(variant); assert.deepEqual(changed.indices, original.indices);
+        for (let i = 0; i < original.points.length; i++) assert.ok(Math.hypot(...original.points[i].map((v, k) => v - changed.points[i][k])) < 1e-7, `${shape}/${rotation}: contour indexing changed vertex ${i}`);
+      }
+    }
+  }
+});
+
+
+// A grazing face can cross even when all vertex/midpoint/centroid probes are
+// outside. Check actual triangle edges at the historically failing intervals.
+function assertNoLoopCrossings(mesh, contour, profile, label) {
+  const body = bodyGeometry(contour), scale = [.59, .59, profile.depth * .5];
+  const subtract = (a, b) => a.map((v, k) => v - b[k]), dot = (a, b) => a.reduce((s, v, k) => s + v * b[k], 0);
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const hits = (a, b, triangle) => {
+    const [p, q, r] = triangle, direction = subtract(b, a), e1 = subtract(q, p), e2 = subtract(r, p), h = cross(direction, e2), det = dot(e1, h);
+    if (Math.abs(det) < 1e-12) return false;
+    const s = subtract(a, p), u = dot(s, h) / det; if (u < -1e-9 || u > 1 + 1e-9) return false;
+    const v = cross(s, e1), w = dot(direction, v) / det; if (w < -1e-9 || u + w > 1 + 1e-9) return false;
+    const t = dot(e2, v) / det; return t >= -1e-9 && t <= 1 + 1e-9;
+  };
+  const bounds = t => [0, 1, 2].map(k => [Math.min(...t.map(p => p[k])), Math.max(...t.map(p => p[k]))]);
+  const triangles = Array.from({ length: body.indices.length / 3 }, (_, i) => {
+    const t = [0, 1, 2].map(j => [0, 1, 2].map(k => body.vertices[body.indices[i * 3 + j] * 6 + k] * scale[k])); return { t, box: bounds(t) };
+  });
+  for (let i = 0; i < 40 * 8 * 6; i += 3) {
+    const cloth = [0, 1, 2].map(j => point(mesh, mesh.indices[i + j])), box = bounds(cloth);
+    for (const { t, box: other } of triangles) {
+      if (box.some(([lo, hi], k) => hi < other[k][0] || lo > other[k][1])) continue;
+      for (let edge = 0; edge < 3; edge++) assert.ok(!hits(cloth[edge], cloth[(edge + 1) % 3], t) && !hits(t[edge], t[(edge + 1) % 3], cloth), `${label}: loop triangle ${i / 3} crosses the body`);
+    }
+  }
+}
+
+test('actual loop faces clear narrow equator lobes at historical morph collision times', () => {
+  for (const [from, to, times] of [['heart', 'boom', [876, 888, 896]], ['boom', 'heart', [104, 112, 124]], ['pixelTriangle', 'boom', [735, 740, 745]]]) {
+    const timeline = new ShapeTimeline(from), body = createDesign({ body: { shape: to } }).body;
+    timeline.to(to, { duration: 1000, easing: 'linear' }); let previous = 0;
+    for (const time of times) {
+      timeline.advance(time - previous); previous = time;
+      const mesh = catalogAccessoryGeometry(body, accessory, 1, timeline.contour, timeline.profile);
+      assertNoLoopCrossings(mesh, timeline.contour, timeline.profile, `${from}->${to} at ${time}`);
+    }
   }
 });

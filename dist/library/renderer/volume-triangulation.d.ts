@@ -15,6 +15,9 @@ export declare class VolumeTriangulation {
     readonly triangles: Triangle[];
     private readonly edges;
     private readonly free;
+    private readonly cavity;
+    private readonly pending;
+    private readonly cavityBoundary;
     private cursor;
     constructor(boundary: readonly ContourPoint[]);
     private key;

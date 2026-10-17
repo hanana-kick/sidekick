@@ -1,11 +1,15 @@
 import type { Vec2, Vec3 } from '../core/design.js';
 import type { ShapeContour } from '../core/contours.js';
-import { contourSignedDistance } from '../core/contours.js';
-import { drapedFrontLifts, rigidFrontLift } from './rigid-contact.js';
+import { contourSignedDistanceExact } from '../core/contours.js';
+import { VOLUME_CURVATURE } from '../core/body-volume.js';
+import { transform } from '../core/math.js';
+import type { Mat4 } from '../core/math.js';
+import { viewPoint } from './eye-projection.js';
 
 interface ClothMesh { points: Vec3[]; indices: number[]; mainIndexCount: number }
 interface Ring { center: Vec3; width: number; thickness: number; fold: number }
 const SIDES = 8;
+const WRAP_RINGS = 40;
 const CLEARANCE = .002;
 const empty = (): ClothMesh => ({ points: [], indices: [], mainIndexCount: 0 });
 
@@ -33,45 +37,131 @@ function ribbon(mesh: ClothMesh, rings: readonly Ring[], vertical = false): void
 function append(mesh: ClothMesh, part: ClothMesh): void {
   const offset = mesh.points.length; mesh.points.push(...part.points); mesh.indices.push(...part.indices.map(index => index + offset));
 }
-/** Continuous interior walk keeps each shoulder support on its current lobe. */
-function shoulder(center: Vec3, target: Vec2, contour: ShapeContour, scales: Vec3, height: (x: number, y: number) => number): Vec3 {
-  const from: Vec2 = [center[0] / scales[0], center[1] / scales[1]], to: Vec2 = [target[0] / scales[0], target[1] / scales[1]];
-  const dx = to[0] - from[0], dy = to[1] - from[1], length = Math.hypot(dx, dy);
-  let travel = 0;
-  for (let i = 0; i < 24; i++) {
-    const fraction = travel / length, distance = contourSignedDistance(contour, from[0] + dx * fraction, from[1] + dy * fraction);
-    travel += Math.min(length - travel, Math.max(0, distance - .018));
+/**
+ * Exact fixed-direction supports of the raw equator under the smooth band
+ * falloff. A narrow lobe cannot disappear between interior grid samples.
+ * Endpoints and weighted-linear stationary points cover each entire edge;
+ * the global tangent polygon is invariant to cyclic order/collinear splitting.
+ */
+function perimeterSection(contour: ShapeContour, scales: Vec3, pivot: Vec3, pose: Mat4, size: number): Vec2[] {
+  const lower = -.085 * size, upper = .055 * size, strength = 18 / size, count = 16, delta = Math.PI * 2 / count;
+  const normals: Vec2[] = Array.from({ length: count }, (_, i) => [Math.sin(i * delta), Math.cos(i * delta)]);
+  const supports = Array<number>(count).fill(-Infinity);
+  const projected = contour.points.map(([px, py]): Vec3 => {
+    const x = px * scales[0] - pivot[0], y = py * scales[1] - pivot[1];
+    return [x * pose[0]! + y * pose[1]!, x * pose[4]! + y * pose[5]!, x * pose[8]! + y * pose[9]!];
+  });
+  for (let i = 0; i < projected.length; i++) {
+    const a = projected[i]!, b = projected[(i + 1) % projected.length]!, dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+    const cuts = [0, 1];
+    if (Math.abs(dy) > 1e-12) for (const edge of [lower, upper]) { const t = (edge - a[1]) / dy; if (t > 0 && t < 1) cuts.push(t); }
+    cuts.sort((a, b) => a - b);
+    for (let interval = 0; interval < cuts.length - 1; interval++) {
+      const from = cuts[interval]!, to = cuts[interval + 1]!, middleY = a[1] + dy * (from + to) / 2;
+      const rate = middleY < lower ? strength * dy : middleY > upper ? -strength * dy : 0;
+      const weight = (t: number): number => Math.exp(-strength * Math.max(0, lower - a[1] - dy * t, a[1] + dy * t - upper));
+      const fromWeight = weight(from), toWeight = weight(to);
+      for (let j = 0; j < count; j++) {
+        const [nx, nz] = normals[j]!, origin = a[0] * nx + a[2] * nz, slope = dx * nx + dz * nz;
+        let maximum = Math.max((origin + slope * from) * fromWeight, (origin + slope * to) * toWeight);
+        if (Math.abs(rate * slope) > 1e-14) {
+          const t = -(slope + rate * origin) / (rate * slope);
+          if (t > from && t < to) maximum = Math.max(maximum, (origin + slope * t) * weight(t));
+        }
+        supports[j] = Math.max(supports[j]!, maximum);
+      }
+    }
   }
-  const x = (from[0] + dx * travel / length) * scales[0], y = (from[1] + dy * travel / length) * scales[1];
-  return [x, y, height(x, y)];
+  return normals.map(([nx, nz], i): Vec2 => {
+    const next = (i + 1) % count, [mx, mz] = normals[next]!, determinant = nx * mz - nz * mx;
+    return [(supports[i]! * mz - supports[next]! * nz) / determinant, (nx * supports[next]! - mx * supports[i]!) / determinant];
+  });
 }
 
 /**
- * A loose scarf is supported only at its two shoulder folds. The collar and
- * both hanging tails are authored in space, then receive ONE rigid clearance
- * offset. Only the short shoulder folds adapt locally to make real contact.
- * In particular neither the collar nor the free ends sample the body height
- * at their vertices. Gravity is body-local, so camera movement cannot refit it.
+ * Fixed analytic chart, independent of adaptive body tessellation and history.
+ * Outside samples shrink continuously toward the wrap axis; a smooth vertical
+ * falloff lets tensioned cloth bridge notches without selecting a body lobe.
+ * 49 x 49 analytic samples and 40 directions are a strict, small work bound.
  */
-export function drapedScarf(center: Vec3, size: number, contour: ShapeContour, scales: Vec3, height: (x: number, y: number) => number): ClothMesh {
-  const [x, y, z] = center;
-  const left = shoulder(center, [x - .31 * size, y + .105 * size], contour, scales, height);
-  const right = shoulder(center, [x + .31 * size, y + .105 * size], contour, scales, height);
-  // Depth bends more slowly than the downward sag: the collar rolls down at
-  // its forward edge instead of making a straight shelf in exact side views.
-  const rings: Ring[] = Array.from({ length: 25 }, (_, i) => {
-    const u = i / 24, t = u * 2 - 1;
-    return { center: [left[0] * (1 - u) + right[0] * u + .012 * size * -t, y + size * (.072 * t * t - .035), z + size * (.095 - .115 * t ** 4)],
-      width: .042 * size, thickness: .013 * size, fold: .010 * size * (1 - t * t) };
+function wrapSupports(chart: readonly Vec3[], size: number, boundary: readonly Vec2[]): number[] {
+  const lower = -.085 * size, upper = .055 * size, section: Vec2[] = [...boundary];
+  let left = 0, right = 0, depth = 0;
+  for (const p of chart) {
+    const weight = Math.exp(-18 * Math.max(0, lower - p[1], p[1] - upper) / size), x = p[0] * weight, z = p[2] * weight;
+    section.push([x, z]); left = Math.min(left, x); right = Math.max(right, x); depth = Math.max(depth, Math.abs(z));
+  }
+  for (const p of boundary) { left = Math.min(left, p[0]); right = Math.max(right, p[0]); depth = Math.max(depth, Math.abs(p[1])); }
+  const cx = (left + right) / 2, rx = Math.max(.025, (right - left) / 2), rz = Math.max(.025, depth);
+  // A single rounded enclosing section, rather than differentiating a sampled
+  // polygon's support function. This prevents tiny chart changes being amplified
+  // into large tangential cloth motion at a newly exposed lobe.
+  let enclosure = 1;
+  for (const p of section) enclosure = Math.max(enclosure, Math.hypot((p[0] - cx) / rx, p[1] / rz));
+  return Array.from({ length: WRAP_RINGS }, (_, i) => {
+    const angle = (i + .5) / WRAP_RINGS * Math.PI * 2;
+    return cx * Math.sin(angle) + enclosure * Math.hypot(rx * Math.sin(angle), rz * Math.cos(angle));
   });
-  const collar = empty(); ribbon(collar, rings);
-  // Tie the knot to an actual interior section of the supported collar. A
-  // fixed body-relative X can miss an asymmetric collar (PixelTriangle).
-  // The knot back overlaps this section, and both tail roots overlap the knot.
-  const [joinX, joinY, joinZ] = rings[16]!.center;
+}
+
+/** One continuous rigid offset for both free ends and their knot. */
+function hangingLift(points: readonly Vec3[], chart: readonly Vec3[]): number {
+  const minX = Math.min(...points.map(p => p[0])), maxX = Math.max(...points.map(p => p[0]));
+  const minY = Math.min(...points.map(p => p[1])), maxY = Math.max(...points.map(p => p[1]));
+  const minZ = Math.min(...points.map(p => p[2])); let front = -Infinity;
+  for (const p of chart) {
+    const distance = Math.max(0, minX - p[0], p[0] - maxX) + Math.max(0, minY - p[1], p[1] - maxY);
+    front = Math.max(front, p[2] - 3 * distance);
+  }
+  return Math.max(0, front + .014 - minZ) + CLEARANCE;
+}
+
+/** Closed cloth loop, with a rounded vertical section and no rear seam/cap. */
+function wrap(mesh: ClothMesh, supports: readonly number[], y: number, size: number, frontLift = 0): Vec3[] {
+  const centers: Vec3[] = [], delta = Math.PI * 2 / WRAP_RINGS, padding = .015 * size + .012 + CLEARANCE;
+  const support = (index: number, angle: number): number => supports[(index + WRAP_RINGS) % WRAP_RINGS]! + padding + frontLift * Math.max(0, Math.cos(angle));
+  for (let i = 0; i < WRAP_RINGS; i++) {
+    const angle = i * delta, before = angle - delta / 2, after = angle + delta / 2;
+    const a = support(i - 1, before), b = support(i, after), determinant = Math.sin(before - after);
+    const x = (a * Math.cos(after) - b * Math.cos(before)) / determinant;
+    const z = (Math.sin(before) * b - Math.sin(after) * a) / determinant;
+    const cy = y - .015 * size * (1 + Math.cos(angle)); centers.push([x, cy, z]);
+    for (let j = 0; j < SIDES; j++) {
+      const theta = j / SIDES * Math.PI * 2, u = Math.cos(theta), v = Math.sin(theta);
+      mesh.points.push([x + .015 * size * v * Math.sin(angle), cy + .055 * size * u, z + .015 * size * v * Math.cos(angle)]);
+    }
+  }
+  for (let i = 0; i < WRAP_RINGS; i++) for (let j = 0; j < SIDES; j++) {
+    const a = i * SIDES + j, b = ((i + 1) % WRAP_RINGS) * SIDES + j;
+    const c = i * SIDES + (j + 1) % SIDES, d = ((i + 1) % WRAP_RINGS) * SIDES + (j + 1) % SIDES;
+    mesh.indices.push(a, c, b, c, d, b);
+  }
+  return centers;
+}
+
+/**
+ * One cloth loop actually encircles the lower body, including both sides and
+ * rear. Its convex support envelope bridges concave notches like tensioned
+ * fabric. Two free tails retain their authored gravity drape and volume;
+ * their clearance is one shared rigid translation, never vertex body-hugging.
+ */
+export function drapedScarf(center: Vec3, size: number, contour: ShapeContour, scales: Vec3, rotation: Vec3 = [0, 0, 0]): ClothMesh {
+  const pivot: Vec3 = [center[0], center[1] - .045 * size, 0], pose = transform(pivot, rotation);
+  const chart: Vec3[] = [];
+  for (let row = 0; row <= 48; row++) for (let col = 0; col <= 48; col++) {
+    const px = (col / 48 * 2 - 1) * 1.02, py = (row / 48 * 2 - 1) * 1.02, distance = contourSignedDistanceExact(contour, px, py);
+    const d = Math.max(0, distance), height = d > 0 ? Math.sqrt(d / (d + VOLUME_CURVATURE * (px * px + py * py))) * scales[2] : 0;
+    const weight = Math.exp(-24 * Math.max(0, -distance));
+    for (const z of [height, -height]) {
+      const x = px * scales[0] - pivot[0], y = py * scales[1] - pivot[1];
+      chart.push([(x * pose[0]! + y * pose[1]! + z * pose[2]!) * weight,
+        x * pose[4]! + y * pose[5]! + z * pose[6]!, (x * pose[8]! + y * pose[9]! + z * pose[10]!) * weight]);
+    }
+  }
+  const supports = wrapSupports(chart, size, perimeterSection(contour, scales, pivot, pose, size)), initial = empty();
+  const centers = wrap(initial, supports, 0, size);
+  const [joinX, joinY, joinZ] = centers[2]!;
   const tails = empty();
-  // Staggered free hems and gentle longitudinal folds give the ends weight.
-  // Their depth changes slowly down the fall, independently of body curvature.
   for (const [offset, length, drift, phase] of [[-.036, .285, -.026, 0], [.038, .335, .012, 1]] as const) {
     ribbon(tails, Array.from({ length: 13 }, (_, i): Ring => {
       const v = i / 12;
@@ -86,34 +176,13 @@ export function drapedScarf(center: Vec3, size: number, contour: ShapeContour, s
     return { center: [joinX, joinY + size * (.045 - .097 * v), joinZ + size * (.017 + .010 * bulge)],
       width: size * (.045 + .009 * bulge), thickness: size * (.014 + .006 * bulge), fold: .006 * size };
   }), true);
-  const suspended = empty(); append(suspended, collar); append(suspended, tails); append(suspended, knot);
-  const lift = rigidFrontLift(suspended.points, suspended.indices, contour, scales, CLEARANCE);
-  for (const ring of rings) ring.center[2] += lift;
+  const hanging = empty(); append(hanging, tails); append(hanging, knot);
+  const lift = hangingLift(hanging.points, chart);
+  // A Minkowski extension of just the front envelope preserves the closed wrap
+  // and its rear contact when the free tails need extra room over a lower lobe.
+  const mesh = empty(); wrap(mesh, supports, 0, size, lift);
   for (const part of [tails, knot]) for (const point of part.points) point[2] += lift;
-
-  // Each end turns up and back onto a small supported shoulder fold. There is
-  // one continuous collar mesh from the left contact through to the right one.
-  const support = (contact: Vec3, end: Ring, reverse: boolean): Ring[] => Array.from({ length: 4 }, (_, i) => {
-    const u = (reverse ? 3 - i : i) / 4, smooth = u * u * (3 - 2 * u);
-    return { center: [contact[0] + (end.center[0] - contact[0]) * u, contact[1] + (end.center[1] - contact[1]) * u,
-      contact[2] + .016 * size + (end.center[2] - contact[2] - .016 * size) * smooth],
-      width: size * (.023 + .019 * u), thickness: .013 * size, fold: .003 * size * u };
-  });
-  const supported = [...support(left, rings[0]!, false), ...rings, ...support(right, rings[rings.length - 1]!, true)];
-  const mesh = empty(); ribbon(mesh, supported);
-  // Local correction is limited to the eight contact-fold rings. Move each
-  // complete rounded section together; never stretch cloth thickness or normals.
-  const corrections = drapedFrontLifts(mesh.points, mesh.indices, contour, scales);
-  for (let ring = 0; ring < supported.length; ring++) {
-    if (ring >= 4 && ring <= 28) continue;
-    let correction = 0;
-    for (let j = 0; j < SIDES; j++) correction = Math.max(correction, corrections[ring * SIDES + j]!);
-    if (ring === 0) correction = Math.max(correction, corrections[supported.length * SIDES]!);
-    if (ring === supported.length - 1) correction = Math.max(correction, corrections[supported.length * SIDES + 1]!);
-    for (let j = 0; j < SIDES; j++) mesh.points[ring * SIDES + j]![2] += correction;
-    if (ring === 0) mesh.points[supported.length * SIDES]![2] += correction;
-    if (ring === supported.length - 1) mesh.points[supported.length * SIDES + 1]![2] += correction;
-  }
   append(mesh, tails); mesh.mainIndexCount = mesh.indices.length; append(mesh, knot);
+  mesh.points = mesh.points.map(point => viewPoint(pose, point));
   return mesh;
 }

@@ -1,7 +1,7 @@
 import type { ShapeInput } from '../core/shapes.js';
 import { shapeContour, contourBoundaryPoints, contourSignedDistance } from '../core/contours.js';
 import type { ShapeContour, ContourPoint } from '../core/contours.js';
-import { contourVolumeHeight } from '../core/body-volume.js';
+import { contourVolumeHeight, VOLUME_CURVATURE } from '../core/body-volume.js';
 import { VolumeTriangulation } from './volume-triangulation.js';
 import type { Geometry } from './geometry.js';
 
@@ -27,16 +27,23 @@ export function bodyGeometry(input: ShapeInput | ShapeContour, roundness = 0.5):
   const boundary = contourBoundaryPoints(contour), boundaryCount = boundary.length;
   if (boundaryCount >= BODY_VOLUME_MAX_POINTS / 2) throw new RangeError('Body contour exceeds the WebGL mesh budget.');
   const mesh = new VolumeTriangulation(boundary);
+  const heights: number[] = new Array(boundaryCount).fill(0);
   const insert = (x: number, y: number): void => {
-    if (contourSignedDistance(contour, x, y) > 1e-7) mesh.insert([x, y]);
+    const distance = contourSignedDistance(contour, x, y);
+    if (distance > 1e-7 && mesh.insert([x, y])) {
+      // Reuse the exact accepted-point distance in the same inflation law.
+      // The immutable contour/index cannot change between insertion and height.
+      heights.push(Math.sqrt(distance / (distance + VOLUME_CURVATURE * (x * x + y * y))));
+    }
   };
   const spacing = 0.1;
   for (let row = -10; row <= 10; row++) for (let col = -10; col <= 10; col++) insert(col * spacing + (row % 2) * spacing / 2, row * spacing);
   insert(0, 0);
-  const heights = mesh.points.map((p, i) => i < boundaryCount ? 0 : contourVolumeHeight(contour, p[0], p[1]));
-  let triangles = mesh.triangles.filter(t => t.live).map(t => t.ids);
+  let triangles: [number, number, number][] = [];
+  for (const triangle of mesh.triangles) if (triangle.live) triangles.push(triangle.ids);
   const edgeKey = (a: number, b: number): number => a < b ? a * 32768 + b : b * 32768 + a;
-  const boundaryEdges = new Set<number>(boundary.map((_, i) => edgeKey(i, (i + 1) % boundaryCount)));
+  const boundaryEdges = new Set<number>();
+  for (let i = 0; i < boundaryCount; i++) boundaryEdges.add(edgeKey(i, (i + 1) % boundaryCount));
   interface EdgeSample { point: ContourPoint; height: number; errorSquared: number; faceErrorSquared: number }
   const edgeSamples = new Map<number, EdgeSample>();
   const sampleEdge = (a: number, b: number): EdgeSample => {
@@ -66,7 +73,8 @@ export function bodyGeometry(input: ShapeInput | ShapeContour, roundness = 0.5):
       // Most early failures are visible at an edge. Avoid a redundant center
       // distance query until the three edge tests already satisfy the budget.
       let needsSplit = false;
-      for (const [i, j] of [[a, b], [b, c], [c, a]] as const) {
+      for (let side = 0; side < 3; side++) {
+        const i = triangle[side]!, j = triangle[(side + 1) % 3]!;
         const edge = sampleEdge(i, j);
         if (edge.errorSquared > BODY_SURFACE_TOLERANCE * BODY_SURFACE_TOLERANCE || edge.faceErrorSquared > BODY_HEIGHT_TOLERANCE * BODY_HEIGHT_TOLERANCE) { split(i, j); needsSplit = true; }
       }

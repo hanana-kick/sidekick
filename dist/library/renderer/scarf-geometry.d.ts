@@ -6,11 +6,10 @@ interface ClothMesh {
     mainIndexCount: number;
 }
 /**
- * A loose scarf is supported only at its two shoulder folds. The collar and
- * both hanging tails are authored in space, then receive ONE rigid clearance
- * offset. Only the short shoulder folds adapt locally to make real contact.
- * In particular neither the collar nor the free ends sample the body height
- * at their vertices. Gravity is body-local, so camera movement cannot refit it.
+ * One cloth loop actually encircles the lower body, including both sides and
+ * rear. Its convex support envelope bridges concave notches like tensioned
+ * fabric. Two free tails retain their authored gravity drape and volume;
+ * their clearance is one shared rigid translation, never vertex body-hugging.
  */
-export declare function drapedScarf(center: Vec3, size: number, contour: ShapeContour, scales: Vec3, height: (x: number, y: number) => number): ClothMesh;
+export declare function drapedScarf(center: Vec3, size: number, contour: ShapeContour, scales: Vec3, rotation?: Vec3): ClothMesh;
 export {};

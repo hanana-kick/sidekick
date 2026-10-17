@@ -82,7 +82,8 @@
         "yaw": 8,
         "pitch": 6
       },
-      "filename": "scarf.png"
+      "filename": "scarf.png",
+      "sha256": "aaceb42131d56f8847690ace4bed55f8179ed66186ab129f618007698f4631bf"
     },
     {
       "preset": "necklace",
