@@ -797,7 +797,10 @@ test('Studio keyboard tabs, named slider thumbs and Select Escape retain accessi
   await page.locator('#shape-duration').focus(); await page.locator('#shape-duration').press('ArrowRight'); assert.equal(await rangeValue(page, 'shape-duration'), 500);
   await page.locator('#shape-easing').focus(); await page.locator('#shape-easing').press('ArrowDown');
   await page.getByRole('listbox').waitFor(); await page.keyboard.press('Escape');
-  await page.getByRole('listbox').waitFor({ state: 'hidden' }); assert.equal(await page.locator('#shape-easing').evaluate(el => document.activeElement === el), true);
+  await page.getByRole('listbox').waitFor({ state: 'hidden' });
+  // FocusScope restores the trigger in its deferred unmount-autofocus task.
+  await page.waitForFunction(() => document.activeElement === document.getElementById('shape-easing'));
+  assert.equal(await page.locator('#shape-easing').evaluate(el => document.activeElement === el), true);
 });
 
 test('Studio camera degree controls, presets, API and orbit stay synchronized without changing body pose', async t => {
