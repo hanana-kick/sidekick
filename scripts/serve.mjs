@@ -3,16 +3,15 @@ import { readFile, stat } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export function createAppServer() {
-  const root = resolve('dist');
-  const mime = { '.js': 'text/javascript', '.html': 'text/html', '.css': 'text/css', '.json': 'application/json', '.map': 'application/json', '.woff2': 'font/woff2' };
+export function createAppServer(directory = 'dist') {
+  const root = resolve(directory);
+  const mime = { '.js': 'text/javascript', '.html': 'text/html', '.css': 'text/css', '.json': 'application/json', '.map': 'application/json', '.woff': 'font/woff', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
   return createServer(async (req, res) => {
     try {
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         res.writeHead(405, { Allow: 'GET, HEAD' }).end(); return;
       }
       const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-      if (pathname === '/favicon.ico') { res.writeHead(204).end(); return; }
       const file = resolve(root, pathname === '/' ? 'index.html' : pathname === '/playground/' ? 'playground/index.html' : `.${pathname}`);
       if (!file.startsWith(root + sep)) { res.writeHead(403).end(); return; }
       if (!(await stat(file)).isFile()) { res.writeHead(404).end(); return; }

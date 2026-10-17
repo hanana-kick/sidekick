@@ -699,9 +699,11 @@ UI 구성은 `components.json`과 `playground/components/ui/`, 저장·명령·�
 
 ### GitHub Pages 배포
 
-이 공개 저장소에는 GitHub Actions 기반 Pages 배포가 이미 설정되어 있으며 사용자 지정 도메인은 `sidekick.hananakick.cc`입니다. `.github/workflows/pages.yml`은 기존 공개 Studio를 갱신하는 수동 워크플로입니다. CI를 통과한 커밋을 선택하고 **수동 실행 시 `approve_public_deployment`를 명시적으로 승인해야** 빌드·배포합니다. 커밋을 push하거나 워크플로 파일을 추가하는 것만으로 배포하지 않습니다.
+이 공개 저장소의 GitHub Actions 기반 Pages 주소는 [hanana-kick.github.io/sidekick/](https://hanana-kick.github.io/sidekick/)입니다. `.github/workflows/pages.yml`은 기존 공개 Studio를 갱신하는 수동 워크플로입니다. CI를 통과한 커밋을 선택하고 **수동 실행 시 `approve_public_deployment`를 명시적으로 승인해야** 빌드·배포합니다. 커밋을 push하거나 워크플로 파일을 추가하는 것만으로 배포하지 않습니다.
 
-워크플로는 `actions/configure-pages`의 기존 설정을 읽고 `base_path` 출력에 `/`를 붙여 `SIDEKICK_BASE`로 사용합니다. Pages 활성화나 설정 변경은 하지 않습니다. 현재 사용자 지정 도메인은 루트 경로이므로 base는 `/`입니다. 같은 경로로 로컬 빌드를 확인하려면 `SIDEKICK_BASE=/ npm run build:all`을 사용하세요. 프로젝트 하위 경로를 별도로 확인할 때만 해당 경로에 맞게 base를 지정합니다. 배포 완료 여부는 선택한 커밋의 Actions 결과로 확인하세요.
+워크플로는 `actions/configure-pages`로 기존 설정만 읽으며 Pages 활성화나 도메인·공개 범위·보안 설정을 변경하지 않습니다. 기본 Vite base는 `./`이므로 **`npm run build:all`로 만든 동일한 `dist/`**가 사용자 지정 도메인의 `/`와 GitHub Pages의 `/sidekick/`에서 모두 동작합니다. 각 위치의 `index.html` 및 `playground/`·`playground/index.html` 진입점도 지원하며 스크립트·스타일·글꼴·장비 썸네일·favicon을 해당 배포 위치에서 불러옵니다. 홈 링크와 계산된 썸네일 URL은 현재 문서 깊이 대신 빌드 모듈 위치를 기준으로 합니다.
+
+고정 경로 전용 배포가 필요하면 `SIDEKICK_BASE=/my-path/ npm run build:all`처럼 명시적으로 덮어쓸 수 있지만, 그 산출물은 지정된 경로에서 제공해야 합니다. 수동 Pages 워크플로는 사용자 지정 도메인의 `base_path`에 따라 base를 바꾸지 않습니다. `node --test tests/pages-build.test.mjs`는 동일한 기본 빌드의 루트·하위 경로 자산 참조를 검사하며, 실제 브라우저의 렌더링과 상호작용은 `npm run test:browser`로 확인합니다. 배포 뒤에는 `verify` 작업이 실제 프로젝트 URL을 Chromium으로 열고 검사하며 스크린샷을 Actions 산출물에 저장합니다. 선택한 커밋의 배포와 검증 작업 결과를 모두 확인하세요.
 
 ### 검사
 

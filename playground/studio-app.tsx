@@ -20,8 +20,9 @@ import type { StudioState } from './studio-controller.js';
 import { ChoiceField, ColorField, RangeField } from './studio-controls';
 import { ShapeCatalog } from './shape-catalog';
 import { sceneSnippets } from './studio-snippets';
+import { studioBaseURL } from './studio-assets';
 
-const ASSET_BASE = import.meta.env?.BASE_URL ?? '/';
+const ASSET_BASE = studioBaseURL(import.meta.env?.BASE_URL ?? '/', import.meta.url);
 const ACTIVITY_LABELS: Record<Activity, string> = { idle: '대기', thinking: '생각 중', listening: '듣는 중', speaking: '말하는 중', celebrating: '축하', still: '정적' };
 const CAMERA_LABELS: Record<CameraPreset, string> = { front: '정면', 'three-quarter': '사선 45°', side: '측면 90°' };
 function download(blob: Blob, filename: string): void {

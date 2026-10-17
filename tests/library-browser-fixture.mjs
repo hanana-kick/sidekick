@@ -24,6 +24,7 @@ const shell = (title, body, entry, scripts = `<script type="module" src="${entry
 export async function createLibraryBrowserFixture() {
   const consumer = await createPackageConsumer({ react: true });
   const { directory, packagePath } = consumer;
+  const servers = [];
   try {
     await writeFile(join(directory, 'vanilla.html'), shell('A companion in plain HTML', `<p>One element. No framework, application provider, or setup call.</p><div class="grid"><section class="card"><div class="canvas"><sidekick-avatar id="bare"></sidekick-avatar></div><div class="label">Default custom element</div><pre>&lt;sidekick-avatar&gt;&lt;/sidekick-avatar&gt;</pre></section><section class="card"><div class="canvas"><sidekick-avatar id="configured" shape="puffy" body-color="#8bba9c" eye-color="#27372f" head-accessory="beret" head-color="#385d4c" left-expression="smile" right-expression="smile" activity="still"></sidekick-avatar></div><div class="label">Configured with HTML attributes</div><pre>shape="puffy"\nbody-color="#8bba9c"\nhead-accessory="beret"</pre></section></div>`, './vanilla.mjs'));
     await writeFile(join(directory, 'vanilla.mjs'), `import * as api from '${packageName}'; window.libraryAPI = api; window.fixtureLoaded = true;`);
@@ -115,33 +116,67 @@ window.fixtureLoaded = true;
     await writeFile(join(output, 'prebuilt-react.mjs'), reactEntry);
     await writeFile(join(output, 'prebuilt-react.html'), shell('React with a prebuilt wrapper', `<p>Unchanged release modules with React 19 provided by an import map.</p><div id="root"></div>`, null,
       `<script type="importmap">${JSON.stringify({ imports: { react: '/vendor/react.js', 'react-dom/client': '/vendor/react-dom-client.js' } })}</script><script type="module" src="/prebuilt-react.mjs"></script>`));
+    // A production React-only consumer keeps the wrapper's renderer import lazy.
+    // The existing development/StrictMode fixture above remains unchanged.
+    await mkdir(join(directory, 'playground'));
+    const productionShell = entry => shell('A production React companion', '<div id="root"></div>', entry)
+      .replace('</head>', '<link rel="icon" href="data:,"></head>');
+    await writeFile(join(directory, 'production-react.html'), productionShell('./production-react.mjs'));
+    await writeFile(join(directory, 'playground/production-react.html'), productionShell('../production-react.mjs'));
+    await writeFile(join(directory, 'production-react.mjs'), (await readFile(join(directory, 'react.mjs'), 'utf8'))
+      .replace('\nrender();\nwindow.fixtureLoaded', "\nstate.registeredBeforeMount = !!customElements.get('sidekick-avatar');\nrender();\nwindow.fixtureLoaded"));
+    const productionReactOutput = join(directory, 'production-react');
+    await build({
+      configFile: false, root: directory, base: './', publicDir: false, logLevel: 'warn',
+      build: { outDir: productionReactOutput, emptyOutDir: true, target: 'es2022', manifest: true,
+        rolldownOptions: { input: { react: join(directory, 'production-react.html'), nested: join(directory, 'playground/production-react.html') } },
+      },
+      define: { 'process.env.NODE_ENV': JSON.stringify('production') },
+    });
+    const productionReactManifest = JSON.parse(await readFile(join(productionReactOutput, '.vite/manifest.json'), 'utf8'));
+
+    // Build Pages ONCE with the portable deployment setting. Every root, project
+    // and nested-route test below serves these exact files; no /sidekick/ rebuild
+    // or HTML rewriting is allowed to mask a deployment-base regression.
     const pagesOutput = join(directory, 'pages');
-    execFileSync(process.execPath, [join(repository, 'node_modules/vite/bin/vite.js'), 'build', '--outDir', pagesOutput, '--emptyOutDir'], { cwd: repository, env: { ...process.env, SIDEKICK_BASE: '/sidekick/' }, stdio: ['ignore', 'pipe', 'pipe'] });
-    const server = createFixtureServer(output, packagePath);
-    const pagesServer = createFixtureServer(pagesOutput, packagePath, '/sidekick');
-    await new Promise((resolveListen, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolveListen); });
-    await new Promise((resolveListen, reject) => { pagesServer.once('error', reject); pagesServer.listen(0, '127.0.0.1', resolveListen); });
-    return {
-      directory, output, packagePath, baseURL: 'http://127.0.0.1:' + server.address().port,
-      pagesURL: 'http://127.0.0.1:' + pagesServer.address().port + '/sidekick/',
-      async cleanup() { await Promise.all([new Promise(done => server.close(done)), new Promise(done => pagesServer.close(done))]); await consumer.cleanup(); },
+    execFileSync(process.execPath, [join(repository, 'node_modules/vite/bin/vite.js'), 'build', '--outDir', pagesOutput, '--emptyOutDir'], { cwd: repository, env: { ...process.env, SIDEKICK_BASE: './' }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const listen = async (root, base = '', options) => {
+      const server = createFixtureServer(root, packagePath, base, options);
+      servers.push(server);
+      await new Promise((resolveListen, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolveListen); });
+      return 'http://127.0.0.1:' + server.address().port + base + '/';
     };
-  } catch (error) { await consumer.cleanup(); throw error; }
+    const deployments = async root => Promise.all(['', '/sidekick'].map(async base => ({
+      name: base ? 'project' : 'root', basePath: base + '/', output: root,
+      url: await listen(root, base, { strict: true }),
+    })));
+    const baseURL = (await listen(output)).replace(/\/$/, '');
+    const pagesDeployments = await deployments(pagesOutput);
+    const productionReactDeployments = await deployments(productionReactOutput);
+    return {
+      directory, output, packagePath, baseURL, pagesOutput, pagesDeployments,
+      productionReactOutput, productionReactManifest, productionReactDeployments,
+      async cleanup() { await Promise.all(servers.map(server => new Promise(done => server.close(done)))); await consumer.cleanup(); },
+    };
+  } catch (error) {
+    await Promise.all(servers.map(server => new Promise(done => server.close(done))));
+    await consumer.cleanup(); throw error;
+  }
 }
 
-function createFixtureServer(output, packagePath, base = '') {
-  const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.map': 'application/json' };
+function createFixtureServer(output, packagePath, base = '', { strict = false } = {}) {
+  const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.map': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2' };
   return createServer(async (req, res) => {
     try {
       if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405).end(); return; }
       let pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-      if (pathname === '/favicon.ico') { res.writeHead(204).end(); return; }
+      if (!strict && pathname === '/favicon.ico') { res.writeHead(204).end(); return; }
       if (base) {
         if (!pathname.startsWith(base + '/')) { res.writeHead(404).end('Wrong deployment base'); return; }
         pathname = pathname.slice(base.length);
       }
       if (pathname.endsWith('/')) pathname += 'index.html';
-      const packageAsset = pathname.startsWith('/package/');
+      const packageAsset = !strict && pathname.startsWith('/package/');
       const root = resolve(packageAsset ? packagePath : output);
       const file = resolve(root, '.' + (packageAsset ? pathname.slice('/package'.length) : pathname));
       if (!file.startsWith(root + sep)) { res.writeHead(403).end(); return; }

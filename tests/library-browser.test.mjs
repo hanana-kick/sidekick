@@ -25,16 +25,19 @@ before(async () => {
 });
 after(async () => { await browser?.close(); await fixture?.cleanup(); if (studioServer) await new Promise(resolve => studioServer.close(resolve)); });
 
-const entryURL = entry => entry === 'studio' ? studioURL : entry === 'pages' ? fixture.pagesURL : `${fixture.baseURL}/${entry}.html`;
+const entryURL = entry => entry === 'studio' ? studioURL : entry === 'pages' ? fixture.pagesDeployments[1].url : `${fixture.baseURL}/${entry}.html`;
 const avatarID = entry => entry === 'studio' || entry === 'pages' ? 'flat' : entry === 'vanilla' ? 'bare' : ['react', 'prebuilt-react'].includes(entry) ? 'react-avatar' : entry === 'hydration' ? 'hydrated-avatar' : entry.startsWith('prebuilt-') ? 'prebuilt-avatar' : 'cdn-avatar';
 function observeStartup(page) {
-  const errors = [], requests = [], resources = [];
+  const errors = [], requests = [], resources = [], responses = [];
   page.on('request', request => resources.push({ url: request.url(), type: request.resourceType() }));
   page.on('pageerror', error => errors.push(error.stack ?? error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   page.on('requestfailed', request => requests.push({ url: request.url(), failure: request.failure()?.errorText }));
-  page.on('response', response => { if (response.status() >= 400) requests.push({ url: response.url(), status: response.status() }); });
-  const diagnostics = { errors, requests, resources };
+  page.on('response', response => {
+    responses.push({ url: response.url(), status: response.status(), type: response.request().resourceType(), contentType: response.headers()['content-type'] ?? '' });
+    if (response.status() >= 400) requests.push({ url: response.url(), status: response.status() });
+  });
+  const diagnostics = { errors, requests, resources, responses };
   startupByPage.set(page, diagnostics);
   return diagnostics;
 }
@@ -76,7 +79,7 @@ async function assertAvatarReady(page, entry, diagnostics) {
     throw new Error(`${entry} consumer startup failed: ${cause.message}\n${JSON.stringify({ ...state, ...diagnostics }, null, 2)}`, { cause });
   } finally { page.off('pageerror', onError); page.off('console', onConsole); }
 }
-async function pageFor(t, entry = 'vanilla', options = {}) {
+async function pageFor(t, entry = 'vanilla', options = {}, url = entryURL(entry)) {
   const page = await browser.newPage({ viewport: { width: 1080, height: 800 }, reducedMotion: 'reduce', ...options });
   const diagnostics = observeStartup(page);
   t.after(async () => { await page.close(); assert.deepEqual(diagnostics.errors, [], 'No consumer browser errors or React hydration warnings'); });
@@ -101,7 +104,7 @@ async function pageFor(t, entry = 'vanilla', options = {}) {
       elementEvents: active.filter(item => item.target === element && item.type.startsWith('sidekick-')).length,
     });
   });
-  await page.goto(entryURL(entry));
+  await page.goto(url);
   await assertAvatarReady(page, entry, diagnostics);
   if (entry === 'studio') await page.evaluate(async () => { window.libraryAPI = await import('/src/index.js'); });
   await settle(page);
@@ -656,24 +659,106 @@ test('Studio equipment palette serves a real decodable preview for every catalog
   if (screenshots) await page.screenshot({ path: `${screenshots}/library-accessory-catalog.png` });
 });
 
-test('the actual /sidekick/ Pages build loads its scripts, fonts and every computed preview URL under the deployment base', async t => {
-  const page = await pageFor(t, 'pages', { viewport: { width: 1440, height: 1040 } });
-  await page.locator('[data-shape="puffy"]').click();
-  assert.equal(await page.locator('#flat').evaluate(element => element.design.body.shape), 'puffy');
-  const result = await page.evaluate(async () => {
-    const images = [...document.querySelectorAll('[data-equipment] img')];
-    for (const image of images) image.loading = 'eager';
-    await Promise.all(images.map(image => image.decode()));
-    await document.fonts.ready;
-    return { images: images.map(image => ({ src: image.src, width: image.naturalWidth })),
-      local: performance.getEntriesByType('resource').map(entry => new URL(entry.name)).filter(url => url.origin === location.origin && url.pathname !== '/favicon.ico').map(url => url.pathname),
-      home: new URL(document.querySelector('.brand').href).pathname,
-    };
+function assertDeploymentResources(page, deployment) {
+  const diagnostics = startupByPage.get(page), origin = new URL(deployment.url).origin;
+  assert.deepEqual(diagnostics.errors, [], 'No console or page errors');
+  assert.deepEqual(diagnostics.requests, [], 'No failed network requests, including favicon and lazy images');
+  const resources = diagnostics.resources.filter(resource => !/^(?:data|blob):/.test(resource.url));
+  assert.ok(resources.length > 1, 'Real browser requests were observed');
+  for (const resource of resources) {
+    const url = new URL(resource.url);
+    assert.equal(url.origin, origin, `Unexpected external resource: ${resource.url}`);
+    assert.ok(url.pathname.startsWith(deployment.basePath), `Resource escaped the deployment mount: ${resource.url}`);
+  }
+  for (const response of diagnostics.responses) assert.ok(response.status >= 200 && response.status < 300, JSON.stringify(response));
+  return diagnostics;
+}
+
+for (const name of ['root', 'project']) for (const route of ['', 'playground/', 'playground/index.html']) {
+  test(`one relative Pages artifact renders with complete assets at ${name}:${route || '/'}`, async t => {
+    const deployment = fixture.pagesDeployments.find(item => item.name === name);
+    assert.equal(deployment.output, fixture.pagesOutput, 'Every route serves the same build directory');
+    const page = await pageFor(t, 'pages', { viewport: { width: 1440, height: 1040 } }, new URL(route, deployment.url).href);
+    await page.locator('[data-shape="puffy"]').click();
+    await page.locator('[data-equipment="eyes"][data-accessory="glasses"]').click();
+    await page.getByRole('tab', { name: '카메라', exact: true }).click();
+    await page.locator('[data-camera-preset="three-quarter"]').click();
+    await page.waitForFunction(() => {
+      const avatar = document.getElementById('flat');
+      return avatar?.ready === true && avatar.design.body.shape === 'puffy' && avatar.camera.yaw === 45 && avatar.design.accessories.some(item => item.preset === 'glasses');
+    });
+    await settle(page);
+    const live = await page.locator('#flat').evaluate(element => {
+      const capture = element.capturePixels();
+      return { ready: element.ready, shape: element.design.body.shape, accessories: element.design.accessories.map(item => item.preset),
+        yaw: element.camera.yaw, visible: capture.pixels.some((value, index) => index % 4 === 3 && value === 255), transparent: capture.pixels[3] === 0 };
+    });
+    assert.equal(live.ready, true); assert.equal(live.shape, 'puffy'); assert.ok(live.accessories.includes('glasses'));
+    assert.equal(live.yaw, 45); assert.equal(live.visible, true); assert.equal(live.transparent, true);
+    const result = await page.evaluate(async () => {
+      const tiles = [...document.querySelectorAll('[data-equipment][data-accessory]')];
+      const images = tiles.map(tile => tile.querySelector('img'));
+      if (images.some(image => !image)) throw new Error('An equipment tile has no preview image');
+      for (const image of images) image.loading = 'eager';
+      await Promise.all(images.map(image => image.decode()));
+      await document.fonts.load('16px "Geist Variable"'); await document.fonts.ready;
+      const icon = document.querySelector('link[rel~="icon"]');
+      if (!icon) throw new Error('Studio must declare a deployment-relative favicon');
+      const iconResponse = await fetch(icon.href);
+      if (!iconResponse.ok) throw new Error('Favicon failed: ' + icon.href);
+      const iconImage = new Image(); iconImage.src = icon.href; await iconImage.decode();
+      return {
+        images: tiles.map((tile, index) => ({ preset: tile.dataset.accessory, slot: tile.dataset.equipment, src: images[index].src, width: images[index].naturalWidth })),
+        modules: [...document.querySelectorAll('script[type="module"][src]')].map(script => script.src),
+        stylesheets: [...document.querySelectorAll('link[rel="stylesheet"]')].map(link => ({ href: link.href, rules: link.sheet?.cssRules.length ?? 0 })),
+        fonts: [...document.fonts].filter(font => font.status === 'loaded').map(font => font.family),
+        fontFamily: getComputedStyle(document.body).fontFamily,
+        favicon: { href: icon.href, status: iconResponse.status, width: iconImage.naturalWidth },
+        home: document.querySelector('.brand').href,
+      };
+    });
+    const manifest = JSON.parse(await readFile(`${fixture.pagesOutput}/accessory-previews/manifest.json`, 'utf8'));
+    assert.deepEqual([...new Set(result.images.map(image => image.preset))].sort(), manifest.items.map(item => item.preset).sort(), 'Every catalog preview is decoded');
+    assert.deepEqual([...new Set(result.images.map(image => image.slot))].sort(), ['head', 'eyes', 'mouth', 'neck', 'leftEar', 'rightEar'].sort());
+    assert.ok(result.images.every(image => image.width >= 72 && new URL(image.src).pathname === `${deployment.basePath}accessory-previews/${image.preset}.png`));
+    assert.ok(result.modules.length > 0); assert.ok(result.stylesheets.length > 0);
+    assert.ok(result.stylesheets.every(sheet => sheet.rules > 0), 'Built CSS was loaded and parsed');
+    assert.ok(result.fonts.some(family => family.includes('Geist')), 'The actual bundled font loaded');
+    assert.match(result.fontFamily, /Geist/);
+    assert.equal(new URL(result.favicon.href).pathname, `${deployment.basePath}favicon.svg`); assert.equal(result.favicon.status, 200); assert.ok(result.favicon.width > 0);
+    assert.equal(result.home, deployment.url, 'Home works from both the directory and explicit nested index entry');
+    await page.waitForLoadState('networkidle');
+    const diagnostics = assertDeploymentResources(page, deployment), successful = new Set(diagnostics.responses.map(response => response.url));
+    for (const url of [...result.modules, ...result.stylesheets.map(sheet => sheet.href), ...result.images.map(image => image.src), result.favicon.href]) assert.ok(successful.has(url), `No successful response for ${url}`);
+    assert.ok(diagnostics.responses.some(response => response.type === 'font' && /font\/woff2/.test(response.contentType)), 'Chromium requested a real WOFF2 asset');
+    for (const url of [...result.modules, ...result.stylesheets.map(sheet => sheet.href)]) assert.ok(new URL(url).pathname.startsWith(`${deployment.basePath}assets/`), url);
+    if (screenshots) await page.screenshot({ path: `${screenshots}/library-pages-${name}-${route.replaceAll('/', '-').replaceAll('.', '-') || 'index'}.png` });
   });
-  assert.ok(result.images.length >= 8); assert.ok(result.images.every(image => image.width >= 72 && new URL(image.src).pathname.startsWith('/sidekick/accessory-previews/')));
-  assert.ok(result.local.length > 5); assert.ok(result.local.every(path => path.startsWith('/sidekick/')), JSON.stringify(result.local)); assert.equal(result.home, '/sidekick/');
-  if (screenshots) await page.screenshot({ path: `${screenshots}/library-pages-base.png` });
-});
+}
+
+for (const name of ['root', 'project']) for (const route of ['production-react.html', 'playground/production-react.html']) {
+  test(`one production React artifact resolves its lazy renderer at ${name}:${route}`, async t => {
+    const deployment = fixture.productionReactDeployments.find(item => item.name === name);
+    assert.equal(deployment.output, fixture.productionReactOutput);
+    const page = await pageFor(t, 'react', {}, new URL(route, deployment.url).href);
+    assert.equal(await page.evaluate(() => window.consumer.registeredBeforeMount), false, 'The renderer was not statically registered before the React mount');
+    await compareReactPixelsToNative(t, page, `library-production-react-${name}-${route.startsWith('playground/') ? 'nested' : 'root'}`);
+    await page.evaluate(() => window.renderConsumer({ shape: 'heart', bodyColor: '#b7a5ce', mouseTracking: false }));
+    await page.waitForFunction(() => window.consumer.element?.design.body.shape === 'heart');
+    assert.equal((await stateOf(page, '#react-avatar')).design.body.color, '#b7a5ce');
+    await page.locator('#react-avatar').focus(); await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => window.consumer.events.filter(event => event.name === 'Activate').length), 1);
+    await page.waitForLoadState('networkidle');
+    const diagnostics = assertDeploymentResources(page, deployment);
+    const dynamicKeys = [...new Set(Object.values(fixture.productionReactManifest).flatMap(chunk => chunk.dynamicImports ?? []))];
+    assert.ok(dynamicKeys.length > 0, 'This production consumer must retain an actual dynamic renderer import');
+    for (const key of dynamicKeys) {
+      const chunk = fixture.productionReactManifest[key]; assert.ok(chunk?.isDynamicEntry, key);
+      const url = new URL(chunk.file, deployment.url).href;
+      assert.ok(diagnostics.responses.some(response => response.url === url && response.type === 'script'), `The actual lazy chunk was not loaded: ${url}`);
+    }
+  });
+}
 
 test('Studio JSON file import applies a complete scene and export round-trips it; rejected files preserve live state and storage', async t => {
   const page = await pageFor(t, 'studio', { viewport: { width: 1440, height: 1040 } });
