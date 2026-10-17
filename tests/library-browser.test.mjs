@@ -15,15 +15,64 @@ before(async () => {
   const executablePath = process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
   browser = await chromium.launch({ executablePath, headless: process.env.SIDEKICK_HEADED !== '1', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
   if (screenshots) await mkdir(screenshots, { recursive: true });
+  // One early smoke protects this suite from repeated startup timeouts. The
+  // remaining independent entry paths retain their own full behavioral tests.
+  const smoke = await browser.newPage({ reducedMotion: 'reduce' });
+  const diagnostics = observeStartup(smoke);
+  try { await smoke.goto(entryURL('vanilla')); await assertAvatarReady(smoke, 'vanilla', diagnostics); }
+  finally { await smoke.close(); }
 });
 after(async () => { await browser?.close(); await fixture?.cleanup(); if (studioServer) await new Promise(resolve => studioServer.close(resolve)); });
 
+const entryURL = entry => entry === 'studio' ? studioURL : entry === 'pages' ? fixture.pagesURL : `${fixture.baseURL}/${entry}.html`;
+const avatarID = entry => entry === 'studio' || entry === 'pages' ? 'flat' : entry === 'vanilla' ? 'bare' : entry === 'react' ? 'react-avatar' : entry === 'hydration' ? 'hydrated-avatar' : 'cdn-avatar';
+function observeStartup(page) {
+  const errors = [], requests = [];
+  page.on('pageerror', error => errors.push(error.stack ?? error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('requestfailed', request => requests.push({ url: request.url(), failure: request.failure()?.errorText }));
+  page.on('response', response => { if (response.status() >= 400) requests.push({ url: response.url(), status: response.status() }); });
+  return { errors, requests };
+}
+async function assertAvatarReady(page, entry, diagnostics) {
+  const id = avatarID(entry);
+  let onError, onConsole;
+  const fatal = new Promise((_, reject) => {
+    onError = error => reject(error);
+    onConsole = message => { if (message.type() === 'error') reject(new Error(message.text())); };
+    page.on('pageerror', onError); page.on('console', onConsole);
+  });
+  try {
+    await Promise.race([fatal, (async () => {
+      if (diagnostics.errors.length) throw new Error('Browser errors during initial module execution');
+      // React intentionally loads registration in its client effect. Every other
+      // fixture uses a static auto entry that must execute before the load event.
+      if (!['react', 'hydration'].includes(entry) && !await page.evaluate(() => !!customElements.get('sidekick-avatar'))) throw new Error('sidekick-avatar was not registered by the entry module');
+      await page.waitForFunction(id => {
+        const avatar = document.getElementById(id);
+        return avatar?.ready === true || avatar?.shadowRoot?.querySelector('[part="fallback"]')?.hidden === false;
+      }, id, { timeout: 10000 });
+      if (!await page.locator('#' + id).evaluate(avatar => avatar.ready === true)) throw new Error('The avatar displayed its renderer fallback instead of becoming ready');
+      if (diagnostics.errors.length) throw new Error('Browser errors while the renderer initialized');
+    })()]);
+  } catch (cause) {
+    const state = await page.evaluate(id => {
+      const avatar = document.getElementById(id), canvas = avatar?.shadowRoot?.querySelector('canvas');
+      return { url: location.href, documentReadyState: document.readyState, registered: !!customElements.get('sidekick-avatar'),
+        hostPresent: !!avatar, hostConstructor: avatar?.constructor.name ?? null, ready: avatar?.ready ?? null,
+        fallback: avatar?.shadowRoot?.querySelector('[part="fallback"]')?.textContent ?? null,
+        canvas: canvas ? { width: canvas.width, height: canvas.height, hidden: canvas.hidden } : null,
+        scripts: [...document.scripts].map(script => ({ src: script.src, type: script.type })),
+      };
+    }, id).catch(error => ({ diagnosticError: error.message }));
+    if (screenshots) await page.screenshot({ path: `${screenshots}/startup-library-${entry}-failure.png`, timeout: 2000 }).catch(() => {});
+    throw new Error(`${entry} consumer startup failed: ${cause.message}\n${JSON.stringify({ ...state, ...diagnostics }, null, 2)}`, { cause });
+  } finally { page.off('pageerror', onError); page.off('console', onConsole); }
+}
 async function pageFor(t, entry = 'vanilla', options = {}) {
   const page = await browser.newPage({ viewport: { width: 1080, height: 800 }, reducedMotion: 'reduce', ...options });
-  const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
-  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-  t.after(async () => { await page.close(); assert.deepEqual(errors, [], 'No consumer browser errors or React hydration warnings'); });
+  const diagnostics = observeStartup(page);
+  t.after(async () => { await page.close(); assert.deepEqual(diagnostics.errors, [], 'No consumer browser errors or React hydration warnings'); });
   await page.addInitScript(() => {
     // Observe the real listener lifecycle without wrapping or changing any callbacks.
     const active = [];
@@ -45,9 +94,8 @@ async function pageFor(t, entry = 'vanilla', options = {}) {
       elementEvents: active.filter(item => item.target === element && item.type.startsWith('sidekick-')).length,
     });
   });
-  await page.goto(entry === 'studio' ? studioURL : entry === 'pages' ? fixture.pagesURL : `${fixture.baseURL}/${entry}.html`);
-  const id = entry === 'studio' || entry === 'pages' ? 'flat' : entry === 'vanilla' ? 'bare' : entry === 'react' ? 'react-avatar' : entry === 'hydration' ? 'hydrated-avatar' : 'cdn-avatar';
-  await page.waitForFunction(id => document.getElementById(id)?.ready === true, id);
+  await page.goto(entryURL(entry));
+  await assertAvatarReady(page, entry, diagnostics);
   if (entry === 'studio') await page.evaluate(async () => { window.libraryAPI = await import('/src/index.js'); });
   await settle(page);
   return page;

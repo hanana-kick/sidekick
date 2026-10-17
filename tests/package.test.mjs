@@ -26,7 +26,9 @@ test('packed core installs offline without React, Studio, or lifecycle builds', 
   assert.ok(files.includes('dist/library/react.d.ts'));
   assert.ok(files.includes('third_party/material-shapes/LICENSE'));
   assert.ok(!files.some(file => /\.map$|playground|assets\//.test(file)));
-  assert.deepEqual(consumer.manifest.sideEffects, ['./dist/library/index.js', './dist/library/auto.js']);
+  for (const entry of ['./dist/library/index.js', './dist/library/auto.js', './src/index.ts', './src/auto.ts', '**/*.css']) assert.ok(consumer.manifest.sideEffects.includes(entry));
+  assert.ok(!consumer.manifest.sideEffects.includes('./dist/library/register.js'));
+  assert.ok(!consumer.manifest.sideEffects.includes('./dist/library/core.js'));
   assert.ok(consumer.packed.size < 250_000, `Unexpected packed size ${consumer.packed.size}`);
   const output = consumer.run(['--input-type=module', '-e', `
     import assert from 'node:assert/strict';

@@ -46,7 +46,7 @@
     "build:studio": "vite build",
     "check:library": "node scripts/build-library.mjs --check",
     "pack:library": "npm run build:library && npm pack",
-    "test:package": "node --test --test-concurrency=1 tests/package.test.mjs tests/react-wrapper.test.mjs"
+    "test:package": "node --test --test-concurrency=1 tests/package.test.mjs tests/react-wrapper.test.mjs tests/build-side-effects.test.mjs"
   },
   "devDependencies": {
     "@fontsource-variable/geist": "^5.3.0",
@@ -76,8 +76,15 @@
   "main": "./dist/library/index.js",
   "types": "./dist/library/index.d.ts",
   "sideEffects": [
+    "./src/index.ts",
+    "./src/auto.ts",
+    "./src/index.js",
+    "./src/auto.js",
+    "./dist/src/index.js",
+    "./dist/src/auto.js",
     "./dist/library/index.js",
-    "./dist/library/auto.js"
+    "./dist/library/auto.js",
+    "**/*.css"
   ],
   "peerDependencies": {
     "react": "^19.0.0"

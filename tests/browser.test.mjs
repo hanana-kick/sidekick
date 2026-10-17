@@ -15,17 +15,65 @@ before(async () => {
   const executablePath = process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
   browser = await chromium.launch({ executablePath, headless: process.env.SIDEKICK_HEADED !== '1', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
   if (screenshots) await mkdir(screenshots, { recursive: true });
+  // Fail the suite once if the built application cannot start. Do not import the
+  // test API here: that could accidentally repair a tree-shaken auto-registration.
+  const smoke = await browser.newPage({ reducedMotion: 'reduce' });
+  const diagnostics = observeStartup(smoke);
+  try {
+    if (offline) await loadOfflineFixture(smoke); else await smoke.goto(baseURL);
+    await assertAvatarReady(smoke, diagnostics);
+  } finally { await smoke.close(); }
 });
 after(async () => { await browser?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
+function observeStartup(page) {
+  const errors = [], requests = [];
+  page.on('pageerror', error => errors.push(error.stack ?? error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('requestfailed', request => requests.push({ url: request.url(), failure: request.failure()?.errorText }));
+  page.on('response', response => { if (response.status() >= 400) requests.push({ url: response.url(), status: response.status() }); });
+  return { errors, requests };
+}
+async function assertAvatarReady(page, diagnostics) {
+  let onError, onConsole;
+  const fatal = new Promise((_, reject) => {
+    onError = error => reject(error);
+    onConsole = message => { if (message.type() === 'error') reject(new Error(message.text())); };
+    page.on('pageerror', onError); page.on('console', onConsole);
+  });
+  try {
+    await Promise.race([fatal, (async () => {
+      if (diagnostics.errors.length) throw new Error('Browser errors during initial module execution');
+      // Module scripts have executed by load. Studio's static auto entry must
+      // already have registered the tag even if React has not committed the host.
+      if (!await page.evaluate(() => !!customElements.get('sidekick-avatar'))) throw new Error('sidekick-avatar was not registered by the Studio bundle');
+      await page.waitForFunction(() => {
+        const avatar = document.getElementById('flat');
+        return avatar?.ready === true || avatar?.shadowRoot?.querySelector('[part="fallback"]')?.hidden === false;
+      }, undefined, { timeout: 10000 });
+      if (!await page.locator('#flat').evaluate(avatar => avatar.ready === true)) throw new Error('The avatar displayed its renderer fallback instead of becoming ready');
+      if (diagnostics.errors.length) throw new Error('Browser errors while the renderer initialized');
+    })()]);
+  } catch (cause) {
+    const state = await page.evaluate(() => {
+      const avatar = document.getElementById('flat'), canvas = avatar?.shadowRoot?.querySelector('canvas');
+      return { url: location.href, documentReadyState: document.readyState, registered: !!customElements.get('sidekick-avatar'),
+        hostPresent: !!avatar, hostConstructor: avatar?.constructor.name ?? null, ready: avatar?.ready ?? null,
+        fallback: avatar?.shadowRoot?.querySelector('[part="fallback"]')?.textContent ?? null,
+        canvas: canvas ? { width: canvas.width, height: canvas.height, hidden: canvas.hidden } : null,
+        scripts: [...document.scripts].map(script => ({ src: script.src, type: script.type })),
+      };
+    }).catch(error => ({ diagnosticError: error.message }));
+    if (screenshots) await page.screenshot({ path: `${screenshots}/startup-studio-failure.png`, timeout: 2000 }).catch(() => {});
+    throw new Error(`Studio startup failed: ${cause.message}\n${JSON.stringify({ ...state, ...diagnostics }, null, 2)}`, { cause });
+  } finally { page.off('pageerror', onError); page.off('console', onConsole); }
+}
 async function pageFor(t, options = {}, beforeLoad) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1040 }, reducedMotion: 'reduce', ...options });
-  const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
-  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-  t.after(async () => { await page.close(); assert.deepEqual(errors, [], 'Browser console/page errors'); });
+  const diagnostics = observeStartup(page);
+  t.after(async () => { await page.close(); assert.deepEqual(diagnostics.errors, [], 'Browser console/page errors'); });
   if (beforeLoad) await beforeLoad(page);
   if (offline) await loadOfflineFixture(page); else await page.goto(baseURL);
-  await page.waitForFunction(() => document.getElementById('flat')?.ready === true);
+  await assertAvatarReady(page, diagnostics);
   await page.evaluate(async () => { window.fixtureAPI = await import('/src/index.js'); });
   return page;
 }
