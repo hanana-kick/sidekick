@@ -112,6 +112,59 @@ async function stateOf(page, selector = '#bare') {
   return page.locator(selector).evaluate(element => ({ design: element.design, camera: element.camera, gaze: element.pose.gaze, activity: element.activity, paused: element.paused, interaction: element.interaction, mouseTracking: element.mouseTracking }));
 }
 
+async function compareReactPixelsToNative(t, page, screenshotName) {
+  // Save evidence before any pixel assertion so a renderer regression cannot
+  // prevent CI from showing the actual consumer that failed.
+  if (screenshots) await page.screenshot({ path: `${screenshots}/${screenshotName}.png` });
+  const result = await page.evaluate(async () => {
+    const element = window.consumer.element;
+    const summarize = ({ width, height, pixels }) => {
+      let opaque = 0, visible = 0, body = 0, eyes = 0, border = 0;
+      let minX = width, minY = height, maxX = -1, maxY = -1;
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4, alpha = pixels[i + 3];
+        if (!alpha) continue;
+        visible++; if (alpha === 255) opaque++;
+        minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+        if (x === 0 || y === 0 || x === width - 1 || y === height - 1) border++;
+        if (alpha === 255 && pixels[i] === 139 && pixels[i + 1] === 186 && pixels[i + 2] === 156) body++;
+        if (alpha === 255 && pixels[i] === 39 && pixels[i + 1] === 55 && pixels[i + 2] === 47) eyes++;
+      }
+      return { width, height, opaque, visible, transparent: width * height - visible, body, eyes, border,
+        alphaBounds: maxX < 0 ? null : { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 },
+      };
+    };
+    const actual = element.capturePixels(), rect = element.getBoundingClientRect();
+    // This reference does not copy React's attributes, design, pose, or ref
+    // state. It independently applies the fixture's expected values through
+    // the native imperative API, exercising a separate configuration path.
+    const native = document.createElement('sidekick-avatar');
+    native.style.cssText = 'position:fixed;left:0;top:0;width:280px;height:280px;pointer-events:none';
+    native.paused = true; native.setActivity('still'); native.seek(0);
+    native.design = { version: 7, body: { shape: 'puffy', color: '#8bba9c' }, eyes: { color: '#27372f', left: { weights: { smile: 0.25, blink: 0 } }, right: { weights: { smile: 0, blink: 0.15 } } }, accessories: [] };
+    native.setCamera({ yaw: 12, pitch: 5, roll: -4 }); native.lookAt({ space: 'view', x: 0.2, y: -0.1 });
+    try {
+      document.body.append(native);
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const expected = native.capturePixels();
+      let differingBytes = 0;
+      for (let i = 0; i < Math.max(actual.pixels.length, expected.pixels.length); i++) if (actual.pixels[i] !== expected.pixels[i]) differingBytes++;
+      return { actual: summarize(actual), native: summarize(expected), differingBytes, nativeReady: native.ready,
+        cssSize: [rect.width, rect.height], devicePixelRatio, actualPose: element.pose, nativePose: native.pose,
+      };
+    } finally { native.remove(); }
+  });
+  t.diagnostic(`React/native pixel comparison: ${JSON.stringify(result)}`);
+  assert.deepEqual(result.cssSize, [280, 280], 'React forwards the requested host dimensions');
+  const pixelSize = Math.round(280 * Math.min(2, Math.max(1, result.devicePixelRatio)));
+  assert.deepEqual([result.actual.width, result.actual.height], [pixelSize, pixelSize]);
+  assert.equal(result.nativeReady, true); assert.equal(result.differingBytes, 0, 'React must render every RGBA byte identically to the independently configured native element');
+  assert.deepEqual(result.actual, result.native); assert.deepEqual(result.actualPose, result.nativePose);
+  assert.ok(result.actual.opaque > 0 && result.actual.body > result.actual.eyes && result.actual.eyes > 0, 'The expected opaque body and eye colors are both visible');
+  assert.ok(result.actual.transparent > 0); assert.equal(result.actual.border, 0);
+  assert.ok(result.actual.alphaBounds?.width > 1 && result.actual.alphaBounds.height > 1, 'A real two-dimensional silhouette is present');
+}
+
 test('packed root import registers a bare element with real default pixels and no Studio dependency', async t => {
   const page = await pageFor(t);
   const result = await page.locator('#bare').evaluate(element => {
@@ -221,14 +274,15 @@ for (const [format, filename] of [['esm', 'sidekick.js'], ['classic', 'sidekick.
 
 test('prebuilt React release runs directly through an import map, lazily registers, renders and cleans up its native ref', async t => {
   const page = await pageFor(t, 'prebuilt-react');
+  await compareReactPixelsToNative(t, page, 'library-prebuilt-react');
   for (const filename of ['sidekick-react.js', 'sidekick-element.js']) assert.deepEqual(await readFile(`${fixture.output}/prebuilt/${filename}`), await readFile(`${fixture.packagePath}/dist/browser/${filename}`));
   const initial = await page.evaluate(() => {
     const element = window.consumer.element;
     return { refMatches: element === document.getElementById('react-avatar'), ready: element.ready, design: element.design, camera: element.camera,
-      opaque: element.capturePixels().pixels.filter((value, index) => index % 4 === 3 && value === 255).length, events: window.consumer.events,
+      events: window.consumer.events,
     };
   });
-  assert.equal(initial.refMatches, true); assert.equal(initial.ready, true); assert.equal(initial.design.body.shape, 'puffy'); assert.ok(initial.opaque > 10000);
+  assert.equal(initial.refMatches, true); assert.equal(initial.ready, true); assert.equal(initial.design.body.shape, 'puffy');
   assert.deepEqual(initial.camera, { yaw: 12, pitch: 5, roll: -4 });
   const readyEvents = initial.events.filter(event => event.name === 'Ready');
   assert.ok(readyEvents.length > 0);
@@ -244,7 +298,7 @@ test('prebuilt React release runs directly through an import map, lazily registe
   assert.deepEqual(diagnostics.requests, []);
   assert.ok(resources.every(url => url.origin === new URL(fixture.baseURL).origin && (url.pathname.startsWith('/vendor/') || ['/prebuilt-react.html', '/prebuilt-react.mjs', '/prebuilt/sidekick-react.js', '/prebuilt/sidekick-element.js', '/favicon.ico'].includes(url.pathname))), JSON.stringify(diagnostics.resources));
   for (const filename of ['sidekick-react.js', 'sidekick-element.js']) assert.equal(resources.filter(url => url.pathname === `/prebuilt/${filename}`).length, 1);
-  if (screenshots) await page.screenshot({ path: `${screenshots}/library-prebuilt-react.png` });
+  if (screenshots) await page.screenshot({ path: `${screenshots}/library-prebuilt-react-updated.png` });
   await page.evaluate(() => window.unmountConsumer()); await page.waitForFunction(() => window.consumer.element === null);
   const cleanup = await page.evaluate(() => ({ ready: window.prebuiltReactHost.ready, buffers: window.prebuiltReactHost.diagnostics.buffers, ...window.listenerAudit(window.prebuiltReactHost) }));
   assert.deepEqual(cleanup, { ready: false, buffers: 0, globalPointer: 0, elementEvents: 0 });
@@ -466,19 +520,19 @@ test('PNG snapshots crop to the real alpha bounds, preserve every rendered alpha
 
 test('typed React entry renders real pixels, forwards the element ref and callbacks, and applies updated and removed props', async t => {
   const page = await pageFor(t, 'react');
+  await compareReactPixelsToNative(t, page, 'library-react-consumer');
   const initial = await page.evaluate(() => {
-    const element = window.consumer.element, { pixels } = element.capturePixels();
+    const element = window.consumer.element;
     return { same: element === document.getElementById('react-avatar'), tag: element.localName, design: element.design, camera: element.camera, gaze: element.pose.gaze, tracking: element.mouseTracking, paused: element.paused,
       aria: element.getAttribute('aria-label'), consumer: element.dataset.consumer, className: element.className,
-      opaque: pixels.filter((value, index) => index % 4 === 3 && value === 255).length, events: window.consumer.events };
+      events: window.consumer.events };
   });
   assert.equal(initial.same, true); assert.equal(initial.tag, 'sidekick-avatar'); assert.equal(initial.design.body.shape, 'puffy'); assert.equal(initial.design.body.color, '#8bba9c');
   assert.equal(initial.design.eyes.left.weights.smile, 0.25); assert.equal(initial.design.eyes.right.weights.blink, 0.15);
   assert.deepEqual(initial.camera, { yaw: 12, pitch: 5, roll: -4 }); assert.deepEqual(initial.gaze, [0.2, -0.1]);
   assert.equal(initial.tracking, true); assert.equal(initial.paused, true); assert.equal(initial.aria, 'React companion'); assert.equal(initial.consumer, 'react'); assert.equal(initial.className, 'consumer-avatar');
-  assert.ok(initial.opaque > 10000); assert.ok(initial.events.some(event => event.name === 'Ready')); assert.ok(initial.events.every(event => event.native));
+  assert.ok(initial.events.some(event => event.name === 'Ready')); assert.ok(initial.events.every(event => event.native));
   for (const event of initial.events.filter(event => event.name === 'Ready')) assert.deepEqual(event.configured, { shape: 'puffy', camera: { yaw: 12, pitch: 5, roll: -4 }, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } }, 'onReady observes applied props through the published ref');
-  if (screenshots) await page.screenshot({ path: `${screenshots}/library-react-consumer.png` });
   await page.evaluate(() => { window.originalReactElement = window.consumer.element; window.renderConsumer({ shape: 'heart', bodyColor: '#b7a5ce', leftSmile: 0.8, rightBlink: undefined, paused: false, mouseTracking: false, camera: { yaw: -25, pitch: 3, roll: 8 } }); });
   await page.waitForFunction(() => window.consumer.element?.design.body.shape === 'heart'); await settle(page);
   const next = await stateOf(page, '#react-avatar');

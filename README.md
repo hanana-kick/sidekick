@@ -8,11 +8,25 @@
 
 ## 설치
 
-**소스를 빌드하지 않고 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 받아 사용하세요.** 브라우저용 ESM과 일반 `<script>`용 JS를 제공합니다. 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다. 이 소스의 패키지 버전은 `0.2.0`이고 이름은 `@hanana-kick/sidekick`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+**공개 GitHub 저장소에서 빌드된 패키지를 바로 설치하세요.** 사용할 프로젝트에서 다음 명령을 실행합니다.
+
+```sh
+npm install https://github.com/hanana-kick/sidekick.git
+```
+
+배포 버전을 고정하려면 버전 태그를 지정합니다.
+
+```sh
+npm install https://github.com/hanana-kick/sidekick.git#v0.2.0
+```
+
+빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 소스의 버전은 `0.2.0`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+
+npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. 단일 ESM과 일반 `<script>`용 JS를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
 
 ### GitHub Release에서 다운로드
 
-1. [Releases](https://github.com/hanana-kick/sidekick/releases)를 엽니다. 비공개 저장소로 운영하는 경우에는 접근 권한이 있는 GitHub 계정으로 로그인합니다.
+1. [Releases](https://github.com/hanana-kick/sidekick/releases)를 엽니다.
 2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.2.0.zip` 또는 `hanana-kick-sidekick-0.2.0.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
 3. 일반 HTML 사이트에서는 브라우저 ZIP을 풀고 아래 파일을 사이트의 정적 파일 디렉터리에 복사합니다. 동봉된 `START-HERE.txt`를 읽고 `esm.html`, `classic.html`, `react.html` 중 원하는 예제를 열면 됩니다. 예제의 `/vendor/sidekick/`은 **사용자 사이트의 경로**입니다. 배포 경로에 맞게 바꾸세요.
 
@@ -27,11 +41,11 @@
 | `hanana-kick-sidekick-0.2.0.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
 | `SHA256SUMS` | ZIP과 tarball의 다운로드 무결성 확인 | 같은 Release의 체크섬 파일 |
 
-ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보관하세요. **비공개 GitHub Release의 다운로드 URL을 웹사이트의 `src`/`import` URL로 사용하지 마세요.** 다운로드는 GitHub 인증이 필요하고, 자산 응답의 MIME·CORS·인증 동작은 정적 JS 호스팅과 다릅니다. 파일을 먼저 내려받아 본인 사이트에서 제공하고 토큰을 HTML·URL·소스에 넣지 마세요. 저장소 공개 범위는 변경할 필요가 없습니다.
+ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보관하세요. **GitHub Release 자산은 다운로드한 뒤 본인 사이트에서 제공하세요.** 다운로드 URL은 브라우저 JS 호스팅용 URL이 아니며 자산 응답의 MIME·CORS 동작이 정적 호스팅과 다릅니다. 아래 예제의 `src`/`import`는 내려받은 파일을 제공하는 사이트 경로를 사용합니다.
 
 `sidekick.js`와 `sidekick.iife.js`는 각각 전체 공개 코어/요소 API를 내보내며 기본 `<sidekick-avatar>`를 자동 등록합니다. **둘 중 하나만 선택하세요.** Classic JS는 브라우저 전역 스크립트를 뜻하며 Node.js CommonJS `require()` 빌드는 아닙니다. React 래퍼는 React를 번들 안에 포함하지 않습니다. `sidekick.js`의 `SidekickAvatar`는 커스텀 요소 클래스이고, `sidekick-react.js`의 같은 이름은 React 컴포넌트입니다.
 
-### 기존 프로젝트에 빌드된 패키지 설치
+### 선택 사항: 빌드된 tarball 설치
 
 Release에서 받은 tarball을 사용할 프로젝트에서 설치합니다. 이 명령은 Sidekick 소스를 컴파일하거나 Studio를 빌드하지 않습니다.
 
@@ -39,7 +53,7 @@ Release에서 받은 tarball을 사용할 프로젝트에서 설치합니다. �
 npm install /absolute/path/to/hanana-kick-sidekick-0.2.0.tgz
 ```
 
-React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 마운트하는 `react-dom`도 사용자가 같은 버전으로 준비합니다. 코어만 쓰는 프로젝트에는 React가 필요 없습니다. `private: true`는 우발적인 npm 발행을 막으며 tarball 설치를 막지 않습니다.
+React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 마운트하는 `react-dom`도 사용자가 같은 버전으로 준비합니다. 코어만 쓰는 프로젝트에는 React가 필요 없습니다.
 
 ### 패키지 진입점
 
@@ -52,12 +66,6 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 | `@hanana-kick/sidekick/react` | React 컴포넌트 `SidekickAvatar`, props/ref 타입 |
 
 패키지 모듈은 ESM이며 실행용 모듈/타입은 `dist/library/`, 즉시 사용 가능한 브라우저 번들은 `dist/browser/`입니다. `dist/src/`는 내부 테스트용입니다. bare import 이름은 브라우저가 직접 해석하지 못하므로 패키지 import에는 번들러 또는 import map을 사용하세요. 아래 HTML 예제는 실제 파일 URL을 사용하여 이 설정이 필요 없습니다.
-
-선택적으로 빌드 산출물이 체크인된 특정 커밋을 Git 의존성으로 설치할 수도 있습니다. `COMMIT_SHA`는 실제 전체 SHA로 바꿉니다. 비공개 저장소용 SSH/Git credential helper 인증이 필요하며 토큰을 URL에 넣지 마세요.
-
-```sh
-npm install 'git+ssh://git@github.com/hanana-kick/sidekick.git#COMMIT_SHA'
-```
 
 ## HTML에서 바로 사용하기
 
@@ -194,7 +202,7 @@ bot.lookAt({ space: 'view', x: 0.6, y: 0.2 });
 
 ### 기존 React 19 프로젝트
 
-Release의 `.tgz`를 설치한 뒤 다음 컴포넌트를 앱에서 렌더링하세요. JSX/TSX는 기존 앱의 도구로 처리하며 Sidekick 자체를 다시 빌드할 필요는 없습니다.
+위 GitHub URL 또는 Release의 `.tgz`로 패키지를 설치한 뒤 다음 컴포넌트를 앱에서 렌더링하세요. JSX/TSX는 기존 앱의 도구로 처리하며 Sidekick 자체를 다시 빌드할 필요는 없습니다.
 
 ```tsx
 import { useRef, useState } from 'react';
@@ -689,11 +697,11 @@ npm run pack:release   # 커밋된 깨끗한 checkout에서 release/에 ZIP·tar
 
 UI 구성은 `components.json`과 `playground/components/ui/`, 저장·명령·복구는 `studio-controller.ts`에 있습니다. React 재렌더와 탭 전환은 하나의 안정된 요소를 유지하며 진행 중 모프나 카메라를 재설정하지 않습니다. [공식 shadcn/ui Vite 설치](https://ui.shadcn.com/docs/installation/vite) 방식으로 생성한 실제 소스를 사용합니다.
 
-### GitHub Pages 배포 준비
+### GitHub Pages 배포
 
-`.github/workflows/pages.yml`은 수동 실행용 배포 준비입니다. 비공개 저장소의 Studio를 Pages로 배포하면 설정에 따라 웹사이트가 공개될 수 있으므로 **공개 범위와 배포 승인을 확인한 뒤에만** 진행하세요. 저장소 소유자가 Settings → Pages에서 GitHub Actions 소스를 설정하고, 사용 가능한 Pages 요금제·권한·환경 보호 설정을 확인해야 합니다. 워크플로 파일을 추가하는 것만으로 Pages가 켜지거나 배포되지는 않습니다.
+이 공개 저장소에는 GitHub Actions 기반 Pages 배포가 이미 설정되어 있으며 사용자 지정 도메인은 `sidekick.hananakick.cc`입니다. `.github/workflows/pages.yml`은 기존 공개 Studio를 갱신하는 수동 워크플로입니다. CI를 통과한 커밋을 선택하고 **수동 실행 시 `approve_public_deployment`를 명시적으로 승인해야** 빌드·배포합니다. 커밋을 push하거나 워크플로 파일을 추가하는 것만으로 배포하지 않습니다.
 
-프로젝트 경로용 빌드는 `SIDEKICK_BASE=/sidekick/ npm run build:all`입니다. 실제 배포 경로가 다르면 base도 맞추세요. 별도 승인 전에는 워크플로 실행, Pages 활성화, 공개 URL 배포를 하지 않습니다.
+워크플로는 `actions/configure-pages`의 기존 설정을 읽고 `base_path` 출력에 `/`를 붙여 `SIDEKICK_BASE`로 사용합니다. Pages 활성화나 설정 변경은 하지 않습니다. 현재 사용자 지정 도메인은 루트 경로이므로 base는 `/`입니다. 같은 경로로 로컬 빌드를 확인하려면 `SIDEKICK_BASE=/ npm run build:all`을 사용하세요. 프로젝트 하위 경로를 별도로 확인할 때만 해당 경로에 맞게 base를 지정합니다. 배포 완료 여부는 선택한 커밋의 Actions 결과로 확인하세요.
 
 ### 검사
 

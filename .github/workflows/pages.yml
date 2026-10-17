@@ -1,7 +1,7 @@
 name: Sidekick Pages (manual)
 
-# Preparing this workflow does not enable Pages or publish the private repository.
-# A repository owner must configure Pages and explicitly approve public deployment.
+# This workflow updates the existing Pages site only after an explicit manual approval.
+# It never enables Pages or changes its audience, domain, or security settings.
 on:
   workflow_dispatch:
     inputs:
