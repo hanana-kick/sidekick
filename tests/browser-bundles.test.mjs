@@ -1,14 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { createPackageConsumer } from './package-fixture.mjs';
 import { buildReactPeers } from '../scripts/build-react-peers.mjs';
 
-const filenames = ['sidekick.js', 'sidekick.iife.js', 'sidekick-react.js', 'sidekick-element.js'];
+const filenames = ['sidekick.js', 'sidekick.iife.js', 'sidekick-react.js', 'sidekick-element.js', 'sidekick-fallback.js', 'sidekick.worker.js'];
+
+test('freshness checking reproduces all six bundles with published tree-shaking metadata', t => {
+  const root = fileURLToPath(new URL('..', import.meta.url));
+  const directory = mkdtempSync(join(tmpdir(), 'sidekick-bundle-freshness-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  for (const path of ['package.json', 'tsconfig.json', 'tsconfig.library.json', 'src', 'third_party/material-shapes', 'scripts/build-library.mjs', 'scripts/build-browser.mjs']) {
+    cpSync(join(root, path), join(directory, path), { recursive: true });
+  }
+  symlinkSync(join(root, 'node_modules'), join(directory, 'node_modules'), 'junction');
+  const build = (...args) => execFileSync(process.execPath, ['scripts/build-library.mjs', ...args], {
+    cwd: directory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  build();
+  const browser = join(directory, 'dist/browser');
+  assert.deepEqual(readdirSync(browser).sort(), [...filenames].sort());
+  const original = filenames.map(file => readFileSync(join(browser, file)));
+  assert.match(build('--check'), /Library and browser artifacts match source/);
+  for (const [index, file] of filenames.entries()) {
+    assert.ok(readFileSync(join(browser, file)).equals(original[index]), `${file} changed during the read-only check`);
+  }
+});
+
 function imports(code) {
   const dependencies = [];
   const source = ts.createSourceFile('bundle.js', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
@@ -33,7 +56,8 @@ test('packed ESM and classic releases are standalone and expose the complete aut
     const code = readFileSync(join(directory, file), 'utf8');
     assert.match(code, /Apache License/);
     assert.match(code, /Material Shapes/);
-    assert.deepEqual(imports(code), file === 'sidekick-react.js' ? ['./sidekick-element.js', 'react'] : [], file);
+    const expected = { 'sidekick-react.js': ['./sidekick-element.js', 'react'], 'sidekick-element.js': ['./sidekick-fallback.js'], 'sidekick-fallback.js': ['./sidekick-element.js'] };
+    assert.deepEqual(imports(code), expected[file] ?? [], file);
   }
   assert.equal(consumer.manifest.exports['./browser/sidekick-element.js'], undefined, 'lazy chunk is private, with no mismatched public declarations');
   const output = consumer.run(['--input-type=module', '-e', `
@@ -59,7 +83,7 @@ test('packed ESM and classic releases are standalone and expose the complete aut
     assert.equal(typeof esm.cropPixels, 'function');
     assert.equal(typeof esm.resolveSidekickAttributes, 'function');
     const classicSceneVersion = runInNewContext('Sidekick.parseScene(Sidekick.serializeScene(Sidekick.createScene())).sceneVersion', context);
-    assert.equal(classicSceneVersion, 1);
+    assert.equal(classicSceneVersion, 2);
     esm.defineSidekick(); context.Sidekick.defineSidekick();
     console.log('Standalone API parity passed: ' + Object.keys(esm).length + ' exports');
   `]);

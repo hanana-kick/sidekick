@@ -1,8 +1,11 @@
+import { RenderEngine } from '../dist/src/runtime/render-engine.js';
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { createAccessory, createDesign } from '../dist/src/core/design.js';
 import { parseBooleanAttribute, resolveSidekickAttributes, SIDEKICK_ATTRIBUTES } from '../dist/src/element/attributes.js';
+import { installRuntime } from './helpers/render-runtime.mjs';
+const runtimes = new WeakMap();
 
 const resolve = values => resolveSidekickAttributes(new Map(Object.entries(values)));
 let dom, SidekickAvatar;
@@ -17,8 +20,8 @@ before(async () => {
   globalThis.cancelAnimationFrame = () => {};
   ({ SidekickAvatar } = await import('../dist/src/element/avatar.js'));
   SidekickAvatar.prototype.initializeRenderer = function () {
-    this.renderer = { stats: { drawCalls: 1, buffers: 1 }, render() {}, resize() {}, dispose() {} };
-    this.readyState = true; this.updateMouseTracking(); this.emit('sidekick-ready', {});
+    runtimes.set(this, installRuntime(this, RenderEngine));
+    this.emit('sidekick-ready', {});
   };
   customElements.define('sidekick-avatar', SidekickAvatar);
 });
@@ -35,6 +38,7 @@ function pointer(x, y, pointerType = 'mouse') {
   const event = new dom.window.MouseEvent('pointermove', { clientX: x, clientY: y, bubbles: true });
   Object.defineProperty(event, 'pointerType', { value: pointerType });
   document.dispatchEvent(event);
+  for (const a of document.querySelectorAll('sidekick-avatar')) a.flushInput();
 }
 
 test('the boolean contract accepts explicit false and rejects ambiguous spellings', () => {
@@ -54,7 +58,7 @@ test('all design sources resolve independently of attribute order and without ca
   assert.deepEqual(a.design.eyes.left.weights, { smile: .4, blink: .6 });
   assert.deepEqual(a.design.eyes.right.weights, { smile: .4, blink: 0 });
   assert.deepEqual(a.design.accessories.map(x => [x.slot, x.preset, x.color]), [['eyes', 'glasses', '#31323d'], ['head', 'beret', '#123456']]);
-  assert.deepEqual(a.camera, { yaw: 20, pitch: 0, roll: 0 });
+  assert.deepEqual(a.camera, { yaw: 20, pitch: 0, roll: 0, zoom: 1 });
   assert.equal(design.body.shape, 'circle');
 });
 
@@ -117,14 +121,14 @@ test('false and removal disable booleans; invalid text leaves prior runtime stat
 test('shape timing changes affect the next target and unrelated edits keep running clocks', async t => {
   const a = avatar(t); a.setActivity('still');
   a.setAttribute('shape-duration', '1000'); a.setAttribute('shape-easing', 'linear'); a.setAttribute('shape', 'heart'); await flush();
-  assert.equal(a.shapeTimeline.remainingDuration, 1000); assert.equal(a.shapeTimeline.easing, 'linear');
-  a.shapeTimeline.advance(250); const contour = a.shapeTimeline.contour;
-  const motion = a.motion.to({ body: { rotation: [0, 0, .8] } }, { duration: 1000 }); a.timeline.advance(250);
+  assert.equal(runtimes.get(a).shape.remainingDuration, 1000); assert.equal(runtimes.get(a).shape.easing, 'linear');
+  runtimes.get(a).advanceShape(250); const contour = runtimes.get(a).shape.contour;
+  const motion = a.motion.to({ body: { rotation: [0, 0, .8] } }, { duration: 1000 }); runtimes.get(a).advanceMotion(250);
   const pose = a.pose;
   a.setAttribute('eye-color', '#abcdef'); a.setAttribute('shape-duration', '50'); await flush();
-  assert.strictEqual(a.shapeTimeline.contour, contour); assert.equal(a.shapeTimeline.remainingDuration, 750); assert.deepEqual(a.pose, pose);
-  a.setAttribute('shape', 'circle'); await flush(); assert.equal(a.shapeTimeline.remainingDuration, 50);
-  a.timeline.advance(750); assert.deepEqual(await motion, { finished: true });
+  assert.strictEqual(runtimes.get(a).shape.contour, contour); assert.equal(runtimes.get(a).shape.remainingDuration, 750); assert.deepEqual(a.pose, pose);
+  a.setAttribute('shape', 'circle'); await flush(); assert.equal(runtimes.get(a).shape.remainingDuration, 50);
+  runtimes.get(a).advanceMotion(750); assert.deepEqual(await motion, { finished: true });
 });
 
 test('motion JSON validates new equipment IDs before changing design or motion tracks', async t => {
@@ -140,11 +144,11 @@ test('global mouse tracking ignores touch/drag and restores manual gaze without 
   const a = avatar(t); a.paused = true; a.lookAt({ space: 'view', x: .2, y: -.3 }); a.mouseTracking = true;
   pointer(210, 20); assert.deepEqual(a.pose.gaze, [1, 1]); assert.equal(a.interaction, 'none');
   pointer(10, 120, 'touch'); assert.deepEqual(a.pose.gaze, [1, 1]);
-  a.drag = { id: 7 }; pointer(10, 120); assert.deepEqual(a.pose.gaze, [1, 1]); a.drag = undefined;
+  a.pointers.set(7, { x: 0, y: 0, type: 'mouse' }); pointer(10, 120); assert.deepEqual(a.pose.gaze, [1, 1]); a.pointers.clear();
   a.mouseTracking = false; assert.deepEqual(a.pose.gaze, [.2, -.3]); pointer(10, 120); assert.deepEqual(a.pose.gaze, [.2, -.3]);
-  a.paused = false; const motion = a.motion.to({ body: { rotation: [0, 0, 1] } }, { duration: 1000 }); a.timeline.advance(250); const rotation = a.pose.rotation;
+  a.paused = false; const motion = a.motion.to({ body: { rotation: [0, 0, 1] } }, { duration: 1000 }); runtimes.get(a).advanceMotion(250); const rotation = a.pose.rotation;
   a.mouseTracking = true; pointer(210, 20); a.mouseTracking = false;
-  assert.deepEqual(a.pose.rotation, rotation); a.timeline.advance(750); assert.deepEqual(await motion, { finished: true });
+  assert.deepEqual(a.pose.rotation, rotation); runtimes.get(a).advanceMotion(750); assert.deepEqual(await motion, { finished: true });
 });
 
 test('tracking listeners detach exactly once across disabled, hidden and reconnect cycles', t => {
@@ -174,10 +178,10 @@ test('explicit neutral weights retarget a transient eye without canceling the op
   const a = avatar(t); a.setActivity('still');
   const left = a.motion.to({ eyes: { left: { weights: { smile: 1 } } } }, { duration: 1000 });
   const right = a.motion.to({ eyes: { right: { weights: { smile: 1 } } } }, { duration: 1000 });
-  a.timeline.advance(200); const rightPose = a.pose.eyes.right;
+  runtimes.get(a).advanceMotion(200); const rightPose = a.pose.eyes.right;
   a.setAttribute('motion-duration', '0'); a.setAttribute('left-smile', '0'); await flush();
   assert.deepEqual(await left, { finished: false }); assert.equal(a.pose.eyes.left.smile, 0); assert.deepEqual(a.pose.eyes.right, rightPose);
-  a.timeline.advance(800); assert.deepEqual(await right, { finished: true });
+  runtimes.get(a).advanceMotion(800); assert.deepEqual(await right, { finished: true });
 });
 
 test('imperative setters remain reliable while an unrelated invalid HTML batch is pending', async t => {
@@ -188,4 +192,19 @@ test('imperative setters remain reliable while an unrelated invalid HTML batch i
   a.setActivity('still'); assert.equal(a.activity, 'still');
   await flush(); assert.equal(a.paused, true); assert.equal(a.design.body.shape, 'square');
   a.removeAttribute('design'); await flush(); assert.equal(a.design.body.shape, 'heart'); assert.equal(a.paused, true);
+});
+
+test('camera zoom precedence, removal, range validation and rejected batches are atomic', async t => {
+  const a = avatar(t);
+  a.setAttribute('camera', 'side'); a.setAttribute('camera-zoom', '1.7'); await flush();
+  assert.deepEqual(a.camera, { yaw: 90, pitch: 0, roll: 0, zoom: 1.7 });
+  a.setCamera({ yaw: 22 }); a.removeAttribute('camera-zoom'); await flush();
+  assert.deepEqual(a.camera, { yaw: 22, pitch: 0, roll: 0, zoom: 1 });
+  const before = a.camera, design = a.design;
+  a.setAttribute('camera-zoom', '4'); a.setAttribute('camera-yaw', '13'); a.setAttribute('body-color', '#abcdef'); await flush();
+  assert.deepEqual(a.camera, before); assert.deepEqual(a.design, design);
+  a.setAttribute('camera-zoom', '2'); await flush();
+  assert.equal(a.camera.zoom, 2); assert.equal(a.camera.yaw, 13); assert.equal(a.design.body.color, '#abcdef');
+  a.removeAttribute('camera'); a.removeAttribute('camera-zoom'); a.removeAttribute('camera-yaw'); await flush();
+  assert.deepEqual(a.camera, { yaw: 0, pitch: 0, roll: 0, zoom: 1 });
 });

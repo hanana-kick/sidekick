@@ -3,9 +3,10 @@
 import { createElement, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import type { HTMLAttributes, ReactElement, Ref } from 'react';
 import type { AccessoryDesign, Activity, AvatarDesign, RenderStyle } from './core/design.js';
-import type { CameraAngles, CameraPreset } from './core/camera.js';
+import type { CameraState, CameraPreset } from './core/camera.js';
 import type { EyeExpression } from './core/expressions.js';
 import type { MotionOptions, MotionTarget } from './core/motion.js';
+import type { TrackingMode } from './core/tracking.js';
 import type { MaterialShapeName } from './core/shapes.js';
 import type { SidekickAvatar as SidekickElement } from './element/avatar.js';
 import type { SidekickAttributes, SidekickEventMap } from './element/attributes.js';
@@ -42,16 +43,19 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
   leftEarColor?: string;
   rightEarAccessory?: SidekickAttributes['right-ear-accessory'];
   rightEarColor?: string;
-  camera?: CameraPreset | Partial<CameraAngles>;
+  camera?: CameraPreset | Partial<CameraState>;
   cameraYaw?: number;
   cameraPitch?: number;
   cameraRoll?: number;
+  cameraZoom?: number;
   gazeX?: number;
   gazeY?: number;
   activity?: Activity;
   paused?: boolean;
   interaction?: 'none' | 'box';
+  /** Legacy eyes-only alias; trackingMode takes precedence when supplied. */
   mouseTracking?: boolean;
+  trackingMode?: TrackingMode;
   renderStyle?: RenderStyle;
   shapeDuration?: number;
   shapeEasing?: MotionOptions['easing'];
@@ -76,8 +80,8 @@ const attributeProps = {
   headAccessory: 'head-accessory', headColor: 'head-color', eyesAccessory: 'eyes-accessory', eyesColor: 'eyes-color',
   mouthAccessory: 'mouth-accessory', mouthColor: 'mouth-color', neckAccessory: 'neck-accessory', neckColor: 'neck-color',
   leftEarAccessory: 'left-ear-accessory', leftEarColor: 'left-ear-color', rightEarAccessory: 'right-ear-accessory', rightEarColor: 'right-ear-color',
-  cameraYaw: 'camera-yaw', cameraPitch: 'camera-pitch', cameraRoll: 'camera-roll', gazeX: 'gaze-x', gazeY: 'gaze-y',
-  activity: 'activity', paused: 'paused', interaction: 'interaction', mouseTracking: 'mouse-tracking', renderStyle: 'render-style',
+  cameraYaw: 'camera-yaw', cameraPitch: 'camera-pitch', cameraRoll: 'camera-roll', cameraZoom: 'camera-zoom', gazeX: 'gaze-x', gazeY: 'gaze-y',
+  activity: 'activity', paused: 'paused', interaction: 'interaction', mouseTracking: 'mouse-tracking', trackingMode: 'tracking-mode', renderStyle: 'render-style',
   shapeDuration: 'shape-duration', shapeEasing: 'shape-easing', motionDuration: 'motion-duration', motionEasing: 'motion-easing', time: 'time',
 } as const satisfies Partial<Record<keyof SidekickAvatarProps, string>>;
 const eventProps = {
@@ -114,7 +118,7 @@ export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
   if (accessories !== undefined) attributes.accessories = serialize(accessories);
   if (motion !== undefined) attributes.motion = serialize(motion);
   if (typeof camera === 'string') attributes.camera = camera;
-  else if (camera) for (const axis of ['yaw', 'pitch', 'roll'] as const) {
+  else if (camera) for (const axis of ['yaw', 'pitch', 'roll', 'zoom'] as const) {
     if (camera[axis] !== undefined) attributes[`camera-${axis}`] = String(camera[axis]);
   }
   for (const key of Object.keys(attributeProps) as (keyof typeof attributeProps)[]) {

@@ -148,10 +148,10 @@ function mockGL() {
 test('renderer reuses one beret resource, honors material index ranges and invalidates the changed curated junction', () => {
   const fake = mockGL(), renderer = new AvatarRenderer({ width: 400, height: 400, getContext: () => fake.gl });
   const accessory = publicAccessory('beret'), design = publicDesign({ accessories: [accessory] }), state = { pose: initialPose(), activity: 'still', time: 0, delta: 0, reduced: true, style: 'flat' };
-  renderer.render(design, state); assert.deepEqual(renderer.stats, { drawCalls: 3, buffers: 9 });
+  renderer.render(design, state); assert.deepEqual(renderer.stats, { drawCalls: 3, buffers: 8 });
   const updateCount = fake.updates; renderer.render(design, state); assert.equal(fake.updates, updateCount, 'static draw must not regenerate/reupload the beret');
   assert.equal(fake.draws[1].offset, 0); assert.equal(fake.draws[2].offset, fake.draws[1].count * 2, 'draw offset is a byte offset into the shared index buffer');
-  for (let i = 0; i < 10; i++) { state.time = i; state.pose.rotation[2] = i * .01; renderer.render(design, state); assert.equal(fake.buffers.size, 9); assert.equal(fake.vaos.size, 4); }
+  for (let i = 0; i < 10; i++) { state.time = i; state.pose.rotation[2] = i * .01; renderer.render(design, state); assert.equal(fake.buffers.size, 8); assert.equal(fake.vaos.size, 4); }
   const profile = structuredClone(resolveShapeProfile('square')); state.profile = profile;
   renderer.render(design, state); const before = fake.updates; profile.accessories.beret.anchor.uv[0] = .20; renderer.render(design, state); assert.ok(fake.updates > before, 'changed curated contact frame must invalidate the beret fit');
   renderer.dispose(); renderer.dispose(); assert.equal(fake.buffers.size, 0); assert.equal(fake.vaos.size, 0);

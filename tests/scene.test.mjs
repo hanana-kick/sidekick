@@ -11,13 +11,13 @@ test('scene envelope round-trips design, all runtime controls and target poses',
   assert.deepEqual(migrateScene(serializeScene(scene)), { scene, warnings: [], legacyDesign: false });
   const legacy = migrateScene(serializeDesign(scene.design));
   assert.equal(legacy.legacyDesign, true); assert.deepEqual(legacy.scene.design, scene.design);
-  assert.deepEqual(legacy.scene.camera, { yaw: 0, pitch: 0, roll: 0 }); assert.equal(legacy.scene.mouseTracking, false);
+  assert.deepEqual(legacy.scene.camera, { yaw: 0, pitch: 0, roll: 0, zoom: 1 }); assert.equal(legacy.scene.trackingMode, 'off');
   scene.design.body.color = '#aabbcc'; assert.notEqual(legacy.scene.design.body.color, scene.design.body.color);
 });
 
 test('invalid scene versions, fields, ranges, motion references and geometry fail before application', () => {
   const scene = createScene();
-  for (const patch of [{ sceneVersion: 2 }, { camera: { yaw: 500, pitch: 0, roll: 0 } }, { camera: {} }, { gaze: { x: 5, y: 0 } },
+  for (const patch of [{ sceneVersion: 3 }, { camera: { yaw: 500, pitch: 0, roll: 0 } }, { camera: {} }, { gaze: { x: 5, y: 0 } },
     { time: Infinity }, { shapeDuration: undefined }, { motionDuration: -1 }, { motionEasing: 'bounce' }, { paused: 'false' }, { extra: 1 },
     { motion: { accessories: { missing: { rotation: [0, 0, 0] } } } }, { motion: { body: { rotation: [0, 0, 10] } } },
     { design: { ...scene.design, body: { ...scene.design.body, depth: .3 } } }]) assert.throws(() => parseScene({ ...scene, ...patch }));
@@ -36,4 +36,14 @@ test('scene validation rejects getters and malformed arrays without invoking cal
   assert.throws(() => createScene({ motion: { body: { rotation } } }));
   assert.throws(() => createScene({ motion: { body: { rotation: new Array(3) } } }));
   assert.equal(reads, 0);
+});
+
+test('scene zoom round-trips and legacy scene versions default missing zoom to 1', () => {
+  const scene = createScene({ camera: { yaw: 20, zoom: 2.2 } });
+  assert.equal(parseScene(serializeScene(scene)).camera.zoom, 2.2);
+  const legacy = JSON.parse(serializeScene(scene)); delete legacy.camera.zoom;
+  assert.equal(parseScene(legacy).camera.zoom, 1);
+  legacy.sceneVersion = 1; legacy.mouseTracking = false; delete legacy.trackingMode;
+  assert.equal(parseScene(legacy).camera.zoom, 1);
+  for (const zoom of [0, 4, NaN, null, undefined, '2']) assert.throws(() => parseScene({ ...scene, camera: { ...scene.camera, zoom } }));
 });

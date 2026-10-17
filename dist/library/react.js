@@ -8,8 +8,8 @@ const attributeProps = {
     headAccessory: 'head-accessory', headColor: 'head-color', eyesAccessory: 'eyes-accessory', eyesColor: 'eyes-color',
     mouthAccessory: 'mouth-accessory', mouthColor: 'mouth-color', neckAccessory: 'neck-accessory', neckColor: 'neck-color',
     leftEarAccessory: 'left-ear-accessory', leftEarColor: 'left-ear-color', rightEarAccessory: 'right-ear-accessory', rightEarColor: 'right-ear-color',
-    cameraYaw: 'camera-yaw', cameraPitch: 'camera-pitch', cameraRoll: 'camera-roll', gazeX: 'gaze-x', gazeY: 'gaze-y',
-    activity: 'activity', paused: 'paused', interaction: 'interaction', mouseTracking: 'mouse-tracking', renderStyle: 'render-style',
+    cameraYaw: 'camera-yaw', cameraPitch: 'camera-pitch', cameraRoll: 'camera-roll', cameraZoom: 'camera-zoom', gazeX: 'gaze-x', gazeY: 'gaze-y',
+    activity: 'activity', paused: 'paused', interaction: 'interaction', mouseTracking: 'mouse-tracking', trackingMode: 'tracking-mode', renderStyle: 'render-style',
     shapeDuration: 'shape-duration', shapeEasing: 'shape-easing', motionDuration: 'motion-duration', motionEasing: 'motion-easing', time: 'time',
 };
 const eventProps = {
@@ -49,7 +49,7 @@ export function SidekickAvatar(props) {
     if (typeof camera === 'string')
         attributes.camera = camera;
     else if (camera)
-        for (const axis of ['yaw', 'pitch', 'roll']) {
+        for (const axis of ['yaw', 'pitch', 'roll', 'zoom']) {
             if (camera[axis] !== undefined)
                 attributes[`camera-${axis}`] = String(camera[axis]);
         }

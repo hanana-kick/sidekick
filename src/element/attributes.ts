@@ -1,12 +1,14 @@
 import { ACTIVITIES, createAccessory, createDesign, equipAccessory, finite, parseDesign } from '../core/design.js';
 import type { AccessoryPreset, AccessorySlot, Activity, AvatarDesign, Vec2 } from '../core/design.js';
-import { cameraPreset, createCamera } from '../core/camera.js';
-import type { CameraAngles, CameraPreset } from '../core/camera.js';
+import { CAMERA_ZOOM_RANGE, cameraPreset, createCamera } from '../core/camera.js';
+import type { CameraState, CameraPreset } from '../core/camera.js';
 import { eyeExpressionWeights } from '../core/expressions.js';
 import type { EyeExpression } from '../core/expressions.js';
 import { MotionTimeline, validateMotionOptions } from '../core/motion.js';
 import type { MotionOptions, MotionResult, MotionTarget } from '../core/motion.js';
 import { validateShapeMotionOptions } from '../core/shape-motion.js';
+import { parseTrackingMode } from '../core/tracking.js';
+import type { TrackingMode } from '../core/tracking.js';
 import type { MaterialShapeName } from '../core/shapes.js';
 
 /** HTML strings are strict: unlike native booleans, the literal "false" disables. */
@@ -43,12 +45,14 @@ export interface SidekickAttributes {
   'camera-yaw'?: NumericAttribute;
   'camera-pitch'?: NumericAttribute;
   'camera-roll'?: NumericAttribute;
+  'camera-zoom'?: NumericAttribute;
   'gaze-x'?: NumericAttribute;
   'gaze-y'?: NumericAttribute;
   activity?: Activity;
   paused?: BooleanAttribute;
   interaction?: 'none' | 'box';
   'mouse-tracking'?: BooleanAttribute;
+  'tracking-mode'?: TrackingMode;
   'render-style'?: 'flat' | '3d';
   'shape-duration'?: NumericAttribute;
   'shape-easing'?: 'linear' | 'smooth';
@@ -64,13 +68,13 @@ export const SIDEKICK_ATTRIBUTES = Object.freeze([
   'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'accessories',
   'head-accessory', 'head-color', 'eyes-accessory', 'eyes-color', 'mouth-accessory', 'mouth-color',
   'neck-accessory', 'neck-color', 'left-ear-accessory', 'left-ear-color', 'right-ear-accessory', 'right-ear-color',
-  'camera', 'camera-yaw', 'camera-pitch', 'camera-roll', 'gaze-x', 'gaze-y', 'activity', 'paused',
-  'interaction', 'mouse-tracking', 'render-style', 'shape-duration', 'shape-easing', 'motion-duration', 'motion-easing', 'motion', 'time',
+  'camera', 'camera-yaw', 'camera-pitch', 'camera-roll', 'camera-zoom', 'gaze-x', 'gaze-y', 'activity', 'paused',
+  'interaction', 'mouse-tracking', 'tracking-mode', 'render-style', 'shape-duration', 'shape-easing', 'motion-duration', 'motion-easing', 'motion', 'time',
 ] as const satisfies readonly SidekickAttributeName[]);
 
 export interface SidekickErrorDetail { message: string; attribute?: string; value?: string | null; recoverable?: boolean }
 export interface SidekickDesignChangeDetail { design: AvatarDesign }
-export interface SidekickCameraChangeDetail { camera: CameraAngles }
+export interface SidekickCameraChangeDetail { camera: CameraState }
 export interface SidekickEventMap {
   'sidekick-ready': CustomEvent<Record<string, never>>;
   'sidekick-design-change': CustomEvent<SidekickDesignChangeDetail>;
@@ -84,12 +88,13 @@ export interface SidekickEventMap {
 export type AttributeValues = ReadonlyMap<string, string>;
 export interface ResolvedAttributes {
   design: AvatarDesign;
-  camera: CameraAngles;
+  camera: CameraState;
   gaze: Vec2;
   activity: Activity;
   paused: boolean;
   interaction: 'none' | 'box';
   mouseTracking: boolean;
+  trackingMode: TrackingMode;
   shapeOptions: Required<MotionOptions>;
   motionOptions: Required<MotionOptions>;
   motion?: MotionTarget;
@@ -160,11 +165,12 @@ export function resolveSidekickAttributes(attributes: AttributeValues): Resolved
       if (accessory) accessory.color = tint;
     }
   }
-  let camera = read('camera', value => cameraPreset(value as CameraPreset), createCamera());
+  let camera = read('camera', value => createCamera(cameraPreset(value as CameraPreset)), createCamera());
   for (const axis of ['yaw', 'pitch', 'roll'] as const) {
     const limit = axis === 'yaw' ? 360 : axis === 'pitch' ? 90 : 180;
     camera = { ...camera, [axis]: read(`camera-${axis}`, value => number(value, -limit, limit, `camera-${axis}`), camera[axis]) };
   }
+  camera.zoom = read('camera-zoom', value => number(value, CAMERA_ZOOM_RANGE.min, CAMERA_ZOOM_RANGE.max, 'camera-zoom'), 1);
   const options = (prefix: 'shape' | 'motion'): Required<MotionOptions> => {
     const duration = read(`${prefix}-duration`, value => number(value, 0, 60000, 'duration'), prefix === 'shape' ? 450 : 400);
     const easing = read(`${prefix}-easing`, value => choice(value, ['linear', 'smooth'] as const), 'smooth' as const);
@@ -177,6 +183,8 @@ export function resolveSidekickAttributes(attributes: AttributeValues): Resolved
     void new MotionTimeline({ left: design.eyes.left, right: design.eyes.right }).to(target, { duration: 0 });
     return target;
   }, undefined);
+  const legacyTracking = read('mouse-tracking', parseBooleanAttribute, false);
+  const trackingMode = read('tracking-mode', parseTrackingMode, legacyTracking ? 'eyes' : 'off');
   read('render-style', value => choice(value, ['flat', '3d']), 'flat');
   return {
     design: parseDesign(design), camera,
@@ -184,7 +192,7 @@ export function resolveSidekickAttributes(attributes: AttributeValues): Resolved
     activity: read('activity', value => choice(value, ACTIVITIES), 'idle'),
     paused: read('paused', parseBooleanAttribute, false),
     interaction: read('interaction', value => choice(value, ['none', 'box']), 'none'),
-    mouseTracking: read('mouse-tracking', parseBooleanAttribute, false),
+    mouseTracking: trackingMode !== 'off', trackingMode,
     shapeOptions, motionOptions, motion,
     time: read('time', value => number(value, 0, 86400, 'time'), 0),
   };

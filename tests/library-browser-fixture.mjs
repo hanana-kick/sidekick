@@ -99,7 +99,7 @@ window.fixtureLoaded = true;
     // published bytes only after the consumer build, so a transform cannot hide
     // missing imports, unresolved globals, chunk dependencies, or registration.
     await mkdir(join(output, 'prebuilt'));
-    for (const name of ['sidekick.js', 'sidekick.iife.js', 'sidekick-react.js', 'sidekick-element.js']) {
+    for (const name of ['sidekick.js', 'sidekick.iife.js', 'sidekick-react.js', 'sidekick-element.js', 'sidekick-fallback.js', 'sidekick.worker.js']) {
       await copyFile(join(packagePath, 'dist/browser', name), join(output, 'prebuilt', name));
     }
     const prebuiltBody = `<p>Downloaded release bundle, served unchanged. No consumer build or package manager.</p><div class="card"><div class="canvas"><sidekick-avatar id="prebuilt-avatar"></sidekick-avatar></div><div class="label">Standalone browser bundle</div></div>`;

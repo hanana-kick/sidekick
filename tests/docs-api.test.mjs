@@ -48,7 +48,8 @@ test('README includes complete self-hosted ESM, classic, and no-build React HTML
 test('README leads with public HTTPS Git installation and a reproducible release tag', () => {
   const firstShell = readme.match(/```sh\n([\s\S]*?)\n```/)?.[1];
   assert.equal(firstShell, 'npm install https://github.com/hanana-kick/sidekick.git');
-  assert.match(readme, /npm install https:\/\/github\.com\/hanana-kick\/sidekick\.git#v0\.2\.1/);
+  const { version } = JSON.parse(read('../package.json'));
+  assert.ok(readme.includes(`npm install https://github.com/hanana-kick/sidekick.git#v${version}`));
   assert.doesNotMatch(readme, /비공개|git\+ssh:|credential helper|COMMIT_SHA/);
   assert.match(readme, /npm 레지스트리에는 발행하지 않았으므로/);
 });

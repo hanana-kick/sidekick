@@ -1,9 +1,8 @@
 import { createElement, memo, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { ArrowDownToLine, CircleHelp, Copy, FileJson, FileUp, ImageDown, MousePointer2, Move, Pause, Play, RotateCcw, Sparkles } from 'lucide-react';
+import { ArrowDownToLine, CircleHelp, Copy, FileJson, FileUp, ImageDown, Move, Pause, Play, RotateCcw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Toggle } from '@/components/ui/toggle';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +12,7 @@ import type { Activity, AccessoryPreset } from '../src/core/design.js';
 import { CAMERA_PRESETS } from '../src/core/camera.js';
 import type { CameraPreset } from '../src/core/camera.js';
 import type { EyeExpression } from '../src/core/expressions.js';
+import type { TrackingMode } from '../src/core/tracking.js';
 import { MATERIAL_SHAPE_LABELS } from '../src/core/shapes.js';
 import type { SidekickAvatar } from '../src/element/avatar.js';
 import { ACCESSORY_NAMES, EQUIPMENT_GROUPS, SLOT_NAMES, StudioController } from './studio-controller.js';
@@ -72,9 +72,14 @@ function AnimationPanel({ state, controller }: { state: StudioState; controller:
       <ToggleGroup type="single" variant="outline" value={state.activity} onValueChange={activity => { if (activity) controller.setActivity(activity as Activity); }} aria-label="봇 상태" className="activity-options">
         {Object.entries(ACTIVITY_LABELS).map(([activity, label]) => <ToggleGroupItem key={activity} value={activity} data-activity={activity}>{label}</ToggleGroupItem>)}
       </ToggleGroup>
-      <div className="tracking-control"><Toggle id="mouse-tracking" variant="outline" pressed={state.mouseTracking} onPressedChange={controller.setMouseTracking} aria-label="마우스 시선 추적" aria-describedby="mouse-tracking-help"><MousePointer2 aria-hidden="true" />마우스 시선 추적<span className="tracking-state">{state.mouseTracking ? '켜짐' : '꺼짐'}</span></Toggle>
-        <FieldDescription id="mouse-tracking-help">페이지의 마우스를 눈이 따라봅니다. 드래그 회전과 별도로 동작하며 디자인 JSON에는 저장하지 않습니다.</FieldDescription>
-      </div>
+      <FieldSet className="tracking-control"><FieldLegend variant="label">마우스 시선 추적</FieldLegend>
+        <ToggleGroup type="single" variant="outline" value={state.trackingMode} onValueChange={mode => { if (mode) controller.setTrackingMode(mode as TrackingMode); }} aria-label="마우스 시선 추적 모드" aria-describedby="mouse-tracking-help">
+          <ToggleGroupItem id="tracking-off" value="off">꺼짐</ToggleGroupItem>
+          <ToggleGroupItem id="mouse-tracking" value="eyes">눈만</ToggleGroupItem>
+          <ToggleGroupItem id="tracking-eyes-and-body" value="eyes-and-body">눈과 몸</ToggleGroupItem>
+        </ToggleGroup>
+        <FieldDescription id="mouse-tracking-help">눈만 또는 눈과 몸이 페이지의 마우스를 따라봅니다. 몸 움직임은 기존 모션 위에 부드럽게 더해지며 카메라 각도를 바꾸지 않습니다. 장면 JSON에 저장됩니다.</FieldDescription>
+      </FieldSet>
       <div className="motion-actions"><Button id="look-left" variant="ghost" size="sm" onClick={() => controller.look(-.9)}>왼쪽 보기</Button><Button id="look-center" variant="ghost" size="sm" onClick={() => controller.look(0)}>정면 보기</Button><Button id="look-right" variant="ghost" size="sm" onClick={() => controller.look(.9)}>오른쪽 보기</Button><Button id="face-motion" variant="outline" size="sm" aria-pressed={state.movedFace} onClick={controller.toggleFace}>얼굴 이동</Button></div>
     </section>
     <Separator />
@@ -100,14 +105,15 @@ function AnimationPanel({ state, controller }: { state: StudioState; controller:
 
 function CameraPanel({ state, controller }: { state: StudioState; controller: StudioController }) {
   const preset = (Object.keys(CAMERA_PRESETS) as CameraPreset[]).find(name => (['yaw', 'pitch', 'roll'] as const).every(axis => Math.abs(state.camera[axis] - CAMERA_PRESETS[name][axis]) < .0001)) ?? '';
-  return <FieldGroup><div className="section-heading"><h2>보는 각도</h2><Button id="reset-camera" variant="ghost" size="sm" onClick={controller.resetCamera}><RotateCcw data-icon="inline-start" />각도 초기화</Button></div>
+  return <FieldGroup><div className="section-heading"><h2>보는 각도</h2><Button id="reset-camera" variant="ghost" size="sm" onClick={controller.resetCamera}><RotateCcw data-icon="inline-start" />보기 초기화</Button></div>
     <ToggleGroup type="single" variant="outline" value={preset} onValueChange={value => { if (value) controller.setCameraPreset(value as CameraPreset); }} aria-label="카메라 프리셋" className="camera-presets">
       {(Object.keys(CAMERA_LABELS) as CameraPreset[]).map(name => <ToggleGroupItem key={name} value={name} data-camera-preset={name}>{CAMERA_LABELS[name]}</ToggleGroupItem>)}
     </ToggleGroup>
     <RangeField id="view-yaw" label="좌우 각도 · Yaw" value={state.camera.yaw} min={-360} max={360} suffix="°" onChange={yaw => controller.setCamera({ yaw })} />
     <RangeField id="view-pitch" label="상하 각도 · Pitch" value={state.camera.pitch} min={-90} max={90} suffix="°" onChange={pitch => controller.setCamera({ pitch })} />
     <RangeField id="view-roll" label="화면 기울기 · Roll" value={state.camera.roll} min={-180} max={180} suffix="°" onChange={roll => controller.setCamera({ roll })} />
-    <FieldDescription>미리보기를 드래그해도 같은 각도가 바뀝니다. 카메라 각도는 디자인 JSON과 별개인 미리보기 설정입니다.</FieldDescription>
+    <RangeField id="view-zoom" label="확대 · Zoom" value={state.camera.zoom} min={.5} max={3} step={.01} format={value => `${Math.round(value * 100)}%`} onChange={zoom => controller.setCamera({ zoom })} />
+    <FieldDescription>드래그로 회전하고 휠·트랙패드 또는 두 손가락으로 확대하세요. 확대는 중앙 기준이며 높은 배율에서는 화면 밖이 잘릴 수 있습니다. PNG도 현재 보이는 부분을 저장합니다.</FieldDescription>
   </FieldGroup>;
 }
 
@@ -162,7 +168,7 @@ export function StudioApp({ controller }: { controller: StudioController }) {
       <section className="stage" aria-label="고정 캐릭터 미리보기">
         <div className="stage-header"><div><h1>나만의 작은 동료.</h1><p>형태를 고르고, 개성을 더하세요.</p></div><ToggleGroup type="single" variant="outline" size="sm" value={state.background} onValueChange={value => { if (value) controller.setBackground(value as StudioState['background']); }} aria-label="미리보기 배경" className="background-options">{([['checker', '투명'], ['light', '밝게'], ['dark', '어둡게']] as const).map(([value, label]) => <ToggleGroupItem key={value} value={value} data-background={value}>{label}</ToggleGroupItem>)}</ToggleGroup></div>
         <div className="previews" data-background={state.background}><div className="preview"><AvatarPreview controller={controller} /></div></div>
-        <footer className="preview-footer"><span className="preview-shape">{MATERIAL_SHAPE_LABELS[state.design.body.shape]}<Badge variant="secondary">Flat</Badge></span><span className="preview-hint"><Move aria-hidden="true" />드래그로 돌려보기</span></footer>
+        <footer className="preview-footer"><span className="preview-shape">{MATERIAL_SHAPE_LABELS[state.design.body.shape]}<Badge variant="secondary">Flat</Badge></span><span className="preview-hint"><Move aria-hidden="true" />드래그 회전 · 휠/핀치 확대</span></footer>
       </section>
       <aside className="inspector" aria-label="캐릭터 디자인 설정">
         <Tabs value={tab} onValueChange={changeTab} className="settings-tabs"><div className="settings-nav"><TabsList className="w-full" aria-label="디자인 항목"><TabsTrigger value="appearance" id="appearance-tab" aria-controls="appearance-panel">외형</TabsTrigger><TabsTrigger value="animation" id="animation-tab" aria-controls="animation-panel">애니메이션</TabsTrigger><TabsTrigger value="camera" id="camera-tab" aria-controls="camera-panel">카메라</TabsTrigger><TabsTrigger value="json" id="json-tab" aria-controls="json-panel">JSON</TabsTrigger></TabsList></div>

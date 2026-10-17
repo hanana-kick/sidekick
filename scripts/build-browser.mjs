@@ -14,22 +14,38 @@ export async function buildBrowser({ libraryDirectory = resolve(root, 'dist/libr
   const license = readFileSync(join(root, 'third_party/material-shapes/LICENSE'), 'utf8');
   const header = `/*! Sidekick ${version} | UNLICENSED; no license is granted for Sidekick itself.\n\nThird-party Material Shapes notices and Apache-2.0 license:\n${notice}\n${license}\n*/`;
   const common = { minify: true, comments: false, sourcemap: false, postBanner: header };
-  const vanilla = await rolldown({ input: join(libraryDirectory, 'auto.js'), platform: 'browser', preserveEntrySignatures: 'strict' });
-  try {
-    await vanilla.write({ ...common, format: 'esm', file: join(outputDirectory, 'sidekick.js'), codeSplitting: false });
-    await vanilla.write({ ...common, format: 'iife', name: 'Sidekick', file: join(outputDirectory, 'sidekick.iife.js'), codeSplitting: false });
-  } finally { await vanilla.close(); }
+  // Resolve the worker beside the published script, never beside the HTML page.
+  // Classic scripts must capture currentScript while their entry is evaluating.
+  const workerURL = format => ({
+    name: 'sidekick-published-worker-url',
+    load(id) {
+      if (resolve(id) !== resolve(libraryDirectory, 'runtime/create-worker.js')) return null;
+      return format === 'iife'
+        ? `const scriptURL = typeof document === 'undefined' ? undefined : document.currentScript?.src; export function createRenderWorker() { if (!scriptURL) throw new Error('Sidekick worker script URL is unavailable'); return new Worker(new URL('./sidekick.worker.js', scriptURL), { type: 'module', name: 'sidekick-render' }); }`
+        : `export function createRenderWorker() { return new Worker(new URL('./sidekick.worker.js', import.meta.url), { type: 'module', name: 'sidekick-render' }); }`;
+    },
+  });
+  for (const [format, filename] of [['esm', 'sidekick.js'], ['iife', 'sidekick.iife.js']]) {
+    const vanilla = await rolldown({ input: join(libraryDirectory, 'auto.js'), platform: 'browser', preserveEntrySignatures: 'strict', plugins: [workerURL(format)] });
+    try { await vanilla.write({ ...common, format, ...(format === 'iife' ? { name: 'Sidekick' } : {}), file: join(outputDirectory, filename), codeSplitting: false }); }
+    finally { await vanilla.close(); }
+  }
   const react = await rolldown({
     input: join(libraryDirectory, 'react.js'), platform: 'browser', external: ['react'], preserveEntrySignatures: 'strict',
+    plugins: [workerURL('esm')],
     onwarn(warning, warn) { if (warning.code !== 'MODULE_LEVEL_DIRECTIVE') warn(warning); },
   });
   try {
     await react.write({
       ...common, format: 'esm', dir: outputDirectory,
-      entryFileNames: 'sidekick-react.js', chunkFileNames: 'sidekick-element.js',
+      entryFileNames: 'sidekick-react.js',
+      chunkFileNames: chunk => chunk.name === 'render-engine' ? 'sidekick-fallback.js' : 'sidekick-element.js',
       postBanner: chunk => `${chunk.isEntry ? "'use client';\n" : ''}${header}`,
     });
   } finally { await react.close(); }
+  const worker = await rolldown({ input: join(libraryDirectory, 'runtime/render-worker.js'), platform: 'browser' });
+  try { await worker.write({ ...common, format: 'iife', file: join(outputDirectory, 'sidekick.worker.js'), codeSplitting: false }); }
+  finally { await worker.close(); }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await buildBrowser();

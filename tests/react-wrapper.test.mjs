@@ -22,7 +22,7 @@ before(async () => {
   }
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   class MockAvatar extends HTMLElement {
-    static observedAttributes = ['design', 'shape', 'body-color', 'eye-color', 'paused', 'interaction', 'mouse-tracking', 'camera-yaw', 'camera-pitch', 'camera-roll', 'accessories', 'motion', 'left-smile', 'right-blink', 'head-accessory'];
+    static observedAttributes = ['design', 'shape', 'body-color', 'eye-color', 'paused', 'interaction', 'mouse-tracking', 'tracking-mode', 'camera-yaw', 'camera-pitch', 'camera-roll', 'accessories', 'motion', 'left-smile', 'right-blink', 'head-accessory'];
     ready = false;
     mutations = [];
     listeners = new Map();
@@ -206,4 +206,21 @@ for (const subpath of ['/react', '/browser/sidekick-react.js']) test(`server imp
     dom.window.close(); console.log('delayed hydration passed');
   `]);
   assert.match(output, /delayed hydration passed/);
+});
+
+test('React forwards canonical trackingMode independently from the legacy boolean and removes it cleanly', async t => {
+  const f = await fixture(t, { trackingMode: 'eyes-and-body', mouseTracking: false });
+  assert.equal(f.avatar.getAttribute('tracking-mode'), 'eyes-and-body'); assert.equal(f.avatar.getAttribute('mouse-tracking'), 'false');
+  await f.render({ trackingMode: 'off', mouseTracking: true });
+  assert.equal(f.avatar.getAttribute('tracking-mode'), 'off'); assert.equal(f.avatar.getAttribute('mouse-tracking'), 'true');
+  await f.render({ mouseTracking: true });
+  assert.equal(f.avatar.hasAttribute('tracking-mode'), false); assert.equal(f.avatar.getAttribute('mouse-tracking'), 'true');
+});
+
+test('React cameraZoom overrides object zoom and removal restores object/default declarations', async t => {
+  const f = await fixture(t, { camera: { yaw: 12, zoom: 1.4 }, cameraZoom: 2 });
+  assert.equal(f.avatar.getAttribute('camera-zoom'), '2');
+  await f.render({ camera: { yaw: 12, zoom: 1.4 } }); assert.equal(f.avatar.getAttribute('camera-zoom'), '1.4');
+  await f.render({ camera: { yaw: 12 } }); assert.equal(f.avatar.hasAttribute('camera-zoom'), false);
+  assert.equal(f.avatar.getAttribute('camera-yaw'), '12');
 });

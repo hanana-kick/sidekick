@@ -51,3 +51,23 @@ import { AvatarRenderer, ShapeTimeline } from '@hanana-kick/sidekick';
 import { resolveDesign } from '@hanana-kick/sidekick/dist/src/core/resolved-design.js';
 // @ts-expect-error ./core exports no anchor types.
 import type { Anchor as CoreAnchor } from '@hanana-kick/sidekick/core';
+
+// Tracking is behavior; no additional appearance geometry is exposed.
+import type { TrackingMode, SidekickAttributes } from '@hanana-kick/sidekick';
+import type { TrackingMode as CoreTrackingMode } from '@hanana-kick/sidekick/core';
+const mode: TrackingMode = 'eyes-and-body';
+const coreMode: CoreTrackingMode = mode;
+avatar.trackingMode = coreMode;
+avatar.mouseTracking = true;
+const attrs: SidekickAttributes = { 'tracking-mode': mode, 'mouse-tracking': false };
+void attrs;
+// @ts-expect-error No independent body-only tracking axis exists.
+avatar.trackingMode = 'body';
+// @ts-expect-error Named tracking modes are not booleans.
+avatar.trackingMode = true;
+
+// Worker readback is explicitly asynchronous and keeps the public pixel contract.
+const freshPixels: Promise<import("@hanana-kick/sidekick").PixelBuffer> = avatar.capturePixelsAsync();
+const presentedPixels: import("@hanana-kick/sidekick").PixelBuffer = avatar.capturePixels();
+const backend: "worker" | "main" | "none" = avatar.diagnostics.backend;
+void freshPixels; void presentedPixels; void backend;

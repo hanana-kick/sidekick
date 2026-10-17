@@ -14,15 +14,15 @@
 npm install https://github.com/hanana-kick/sidekick.git
 ```
 
-배포 버전을 고정하려면 버전 태그를 지정합니다.
+버전을 고정하려면 릴리스 태그를 지정합니다.
 
 ```sh
 npm install https://github.com/hanana-kick/sidekick.git#v0.2.1
 ```
 
-빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 소스의 버전은 `0.2.1`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.2.1`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
 
-npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. 단일 ESM과 일반 `<script>`용 JS를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
+npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. ESM과 일반 `<script>`용 JS, 전용 렌더링 worker를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
 
 ### GitHub Release에서 다운로드
 
@@ -32,11 +32,13 @@ npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.co
 
 | 빌드된 파일 | 용도 | 필요한 파일·의존성 |
 | --- | --- | --- |
-| `sidekick-browser-0.2.1.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 4개, 선택적 `vendor/`, README·고지 포함 |
-| `sidekick.js` | 브라우저 ESM. `import`와 `<script type="module">` 사용 | 이 JS 파일 하나. 런타임 외부 import 없음 |
-| `sidekick.iife.js` | 일반 classic `<script>`. API는 `window.Sidekick` | 이 JS 파일 하나. `type="module"` 사용 안 함 |
-| `sidekick-react.js` | React 19용 ESM 컴포넌트 | `sidekick-element.js`를 같은 디렉터리에 유지하고 `react` peer를 제공 |
+| `sidekick-browser-0.2.1.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
+| `sidekick.js` | 브라우저 ESM. `import`와 `<script type="module">` 사용 | `sidekick.worker.js`를 같은 디렉터리에 유지 |
+| `sidekick.iife.js` | 일반 classic `<script>`. API는 `window.Sidekick` | `sidekick.worker.js`를 같은 디렉터리에 유지. `type="module"` 사용 안 함 |
+| `sidekick-react.js` | React 19용 ESM 컴포넌트 | `sidekick-element.js`·`sidekick-fallback.js`·`sidekick.worker.js`를 같은 디렉터리에 유지하고 `react` peer를 제공 |
 | `sidekick-element.js` | React 래퍼가 지연 로딩하는 렌더러 | 직접 import하지 않음. `sidekick-react.js`와 같은 버전 사용 |
+| `sidekick-fallback.js` | worker를 사용할 수 없을 때 React 요소가 불러오는 렌더러 | 직접 import하지 않음. 나머지 파일과 같은 버전 사용 |
+| `sidekick.worker.js` | OffscreenCanvas 전용 worker | 브라우저 진입 파일 옆에 배치. 별도 script 태그로 불러오지 않음 |
 | `vendor/react.js`, `vendor/react-dom-client.js` | 브라우저 ZIP의 선택적 React 19/ReactDOM ESM | 아래 빌드 없는 React 예제용. import map으로 연결하며 React를 이미 제공하는 앱에는 불필요 |
 | `hanana-kick-sidekick-0.2.1.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
 | `SHA256SUMS` | ZIP과 tarball의 다운로드 무결성 확인 | 같은 Release의 체크섬 파일 |
@@ -71,7 +73,7 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 
 ### 가장 작은 ESM 사용 예
 
-다운로드한 `sidekick.js`를 사이트의 `/vendor/sidekick/sidekick.js`에 놓으면 다음 두 줄로 시작할 수 있습니다.
+다운로드한 `sidekick.js`와 `sidekick.worker.js`를 사이트의 `/vendor/sidekick/`에 놓으면 다음 두 줄로 시작할 수 있습니다.
 
 ```html
 <script type="module" src="/vendor/sidekick/sidekick.js"></script>
@@ -96,7 +98,7 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 <body>
   <sidekick-avatar id="bot" shape="verySunny" body-color="#ffcc37"
     eye-color="#24242c" head-accessory="beret" head-color="#b84742"
-    mouse-tracking interaction="box" shape-duration="450"
+    tracking-mode="eyes-and-body" interaction="box" shape-duration="450"
     aria-label="작업 도우미"></sidekick-avatar>
   <button id="change" disabled>도형 바꾸기</button>
   <p id="status" role="status">불러오는 중</p>
@@ -131,7 +133,7 @@ import { createDesign, createAccessory, defineSidekick } from '/vendor/sidekick/
 
 ### 완전한 HTML 예제: 일반 JS script
 
-`sidekick.iife.js`를 복사하고 `type="module"` 없이 불러옵니다. 등록은 자동이며 같은 공개 API가 `Sidekick` 전역에 있습니다. 외부 스크립트를 먼저 실행하고 그 아래에서 API를 사용하세요. 이 순서의 예제에 `async`/`defer`를 임의로 추가하지 마세요.
+`sidekick.iife.js`와 `sidekick.worker.js`를 같은 디렉터리에 복사하고 `type="module"` 없이 불러옵니다. 등록은 자동이며 같은 공개 API가 `Sidekick` 전역에 있습니다. 외부 스크립트를 먼저 실행하고 그 아래에서 API를 사용하세요. 이 순서의 예제에 `async`/`defer`를 임의로 추가하지 마세요.
 
 ```html
 <!doctype html>
@@ -144,7 +146,7 @@ import { createDesign, createAccessory, defineSidekick } from '/vendor/sidekick/
 </head>
 <body>
   <sidekick-avatar id="bot" shape="heart" body-color="#8bba9c"
-    mouse-tracking="true" interaction="box" aria-label="작업 도우미"></sidekick-avatar>
+    tracking-mode="eyes-and-body" interaction="box" aria-label="작업 도우미"></sidekick-avatar>
   <button id="change">도형 바꾸기</button>
   <p id="status" role="status">불러오는 중</p>
   <script>
@@ -192,7 +194,7 @@ await bot.setDesign(createDesign({
   accessories: [createAccessory('glasses', 'frames')],
 }));
 await bot.setShape('cookie9Sided', { duration: 600, easing: 'smooth' });
-bot.mouseTracking = false;
+bot.trackingMode = 'off';
 bot.lookAt({ space: 'view', x: 0.6, y: 0.2 });
 ```
 
@@ -223,7 +225,7 @@ export function Companion() {
         shape={shape}
         bodyColor="#8bba9c"
         headAccessory="beret"
-        mouseTracking={tracking}
+        trackingMode={tracking ? 'eyes-and-body' : 'off'}
         interaction="box"
         shapeDuration={450}
         shapeEasing="smooth"
@@ -255,7 +257,7 @@ const design = createDesign({
   accessories: [createAccessory('halo', 'aura')],
 });
 
-<SidekickAvatar design={design} mouseTracking={false} />;
+<SidekickAvatar design={design} trackingMode="off" />;
 ```
 
 속성 변경은 기존 요소에 반영됩니다. 애니메이션 도중 `key`를 바꾸거나 요소를 조건부로 제거하면 런타임이 다시 만들어지므로 안정된 `key`를 유지하세요. 한 값을 props와 명령형 API 양쪽에서 제어한다면, 나중에 해당 prop을 바꿀 때 선언적 값이 다시 적용됩니다. 애니메이션 전환은 `shape` prop 또는 `setShape()`를 사용하세요. React `design` prop도 HTML `design` 속성으로 연결되므로 연결 후 도형을 바꾸면 `shapeDuration`으로 전환합니다. 반대로 요소의 JavaScript `design` 프로퍼티와 `setDesign()`은 전체 디자인을 즉시 적용합니다.
@@ -298,7 +300,7 @@ const design = createDesign({
       return h('main', null,
         h(SidekickAvatar, {
           ref: bot, shape, bodyColor: '#8bba9c', headAccessory: 'beret',
-          mouseTracking: tracking, interaction: 'box', shapeDuration: 450,
+          trackingMode: tracking ? 'eyes-and-body' : 'off', interaction: 'box', shapeDuration: 450,
           style: { width: 200, height: 200 }, 'aria-label': '작업 도우미',
           onReady: () => setReady(true),
           onError: event => setError(event.detail.message),
@@ -338,7 +340,7 @@ const design = createDesign({
 | --- | --- | --- | --- |
 | `design` | `design` | `AvatarDesign` | HTML은 완전한 디자인 JSON 문자열. 기본 `createDesign()`의 v7 디자인 |
 | `shape` | `shape` | `MaterialShapeName` | 35개 카탈로그 이름. 상위 디자인의 도형, 없으면 `square` |
-| `body-color` | `bodyColor` | `string` | `#RRGGBB`. 상위 디자인 색, 없으면 `#ffcc37` |
+| `body-color` | `bodyColor` | `string` | `#RRGGBB`. 상위 디자인 색, 없으면 `#FFCC37` |
 | `eye-color` | `eyeColor` | `string` | `#RRGGBB`. 상위 디자인 색, 없으면 `#24242c` |
 | `expression` | `expression` | `EyeExpression` | `neutral` / `smile` / `blink`. 생략 시 디자인의 양쪽 가중치 유지, 초기 `neutral` |
 | `left-expression` | `leftExpression` | `EyeExpression` | 왼쪽 `neutral` / `smile` / `blink`. 생략 시 공통 expression/디자인 사용 |
@@ -393,11 +395,13 @@ const design = createDesign({
 | `activity` | `activity` | `Activity` | `idle` / `thinking` / `listening` / `speaking` / `celebrating` / `still`. 기본 `idle` |
 | `paused` | `paused` | `boolean` | 기본 `false`. 반복 모션 일시 정지 |
 | `interaction` | `interaction` | `'none' \| 'box'` | 기본 `none`. `box`는 드래그/클릭/키보드 활성화 |
-| `mouse-tracking` | `mouseTracking` | `boolean` | 기본 `false`. 문서 전체의 마우스 시선 추적 |
-| `camera` | `camera` | `CameraPreset \| Partial<CameraAngles>` | HTML은 `front` / `three-quarter` / `side`, 기본 `front`. React는 `{yaw,pitch,roll}` 부분 객체도 허용 |
+| `tracking-mode` | `trackingMode` | `TrackingMode` | `off`(기본), `eyes`, `eyes-and-body`. 눈만 또는 눈과 몸 추적 |
+| `mouse-tracking` | `mouseTracking` | `boolean` | 이전 눈 추적 별칭. `true` → `eyes`, `false` → `off`. 명시적인 `tracking-mode`가 우선 |
+| `camera` | `camera` | `CameraPreset \| Partial<CameraState>` | HTML은 `front` / `three-quarter` / `side`, 기본 `front`. React는 `{yaw,pitch,roll,zoom}` 부분 객체도 허용 |
 | `camera-yaw` | `cameraYaw` | `number` | -360~360도. camera 프리셋의 yaw, 없으면 0 |
 | `camera-pitch` | `cameraPitch` | `number` | -90~90도. camera 프리셋의 pitch, 없으면 0 |
 | `camera-roll` | `cameraRoll` | `number` | -180~180도. camera 프리셋의 roll, 없으면 0 |
+| `camera-zoom` | `cameraZoom` | `number` | 0.5~3배, 기본 1. 중앙 기준 확대/축소. 제거하면 1로 복원 |
 | `gaze-x` | `gazeX` | `number` | -1~1. 기본 0. 마우스 추적을 끄면 사용하는 명시적 시선 |
 | `gaze-y` | `gazeY` | `number` | -1~1. 기본 0 |
 | `shape-duration` | `shapeDuration` | `number` | 도형 속성 전환 시간 0~60000ms. 기본 450 |
@@ -407,7 +411,7 @@ const design = createDesign({
 | `motion` | `motion` | `MotionTarget` | HTML은 JSON 문자열. 초기 포즈는 회전·얼굴 이동 0, 공통 눈 뜨기 1, 좌우 눈은 디자인 가중치 |
 | `time` | `time` | `number` | 반복 애니메이션 시간 0~86400초. 기본 0. 프레임마다 변경되는 readback 값이 아닌 seek 입력 |
 
-React의 `camera={{ yaw: 35 }}`는 `camera-yaw` 속성으로 연결됩니다. 같은 축의 별도 prop인 `cameraYaw`를 함께 주면 별도 prop이 우선합니다. 생략한 객체 축은 새 요소에서는 0이고, 이전에 래퍼가 소유한 축을 제거하면 선언적 기본값으로 돌아갑니다. 명령형 `setCamera({yaw:35})`는 지정하지 않은 현재 축을 유지합니다.
+React의 `camera={{ yaw: 35 }}`는 `camera-yaw` 속성으로 연결됩니다. 같은 축의 별도 prop인 `cameraYaw`를 함께 주면 별도 prop이 우선합니다. `camera={{zoom:1.4}}`와 `cameraZoom`도 같은 방식이며, `cameraZoom`을 제거하면 객체의 zoom 또는 기본 1이 적용됩니다. 생략한 객체 축은 새 요소에서는 0이고, 이전에 래퍼가 소유한 축을 제거하면 선언적 기본값으로 돌아갑니다. 명령형 `setCamera({yaw:35})`는 지정하지 않은 현재 축을 유지합니다.
 
 `MotionTarget`은 부분 목표이며 지정하지 않은 채널은 유지합니다. 지원하는 중첩 필드는 전부 다음과 같습니다.
 
@@ -434,7 +438,7 @@ React의 `camera={{ yaw: 35 }}`는 `camera-yaw` 속성으로 연결됩니다. �
 | `onReady` | `SidekickEventHandler<'sidekick-ready'>` | `CustomEvent<{}>`. props 적용 후 렌더 준비 완료 |
 | `onError` | `SidekickEventHandler<'sidekick-error'>` | `CustomEvent<SidekickErrorDetail>`. `message: string`, 선택 `attribute: string`, `value: string \| null`, `recoverable: boolean` |
 | `onDesignChange` | `SidekickEventHandler<'sidekick-design-change'>` | `CustomEvent<{design: AvatarDesign}>` |
-| `onCameraChange` | `SidekickEventHandler<'sidekick-camera-change'>` | `CustomEvent<{camera: CameraAngles}>` |
+| `onCameraChange` | `SidekickEventHandler<'sidekick-camera-change'>` | `CustomEvent<{camera: CameraState}>` |
 | `onMotionEnd` | `SidekickEventHandler<'sidekick-motion-end'>` | `CustomEvent<{finished: boolean}>` |
 | `onShapeEnd` | `SidekickEventHandler<'sidekick-shape-end'>` | `CustomEvent<{finished: boolean}>` |
 | `onActivate` | `SidekickEventHandler<'sidekick-activate'>` | `CustomEvent<{}>`. 클릭 또는 Enter/Space 활성화 |
@@ -443,7 +447,7 @@ React의 `camera={{ yaw: 35 }}`는 `camera-yaw` 속성으로 연결됩니다. �
 
 ### 변경·제거·오류 규칙
 
-- boolean은 네이티브 HTML boolean과 달리 문자열 `"false"`도 해석합니다. `mouse-tracking`, `mouse-tracking=""`, `mouse-tracking="true"`, `mouse-tracking="1"`이 켜짐입니다. `="false"`, `="0"` 또는 속성 제거는 꺼짐입니다. `paused`도 같습니다. React에서는 `{true}` / `{false}`를 사용하세요. React의 `false`는 명시적인 꺼짐 값이며 prop 생략과 다릅니다. `null`, `"TRUE"`, `"yes"` 등은 지원하지 않습니다.
+- boolean은 네이티브 HTML boolean과 달리 문자열 `"false"`도 해석합니다. `mouse-tracking`, `mouse-tracking=""`, `mouse-tracking="true"`, `mouse-tracking="1"`이 켜짐입니다. `="false"`, `="0"` 또는 속성 제거는 꺼짐입니다. 단, `tracking-mode`가 있으면 그 모드가 우선합니다. `paused`도 같은 boolean 표기를 사용합니다. React에서는 `{true}` / `{false}`를 사용하세요. React의 `false`는 명시적인 꺼짐 값이며 prop 생략과 다릅니다. `null`, `"TRUE"`, `"yes"` 등은 지원하지 않습니다.
 - 지원하는 속성에 잘못된 도형 이름·프리셋·JSON·숫자 범위·색상 형식을 넣으면 오류입니다. 관찰하지 않는 임의 HTML 속성은 브라우저의 일반 속성으로 남으며 라이브러리 설정에 적용되지 않습니다. 색상 축약 `#fff`, CSS 색상명, `NaN`, `Infinity`는 지원하지 않습니다. 값을 생략하려면 빈 문자열 대신 속성을 제거하세요.
 - React의 `undefined`/생략 및 HTML `removeAttribute()`는 그 입력의 덮어쓰기만 해제합니다. `design` 아래 입력이 있으면 그것을 사용합니다. 슬롯을 반드시 비우려면 `none`, 장비 배열을 반드시 비우려면 `[]`를 지정하세요.
 - 같은 JavaScript 작업 안에서 바꾼 여러 속성은 다음 마이크로태스크에서 묶어 검증·적용합니다. 잘못된 배치는 이전 유효 런타임 상태를 유지하고 `sidekick-error`를 발생시킵니다. 원래 입력 문자열은 DOM에 남아 있으므로 오류 속성을 고치거나 제거해야 합니다.
@@ -458,14 +462,30 @@ bot.setAttribute('shape', 'heart');
 bot.setAttribute('left-smile', '0.8');
 await Promise.resolve(); // 같은 작업의 속성 적용 이후
 
-bot.setAttribute('mouse-tracking', 'false');
+bot.setAttribute('tracking-mode', 'off');
 bot.removeAttribute('body-color'); // design의 색 또는 기본 색으로 복원
 bot.setAttribute('head-accessory', 'none'); // design에 모자가 있어도 해제
 ```
 
 ## 마우스 추적과 드래그
 
-`mouse-tracking="true"` 또는 `bot.mouseTracking = true`는 페이지의 마우스 위치를 바라보게 합니다. 요소 안에 마우스를 둘 필요가 없으며 터치 입력은 추적하지 않습니다. 끄면 마지막 명시적 시선으로 돌아갑니다. 직접 시선을 계속 제어하려면 추적을 끈 뒤 `lookAt()` 또는 `gaze-x`/`gaze-y`를 사용하세요.
+`tracking-mode` / `trackingMode`는 전체 추적 동작을 하나의 값으로 선택합니다. 기본값은 `off`입니다.
+
+- `off`: 마우스를 추적하지 않고 마지막 `lookAt()` 또는 `gaze-x`/`gaze-y`의 명시적 시선으로 돌아갑니다.
+- `eyes`: 눈만 마우스를 따라봅니다. 기존 몸체 포즈와 모션은 그대로입니다.
+- `eyes-and-body`: 눈과 함께 몸이 작고 부드럽게 돌아봅니다. 몸 회전은 기존 모션 위에 더하는 별도 렌더링 레이어입니다. `pose.rotation`, 모션 진행 시간, 카메라를 변경하지 않습니다.
+
+```ts
+import type { TrackingMode } from '@hanana-kick/sidekick/core';
+const mode: TrackingMode = 'eyes-and-body';
+bot.trackingMode = mode;
+// HTML: <sidekick-avatar tracking-mode="eyes-and-body"></sidekick-avatar>
+// React: <SidekickAvatar trackingMode="eyes-and-body" />
+```
+
+이전 `mouse-tracking` / `mouseTracking`도 지원합니다. 이름 있는 모드가 없을 때 `true`는 `eyes`, `false`는 `off`로 해석합니다. 둘을 함께 쓰면 `tracking-mode`가 항상 우선하며, 해당 속성을 제거하면 남아 있는 `mouse-tracking` 설정이 다시 적용됩니다. `bot.mouseTracking`을 읽으면 두 추적 모드 모두 `true`입니다. 이름 있는 모드를 사용한 뒤 끄려면 `bot.trackingMode = 'off'`를 사용하세요.
+
+문서 전체의 마우스를 추적하며 터치·펜 입력은 무시합니다. 모드 변경·끄기·창 이탈·포커스 상실 시 현재 위치에서 부드럽게 돌아오고, 숨김·연결 해제 중에는 추적 리스너를 제거합니다. 연결 해제 시 보이지 않는 몸 레이어를 초기화하고 다시 연결되면 새 포인터 입력을 기다립니다. 드래그 중에는 추적 입력을 멈춰 카메라 조작과 경쟁하지 않습니다. 모션 줄이기는 몸 추적을 억제하고 기존 오프셋만 부드럽게 해제합니다. `paused`에서는 몸 추적을 현재 위치에 멈추며 눈 시선은 즉시 반영합니다. 다만 추적을 끄거나 눈만 모드로 바꿀 때는 몸 레이어만 부드럽게 해제하고 활동·기본 포즈의 시간은 멈춘 채 유지합니다.
 
 `interaction`은 별도의 설정입니다.
 
@@ -527,7 +547,7 @@ HTML의 복합 데이터는 유효한 JSON 문자열로 지정합니다.
 
 ### 장면 JSON 파일
 
-Studio의 JSON 파일과 코드 예제는 현재 디자인에 런타임 설정을 더한 `sceneVersion: 1` envelope를 사용합니다. `design.version: 7`과는 서로 다른 버전입니다. 파일 이름은 `sidekick.scene.json`이며 디자인만 저장한 이전 파일도 가져올 수 있습니다.
+Studio의 JSON 파일과 코드 예제는 현재 디자인에 런타임 설정을 더한 `sceneVersion: 2` envelope를 사용합니다. `design.version: 7`과는 서로 다른 버전입니다. 파일 이름은 `sidekick.scene.json`이며 디자인만 저장한 이전 파일도 가져올 수 있습니다.
 
 ```ts
 import { createScene, parseScene, serializeScene, migrateScene } from '@hanana-kick/sidekick/core';
@@ -535,7 +555,7 @@ import { createScene, parseScene, serializeScene, migrateScene } from '@hanana-k
 const scene = createScene({
   design,
   camera: { yaw: 35, pitch: 12 },
-  mouseTracking: true,
+  trackingMode: 'eyes-and-body',
   activity: 'thinking',
   interaction: 'box',
   shapeDuration: 600,
@@ -545,7 +565,9 @@ const checked = parseScene(json);
 const { scene: imported, warnings, legacyDesign } = migrateScene(oldOrSceneJson);
 ```
 
-`createScene()`는 `design`, `camera`, `activity`, `paused`, `mouseTracking`, `interaction`, `renderStyle`, `gaze: {x,y}`, `time`, `motion`, `shapeDuration`, `shapeEasing`, `motionDuration`, `motionEasing`을 기본값과 함께 채웁니다. `parseScene()`은 완전한 envelope를 엄격히 검증합니다. 임의 기하값·알 수 없는 키·잘못된 장비 id 모션·지원하지 않는 버전을 거부합니다. `migrateScene()`은 이전 디자인 파일도 받아 기본 런타임 설정을 붙입니다.
+`createScene()`는 `design`, `camera`, `activity`, `paused`, `trackingMode`, `interaction`, `renderStyle`, `gaze: {x,y}`, `time`, `motion`, `shapeDuration`, `shapeEasing`, `motionDuration`, `motionEasing`을 기본값과 함께 채웁니다. `parseScene()`은 완전한 envelope를 엄격히 검증합니다. 이전 `sceneVersion: 1`의 `mouseTracking` boolean은 `eyes` / `off`로 가져오고, 저장할 때는 `sceneVersion: 2`와 `trackingMode` 하나만 사용합니다. `createScene({ mouseTracking: true })`도 이전 호출 호환용으로 지원하며 명시적 `trackingMode`가 우선합니다. 임의 기하값·알 수 없는 키·잘못된 장비 id 모션·지원하지 않는 버전을 거부합니다. `migrateScene()`은 이전 디자인 파일도 받아 기본 런타임 설정을 붙입니다.
+
+Studio 가져오기·초기화는 `resetTracking()`으로 이전 실시간 추적 오프셋을 즉시 지워 새 장면에 남지 않게 합니다. 일반 모드 변경은 위에 설명한 부드러운 복귀를 유지합니다.
 
 장면은 **설정한 목표와 시간 값**을 재현합니다. 재생 중인 정확한 중간 프레임, 자동 깜박임 위상, 실시간 마우스 좌표, 브라우저 배경을 녹화하지 않습니다. 마우스 추적이 켜져 있다면 가져온 페이지의 마우스를 새로 따라갑니다. `motion`은 저장 디자인과 별개인 런타임 목표입니다.
 
@@ -583,8 +605,9 @@ await bot.setExpression('both', 'neutral');
 ```ts
 bot.setCamera({ yaw: 35, pitch: 12, roll: -5 }); // 도(degree)
 bot.setCameraPreset('three-quarter'); // yaw 45°, pitch/roll 0°
-bot.resetCamera();                    // 세 축 모두 0°
-bot.mouseTracking = false;
+bot.setCamera({ zoom: 1.5 });          // 중앙 기준 150% 확대
+bot.resetCamera();                    // 세 축 모두 0°, zoom 1
+bot.trackingMode = 'off';
 bot.lookAt({ space: 'view', x: 0.6, y: 0.2 });
 
 // 포즈 회전은 라디안. 아래 예제는 id 'hat' 장비가 있을 때 사용합니다.
@@ -595,6 +618,13 @@ await bot.motion.to({
   accessories: { hat: { rotation: [0, 0.2, 0] } },
 }, { duration: 500, easing: 'smooth' });
 ```
+
+`CameraAngles`는 기존 회전 전용 타입이며, `CameraState`는 여기에 `zoom: number`를 더한 카메라 상태입니다. `createCamera()`의 zoom 기본값은 1이고 허용 범위는 0.5~3입니다. `setCamera()`는 지정한 값만 변경하며, `setCameraPreset()`은 zoom을 유지하고 `resetCamera()`는 zoom도 1로 복원합니다. 기존 sceneVersion 1/2 장면에서 camera.zoom이 없으면 1로 읽고, 새 장면 JSON과 HTML/React 코드는 zoom을 포함합니다. 디자인 JSON에는 카메라를 넣지 않습니다.
+
+`interaction="box"` 미리보기에서 한 손가락/마우스 드래그는 회전, 휠·트랙패드(핀치의 Ctrl+wheel 포함)와 두 손가락 핀치는 중앙 기준 확대입니다. 픽셀/줄/페이지 휠 단위를 정규화하고 곱셈 배율로 변경합니다. 핀치 중심점 이동은 패닝을 만들지 않습니다. 설정 패널의 스크롤은 그대로 유지되며, `interaction="none"`에서는 회전·확대를 받지 않습니다. 확대 중에도 도형·몸·눈 애니메이션은 이어지고 커서 추적은 중립으로 돌아갔다가 새 포인터 이동부터 다시 시작합니다.
+
+높은 배율에서는 아바타나 액세서리가 캔버스 경계 밖으로 잘릴 수 있습니다. PNG는 현재 확대된 화면에서 보이는 픽셀만 저장하므로, 전체 모습을 내보내려면 먼저 보기를 초기화하거나 배율을 낮추세요. 확대는 렌더러의 직교 투영에만 적용되어 모델 크기와 종횡비는 바뀌지 않습니다.
+
 
 카메라는 모델 원점을 중심으로 하는 직교 보기 회전입니다. `front`는 yaw 0°, `three-quarter`는 45°, `side`는 90°이며 각 프리셋의 pitch·roll은 0°입니다. 양의 yaw는 정면을 화면 오른쪽으로, 양의 pitch는 아래로, 양의 roll은 화면 반시계 방향으로 돌립니다. 카메라 값은 디자인과 포즈를 바꾸지 않습니다.
 
@@ -611,17 +641,30 @@ await bot.motion.to({
 | `setEyeWeights(side, weights, options)` | 좌우/양쪽 부분 가중치 저장 및 전환 |
 | `setExpression(side, preset, options)` | 표정 프리셋 저장 및 전환 |
 | `setActivity(name)`, `activity` | 활동 설정, 현재 활동 읽기 |
-| `mouseTracking`, `paused`, `interaction`, `renderStyle` | 해당 동작 읽기/설정 |
+| `resetTracking()` | 실시간 포인터 시선·몸 오프셋을 즉시 초기화하고 마지막 수동 시선을 복원. 모드·기본 포즈·카메라는 유지 |
+| `trackingMode`, `mouseTracking`, `paused`, `interaction`, `renderStyle` | 해당 동작 읽기/설정 |
 | `lookAt({space:'view',x,y})` | -1~1 범위의 명시적 시선 |
-| `camera`, `setCamera(patch)` | 도 단위 카메라 읽기/설정. getter는 복사본 |
-| `setCameraPreset(name)`, `resetCamera()` | 프리셋/정면 초기화 |
+| `camera`, `setCamera(patch)` | `CameraState` 읽기/부분 설정. 각도는 도, zoom은 0.5~3배. getter는 복사본 |
+| `setCameraPreset(name)`, `resetCamera()` | 프리셋은 확대 유지, 명시적 초기화는 정면 + zoom 1 |
 | `setView(yaw,pitch)` | 이전 라디안 API. roll은 유지 |
 | `motion.to(target,options)`, `motion.cancel()` | 포즈 전환/모든 포즈 채널 취소 |
 | `seek(seconds)` | 반복 애니메이션 시간 0~86400초 지정 |
-| `pose` | 현재 포즈 복사본, 읽기 전용 |
+| `pose` | 최근 렌더링 엔진이 확인한 포즈 복사본, 읽기 전용. worker 모드에서는 비동기 갱신 |
 | `snapshot({crop,padding}?)` | 렌더 준비 후 투명 PNG `Promise<Blob>`. 기본은 알파 경계로 자르기 |
-| `capturePixels()` | 렌더 준비 후 `{width,height,pixels}`. 아래 행부터 RGBA |
-| `ready`, `diagnostics` | 준비 여부, RAF 상태, 프레임 수, draw call·버퍼 수 |
+| `capturePixels()` | 최근 화면에 표시된 전체 캔버스의 동기 읽기. worker에 보낸 최신 명령까지 기다리지 않음 |
+| `capturePixelsAsync()` | 최신 명령 이후의 새 프레임을 기다리는 `Promise<{width,height,pixels}>`. 아래 행부터 RGBA |
+| `ready`, `diagnostics` | 준비 여부, `worker`/`main` backend, 세대·명령 확인 번호, 애니메이션 시간, 프레임·draw call·버퍼 수 |
+
+## OffscreenCanvas와 렌더링
+
+지원하는 브라우저에서는 요소의 canvas를 `transferControlToOffscreen()`으로 전용 Web Worker에 넘깁니다. 메시·모션/도형 전환·시선 추적 spring·WebGL 렌더링은 worker에서 처리합니다. 메인 스레드는 DOM, 접근성, 입력, 크기 관찰과 명령 전달을 담당합니다. `bot.diagnostics.backend`로 실제 `worker` 또는 `main` 실행 경로를 확인할 수 있습니다.
+
+worker 파일은 페이지와 같은 origin에서 올바른 JavaScript MIME으로 제공하세요. 브라우저 보안 정책상 다른 origin의 Worker URL을 그대로 사용할 수 없습니다. CSP를 사용하는 사이트는 `worker-src 'self'` 등 해당 worker를 허용하는 정책이 필요합니다. Blob worker나 별도 보안 헤더를 요구하지 않습니다. 지원 부족, CSP/파일 로딩 실패 또는 worker 초기화 실패 시 새 canvas로 교체하고 메인 스레드 렌더러로 복구합니다.
+
+디자인·카메라 설정과 입력 검증은 즉시 반영되지만, worker의 포즈/픽셀은 비동기로 도착합니다. 명령 직후 정확한 화면이 필요하면 `await bot.capturePixelsAsync()` 또는 `await bot.snapshot()`을 사용하세요. PNG 내보내기는 새 렌더 프레임을 기다립니다. 연결 해제는 worker, GPU 리소스와 입력 리스너를 정리하며, 다시 연결하면 새 렌더링 세대를 시작합니다.
+
+브라우저 계약은 [OffscreenCanvas 전송](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/transferControlToOffscreen)과 [CSP worker-src](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/worker-src)를 참고하세요. 이미 전송했거나 컨텍스트를 만든 canvas는 다시 전송할 수 없어 복구 시 내부 canvas를 교체합니다. 호스트 요소와 React ref는 유지됩니다.
+
 
 ## 이벤트와 정리
 
@@ -637,7 +680,7 @@ await bot.motion.to({
 | `sidekick-shape-end` | `onShapeEnd` | `{ finished }` |
 | `sidekick-activate` | `onActivate` | `{}` |
 
-PNG의 기본 `crop: true`, `padding: 0`은 현재 캐릭터의 불투명/반투명 픽셀 전체 경계로 자릅니다. 장비도 포함하고 배경은 투명하게 유지합니다. `padding`은 0~4096의 정수 픽셀이며, 원래 캔버스 크기가 필요하면 `snapshot({ crop: false })`를 사용하세요. 완전히 비어 있으면 투명 1×1px(여백 별도)을 반환합니다. `capturePixels()`는 기존 전체 캔버스 크기를 유지하며 `/core`의 `alphaBounds()`·`cropPixels()`도 사용할 수 있습니다.
+PNG의 기본 `crop: true`, `padding: 0`은 현재 캐릭터의 불투명/반투명 픽셀 전체 경계로 자릅니다. 장비도 포함하고 배경은 투명하게 유지합니다. `padding`은 0~4096의 정수 픽셀이며, 원래 캔버스 크기가 필요하면 `snapshot({ crop: false })`를 사용하세요. 완전히 비어 있으면 투명 1×1px(여백 별도)을 반환합니다. 정확한 최신 픽셀은 `await capturePixelsAsync()`로 읽습니다. 동기 `capturePixels()`는 worker 모드에서 최근 표시 프레임만 읽습니다. 두 메서드 모두 전체 캔버스 크기를 유지하며 `/core`의 `alphaBounds()`·`cropPixels()`도 사용할 수 있습니다.
 
 초기 `ready`/오류까지 받으려면 요소를 문서에 추가하기 전에 리스너를 붙이거나 React 콜백을 사용하세요. 이미 연결된 요소는 `ready`를 먼저 확인합니다. `setDesign()` 등의 Promise 오류도 `try/catch`로 처리하세요.
 
@@ -687,7 +730,7 @@ npm run pack:release   # 커밋된 깨끗한 checkout에서 release/에 ZIP·tar
 ### Studio에서 할 수 있는 일
 
 - 외형: 검색·키보드 탐색이 되는 35개 실루엣 타일, 몸체·눈 색, 실제 렌더링 썸네일의 12종 장비와 슬롯별 색
-- 애니메이션: 활동·일시 정지, 마우스 추적 on/off, 명시적 시선, 도형 전환 시간·easing, 좌우 웃음·감기 가중치
+- 애니메이션: 활동·일시 정지, 마우스 추적 꺼짐/눈만/눈과 몸, 명시적 시선, 도형 전환 시간·easing, 좌우 웃음·감기 가중치
 - 카메라: yaw·pitch·roll, 정면·사선·측면 프리셋, 미리보기 드래그와 양방향 동기화
 - JSON: 파일/텍스트 가져오기·내보내기, 현재 설정이 반영되는 HTML/React 코드와 복사 버튼, 알파 경계에 맞춘 투명 PNG 저장
 
@@ -725,6 +768,15 @@ SIDEKICK_HEADED=1 xvfb-run -a npm run test:browser
 
 브라우저 검사는 실제 HTTP origin의 WebGL·투명도·애니메이션·장비·모바일 레이아웃·생명주기·fallback을 대상으로 합니다. `CHROMIUM_PATH`로 실행 파일 경로, `SIDEKICK_SCREENSHOTS=artifacts`로 스크린샷 위치를 지정할 수 있습니다. 네트워크가 차단된 QA의 `SIDEKICK_OFFLINE_BROWSER=1`은 `http://sidekick.test` 요청을 실제 빌드 파일로 응답하며 로컬 저장소/재로드도 검사합니다. Safari/Firefox·실제 모바일 GPU 검증은 별도입니다. 테스트 명령이 있다는 사실이 해당 환경에서 검사를 통과했다는 뜻은 아닙니다.
 
+### 성능 확인과 운영
+
+- 정지한 장면은 변경이 없으면 프레임을 그리지 않습니다. 화면 밖·숨겨진 문서의 애니메이션은 중단하고, 연결 해제 시 worker와 GPU 버퍼를 정리합니다.
+- 별도 모션이나 시선 이동이 없는 `idle` 호흡은 최대 초당 30번 그립니다. 애니메이션 시계는 계속 진행하며, 자동 눈 깜빡임·도형 전환·명시적 모션·추적 움직임에는 이 제한을 적용하지 않습니다. 설정 변경과 PNG/픽셀 캡처는 즉시 새 프레임을 요청합니다.
+- 입력과 크기 변경은 프레임 단위로 합칩니다. 색·시선·카메라 변경은 기존 메시를 재사용하며, 몸체 변경 시 중복 정점 업로드를 제거했습니다.
+- 복잡한 모프와 여러 장비를 동시에 쓰면 worker에서도 CPU 비용이 발생합니다. 작은 기기에서는 필요한 요소만 연결하고, 정적인 표시에는 `activity="still"`을 사용하세요. `paused`는 애니메이션을 즉시 마무리하는 별도 동작입니다.
+- `diagnostics.renderCpu`는 실제 렌더 호출의 CPU 시간이고 GPU 완료 시간이나 FPS가 아닙니다. `backend`, `running`, `frames`, `buffers`로 실행 위치와 정지·해제 상태를 확인할 수 있습니다.
+- 개발 벤치마크: `node --expose-gc scripts/profile-renderer.mjs artifacts/cpu.json`. 별도 임시 폴더에 ES2022 JavaScript를 생성해 실제 기하 계산의 CPU 시간과 버퍼 업로드·할당량을 측정합니다. GPU 명령은 계수용 대역이므로 GPU 시간이나 브라우저 FPS를 뜻하지 않습니다. 실제 Chromium의 worker/메인 경로, 6배 CPU 제한, 1/2/4개 인스턴스, 넓은 화면·DPR 검사는 `npm run test:browser`에 포함됩니다. CI의 SwiftShader/CPU 제한 결과는 실제 초저사양 기기의 FPS 보장이 아닙니다.
+
 ## 도형·렌더링 범위와 라이선스
 
 `MATERIAL_SHAPE_NAMES`, `MATERIAL_SHAPE_LABELS`, `MaterialShapeName`을 사용해 선택 UI를 만들 수 있습니다.
@@ -737,17 +789,17 @@ SIDEKICK_HEADED=1 xvfb-run -a npm run test:browser
 
 눈은 별도 돌출 메시가 아니라 몸체 곡면 셰이더의 캡슐/곡선 색상 마스크입니다. 기울임에 따라 투영되며 몸체 밖·뒷면·가려진 부분에 그리지 않습니다. 정확한 측면에도 둥근 앞면의 가까운 눈 일부가 보일 수 있습니다. 눈 비율·간격·위치는 내부 기본값이고 도형과 함께 보간합니다. 표정은 몸체 실루엣·알파 커버리지를 바꾸지 않습니다. 얼굴 이동과 시선은 독립적이며 안경 같은 얼굴 장비는 얼굴 이동만 따라갑니다.
 
-액세서리는 도형에 맞춰 장착한 강체입니다. 안경 테두리를 정점마다 휘지 않으며 베레모도 천 물리 시뮬레이션이 아닙니다. 몸체 메시와 표면 질의는 같은 볼륨 함수 `h = sqrt(d / (d + 0.65 × r²))`, 앞뒤 높이 `±depth × h / 2`를 사용합니다. XY 윤곽에서 높이는 0이고 중심에서는 전체 깊이가 `depth`입니다. 이는 Sidekick의 볼륨 모델이며 AndroidX의 3D 모델 재현이 아닙니다.
+액세서리는 도형별 내부 장착 규칙을 사용합니다. 안경 앞면은 하나의 평면 강체이며, 베레모·왕관의 하단 밴드는 몸체의 지지 면에 맞춥니다. 목도리는 부피 있는 칼라와 연결된 자유로운 꼬리 형태로 모델링하며 실시간 천 물리 시뮬레이션은 아닙니다. 몸체 메시와 표면 질의는 같은 볼륨 함수 `h = sqrt(d / (d + 0.65 × r²))`, 앞뒤 높이 `±depth × h / 2`를 사용합니다. XY 윤곽에서 높이는 0이고 중심에서는 전체 깊이가 `depth`입니다. 이는 Sidekick의 볼륨 모델이며 AndroidX의 3D 모델 재현이 아닙니다.
 
 곡선→폴리라인 허용오차는 정규화 `[-1,1]` 기준 `0.00005`입니다. 메시 세분화 목표(표면 거리 `0.010`, 중앙 높이 `0.006`)는 샘플 기준이며 모든 위치·픽셀의 오차 보장이 아닙니다. 최대 8회 분할·앞면 12,000점 예산을 사용하므로 작은 삼각형 근사 오차가 보일 수 있습니다. 도형 모프의 대응점 계산은 Sidekick 방식이며 Android Material `Morph`와 픽셀 일치를 보장하지 않습니다.
 
-요소마다 WebGL 컨텍스트 하나와 재사용 버퍼를 사용합니다. 기본 몸체+베레모는 3 draw call이고 눈은 추가 draw call이 없습니다. DPR은 최대 2, 캔버스는 축당 최대 2048px입니다. CPU 기하 벤치마크는 GPU 프레임 시간/FPS 보장이 아닙니다. 임의 SVG·사용자 정의 메시·파츠 플러그인·옷감 물리·픽셀 히트 테스트·컨텍스트 풀·AI 서비스 연결은 지원 범위 밖입니다.
+요소마다 WebGL 컨텍스트 하나와 재사용 버퍼를 사용합니다. 기본 몸체+베레모는 3 draw call이고 눈은 추가 draw call이 없습니다. DPR은 최대 2이며 긴 축이 2048px를 넘으면 두 축에 동일한 배율을 적용합니다. 넓거나 높은 호스트에서도 캐릭터 비율을 유지합니다. CPU 기하 벤치마크는 GPU 프레임 시간/FPS 보장이 아닙니다. 임의 SVG·사용자 정의 메시·파츠 플러그인·옷감 물리·픽셀 히트 테스트·컨텍스트 풀·AI 서비스 연결은 지원 범위 밖입니다.
 
 이 저장소의 패키지 라이선스는 `UNLICENSED`입니다. 공개 오픈소스 라이선스를 부여한다는 뜻이 아니며 사용·배포 권한은 저장소 소유자에게 확인하세요. 다음 제3자 고지는 따로 유지합니다.
 
 - Material 윤곽: 고정된 [AndroidX MaterialShapes 소스](https://github.com/androidx/androidx/blob/9a589fa61f8661e0cbef9123dcc98d3c1f655fc7/compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/MaterialShapes.kt), `graphics-shapes-android:1.1.0`으로 계산. Apache 2.0 고지/출처는 [`third_party/material-shapes/`](third_party/material-shapes/). 재생성은 `scripts/generate-material-shapes.mjs`이며 이 작업에만 Java 21+·unzip·네트워크가 필요합니다.
 - Studio shadcn/ui 소스: [`playground/components/ui/LICENSE.md`](playground/components/ui/LICENSE.md). 정적 Studio 빌드에도 해당 고지를 포함합니다.
 
-### 0.2.1 목도리 개선
+### 이번 버전과 진행 중인 개선
 
-목도리는 양쪽 접힘에서 지지되는 둥근 둘레와, 몸체 표면을 따라 늘리지 않는 두 개의 아래로 처지는 천 끝으로 구성됩니다. 매듭과 천 끝은 실제 부피가 겹쳐 연결됩니다. 35개 도형과 어려운 모프·여러 시점에서 접합부와 여유 공간을 검사했습니다. 실시간 옷감 물리 시뮬레이션은 아닙니다. 기본 몸체 색은 `#FFCC37`이며 저장된 사용자 색은 유지합니다.
+0.2.1은 OffscreenCanvas 워커 렌더링, 시선 추적 모드, 화면 비율 보정, 휠·핀치 확대/축소와 기본 몸체 색 `#FFCC37`을 제공합니다. 목도리의 자유롭게 처지는 앞쪽 천은 개선됐지만, 뒤까지 한 바퀴 감싸는 완전한 둘레 모델은 아직 포함하지 않습니다. 머리 장비의 새 접촉면 보정과 추가 성능 개선도 후속 패치에서 진행 중입니다.

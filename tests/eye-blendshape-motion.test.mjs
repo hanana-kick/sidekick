@@ -1,28 +1,14 @@
+import { RenderEngine } from '../dist/src/runtime/render-engine.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDesign, patchDesign } from '../dist/src/core/design.js';
 import { createEyeState, EyeBlinkGate } from '../dist/src/core/expressions.js';
 import { MotionTimeline } from '../dist/src/core/motion.js';
 import { SidekickAvatar } from '../dist/src/element/avatar.js';
+import { bareAvatarFixture } from './helpers/render-runtime.mjs';
 
 const near = (a, b, epsilon = 1e-10) => assert.ok(Math.abs(a - b) < epsilon, `${a} != ${b}`);
-function avatarForTest(connected = false) {
-  const avatar = new SidekickAvatar(), events = [];
-  const attributes = new Map();
-  avatar.hasAttribute = name => attributes.has(name);
-  avatar.setAttribute = (name, value) => {
-    const old = attributes.get(name) ?? null; attributes.set(name, String(value));
-    avatar.attributeChangedCallback(name, old, String(value));
-  };
-  avatar.toggleAttribute = (name, enabled) => {
-    const old = attributes.get(name) ?? null;
-    if (enabled) attributes.set(name, ''); else attributes.delete(name);
-    avatar.attributeChangedCallback(name, old, enabled ? '' : null);
-  };
-  avatar.isConnected = connected;
-  avatar.dispatchEvent = event => { events.push(event); return true; };
-  return { avatar, events };
-}
+const avatarForTest = (connected = false) => bareAvatarFixture(SidekickAvatar, RenderEngine, connected);
 
 // Neutral dimensions and target geometries never participate in these numeric tracks.
 test('shape-key weights blend independently within each eye and between both eyes', async () => {
@@ -126,39 +112,41 @@ test('setExpression selects exact presets regardless of previous blended weights
 });
 
 test('color-only design changes do not cancel, reset or retime weight tracks', async () => {
-  const { avatar } = avatarForTest(true);
+  const { avatar, runtime } = avatarForTest(true);
   const pending = avatar.setEyeWeights('left', { smile: 0.8, blink: 0.6 }, { duration: 1000, easing: 'linear' });
-  avatar.timeline.advance(250); const pose = avatar.pose;
+  runtime.advanceMotion(250); const pose = avatar.pose;
   avatar.design = patchDesign(avatar.design, { eyes: { color: '#abcdef' } });
-  assert.deepEqual(avatar.pose, pose); assert.equal(avatar.timeline.active, true);
-  avatar.timeline.advance(750); assert.deepEqual(await pending, { finished: true });
+  assert.deepEqual(avatar.pose, pose); assert.equal(runtime.timeline.active, true);
+  runtime.advanceMotion(750); assert.deepEqual(await pending, { finished: true });
   assert.deepEqual(avatar.pose.eyes.left, { openness: 0.4, smile: 0.8 });
   assert.equal(avatar.design.eyes.color, '#abcdef');
 });
 
 test('a one-eye weight baseline edit affects only that eye, preserving global and other clocks', async () => {
-  const { avatar } = avatarForTest(true);
+  const { avatar, runtime } = avatarForTest(true);
   const pending = avatar.motion.to({ eyes: { left: { weights: { smile: 1 } }, right: { weights: { blink: 1 } }, openness: 0.5 }, body: { rotation: [0, 1, 0] } }, { duration: 1000, easing: 'linear' });
-  avatar.timeline.advance(200); const before = avatar.pose;
+  runtime.advanceMotion(200); const before = avatar.pose;
   avatar.design = patchDesign(avatar.design, { eyes: { right: { weights: { smile: 0.3, blink: 0.4 } } } });
   assert.deepEqual(await pending, { finished: false });
   assert.deepEqual(avatar.pose.eyes.left, before.eyes.left); near(avatar.pose.openness, before.openness);
   assert.deepEqual(avatar.pose.eyes.right, { openness: 0.6, smile: 0.3 });
-  avatar.timeline.advance(800); near(avatar.pose.eyes.left.smile, 1); near(avatar.pose.rotation[1], 1); near(avatar.pose.openness, 0.5);
+  runtime.advanceMotion(800); near(avatar.pose.eyes.left.smile, 1); near(avatar.pose.rotation[1], 1); near(avatar.pose.openness, 0.5);
 });
 
 test('weight API validation is atomic even for paused, disconnected and reduced avatars', async () => {
   for (const mode of ['disconnected', 'paused', 'reduced', 'renderer-unavailable']) {
-    const { avatar } = avatarForTest(mode !== 'disconnected');
+    const { avatar, runtime } = avatarForTest(mode === 'paused' || mode === 'reduced');
     if (mode === 'paused') avatar.paused = true;
     if (mode === 'reduced') avatar.reduced = true;
-    if (mode === 'renderer-unavailable') avatar.canvas = {};
+    if (mode === 'renderer-unavailable') avatar.isConnected = true;
     await avatar.setEyeWeights('both', { smile: 0.6, blink: 0.4 }, { duration: 1000 });
     const before = avatar.design, pose = avatar.pose;
     for (const weights of [null, [], { smile: NaN }, { blink: 2 }, { unknown: 1 }]) assert.throws(() => avatar.setEyeWeights('left', weights));
     for (const options of [null, [], new Date(), { duration: NaN }, { duration: null }, { duration: -1 }, { easing: 'instant' }, { [Symbol('bad')]: true }]) assert.throws(() => avatar.setEyeWeights('both', { smile: 0 }, options));
     assert.throws(() => avatar.setEyeWeights('middle', { smile: 0 }));
-    assert.deepEqual(avatar.design, before); assert.deepEqual(avatar.pose, pose); assert.equal(avatar.timeline.active, false);
+    assert.deepEqual(avatar.design, before); assert.deepEqual(avatar.pose, pose); assert.equal(avatar.requests.size, 0);
+    if (runtime) assert.equal(runtime.timeline.active, false);
+    else { assert.equal(avatar.bridge, undefined); assert.equal(avatar.ready, false); assert.equal(avatar.diagnostics.running, false); }
   }
 });
 
@@ -173,64 +161,79 @@ test('shape-key motion flags suppress only new automatic blinks, without changin
 });
 
 test('eye weight transitions do not modify camera angles or shape transition timing', async () => {
-  const { avatar } = avatarForTest(true);
+  const { avatar, runtime } = avatarForTest(true);
   avatar.setCamera({ yaw: 35, pitch: -12, roll: 8 }); const camera = avatar.camera;
   const shape = avatar.setShape('circle', { duration: 900, easing: 'linear' });
-  avatar.shapeTimeline.advance(200); const contour = avatar.shapeTimeline.contour;
+  runtime.advanceShape(200); const contour = runtime.shape.contour;
   const weights = avatar.setEyeWeights('both', { smile: 0.4, blink: 0.3 }, { duration: 300 });
-  assert.equal(avatar.shapeTimeline.contour, contour); assert.deepEqual(avatar.camera, camera);
-  avatar.timeline.advance(300); await weights; avatar.shapeTimeline.advance(700);
+  assert.equal(runtime.shape.contour, contour); assert.deepEqual(avatar.camera, camera);
+  runtime.advanceMotion(300); await weights; runtime.advanceShape(700);
   assert.deepEqual(await shape, { finished: true }); assert.deepEqual(avatar.camera, camera);
 });
 
 test('updateDesign applies eye color immediately and rejects invalid patches atomically', async () => {
-  const { avatar } = avatarForTest(true);
+  const { avatar, runtime } = avatarForTest(true);
   const pending = avatar.setEyeWeights('left', { smile: 0.6, blink: 0.2 }, { duration: 500, easing: 'linear' });
-  avatar.timeline.advance(100); const pose = avatar.pose;
+  runtime.advanceMotion(100); const pose = avatar.pose;
   await avatar.updateDesign({ eyes: { color: '#abcdef' } });
   assert.equal(avatar.design.eyes.color, '#abcdef'); assert.deepEqual(avatar.pose, pose);
   const design = avatar.design;
   await assert.rejects(avatar.updateDesign({ eyes: { right: { weights: { blink: 2 } } } }));
   assert.deepEqual(avatar.design, design); assert.deepEqual(avatar.pose, pose);
-  avatar.timeline.advance(400); assert.deepEqual(await pending, { finished: true });
+  runtime.advanceMotion(400); assert.deepEqual(await pending, { finished: true });
 });
 
 test('removed geometry edits reject without changing a running shape or eye transition', async () => {
-  const { avatar } = avatarForTest(true);
+  const { avatar, runtime } = avatarForTest(true);
   const pending = avatar.setShape('circle', { duration: 1000, easing: 'linear' });
   const eye = avatar.setEyeWeights('left', { smile: 1 }, { duration: 1000 });
-  avatar.shapeTimeline.advance(300); avatar.timeline.advance(300);
-  const visible = avatar.shapeTimeline.snapshot, pose = avatar.pose, design = avatar.design;
+  runtime.advanceShape(300); runtime.advanceMotion(300);
+  const visible = runtime.shape.snapshot, pose = avatar.pose, design = avatar.design;
   for (const patch of [{body:{profiles:{}}}, {eyes:{width:.2}}, {eyes:{left:{targets:{smile:{radius:.8}}}}}]) {
     await assert.rejects(avatar.updateDesign(patch));
-    assert.equal(avatar.shapeTimeline.snapshot, visible); assert.deepEqual(avatar.pose, pose); assert.deepEqual(avatar.design, design);
+    assert.equal(runtime.shape.snapshot, visible); assert.deepEqual(avatar.pose, pose); assert.deepEqual(avatar.design, design);
   }
-  assert.equal(avatar.shapeTimeline.remainingDuration, 700);
-  avatar.shapeTimeline.advance(700); avatar.timeline.advance(700);
+  assert.equal(runtime.shape.remainingDuration, 700);
+  runtime.advanceShape(700); runtime.advanceMotion(700);
   assert.deepEqual(await pending, {finished:true}); assert.deepEqual(await eye, {finished:true});
 });
 
 test('color edits preserve shape clocks and draw passes one coherent runtime snapshot', async () => {
-  const { avatar } = avatarForTest(true);
+  const { avatar, runtime } = avatarForTest(true);
   const pending = avatar.setShape('circle', { duration: 1000, easing: 'linear' });
-  avatar.shapeTimeline.advance(250); const snapshot = avatar.shapeTimeline.snapshot;
+  runtime.advanceShape(250); const snapshot = runtime.shape.snapshot;
   await avatar.updateDesign({ body: { color: '#abcdef' }, eyes: { color: '#ffffff' } });
-  assert.equal(avatar.shapeTimeline.snapshot, snapshot); assert.equal(avatar.shapeTimeline.remainingDuration, 750);
-  let rendered; avatar.readyState = true; avatar.renderer = { render(_design, state) { rendered = state; } };
-  avatar.draw(); assert.equal(rendered.contour, snapshot.contour); assert.equal(rendered.profile, snapshot.profile);
-  avatar.shapeTimeline.advance(750); assert.deepEqual(await pending, { finished: true });
+  assert.equal(runtime.shape.snapshot, snapshot); assert.equal(runtime.shape.remainingDuration, 750);
+  const rendered = runtime.render(); assert.equal(rendered.contour, snapshot.contour); assert.equal(rendered.profile, snapshot.profile);
+  runtime.advanceShape(750); assert.deepEqual(await pending, { finished: true });
 });
 
-test('renderer initialization failure settles pending weights and restores persisted mixed baselines', async () => {
-  const { avatar } = avatarForTest(true);
+test('renderer failure settles advanced weights and restores persisted mixed baselines', async () => {
+  const { avatar, runtime } = avatarForTest(true);
   avatar.design = createDesign({ eyes: { right: { weights: { smile: 0.2, blink: 0.3 } } } });
   const saved = avatar.setEyeWeights('left', { smile: 0.7, blink: 0.4 }, { duration: 1000 });
   const transient = avatar.motion.to({ eyes: { right: { weights: { smile: 1, blink: 1 } }, openness: 0 } }, { duration: 1000 });
-  avatar.timeline.advance(200);
-  avatar.canvas = { getContext() { throw new Error('Test renderer unavailable'); } }; avatar.fallback = {};
-  avatar.initializeRenderer();
+  runtime.advanceMotion(200);
+  assert.notEqual(avatar.pose.eyes.left.smile, .7); assert.notEqual(avatar.pose.openness, 1);
+  avatar.runtimeFailure(new Error('Test renderer unavailable'), runtime.bridge.generation, false);
   assert.deepEqual(await saved, { finished: false }); assert.deepEqual(await transient, { finished: false });
-  assert.equal(avatar.timeline.active, false); assert.equal(avatar.ready, false); assert.equal(avatar.pose.openness, 1);
+  assert.equal(runtime.timeline.active, false); assert.equal(avatar.ready, false); assert.equal(avatar.pose.openness, 1);
+  assert.deepEqual(avatar.pose.eyes, { left: { openness: 0.6, smile: 0.7 }, right: { openness: 0.7, smile: 0.2 } });
+  assert.equal(avatar.fallback.hidden, false); assert.match(avatar.fallback.textContent, /Test renderer unavailable/);
+  assert.equal(runtime.renderer.disposals, 1); assert.equal(runtime.callbacks.size, 0);
+});
+
+test('renderer initialization failure settles queued weights and restores persisted mixed baselines', async () => {
+  const { avatar } = avatarForTest();
+  avatar.design = createDesign({ eyes: { right: { weights: { smile: 0.2, blink: 0.3 } } } });
+  avatar.isConnected = true; avatar.connected = true;
+  avatar.canvas = Object.assign(new EventTarget(), { getContext() { throw new Error('Test renderer unavailable'); } });
+  avatar.fallback = {};
+  avatar.initializeRenderer(true);
+  const saved = avatar.setEyeWeights('left', { smile: 0.7, blink: 0.4 }, { duration: 1000 });
+  const transient = avatar.motion.to({ eyes: { right: { weights: { smile: 1, blink: 1 } }, openness: 0 } }, { duration: 1000 });
+  assert.deepEqual(await saved, { finished: false }); assert.deepEqual(await transient, { finished: false });
+  assert.equal(avatar.ready, false); assert.equal(avatar.pose.openness, 1);
   assert.deepEqual(avatar.pose.eyes, { left: { openness: 0.6, smile: 0.7 }, right: { openness: 0.7, smile: 0.2 } });
   assert.equal(avatar.fallback.hidden, false); assert.match(avatar.fallback.textContent, /Test renderer unavailable/);
 });

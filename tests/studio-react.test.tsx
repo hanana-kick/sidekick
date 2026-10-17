@@ -5,8 +5,8 @@ import { JSDOM } from 'jsdom';
 import { createElement, act, StrictMode } from 'react';
 import { createAccessory, createDesign, migrateDesign, parseDesign, patchDesign, serializeDesign } from '../src/core/design.js';
 import type { AvatarDesign, DesignPatch, Activity } from '../src/core/design.js';
-import { CAMERA_PRESETS } from '../src/core/camera.js';
-import type { CameraAngles, CameraPreset } from '../src/core/camera.js';
+import { CAMERA_PRESETS, createCamera } from '../src/core/camera.js';
+import type { CameraState, CameraPreset } from '../src/core/camera.js';
 import { eyeExpressionWeights } from '../src/core/expressions.js';
 import type { EyeExpression, EyeShapeWeights } from '../src/core/expressions.js';
 import type { MaterialShapeName } from '../src/core/shapes.js';
@@ -29,9 +29,11 @@ HTMLElement.prototype.releasePointerCapture = () => {};
 
 class MockAvatar extends HTMLElement {
   current = createDesign();
-  cameraValue = { ...CAMERA_PRESETS.front };
+  cameraValue = createCamera();
   paused = false;
-  mouseTracking = false;
+  trackingMode: 'off' | 'eyes' | 'eyes-and-body' = 'off';
+  get mouseTracking() { return this.trackingMode !== 'off'; }
+  resetTracking() {}
   interaction: 'none' | 'box' = 'none';
   cancelCalls = 0;
   motionCalls: unknown[] = [];
@@ -51,14 +53,14 @@ class MockAvatar extends HTMLElement {
   get design() { return parseDesign(this.current); }
   set design(value: AvatarDesign) { this.assignments++; if (value.body.shape !== this.current.body.shape) this.morphing = false; this.current = parseDesign(value); }
   get camera() { return { ...this.cameraValue }; }
-  set camera(value: CameraAngles) { this.setCamera(value); }
+  set camera(value: CameraState) { this.setCamera(value); }
   updateDesign(patch: DesignPatch) { this.patchCalls.push(patch); const next = patchDesign(this.current, patch); if (next.body.shape !== this.current.body.shape) this.morphing = false; this.current = next; return Promise.resolve(); }
   setShape(shape: MaterialShapeName, options: { duration?: number } = {}) { this.shapeCalls.push({ shape, before: this.current.body.shape, options }); this.current = patchDesign(this.current, { body: { shape } }); this.morphing = !!options.duration; return Promise.resolve({ finished: true }); }
   setEyeWeights(side: 'left' | 'right', weights: Partial<EyeShapeWeights>) { this.eyeCalls.push({ side, weights }); this.current = patchDesign(this.current, { eyes: { [side]: { weights } } }); return Promise.resolve({ finished: true }); }
   setExpression(side: 'left' | 'right', expression: EyeExpression) { return this.setEyeWeights(side, eyeExpressionWeights(expression)); }
-  setCamera(value: Partial<CameraAngles>) { this.cameraValue = { ...this.cameraValue, ...value }; this.dispatchEvent(new CustomEvent('sidekick-camera-change')); }
+  setCamera(value: Partial<CameraState>) { this.cameraValue = { ...this.cameraValue, ...value }; this.dispatchEvent(new CustomEvent('sidekick-camera-change')); }
   setCameraPreset(preset: CameraPreset) { this.setCamera(CAMERA_PRESETS[preset]); }
-  resetCamera() { this.setCamera(CAMERA_PRESETS.front); }
+  resetCamera() { this.setCamera(createCamera()); }
   setActivity(activity: Activity) { this.activity = activity; }
   lookAt(target: { x: number; y: number }) { this.gaze = { x: target.x, y: target.y }; }
   seek(time: number) { this.time = time; }
@@ -135,33 +137,32 @@ test('keyboard tabs/sliders and shape focus update through React without remount
   await f.click(f.node('appearance-tab')); await f.input('eye-color', '#121212');
   assert.equal(f.node('flat'), avatar); assert.equal(avatar.connections, 1); assert.equal(avatar.disconnections, 0);
   assert.equal(avatar.assignments, assignments); assert.equal(avatar.morphing, true);
-  assert.deepEqual(avatar.camera, { yaw: 43, pitch: 11, roll: 7 });
+  assert.deepEqual(avatar.camera, { yaw: 43, pitch: 11, roll: 7, zoom: 1 });
   assert.equal(f.container.querySelector('[data-shape="heart"]'), heart);
 });
 
-test('mouse tracking toggles the element independently, survives UI edits and resets without a remount', async t => {
+test('tracking mode choices survive UI edits, round-trip in scenes and reset without a remount', async t => {
   const f = await fixture(t), avatar = f.avatar, assignments = avatar.assignments;
   const stored = f.storage.values.get(STORAGE_KEY), writes = f.storage.writes.length;
   await f.click(f.node('animation-tab'));
-  const toggle = f.node('mouse-tracking');
-  assert.equal(toggle.getAttribute('data-slot'), 'toggle');
-  assert.equal(toggle.getAttribute('aria-label'), '마우스 시선 추적');
-  assert.equal(toggle.getAttribute('aria-pressed'), 'false');
-  assert.equal(avatar.mouseTracking, false);
-  await f.click(toggle);
-  assert.equal(toggle.getAttribute('aria-pressed'), 'true');
-  assert.equal(avatar.mouseTracking, true); assert.equal(f.controller.getSnapshot().mouseTracking, true);
+  const eyes = f.node('mouse-tracking'), body = f.node('tracking-eyes-and-body'), off = f.node('tracking-off');
+  assert.equal(eyes.getAttribute('data-slot'), 'toggle-group-item');
+  assert.equal(off.getAttribute('aria-checked'), 'true'); assert.equal(avatar.trackingMode, 'off');
+  await f.click(eyes);
+  assert.equal(avatar.trackingMode, 'eyes'); assert.equal(f.controller.getSnapshot().trackingMode, 'eyes');
+  await f.click(body);
+  assert.equal(avatar.trackingMode, 'eyes-and-body'); assert.equal(f.controller.exportScene().trackingMode, 'eyes-and-body');
   assert.equal(f.storage.values.get(STORAGE_KEY), stored); assert.equal(f.storage.writes.length, writes);
   await f.click(f.node('camera-tab')); await f.key('view-yaw', 'ArrowRight');
   await f.shape('heart'); await f.input('body-color', '#aabbcc');
-  assert.equal(avatar.mouseTracking, true); assert.equal(avatar.morphing, true);
+  assert.equal(avatar.trackingMode, 'eyes-and-body'); assert.equal(avatar.morphing, true);
   assert.equal(f.node('flat'), avatar); assert.equal(avatar.assignments, assignments);
-  await f.click(f.node('animation-tab')); await f.click(toggle);
-  assert.equal(avatar.mouseTracking, false); assert.equal(toggle.getAttribute('aria-pressed'), 'false');
-  await f.click(toggle); await f.click(f.node('reset'));
-  assert.equal(avatar.mouseTracking, false); assert.equal(f.controller.getSnapshot().mouseTracking, false);
-  assert.equal(toggle.getAttribute('aria-pressed'), 'false'); assert.equal(avatar.connections, 1);
-  assert.equal('mouseTracking' in JSON.parse(f.storage.values.get(STORAGE_KEY)!), false);
+  await f.click(f.node('animation-tab')); await f.click(off);
+  assert.equal(avatar.trackingMode, 'off'); assert.equal(off.getAttribute('aria-checked'), 'true');
+  await f.click(body); await f.click(f.node('reset'));
+  assert.equal(avatar.trackingMode, 'off'); assert.equal(f.controller.getSnapshot().trackingMode, 'off');
+  assert.equal(off.getAttribute('aria-checked'), 'true'); assert.equal(avatar.connections, 1);
+  assert.equal('trackingMode' in JSON.parse(f.storage.values.get(STORAGE_KEY)!), false);
 });
 
 test('live HTML and React examples reflect the complete scene and copy exact current values', async t => {
@@ -174,7 +175,7 @@ test('live HTML and React examples reflect the complete scene and copy exact cur
   assert.equal(f.node('api-example').textContent, snippets.html);
   assert.equal(f.node('react-example').textContent, snippets.react);
   assert.match(snippets.html, /@hanana-kick\/sidekick\/auto/);
-  assert.match(snippets.html, /mouse-tracking="true"/); assert.match(snippets.html, /camera-yaw="42"/);
+  assert.match(snippets.html, /tracking-mode="eyes"/); assert.match(snippets.html, /camera-yaw="42"/);
   const markup = document.createElement('template'); markup.innerHTML = snippets.html;
   const element = markup.content.querySelector('sidekick-avatar')!;
   assert.deepEqual(JSON.parse(element.getAttribute('design')!), scene.design);
@@ -197,7 +198,7 @@ test('scene parser round-trips public runtime state, rejects hidden geometry and
   assert.deepEqual(parseScene(serializeScene(scene)), scene);
   assert.deepEqual(migrateScene(serializeScene(scene)), { scene, warnings: [], legacyDesign: false });
   assert.equal(migrateScene(serializeDesign(scene.design)).legacyDesign, true);
-  for (const patch of [{ sceneVersion: 2 }, { camera: { yaw: 500, pitch: 0, roll: 0 } }, { gaze: { x: 5, y: 0 } }, { time: Infinity }, { shapeDuration: undefined }, { motionDuration: -1 }, { paused: 'false' }, { extra: 1 }, { motion: { accessories: { missing: { rotation: [0, 0, 0] } } } }]) {
+  for (const patch of [{ sceneVersion: 3 }, { camera: { yaw: 500, pitch: 0, roll: 0 } }, { gaze: { x: 5, y: 0 } }, { time: Infinity }, { shapeDuration: undefined }, { motionDuration: -1 }, { paused: 'false' }, { extra: 1 }, { motion: { accessories: { missing: { rotation: [0, 0, 0] } } } }]) {
     assert.throws(() => parseScene({ ...scene, ...patch }));
   }
   assert.throws(() => createScene({ motion: { body: { rotation: [0, 0, 10] } } }));
@@ -349,7 +350,7 @@ test('motion duration, independent expressions, pause/activity, full import and 
   assert.deepEqual(f.avatar.shapeCalls.at(-1)!.options, { duration: 0 });
   await f.click(f.node('reset'));
   assert.equal(f.avatar.design.body.shape, 'square'); assert.equal(f.avatar.paused, false); assert.equal(f.avatar.activity, 'idle');
-  assert.deepEqual(f.avatar.camera, CAMERA_PRESETS.front); assert.equal(f.controller.getSnapshot().duration, 450); assert.equal(f.controller.getSnapshot().easing, 'smooth');
+  assert.deepEqual(f.avatar.camera, createCamera()); assert.equal(f.controller.getSnapshot().duration, 450); assert.equal(f.controller.getSnapshot().easing, 'smooth');
   assert.deepEqual(f.avatar.design.eyes.left.weights, { smile: 0, blink: 0 });
   assert.deepEqual(JSON.parse(f.storage.values.get(STORAGE_KEY)!), f.avatar.design);
 });
@@ -427,4 +428,45 @@ test('narrow-phone source constrains the shell column and preserves the compact 
   assert.doesNotMatch(compactName, /display:\s*none|visibility:\s*hidden/);
   assert.equal(f.node('export-json').textContent, 'JSON 내보내기');
   assert.equal(f.node('export-json').querySelector('span')!.hasAttribute('aria-hidden'), false);
+});
+
+
+test('scene import and Studio reset clear transient tracking from the actual renderer input', async () => {
+  const { SidekickAvatar } = await import('../src/element/avatar.js');
+  const { RenderEngine } = await import('../src/runtime/render-engine.js');
+  const { installRuntime } = await import('./helpers/render-runtime.mjs');
+  dom.window.customElements.define('sidekick-tracking-scene', class extends SidekickAvatar {});
+  const avatar = document.createElement('sidekick-tracking-scene') as InstanceType<typeof SidekickAvatar>;
+  avatar.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 200 }) as DOMRect;
+  Reflect.set(avatar, 'connected', true);
+  Reflect.set(avatar, 'canvas', document.createElement('canvas'));
+  const runtime = installRuntime(avatar, RenderEngine);
+  const controller = new StudioController(store()), unbind = controller.bindAvatar(avatar);
+  const rendered = () => runtime.render().pose.rotation;
+  const tilt = () => {
+    runtime.tracking.follow([1, 1]);
+    for (let i = 0; i < 100; i++) runtime.advanceTracking(.016);
+    assert.ok(rendered()[1]! > .2);
+  };
+  try {
+    tilt();
+    const scene = createScene({ design: avatar.design, trackingMode: 'eyes-and-body', paused: true, motion: { body: { rotation: [.1, -.2, .3] } } });
+    assert.equal(controller.importJSON(serializeScene(scene)), true);
+    assert.deepEqual(rendered(), [.1, -.2, .3]); assert.equal(avatar.trackingMode, 'eyes-and-body');
+    await avatar.motion.to({ body: { rotation: [0, 0, 0] } }, { duration: 0 });
+    tilt(); controller.reset(); assert.deepEqual(rendered(), [0, 0, 0]); assert.equal(avatar.trackingMode, 'off');
+  } finally { unbind(); avatar.disconnectedCallback(); }
+});
+
+test('Studio zoom slider, camera events, reset, scene JSON and snippets stay synchronized', async t => {
+  const f = await fixture(t); await f.click(f.node('camera-tab'));
+  await f.key('view-zoom', 'ArrowRight'); assert.equal(f.avatar.camera.zoom, 1.01);
+  await act(async () => { f.avatar.setCamera({ yaw: 28, zoom: 2.2 }); });
+  assert.equal(f.node('view-zoom').getAttribute('aria-valuenow'), '2.2');
+  assert.equal(f.controller.exportScene().camera.zoom, 2.2);
+  const snippets = sceneSnippets(f.controller.exportScene());
+  assert.match(snippets.html, /camera-zoom="2.2"/); assert.match(snippets.react, /cameraZoom=\{2.2\}/);
+  await f.click(f.container.querySelector<HTMLElement>('[data-camera-preset="side"]')!); assert.equal(f.avatar.camera.zoom, 2.2);
+  await f.click(f.node('reset-camera')); assert.deepEqual(f.avatar.camera, createCamera());
+  assert.equal(f.node('view-zoom').getAttribute('aria-valuenow'), '1');
 });

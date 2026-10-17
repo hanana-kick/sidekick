@@ -1,3 +1,4 @@
+import { RenderEngine } from '../dist/src/runtime/render-engine.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ShapeTimeline } from '../dist/src/core/shape-motion.js';
@@ -6,43 +7,13 @@ import { buildMorph } from '../dist/src/core/morph.js';
 import { MATERIAL_SHAPE_NAMES } from '../dist/src/core/shapes.js';
 import { createDesign, patchDesign } from '../dist/src/core/design.js';
 import { SidekickAvatar } from '../dist/src/element/avatar.js';
+import { bareAvatarFixture } from './helpers/render-runtime.mjs';
 
 const catalogContour = name => shapeContour({ kind: 'material', name });
 const snapshot = timeline => structuredClone(timeline.contour);
 const exactTarget = (timeline, shape) => assert.deepEqual(timeline.contour, catalogContour(shape));
 
-function avatarForTest(connected = false) {
-  const avatar = new SidekickAvatar(), attributes = new Map(), events = [];
-  avatar.isConnected = connected;
-  avatar.hasAttribute = name => attributes.has(name);
-  avatar.getAttribute = name => attributes.get(name) ?? null;
-  avatar.setAttribute = (name, value) => {
-    const old = attributes.get(name) ?? null; attributes.set(name, String(value));
-    if (SidekickAvatar.observedAttributes.includes(name)) avatar.attributeChangedCallback(name, old, String(value));
-  };
-  avatar.toggleAttribute = (name, value) => {
-    const old = attributes.get(name) ?? null;
-    if (value) attributes.set(name, ''); else attributes.delete(name);
-    avatar.attributeChangedCallback(name, old, value ? '' : null);
-  };
-  avatar.dispatchEvent = event => { events.push(event); return true; };
-  avatar.removeEventListener = () => {};
-  return { avatar, attributes, events };
-}
-
-function withFrameEnvironment(work) {
-  const previous = { document: globalThis.document, requestAnimationFrame: globalThis.requestAnimationFrame, cancelAnimationFrame: globalThis.cancelAnimationFrame };
-  const queue = new Map(); let next = 1;
-  globalThis.document = { hidden: false, removeEventListener() {} };
-  globalThis.requestAnimationFrame = callback => { const id = next++; queue.set(id, callback); return id; };
-  globalThis.cancelAnimationFrame = id => { queue.delete(id); };
-  const frame = time => { const pending = [...queue.values()]; queue.clear(); for (const callback of pending) callback(time); };
-  return Promise.resolve().then(() => work({ queue, frame })).finally(() => {
-    for (const [key, value] of Object.entries(previous)) {
-      if (value === undefined) delete globalThis[key]; else globalThis[key] = value;
-    }
-  });
-}
+const avatarForTest = (connected = false) => bareAvatarFixture(SidekickAvatar, RenderEngine, connected);
 
 test('shape timeline exposes a catalog name and immutable contour', () => {
   const timeline = new ShapeTimeline('pentagon');
@@ -144,125 +115,121 @@ test('all 35 Material catalog names are accepted and outline recipes are rejecte
 });
 
 test('setShape persists only the target shape immediately, while disconnected requests finish', async () => {
-  const { avatar, events } = avatarForTest();
+  const { avatar, events, connect } = avatarForTest();
   avatar.design = createDesign({ body: { color: '#abcdef' }, eyes: { left: { expression: 'smile' } } });
   const before = avatar.design;
   assert.deepEqual(await avatar.setShape('heart'), { finished: true });
   assert.equal(avatar.design.version, 7); assert.deepEqual(Object.keys(avatar.design.body).sort(), ['color', 'shape']);
   assert.deepEqual(avatar.design, patchDesign(before, { body: { shape: 'heart' } }));
-  assert.equal(avatar.shapeTimeline.active, false); exactTarget(avatar.shapeTimeline, 'heart');
+  assert.equal(avatar.ready, false); assert.equal(avatar.requests.size, 0);
   assert.ok(events.some(event => event.type === 'sidekick-shape-end' && event.detail.finished));
   const after = avatar.design;
   for (const shape of [undefined, null, {}, 'orb', 'rounded-box', 'droplet', { kind: 'material', name: 'heart' }, { kind: 'ellipse' }, { kind: 'rounded-polygon', sides: 5, rounding: 0.2, rotation: 0 }]) assert.throws(() => avatar.setShape(shape));
   assert.throws(() => avatar.setShape('puffy', { duration: NaN }));
   assert.throws(() => avatar.setShape('puffy', { easing: 'invalid' })); assert.deepEqual(avatar.design, after);
+  const runtime = connect();
+  assert.equal(runtime.shape.active, false); exactTarget(runtime.shape, 'heart');
 });
 
 test('unrelated design and eye animation edits do not restart or cancel a shape transition', async () => {
-  const { avatar } = avatarForTest(true);
+  const { avatar, runtime } = avatarForTest(true);
   const pending = avatar.setShape('puffy', { duration: 1000, easing: 'linear' });
-  avatar.shapeTimeline.advance(230); const visible = snapshot(avatar.shapeTimeline);
+  runtime.advanceShape(230); const visible = snapshot(runtime.shape);
   assert.deepEqual(avatar.design.body.shape, 'puffy');
   avatar.design = patchDesign(avatar.design, { body: { color: '#112233' }, eyes: { right: { expression: 'smile' } } });
-  assert.equal(avatar.shapeTimeline.active, true); assert.deepEqual(avatar.shapeTimeline.contour, visible);
+  assert.equal(runtime.shape.active, true); assert.deepEqual(runtime.shape.contour, visible);
   const expression = avatar.setExpression('left', 'blink', { duration: 100 });
-  assert.deepEqual(avatar.shapeTimeline.contour, visible); assert.equal(avatar.shapeTimeline.active, true);
-  avatar.timeline.advance(100); assert.deepEqual(await expression, { finished: true });
-  avatar.shapeTimeline.advance(770); assert.deepEqual(await pending, { finished: true });
-  exactTarget(avatar.shapeTimeline, 'puffy');
+  assert.deepEqual(runtime.shape.contour, visible); assert.equal(runtime.shape.active, true);
+  runtime.advanceMotion(100); assert.deepEqual(await expression, { finished: true });
+  runtime.advanceShape(770); assert.deepEqual(await pending, { finished: true });
+  exactTarget(runtime.shape, 'puffy');
 });
 
 test('explicit design shape replacement is immediate and invalid replacement is atomic', async () => {
-  const { avatar } = avatarForTest(true);
-  const pending = avatar.setShape('flower', { duration: 1000 }); avatar.shapeTimeline.advance(200);
-  const before = snapshot(avatar.shapeTimeline), design = avatar.design;
+  const { avatar, runtime } = avatarForTest(true);
+  const pending = avatar.setShape('flower', { duration: 1000 }); runtime.advanceShape(200);
+  const before = snapshot(runtime.shape), design = avatar.design;
   assert.throws(() => { avatar.design = { ...design, body: { ...design.body, shape: {} } }; });
-  assert.deepEqual(avatar.shapeTimeline.contour, before); assert.equal(avatar.shapeTimeline.active, true);
+  assert.deepEqual(runtime.shape.contour, before); assert.equal(runtime.shape.active, true);
   await avatar.setDesign(patchDesign(avatar.design, { body: { shape: 'square' } }));
-  assert.deepEqual(await pending, { finished: false }); exactTarget(avatar.shapeTimeline, 'square');
-  assert.equal(avatar.shapeTimeline.active, false);
+  assert.deepEqual(await pending, { finished: false }); exactTarget(runtime.shape, 'square');
+  assert.equal(runtime.shape.active, false);
 });
 
 test('paused and reduced-motion changes finish shape targets and validate immediate requests', async () => {
   for (const reason of ['paused', 'reduced']) {
-    const { avatar } = avatarForTest(true);
-    const pending = avatar.setShape('heart'); avatar.shapeTimeline.advance(100);
+    const { avatar, runtime } = avatarForTest(true);
+    const pending = avatar.setShape('heart'); runtime.advanceShape(100);
     if (reason === 'paused') avatar.paused = true;
     else { avatar.media = { matches: true }; avatar.onMotionPreference(); }
-    assert.deepEqual(await pending, { finished: true }); exactTarget(avatar.shapeTimeline, 'heart');
+    assert.deepEqual(await pending, { finished: true }); exactTarget(runtime.shape, 'heart');
     assert.deepEqual(await avatar.setShape('puffy', { duration: 60000 }), { finished: true });
-    assert.equal(avatar.shapeTimeline.active, false); exactTarget(avatar.shapeTimeline, 'puffy');
+    assert.equal(runtime.shape.active, false); exactTarget(runtime.shape, 'puffy');
     const before = avatar.design;
     assert.throws(() => avatar.setShape('circle', { duration: -1 })); assert.deepEqual(avatar.design, before);
   }
 });
 
 test('shape frames run in still mode, preserve visibility suspension, then release RAF on completion', async () => {
-  await withFrameEnvironment(async ({ queue, frame }) => {
-    const { avatar } = avatarForTest(true); const rendered = [];
-    avatar.readyState = true; avatar.currentActivity = 'still';
-    avatar.renderer = { render: (_, state) => rendered.push(state.contour) };
-    const done = avatar.setShape('heart', { duration: 100, easing: 'linear' });
-    assert.equal(queue.size, 1); frame(10); frame(60); const visible = snapshot(avatar.shapeTimeline);
-    assert.equal(avatar.shapeTimeline.active, true); assert.ok(rendered.length > 1);
-    document.hidden = true; avatar.onVisibility(); assert.equal(queue.size, 0);
-    assert.deepEqual(avatar.shapeTimeline.contour, visible);
-    document.hidden = false; avatar.onVisibility(); frame(5000);
-    assert.deepEqual(avatar.shapeTimeline.contour, visible); frame(5050);
-    assert.deepEqual(await done, { finished: true }); assert.equal(queue.size, 0); assert.equal(avatar.raf, 0);
-    exactTarget(avatar.shapeTimeline, 'heart');
-  });
+  const { avatar, runtime, document } = avatarForTest(true);
+  const done = avatar.setShape('heart', { duration: 100, easing: 'linear' });
+  assert.equal(runtime.callbacks.size, 1); runtime.frame(10); runtime.frame(60); const visible = snapshot(runtime.shape);
+  assert.equal(runtime.shape.active, true); assert.ok(runtime.draws.length > 1);
+  document.hidden = true; avatar.onVisibility(); assert.equal(runtime.callbacks.size, 0);
+  assert.deepEqual(runtime.shape.contour, visible);
+  document.hidden = false; avatar.onVisibility(); runtime.frame(5000);
+  assert.deepEqual(runtime.shape.contour, visible); runtime.frame(5050);
+  assert.deepEqual(await done, { finished: true }); assert.equal(runtime.callbacks.size, 0); assert.equal(avatar.diagnostics.running, false);
+  exactTarget(runtime.shape, 'heart');
 });
 
 test('a delayed active frame honors shape duration without changing spring timing', async () => {
-  await withFrameEnvironment(async ({ queue, frame }) => {
-    const { avatar } = avatarForTest(true);
-    avatar.readyState = true; avatar.currentActivity = 'still'; avatar.renderer = { render() {} };
-    const done = avatar.setShape('flower', { duration: 450 });
-    frame(20); frame(520);
-    assert.deepEqual(await done, { finished: true }); assert.equal(queue.size, 0);
-    exactTarget(avatar.shapeTimeline, 'flower');
-    assert.equal(avatar.elapsed, 0.05);
-  });
+  const { avatar, runtime } = avatarForTest(true);
+  const done = avatar.setShape('flower', { duration: 450 });
+  runtime.frame(20); runtime.frame(520);
+  assert.deepEqual(await done, { finished: true }); assert.equal(runtime.callbacks.size, 0);
+  exactTarget(runtime.shape, 'flower');
+  assert.equal(avatar.diagnostics.time, 0.05);
 });
 
 test('shape requests complete immediately while a connected renderer is unavailable', async () => {
-  const { avatar } = avatarForTest(true); avatar.canvas = {}; avatar.readyState = false;
+  const { avatar, connect } = avatarForTest(); avatar.isConnected = true; avatar.readyState = false;
   assert.deepEqual(await avatar.setShape('heart'), { finished: true });
-  assert.equal(avatar.shapeTimeline.active, false); exactTarget(avatar.shapeTimeline, 'heart');
+  assert.equal(avatar.ready, false); assert.equal(avatar.requests.size, 0);
   const before = avatar.design;
   assert.throws(() => avatar.setShape('circle', { duration: NaN })); assert.deepEqual(avatar.design, before);
+  const runtime = connect();
+  assert.equal(runtime.shape.active, false); exactTarget(runtime.shape, 'heart');
 });
 
 test('detach and context loss cancel shape requests and restore the persisted target baseline', async () => {
-  await withFrameEnvironment(async () => {
-    for (const reason of ['disconnect', 'context']) {
-      const { avatar } = avatarForTest(true);
-      const pending = avatar.setShape('puffy'); avatar.shapeTimeline.advance(120);
-      avatar.fallback = { textContent: '', hidden: true };
-      let disposed = false;
-      avatar.renderer = { dispose() { disposed = true; } };
-      if (reason === 'disconnect') { avatar.isConnected = false; avatar.disconnectedCallback(); }
-      else avatar.onContextLost(new Event('webglcontextlost', { cancelable: true }));
-      assert.deepEqual(await pending, { finished: false }); assert.equal(disposed, true);
-      assert.equal(avatar.ready, false); assert.equal(avatar.shapeTimeline.active, false);
-      exactTarget(avatar.shapeTimeline, 'puffy');
-      avatar.isConnected = true;
-      const restored = avatar.setShape('heart', { duration: 100 });
-      assert.deepEqual(avatar.shapeTimeline.contour, catalogContour('puffy'));
-      avatar.shapeTimeline.finish(); assert.deepEqual(await restored, { finished: true });
-      exactTarget(avatar.shapeTimeline, 'heart');
-    }
-  });
+  for (const reason of ['disconnect', 'context']) {
+    const { avatar, runtime, connect } = avatarForTest(true);
+    const pending = avatar.setShape('puffy'); runtime.advanceShape(120);
+    assert.notDeepEqual(runtime.shape.contour, catalogContour('puffy'));
+    if (reason === 'disconnect') { avatar.isConnected = false; avatar.disconnectedCallback(); }
+    else runtime.renderer.canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+    assert.deepEqual(await pending, { finished: false }); assert.equal(runtime.renderer.disposals, 1);
+    assert.equal(avatar.ready, false); assert.equal(runtime.shape.active, false); assert.equal(runtime.callbacks.size, 0);
+    assert.equal(avatar.design.body.shape, 'puffy');
+    const restoredRuntime = connect();
+    exactTarget(restoredRuntime.shape, 'puffy');
+    const restored = avatar.setShape('heart', { duration: 100, easing: 'linear' });
+    assert.deepEqual(restoredRuntime.shape.contour, catalogContour('puffy'));
+    restoredRuntime.advanceShape(50);
+    assert.deepEqual(restoredRuntime.shape.contour, buildMorph(catalogContour('puffy'), catalogContour('heart')).sample(.5));
+    restoredRuntime.advanceShape(50); assert.deepEqual(await restored, { finished: true });
+    exactTarget(restoredRuntime.shape, 'heart');
+  }
 });
 
 test('legacy 3d input normalizes to flat without altering design or shape motion', async () => {
-  const { avatar } = avatarForTest(true);
-  const pending = avatar.setShape('heart'); avatar.shapeTimeline.advance(90);
-  const visible = snapshot(avatar.shapeTimeline), design = avatar.design;
+  const { avatar, runtime } = avatarForTest(true);
+  const pending = avatar.setShape('heart'); runtime.advanceShape(90);
+  const visible = snapshot(runtime.shape), design = avatar.design;
   avatar.setAttribute('render-style', '3d'); assert.equal(avatar.renderStyle, 'flat'); assert.equal(avatar.getAttribute('render-style'), 'flat');
   avatar.renderStyle = '3d'; assert.equal(avatar.renderStyle, 'flat'); assert.equal(avatar.getAttribute('render-style'), 'flat');
-  assert.deepEqual(avatar.design, design); assert.deepEqual(avatar.shapeTimeline.contour, visible); assert.equal(avatar.shapeTimeline.active, true);
+  assert.deepEqual(avatar.design, design); assert.deepEqual(runtime.shape.contour, visible); assert.equal(runtime.shape.active, true);
   assert.throws(() => { avatar.renderStyle = 'wireframe'; });
-  avatar.shapeTimeline.finish(); await pending;
+  runtime.finishShape(); await pending;
 });
