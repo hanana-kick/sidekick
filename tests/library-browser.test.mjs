@@ -8,6 +8,7 @@ import { createAppServer } from '../scripts/serve.mjs';
 
 let browser, fixture, studioServer, studioURL;
 const screenshots = process.env.SIDEKICK_SCREENSHOTS;
+const startupByPage = new WeakMap();
 before(async () => {
   fixture = await createLibraryBrowserFixture();
   studioServer = createAppServer(); await new Promise(resolve => studioServer.listen(0, '127.0.0.1', resolve));
@@ -25,14 +26,17 @@ before(async () => {
 after(async () => { await browser?.close(); await fixture?.cleanup(); if (studioServer) await new Promise(resolve => studioServer.close(resolve)); });
 
 const entryURL = entry => entry === 'studio' ? studioURL : entry === 'pages' ? fixture.pagesURL : `${fixture.baseURL}/${entry}.html`;
-const avatarID = entry => entry === 'studio' || entry === 'pages' ? 'flat' : entry === 'vanilla' ? 'bare' : entry === 'react' ? 'react-avatar' : entry === 'hydration' ? 'hydrated-avatar' : 'cdn-avatar';
+const avatarID = entry => entry === 'studio' || entry === 'pages' ? 'flat' : entry === 'vanilla' ? 'bare' : ['react', 'prebuilt-react'].includes(entry) ? 'react-avatar' : entry === 'hydration' ? 'hydrated-avatar' : entry.startsWith('prebuilt-') ? 'prebuilt-avatar' : 'cdn-avatar';
 function observeStartup(page) {
-  const errors = [], requests = [];
+  const errors = [], requests = [], resources = [];
+  page.on('request', request => resources.push({ url: request.url(), type: request.resourceType() }));
   page.on('pageerror', error => errors.push(error.stack ?? error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   page.on('requestfailed', request => requests.push({ url: request.url(), failure: request.failure()?.errorText }));
   page.on('response', response => { if (response.status() >= 400) requests.push({ url: response.url(), status: response.status() }); });
-  return { errors, requests };
+  const diagnostics = { errors, requests, resources };
+  startupByPage.set(page, diagnostics);
+  return diagnostics;
 }
 async function assertAvatarReady(page, entry, diagnostics) {
   const id = avatarID(entry);
@@ -47,7 +51,7 @@ async function assertAvatarReady(page, entry, diagnostics) {
       if (diagnostics.errors.length) throw new Error('Browser errors during initial module execution');
       // React intentionally loads registration in its client effect. Every other
       // fixture uses a static auto entry that must execute before the load event.
-      if (!['react', 'hydration'].includes(entry) && !await page.evaluate(() => !!customElements.get('sidekick-avatar'))) throw new Error('sidekick-avatar was not registered by the entry module');
+      if (!['react', 'hydration', 'prebuilt-react'].includes(entry) && !await page.evaluate(() => !!customElements.get('sidekick-avatar'))) throw new Error('sidekick-avatar was not registered by the entry module');
       await page.waitForFunction(id => {
         const avatar = document.getElementById(id);
         return avatar?.ready === true || avatar?.shadowRoot?.querySelector('[part="fallback"]')?.hidden === false;
@@ -63,6 +67,9 @@ async function assertAvatarReady(page, entry, diagnostics) {
         fallback: avatar?.shadowRoot?.querySelector('[part="fallback"]')?.textContent ?? null,
         canvas: canvas ? { width: canvas.width, height: canvas.height, hidden: canvas.hidden } : null,
         scripts: [...document.scripts].map(script => ({ src: script.src, type: script.type })),
+        consumerEvents: window.consumer?.events ?? null,
+        hydrationEvents: window.hydration?.events ?? null, hydrationErrors: window.hydration?.errors ?? null,
+        prebuiltEvents: window.prebuilt?.events ?? null,
       };
     }, id).catch(error => ({ diagnosticError: error.message }));
     if (screenshots) await page.screenshot({ path: `${screenshots}/startup-library-${entry}-failure.png`, timeout: 2000 }).catch(() => {});
@@ -140,6 +147,107 @@ test('packed auto entry runs as a direct script tag without React, source files,
     return { ready: element.ready, shape: element.design.body.shape, visible: pixels.some((value, index) => index % 4 === 3 && value === 255), transparent: pixels[3] === 0 };
   });
   assert.deepEqual(result, { ready: true, shape: 'square', visible: true, transparent: true });
+});
+
+for (const [format, filename] of [['esm', 'sidekick.js'], ['classic', 'sidekick.iife.js']]) {
+  test(`prebuilt ${format} release renders unchanged bytes with live config, tracking, events and the full core API`, async t => {
+    const page = await pageFor(t, `prebuilt-${format}`);
+    assert.deepEqual(await readFile(`${fixture.output}/prebuilt/${filename}`), await readFile(`${fixture.packagePath}/dist/browser/${filename}`), 'The browser receives the released file without a consumer transform');
+    const initial = await page.evaluate(() => {
+      const element = document.getElementById('prebuilt-avatar'), api = window.libraryAPI;
+      const capture = element.capturePixels();
+      const apiTypes = Object.fromEntries(['SidekickAvatar', 'defineSidekick', 'createDesign', 'createAccessory', 'parseDesign', 'serializeDesign', 'createScene', 'parseScene', 'serializeScene', 'MotionTimeline', 'alphaBounds', 'cropPixels'].map(name => [name, typeof api[name]]));
+      api.defineSidekick(); api.defineSidekick();
+      return { apiTypes, classMatches: api.SidekickAvatar === customElements.get('sidekick-avatar'), globalMatches: window.Sidekick === api,
+        design: element.design, defaults: api.createDesign(), readyEvents: window.prebuilt.events.filter(event => event.type === 'sidekick-ready'),
+        visible: capture.pixels.filter((value, index) => index % 4 === 3 && value === 255).length, corner: capture.pixels[3],
+        moduleScripts: document.querySelectorAll('script[type="module"],script[type="importmap"],link[rel="modulepreload"]').length,
+      };
+    });
+    assert.ok(Object.values(initial.apiTypes).every(type => type === 'function'), JSON.stringify(initial.apiTypes));
+    assert.equal(initial.classMatches, true); assert.equal(initial.globalMatches, format === 'classic');
+    assert.deepEqual(initial.design, initial.defaults); assert.equal(initial.readyEvents.length, 1); assert.equal(initial.readyEvents[0].native, true);
+    assert.ok(initial.visible > 10000); assert.equal(initial.corner, 0);
+    if (format === 'classic') assert.equal(initial.moduleScripts, 0, 'The classic consumer contains no ES module or import map');
+
+    const result = await page.locator('#prebuilt-avatar').evaluate(async element => {
+      const api = window.libraryAPI;
+      const design = api.createDesign({ body: { shape: 'heart', color: '#83aa91' }, accessories: [api.createAccessory('crown'), api.createAccessory('starEarring', { slot: 'rightEar' })] });
+      const scene = api.createScene({ design, paused: true, activity: 'still', camera: { yaw: 15 } });
+      element.design = api.parseDesign(api.serializeDesign(design));
+      const roundTrip = api.parseScene(api.serializeScene(scene));
+      for (const [name, value] of Object.entries({ shape: 'circle', 'body-color': '#b7a5ce', 'eye-color': '#27372f', 'left-smile': '0.65', 'camera-yaw': '23', paused: 'true', activity: 'still', interaction: 'box' })) element.setAttribute(name, value);
+      await Promise.resolve();
+      const configured = { design: element.design, camera: element.camera, paused: element.paused, activity: element.activity };
+      const beforeInvalid = JSON.stringify({ design: element.design, camera: element.camera, pose: element.pose });
+      element.setAttribute('shape', 'puffy'); element.setAttribute('body-color', 'invalid'); await Promise.resolve();
+      const invalidUnchanged = beforeInvalid === JSON.stringify({ design: element.design, camera: element.camera, pose: element.pose });
+      const reportedError = window.prebuilt.events.filter(event => event.type === 'sidekick-error').at(-1);
+      element.setAttribute('body-color', '#83aa91'); await Promise.resolve();
+      const recovered = { shape: element.design.body.shape, color: element.design.body.color };
+      element.lookAt({ space: 'view', x: 0.2, y: -0.3 });
+      element.setAttribute('mouse-tracking', 'true'); await Promise.resolve();
+      document.dispatchEvent(new PointerEvent('pointermove', { clientX: 10000, clientY: -10000, pointerType: 'mouse' }));
+      const tracked = element.pose.gaze, activeListeners = window.listenerAudit(element).globalPointer;
+      element.setAttribute('mouse-tracking', 'false'); await Promise.resolve();
+      const restored = element.pose.gaze;
+      await element.motion.to({ face: { uv: [0.15, -0.1] } }, { duration: 0 });
+      await element.setShape('heart', { duration: 0 });
+      return { scene, roundTrip, configured, invalidUnchanged, reportedError, recovered, tracked, restored, activeListeners,
+        disabledListeners: window.listenerAudit(element).globalPointer, face: element.pose.face, finalShape: element.design.body.shape,
+      };
+    });
+    assert.deepEqual(result.roundTrip, result.scene); assert.equal(result.configured.design.body.shape, 'circle');
+    assert.equal(result.configured.design.body.color, '#b7a5ce'); assert.equal(result.configured.design.eyes.color, '#27372f');
+    assert.equal(result.configured.design.eyes.left.weights.smile, 0.65); assert.equal(result.configured.camera.yaw, 23);
+    assert.deepEqual(result.configured.design.accessories.map(accessory => [accessory.preset, accessory.slot]), [['crown', 'head'], ['starEarring', 'rightEar']]);
+    assert.equal(result.configured.paused, true); assert.equal(result.configured.activity, 'still'); assert.equal(result.invalidUnchanged, true);
+    assert.equal(result.reportedError.detail.attribute, 'body-color'); assert.equal(result.reportedError.native, true);
+    assert.deepEqual(result.recovered, { shape: 'puffy', color: '#83aa91' }); assert.deepEqual(result.tracked, [1, 1]); assert.deepEqual(result.restored, [0.2, -0.3]);
+    assert.equal(result.activeListeners, 1); assert.equal(result.disabledListeners, 0); assert.deepEqual(result.face, [0.15, -0.1]); assert.equal(result.finalShape, 'heart');
+    await page.locator('#prebuilt-avatar').focus(); await page.keyboard.press('Enter');
+    const events = await page.evaluate(() => window.prebuilt.events);
+    for (const type of ['sidekick-ready', 'sidekick-design-change', 'sidekick-camera-change', 'sidekick-motion-end', 'sidekick-shape-end', 'sidekick-activate']) assert.ok(events.some(event => event.type === type && event.native), type);
+    assert.ok(events.some(event => event.type === 'sidekick-motion-end' && event.detail.finished));
+    assert.ok(events.some(event => event.type === 'sidekick-shape-end' && event.detail.finished));
+    assert.equal(events.filter(event => event.type === 'sidekick-error').length, 1, 'Only the intentionally invalid attribute emits an error');
+    const diagnostics = startupByPage.get(page), origin = new URL(fixture.baseURL).origin;
+    assert.deepEqual(diagnostics.requests, [], 'No failed asset requests');
+    assert.deepEqual(diagnostics.resources.filter(resource => resource.type === 'script').map(resource => new URL(resource.url).pathname), [`/prebuilt/${filename}`], 'Exactly one unchanged bundle is requested, with no chunk imports');
+    assert.ok(diagnostics.resources.every(resource => new URL(resource.url).origin === origin && [`/prebuilt-${format}.html`, `/prebuilt/${filename}`, '/favicon.ico'].includes(new URL(resource.url).pathname)), JSON.stringify(diagnostics.resources));
+    if (screenshots) await page.screenshot({ path: `${screenshots}/library-prebuilt-${format}.png` });
+  });
+}
+
+test('prebuilt React release runs directly through an import map, lazily registers, renders and cleans up its native ref', async t => {
+  const page = await pageFor(t, 'prebuilt-react');
+  for (const filename of ['sidekick-react.js', 'sidekick-element.js']) assert.deepEqual(await readFile(`${fixture.output}/prebuilt/${filename}`), await readFile(`${fixture.packagePath}/dist/browser/${filename}`));
+  const initial = await page.evaluate(() => {
+    const element = window.consumer.element;
+    return { refMatches: element === document.getElementById('react-avatar'), ready: element.ready, design: element.design, camera: element.camera,
+      opaque: element.capturePixels().pixels.filter((value, index) => index % 4 === 3 && value === 255).length, events: window.consumer.events,
+    };
+  });
+  assert.equal(initial.refMatches, true); assert.equal(initial.ready, true); assert.equal(initial.design.body.shape, 'puffy'); assert.ok(initial.opaque > 10000);
+  assert.deepEqual(initial.camera, { yaw: 12, pitch: 5, roll: -4 });
+  const readyEvents = initial.events.filter(event => event.name === 'Ready');
+  assert.ok(readyEvents.length > 0);
+  for (const event of readyEvents) assert.deepEqual(event.configured, { shape: 'puffy', camera: { yaw: 12, pitch: 5, roll: -4 }, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } });
+  assert.deepEqual(initial.events.filter(event => event.name === 'Error'), []);
+  await page.evaluate(() => { window.prebuiltReactHost = window.consumer.element; window.renderConsumer({ shape: 'heart', bodyColor: '#b7a5ce', mouseTracking: false }); });
+  await page.waitForFunction(() => window.consumer.element.design.body.shape === 'heart'); await settle(page);
+  assert.equal(await page.evaluate(() => window.prebuiltReactHost === window.consumer.element), true);
+  assert.equal((await stateOf(page, '#react-avatar')).design.body.color, '#b7a5ce');
+  await page.locator('#react-avatar').focus(); await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => window.consumer.events.filter(event => event.name === 'Activate').length), 1);
+  const diagnostics = startupByPage.get(page), resources = diagnostics.resources.map(resource => new URL(resource.url));
+  assert.deepEqual(diagnostics.requests, []);
+  assert.ok(resources.every(url => url.origin === new URL(fixture.baseURL).origin && (url.pathname.startsWith('/vendor/') || ['/prebuilt-react.html', '/prebuilt-react.mjs', '/prebuilt/sidekick-react.js', '/prebuilt/sidekick-element.js', '/favicon.ico'].includes(url.pathname))), JSON.stringify(diagnostics.resources));
+  for (const filename of ['sidekick-react.js', 'sidekick-element.js']) assert.equal(resources.filter(url => url.pathname === `/prebuilt/${filename}`).length, 1);
+  if (screenshots) await page.screenshot({ path: `${screenshots}/library-prebuilt-react.png` });
+  await page.evaluate(() => window.unmountConsumer()); await page.waitForFunction(() => window.consumer.element === null);
+  const cleanup = await page.evaluate(() => ({ ready: window.prebuiltReactHost.ready, buffers: window.prebuiltReactHost.diagnostics.buffers, ...window.listenerAudit(window.prebuiltReactHost) }));
+  assert.deepEqual(cleanup, { ready: false, buffers: 0, globalPointer: 0, elementEvents: 0 });
 });
 
 test('complete declarative config has order-independent JSON, scalar, expression, slot, camera and motion precedence', async t => {

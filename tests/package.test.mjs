@@ -22,14 +22,15 @@ test('packed core installs offline without React, Studio, or lifecycle builds', 
   for (const script of ['build', 'prepare', 'prepack', 'preinstall', 'install', 'postinstall']) assert.equal(consumer.manifest.scripts[script], undefined);
   for (const name of ['react', 'react-dom', 'vite', 'radix-ui', 'tailwindcss', 'shadcn', 'typescript']) assert.equal(existsSync(join(consumer.directory, 'node_modules', name)), false, `${name} leaked into core install`);
   const files = consumer.packed.files.map(file => file.path);
-  assert.ok(files.every(file => file === 'package.json' || file === 'README.md' || file.startsWith('dist/library/') || file.startsWith('third_party/material-shapes/')), files.join('\n'));
+  assert.ok(files.every(file => file === 'package.json' || file === 'README.md' || file.startsWith('dist/library/') || file.startsWith('dist/browser/') || file.startsWith('third_party/material-shapes/')), files.join('\n'));
   assert.ok(files.includes('dist/library/react.d.ts'));
+  for (const file of ['sidekick.js', 'sidekick.iife.js', 'sidekick-react.js', 'sidekick-element.js']) assert.ok(files.includes('dist/browser/' + file));
   assert.ok(files.includes('third_party/material-shapes/LICENSE'));
   assert.ok(!files.some(file => /\.map$|playground|assets\//.test(file)));
-  for (const entry of ['./dist/library/index.js', './dist/library/auto.js', './src/index.ts', './src/auto.ts', '**/*.css']) assert.ok(consumer.manifest.sideEffects.includes(entry));
+  for (const entry of ['./dist/library/index.js', './dist/library/auto.js', './src/index.ts', './src/auto.ts', './dist/browser/sidekick.js', './dist/browser/sidekick.iife.js', '**/*.css']) assert.ok(consumer.manifest.sideEffects.includes(entry));
   assert.ok(!consumer.manifest.sideEffects.includes('./dist/library/register.js'));
   assert.ok(!consumer.manifest.sideEffects.includes('./dist/library/core.js'));
-  assert.ok(consumer.packed.size < 250_000, `Unexpected packed size ${consumer.packed.size}`);
+  assert.ok(consumer.packed.size < 600_000, `Unexpected packed size ${consumer.packed.size}`);
   const output = consumer.run(['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
     for (const suffix of ['', '/auto', '/register', '/core']) {
@@ -46,6 +47,8 @@ test('packed core installs offline without React, Studio, or lifecycle builds', 
     import { createDesign, createCamera, type AvatarDesign, type MaterialShapeName } from '@hanana-kick/sidekick/core';
     import { defineSidekick, type SidekickAvatar, type SidekickAttributes, type SidekickEventMap } from '@hanana-kick/sidekick/register';
     import '@hanana-kick/sidekick/auto';
+    import { createScene as createBrowserScene } from '@hanana-kick/sidekick/browser/sidekick.js';
+    console.log(createBrowserScene());
     const design: AvatarDesign = createDesign();
     const shape: MaterialShapeName = 'heart';
     const attrs: SidekickAttributes = { shape, 'mouse-tracking': 'false', 'camera-yaw': 12 };
@@ -65,6 +68,9 @@ test('packed React subpath supports strict types, refs, events and DOM-free serv
     import { createRef } from 'react';
     import { SidekickAvatar, type SidekickAvatarProps, type SidekickAvatarRef } from '@hanana-kick/sidekick/react';
     import { createDesign } from '@hanana-kick/sidekick/core';
+    import { SidekickAvatar as PrebuiltAvatar } from '@hanana-kick/sidekick/browser/sidekick-react.js';
+    const prebuilt = <PrebuiltAvatar shape="heart" onError={event => console.log(event.detail.message)} />;
+    console.log(prebuilt);
     const ref = createRef<SidekickAvatarRef>();
     const props: SidekickAvatarProps = { design: createDesign(), camera: { yaw: 12 }, mouseTracking: false, headAccessory: 'beret' };
     const tree = <SidekickAvatar {...props} ref={ref} shape="heart" leftSmile={0.4} paused={false} onReady={event => event.detail} onError={event => console.log(event.detail.message)} onCameraChange={event => console.log(event.detail.camera.yaw)} onMotionEnd={event => console.log(event.detail.finished)} />;
@@ -105,7 +111,7 @@ test('pinned local Git dependency installs prebuilt artifacts without the Studio
   const destination = join(directory, 'consumer');
   // This throwaway fixture is the only repository committed by this test. It has
   // no remote and never touches the working repository's index, HEAD or config.
-  for (const path of ['package.json', 'README.md', 'dist/library', 'third_party/material-shapes']) cpSync(join(root, path), join(repository, path), { recursive: true });
+  for (const path of ['package.json', 'README.md', 'dist/library', 'dist/browser', 'third_party/material-shapes']) cpSync(join(root, path), join(repository, path), { recursive: true });
   const git = args => execFileSync('git', args, { cwd: repository, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   git(['init', '--quiet']); git(['add', '.']);
   git(['-c', 'user.name=Package fixture', '-c', 'user.email=fixture@invalid.test', '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'Isolated package fixture']);

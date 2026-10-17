@@ -1,0 +1,46 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import ts from 'typescript';
+
+const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
+const readme = read('../README.md');
+const rows = readme.split('\n').filter(line => line.startsWith('| '));
+const cells = rows.map(row => row.split(/(?<!\\)\|/).slice(1, -1).map(cell => cell.trim()));
+function interfaceProperties(path, name) {
+  const source = ts.createSourceFile(path, read(path), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const declaration = source.statements.find(node => ts.isInterfaceDeclaration(node) && node.name.text === name);
+  assert.ok(declaration, `${name} exists in ${path}`);
+  return declaration.members.filter(ts.isPropertySignature).map(member => member.name.text);
+}
+
+test('README has an individual reference row for every HTML attribute and own React prop', () => {
+  const attributes = interfaceProperties('../src/element/attributes.ts', 'SidekickAttributes');
+  const props = interfaceProperties('../src/react.ts', 'SidekickAvatarProps');
+  for (const attribute of attributes) {
+    assert.ok(cells.some(row => row[0] === '`' + attribute + '`' && row.length >= 3), `Missing HTML attribute row: ${attribute}`);
+  }
+  for (const prop of props) {
+    assert.ok(cells.some(row => (row[0] === '`' + prop + '`' || row[1] === '`' + prop + '`') && row.length >= 3), `Missing React prop row: ${prop}`);
+  }
+});
+
+test('README includes complete self-hosted ESM, classic, and no-build React HTML examples', () => {
+  const documents = [...readme.matchAll(/```html\n(<!doctype html>[\s\S]*?)\n```/g)].map(match => match[1]);
+  assert.equal(documents.length, 3);
+  const [esm, classic, react] = documents;
+  for (const html of documents) {
+    assert.match(html, /<html[\s>]/);
+    assert.match(html, /<head>/);
+    assert.match(html, /<body>/);
+    assert.match(html, /<\/html>$/);
+    assert.doesNotMatch(html, /https?:\/\//, 'Examples must use downloaded files without unverified external module URLs');
+  }
+  assert.match(esm, /import\('\/vendor\/sidekick\/sidekick\.js'\)/);
+  assert.match(classic, /<script src="\/vendor\/sidekick\/sidekick\.iife\.js"><\/script>/);
+  assert.match(classic, /Sidekick\.createAccessory/);
+  assert.match(react, /"react": "\.\/vendor\/react\.js"/);
+  assert.match(react, /"react-dom\/client": "\.\/vendor\/react-dom-client\.js"/);
+  assert.match(react, /from '\.\/sidekick-react\.js'/);
+  assert.match(react, /createElement as h/);
+});

@@ -164,14 +164,14 @@ test('hydration preserves the host, emits no mismatch and notifies an already re
   assert.equal(events[0].type, 'sidekick-ready');
 });
 
-test('server import followed by actual delayed custom-element upgrade works in one process', () => {
+for (const subpath of ['/react', '/browser/sidekick-react.js']) test(`server import followed by actual delayed custom-element upgrade works in one process: ${subpath}`, () => {
   const jsdom = pathToFileURL(fileURLToPath(new URL('../node_modules/jsdom/lib/api.js', import.meta.url))).href;
   const output = consumer.run(['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
     import { JSDOM } from ${JSON.stringify(jsdom)};
     import React, { act } from 'react';
     import { renderToString } from 'react-dom/server';
-    import { SidekickAvatar } from '@hanana-kick/sidekick/react';
+    import { SidekickAvatar } from ${JSON.stringify('@hanana-kick/sidekick' + subpath)};
     const props = { id: 'delayed', shape: 'heart', bodyColor: '#123456', paused: true };
     const html = renderToString(React.createElement(SidekickAvatar, props));
     assert.equal(typeof HTMLElement, 'undefined');

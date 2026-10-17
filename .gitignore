@@ -1,9 +1,11 @@
 node_modules/
 dist/*
 !dist/library/
+!dist/browser/
 artifacts/
 *.tgz
 .env*
 !.env.example
 *.log
 .DS_Store
+release/

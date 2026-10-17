@@ -8,92 +8,161 @@
 
 ## 설치
 
-현재 패키지 이름은 `@hanana-kick/sidekick`, 버전은 `0.2.0`입니다. **npm 레지스트리에는 발행하지 않았습니다.** 이름만으로 `npm install @hanana-kick/sidekick`을 실행하는 대신 아래 tarball 또는 Git 설치를 사용하세요. `private: true`는 실수로 레지스트리에 발행하지 않도록 막는 설정이며 tarball/Git 의존성 설치는 가능합니다.
+**소스를 빌드하지 않고 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 받아 사용하세요.** 브라우저용 ESM과 일반 `<script>`용 JS를 제공합니다. 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다. 이 소스의 패키지 버전은 `0.2.0`이고 이름은 `@hanana-kick/sidekick`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
 
-### 빌드된 tarball 설치
+### GitHub Release에서 다운로드
 
-저장소에서 Node.js **22.22.2 이상**으로 패키지를 만듭니다.
+1. [Releases](https://github.com/hanana-kick/sidekick/releases)를 엽니다. 비공개 저장소로 운영하는 경우에는 접근 권한이 있는 GitHub 계정으로 로그인합니다.
+2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.2.0.zip` 또는 `hanana-kick-sidekick-0.2.0.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
+3. 일반 HTML 사이트에서는 브라우저 ZIP을 풀고 아래 파일을 사이트의 정적 파일 디렉터리에 복사합니다. 동봉된 `START-HERE.txt`를 읽고 `esm.html`, `classic.html`, `react.html` 중 원하는 예제를 열면 됩니다. 예제의 `/vendor/sidekick/`은 **사용자 사이트의 경로**입니다. 배포 경로에 맞게 바꾸세요.
 
-```sh
-npm ci
-npm run pack:library
-# hanana-kick-sidekick-0.2.0.tgz
-```
+| 빌드된 파일 | 용도 | 필요한 파일·의존성 |
+| --- | --- | --- |
+| `sidekick-browser-0.2.0.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 4개, 선택적 `vendor/`, README·고지 포함 |
+| `sidekick.js` | 브라우저 ESM. `import`와 `<script type="module">` 사용 | 이 JS 파일 하나. 런타임 외부 import 없음 |
+| `sidekick.iife.js` | 일반 classic `<script>`. API는 `window.Sidekick` | 이 JS 파일 하나. `type="module"` 사용 안 함 |
+| `sidekick-react.js` | React 19용 ESM 컴포넌트 | `sidekick-element.js`를 같은 디렉터리에 유지하고 `react` peer를 제공 |
+| `sidekick-element.js` | React 래퍼가 지연 로딩하는 렌더러 | 직접 import하지 않음. `sidekick-react.js`와 같은 버전 사용 |
+| `vendor/react.js`, `vendor/react-dom-client.js` | 브라우저 ZIP의 선택적 React 19/ReactDOM ESM | 아래 빌드 없는 React 예제용. import map으로 연결하며 React를 이미 제공하는 앱에는 불필요 |
+| `hanana-kick-sidekick-0.2.0.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
+| `SHA256SUMS` | ZIP과 tarball의 다운로드 무결성 확인 | 같은 Release의 체크섬 파일 |
 
-사용할 프로젝트에서:
+ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보관하세요. **비공개 GitHub Release의 다운로드 URL을 웹사이트의 `src`/`import` URL로 사용하지 마세요.** 다운로드는 GitHub 인증이 필요하고, 자산 응답의 MIME·CORS·인증 동작은 정적 JS 호스팅과 다릅니다. 파일을 먼저 내려받아 본인 사이트에서 제공하고 토큰을 HTML·URL·소스에 넣지 마세요. 저장소 공개 범위는 변경할 필요가 없습니다.
+
+`sidekick.js`와 `sidekick.iife.js`는 각각 전체 공개 코어/요소 API를 내보내며 기본 `<sidekick-avatar>`를 자동 등록합니다. **둘 중 하나만 선택하세요.** Classic JS는 브라우저 전역 스크립트를 뜻하며 Node.js CommonJS `require()` 빌드는 아닙니다. React 래퍼는 React를 번들 안에 포함하지 않습니다. `sidekick.js`의 `SidekickAvatar`는 커스텀 요소 클래스이고, `sidekick-react.js`의 같은 이름은 React 컴포넌트입니다.
+
+### 기존 프로젝트에 빌드된 패키지 설치
+
+Release에서 받은 tarball을 사용할 프로젝트에서 설치합니다. 이 명령은 Sidekick 소스를 컴파일하거나 Studio를 빌드하지 않습니다.
 
 ```sh
 npm install /absolute/path/to/hanana-kick-sidekick-0.2.0.tgz
 ```
 
-tarball에는 실행용 ES 모듈·타입 선언과 필요한 고지가 포함됩니다. 라이브러리를 설치하는 프로젝트에서 Studio를 빌드하거나 shadcn, Vite, Tailwind를 설치할 필요가 없습니다. React 래퍼를 사용하는 프로젝트에는 React 19가 필요하며, 코어만 사용할 때 React는 필요 없습니다.
+React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 마운트하는 `react-dom`도 사용자가 같은 버전으로 준비합니다. 코어만 쓰는 프로젝트에는 React가 필요 없습니다. `private: true`는 우발적인 npm 발행을 막으며 tarball 설치를 막지 않습니다.
 
-### GitHub의 특정 커밋 설치
-
-이 기능과 `dist/library/`가 포함된 커밋을 원격에 올린 뒤, `COMMIT_SHA`를 해당 **전체 커밋 SHA**로 바꾸세요. 아래 문자열은 발행된 버전이나 실제 SHA를 뜻하지 않는 템플릿입니다.
-
-```sh
-npm install 'git+ssh://git@github.com/hanana-kick/sidekick.git#COMMIT_SHA'
-# HTTPS Git 인증을 이미 구성했다면:
-npm install 'git+https://github.com/hanana-kick/sidekick.git#COMMIT_SHA'
-```
-
-비공개 저장소라면 해당 저장소를 읽을 수 있는 GitHub 계정과 SSH 키 또는 Git credential helper 인증이 먼저 필요합니다. 토큰을 URL·`package.json`·README에 넣지 마세요. 의존성 및 lockfile을 함께 커밋하면 팀도 같은 커밋을 사용합니다. 실행 산출물을 저장소에 포함하며 설치 수명주기 빌드를 요구하지 않습니다. 자세한 설치 방식은 [npm 공식 문서](https://docs.npmjs.com/cli/v11/commands/npm-install/)를 참고하세요.
-
-### 진입점
+### 패키지 진입점
 
 | import 경로 | 용도 |
 | --- | --- |
-| `@hanana-kick/sidekick` | 기존 호환 진입점. 브라우저에서 기본 태그를 자동 등록하고 공개 API를 export |
-| `@hanana-kick/sidekick/auto` | 자동 등록을 명시하는 브라우저 진입점 |
+| `@hanana-kick/sidekick` | 브라우저에서 기본 태그를 자동 등록하고 공개 API를 export |
+| `@hanana-kick/sidekick/auto` | 자동 등록을 명시하는 진입점 |
 | `@hanana-kick/sidekick/register` | 자동 등록 없이 `defineSidekick`, 요소 클래스와 공개 API를 import |
 | `@hanana-kick/sidekick/core` | DOM 없이 디자인·장면 생성/검증, 모션·카메라·픽셀 유틸리티 사용 |
 | `@hanana-kick/sidekick/react` | React 컴포넌트 `SidekickAvatar`, props/ref 타입 |
 
-모듈은 ESM입니다. CommonJS `require()`용 별도 빌드는 없습니다. 최종 라이브러리 산출물은 `dist/library/`, 내부 테스트용 개별 모듈은 `dist/src/`입니다.
+패키지 모듈은 ESM이며 실행용 모듈/타입은 `dist/library/`, 즉시 사용 가능한 브라우저 번들은 `dist/browser/`입니다. `dist/src/`는 내부 테스트용입니다. bare import 이름은 브라우저가 직접 해석하지 못하므로 패키지 import에는 번들러 또는 import map을 사용하세요. 아래 HTML 예제는 실제 파일 URL을 사용하여 이 설정이 필요 없습니다.
+
+선택적으로 빌드 산출물이 체크인된 특정 커밋을 Git 의존성으로 설치할 수도 있습니다. `COMMIT_SHA`는 실제 전체 SHA로 바꿉니다. 비공개 저장소용 SSH/Git credential helper 인증이 필요하며 토큰을 URL에 넣지 마세요.
+
+```sh
+npm install 'git+ssh://git@github.com/hanana-kick/sidekick.git#COMMIT_SHA'
+```
 
 ## HTML에서 바로 사용하기
 
-### 가장 작은 사용 예
+### 가장 작은 ESM 사용 예
 
-Vite 등 번들러가 있는 사이트의 브라우저 진입 JavaScript:
-
-```js
-import '@hanana-kick/sidekick/auto';
-```
-
-HTML:
+다운로드한 `sidekick.js`를 사이트의 `/vendor/sidekick/sidekick.js`에 놓으면 다음 두 줄로 시작할 수 있습니다.
 
 ```html
+<script type="module" src="/vendor/sidekick/sidekick.js"></script>
 <sidekick-avatar></sidekick-avatar>
 ```
 
-등록이 끝나면 200 × 200px의 투명 캐릭터가 표시됩니다. 기본값은 노란 `square`, 어두운 눈, 액세서리 없음, `idle` 상태입니다. 라이브러리는 Studio의 CSS나 글꼴을 요구하지 않습니다. 크기는 일반 CSS로 정합니다.
+등록이 끝나면 200 × 200px의 투명 캐릭터가 표시됩니다. 기본값은 노란 `square`, 어두운 눈, 액세서리 없음, `idle` 상태입니다. 크기는 일반 CSS로 정합니다. 외형은 카탈로그/장비 선택과 색상으로 설정하며 각 파츠의 기하 크기·깊이·위치는 공개하지 않습니다.
+
+### 완전한 HTML 예제: ESM import
+
+아래 내용을 `index.html`로 저장하고, 내려받은 파일과 함께 HTTP(S)로 제공하세요. 이 예제는 소스 빌드·npm 설치·import map 없이 실행됩니다. 초기 오류/준비 이벤트를 받기 위해 리스너를 먼저 붙인 뒤 `import()`합니다.
 
 ```html
-<sidekick-avatar
-  id="bot"
-  shape="verySunny"
-  body-color="#e9b64d"
-  eye-color="#24242c"
-  head-accessory="beret"
-  head-color="#b84742"
-  mouse-tracking="true"
-  interaction="box"
-  shape-duration="450"
-  aria-label="작업 도우미"
-  style="width:160px;height:160px"
-></sidekick-avatar>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sidekick ESM</title>
+  <style>sidekick-avatar { width: 200px; height: 200px; }</style>
+</head>
+<body>
+  <sidekick-avatar id="bot" shape="verySunny" body-color="#e9b64d"
+    eye-color="#24242c" head-accessory="beret" head-color="#b84742"
+    mouse-tracking interaction="box" shape-duration="450"
+    aria-label="작업 도우미"></sidekick-avatar>
+  <button id="change" disabled>도형 바꾸기</button>
+  <p id="status" role="status">불러오는 중</p>
+  <script type="module">
+    const bot = document.querySelector('#bot');
+    const button = document.querySelector('#change');
+    const status = document.querySelector('#status');
+    bot.addEventListener('sidekick-ready', () => { status.textContent = '준비 완료'; });
+    bot.addEventListener('sidekick-error', event => { status.textContent = event.detail.message; });
+    try {
+      const { createAccessory } = await import('/vendor/sidekick/sidekick.js');
+      // 기본 태그는 이미 자동 등록됨. defineSidekick() 호출 불필요.
+      await bot.equipAccessory(createAccessory('glasses', 'frames'));
+      button.disabled = false;
+      button.addEventListener('click', async () => {
+        try {
+          const shape = bot.design.body.shape === 'heart' ? 'verySunny' : 'heart';
+          await bot.setShape(shape, { duration: 450, easing: 'smooth' });
+        } catch (error) { status.textContent = error.message; }
+      });
+    } catch (error) { status.textContent = error.message; }
+  </script>
+</body>
+</html>
 ```
 
-번들러가 없는 사이트는 패키지의 `dist/library/` 전체를 `/sidekick/`에 복사하고, 브라우저용 자동 등록 모듈을 불러옵니다. `/react` 파일은 HTML 예제에 필요하지 않습니다.
+정적 ESM import도 같습니다. `sidekick.js` 하나에서 공개 함수를 가져올 수 있습니다.
+
+```js
+import { createDesign, createAccessory, defineSidekick } from '/vendor/sidekick/sidekick.js';
+```
+
+### 완전한 HTML 예제: 일반 JS script
+
+`sidekick.iife.js`를 복사하고 `type="module"` 없이 불러옵니다. 등록은 자동이며 같은 공개 API가 `Sidekick` 전역에 있습니다. 외부 스크립트를 먼저 실행하고 그 아래에서 API를 사용하세요. 이 순서의 예제에 `async`/`defer`를 임의로 추가하지 마세요.
 
 ```html
-<script type="module" src="/sidekick/auto.js"></script>
-<sidekick-avatar shape="heart" mouse-tracking="true"></sidekick-avatar>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sidekick classic JS</title>
+  <style>sidekick-avatar { width: 200px; height: 200px; }</style>
+</head>
+<body>
+  <sidekick-avatar id="bot" shape="heart" body-color="#8bba9c"
+    mouse-tracking="true" interaction="box" aria-label="작업 도우미"></sidekick-avatar>
+  <button id="change">도형 바꾸기</button>
+  <p id="status" role="status">불러오는 중</p>
+  <script>
+    const bot = document.querySelector('#bot');
+    const status = document.querySelector('#status');
+    bot.addEventListener('sidekick-ready', () => { status.textContent = '준비 완료'; });
+    bot.addEventListener('sidekick-error', event => { status.textContent = event.detail.message; });
+  </script>
+  <script src="/vendor/sidekick/sidekick.iife.js"></script>
+  <script>
+    if (window.Sidekick) {
+      bot.equipAccessory(Sidekick.createAccessory('halo', 'aura'))
+        .catch(error => { status.textContent = error.message; });
+      document.querySelector('#change').addEventListener('click', async () => {
+        try {
+          const shape = bot.design.body.shape === 'heart' ? 'puffy' : 'heart';
+          await bot.setShape(shape, { duration: 600 });
+        } catch (error) { status.textContent = error.message; }
+      });
+    } else { status.textContent = 'Sidekick JS 파일을 불러오지 못했습니다.'; }
+  </script>
+</body>
+</html>
 ```
 
-`file://`로 열지 말고 HTTP 서버에서 제공하세요. bare import 이름은 브라우저가 직접 해석하지 못하므로 번들러, import map, 또는 위처럼 실제 모듈 경로를 사용해야 합니다. [Custom Element 등록과 사용](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_custom_elements)은 표준 Web Components 동작을 따릅니다.
+`file://`로 더블클릭해서 열지 말고 HTTP(S) 서버에서 제공하세요. `.js` 응답은 JavaScript MIME 형식이어야 하며, 없는 파일 대신 사이트의 `index.html`을 반환하는 SPA fallback을 피하세요. 다른 origin에서 JS를 제공한다면 모듈용 CORS도 설정해야 합니다. 위 예제는 같은 origin을 사용합니다. 코어 두 번들에는 추가 JS·이미지·폰트 다운로드가 없습니다.
 
 ### 명시적으로 등록하고 명령 보내기
 
@@ -119,9 +188,13 @@ bot.mouseTracking = false;
 bot.lookAt({ space: 'view', x: 0.6, y: 0.2 });
 ```
 
-`defineSidekick('my-companion')`로 다른 태그 이름도 등록할 수 있습니다. React 래퍼는 기본 `sidekick-avatar`를 사용합니다. `whenDefined()`는 클래스 등록 완료를 뜻하며 GPU 렌더 준비를 뜻하지 않습니다. PNG가 필요하면 `bot.ready` 또는 `sidekick-ready`를 확인하세요.
+`defineSidekick('my-companion')`로 다른 태그 이름도 등록할 수 있습니다. React 래퍼는 기본 `sidekick-avatar`를 사용합니다. `whenDefined()`는 클래스 등록 완료를 뜻하며 GPU 렌더 준비를 뜻하지 않습니다. `ready`는 Promise가 아니라 읽기 전용 boolean입니다. PNG가 필요하면 `bot.ready === true`인지 확인하거나 `sidekick-ready`를 기다리세요.
 
 ## React에서 사용하기
+
+### 기존 React 19 프로젝트
+
+Release의 `.tgz`를 설치한 뒤 다음 컴포넌트를 앱에서 렌더링하세요. JSX/TSX는 기존 앱의 도구로 처리하며 Sidekick 자체를 다시 빌드할 필요는 없습니다.
 
 ```tsx
 import { useRef, useState } from 'react';
@@ -179,84 +252,192 @@ const design = createDesign({
 
 속성 변경은 기존 요소에 반영됩니다. 애니메이션 도중 `key`를 바꾸거나 요소를 조건부로 제거하면 런타임이 다시 만들어지므로 안정된 `key`를 유지하세요. 한 값을 props와 명령형 API 양쪽에서 제어한다면, 나중에 해당 prop을 바꿀 때 선언적 값이 다시 적용됩니다. 애니메이션 전환은 `shape` prop 또는 `setShape()`를 사용하세요. React `design` prop도 HTML `design` 속성으로 연결되므로 연결 후 도형을 바꾸면 `shapeDuration`으로 전환합니다. 반대로 요소의 JavaScript `design` 프로퍼티와 `setDesign()`은 전체 디자인을 즉시 적용합니다.
 
+### 빌드 없는 React HTML 예제
+
+브라우저 ZIP의 `sidekick-react.js`, `sidekick-element.js`, `vendor/`를 그대로 유지하세요. 동봉된 `react.html`을 열거나 **같은 디렉터리에** 아래 내용의 HTML을 저장할 수 있습니다. HTTP(S)로 열면 React에서도 설치·JSX 변환·소스 빌드 없이 실행됩니다. 예를 들어 이 파일들을 `/vendor/sidekick/`에 복사했다면 `/vendor/sidekick/react.html`을 엽니다.
+
+이 예제는 ZIP에 포함된 **React/ReactDOM 19.3.1의 production ESM**을 사용합니다. React peer와 페이지 마운트용 ReactDOM은 코어와 별개이며, 두 vendor 파일과 동봉된 React·ReactDOM·scheduler 라이선스를 함께 유지하세요. 기존 React 앱에 별도 React 복사본을 추가하지 말고 앱의 peer를 사용하세요. 외부 CDN이나 GitHub 다운로드 URL에 런타임 요청을 보내지 않습니다.
+
+```html
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sidekick React</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "./vendor/react.js",
+        "react-dom/client": "./vendor/react-dom-client.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module">
+    import { createElement as h, useRef, useState } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import { SidekickAvatar } from './sidekick-react.js';
+
+    function App() {
+      const bot = useRef(null);
+      const [shape, setShape] = useState('square');
+      const [tracking, setTracking] = useState(true);
+      const [ready, setReady] = useState(false);
+      const [error, setError] = useState('');
+      return h('main', null,
+        h(SidekickAvatar, {
+          ref: bot, shape, bodyColor: '#8bba9c', headAccessory: 'beret',
+          mouseTracking: tracking, interaction: 'box', shapeDuration: 450,
+          style: { width: 200, height: 200 }, 'aria-label': '작업 도우미',
+          onReady: () => setReady(true),
+          onError: event => setError(event.detail.message),
+        }),
+        h('button', { onClick: () => setShape(value => value === 'square' ? 'heart' : 'square') }, '도형 바꾸기'),
+        h('button', { onClick: () => setTracking(value => !value) }, '마우스 추적 전환'),
+        h('button', {
+          disabled: !ready,
+          onClick: async () => {
+            try { await bot.current?.setExpression('left', 'smile'); }
+            catch (error) { setError(error.message); }
+          },
+        }, '왼쪽 눈 웃기'),
+        h('p', { role: 'status' }, error || (ready ? '준비 완료' : '불러오는 중')),
+      );
+    }
+    createRoot(document.querySelector('#root')).render(h(App));
+  </script>
+</body>
+</html>
+```
+
+`sidekick-react.js`의 `react` import는 import map 또는 앱 번들러가 해석해야 합니다. 렌더러 파일은 래퍼를 기준으로 상대 경로로 로딩하므로 `sidekick-element.js`를 옮기거나 이름을 바꾸지 마세요. React 예제에는 `sidekick.js`/`sidekick.iife.js`를 추가로 로딩할 필요가 없습니다.
+
 ## HTML 속성과 React props
 
-아래 표의 camelCase는 **React props 이름**입니다. 모든 이름이 요소의 JavaScript 프로퍼티라는 뜻은 아닙니다. 일반 HTML에서는 `setAttribute()`/`removeAttribute()`를, 복합 제어는 아래 명령형 API를 사용하세요. 공개 외형과 런타임 입력은 모두 속성으로 지정할 수 있으며 읽기 전용 상태·이벤트·PNG 출력은 API로 받습니다.
+아래 표는 **지원하는 모든 HTML 설정 속성과 React 전용 props**입니다. camelCase는 React props 이름이며 모든 이름이 요소의 JavaScript 프로퍼티라는 뜻은 아닙니다. 일반 HTML에서는 `setAttribute()`/`removeAttribute()`를, 복합 제어는 명령형 API를 사용하세요. 읽기 전용 상태·이벤트·PNG 출력은 API로 받습니다.
+
+- 모든 설정 prop은 선택 사항입니다. 표의 기본값은 `design`이나 다른 상위 입력이 없는 새 요소 기준입니다. **생략은 덮어쓰지 않는다는 뜻**입니다. 예를 들어 `design`의 몸체가 `heart`라면 `shape`를 생략해도 `square`로 바뀌지 않습니다.
+- HTML 값은 문자열입니다. 숫자는 `shape-duration="450"`, JSON은 `motion='{"body":{"rotation":[0,0,0.2]}}'`처럼 씁니다. React 숫자는 `{450}`, boolean은 `{true}`/`{false}`, 복합 값은 실제 객체/배열을 사용합니다.
+- React 설정 prop의 해제 값은 **`undefined` 또는 prop 생략**입니다. 이전에 래퍼가 설정한 속성은 제거됩니다. `null`은 설정 prop의 지원 값이 아닙니다. `ref={null}`은 React 표준에 따라 참조를 해제할 때 사용할 수 있습니다.
+- `MaterialShapeName`의 허용 값 35개는 [전체 도형 목록](#도형렌더링-범위와-라이선스), `AvatarDesign`/`AccessoryDesign`의 필드는 [디자인 JSON](#디자인-json과-액세서리), `MotionTarget`의 모든 필드는 아래 표를 참고하세요. 문자열 enum은 대소문자를 구분합니다.
 
 ### 기본·몸체·눈
 
-| HTML 속성 | React prop | 값 / 기본값 |
-| --- | --- | --- |
-| `design` | `design` | 완전한 디자인 JSON. 생략 시 `createDesign()` 기본값 |
-| `shape` | `shape` | 35개 카탈로그 이름. 기본 `square` |
-| `body-color` | `bodyColor` | `#RRGGBB`. 기본 `#e9b64d` |
-| `eye-color` | `eyeColor` | `#RRGGBB`. 기본 `#24242c` |
-| `expression` | `expression` | 양쪽 눈 `neutral` / `smile` / `blink`. 기본 `neutral` |
-| `left-expression` | `leftExpression` | 왼쪽 눈 프리셋 |
-| `right-expression` | `rightExpression` | 오른쪽 눈 프리셋 |
-| `smile` | `smile` | 양쪽 웃음 가중치 0~1. 기본 0 |
-| `blink` | `blink` | 양쪽 감기 가중치 0~1. 기본 0 |
-| `left-smile` | `leftSmile` | 왼쪽 웃음 가중치 0~1 |
-| `right-smile` | `rightSmile` | 오른쪽 웃음 가중치 0~1 |
-| `left-blink` | `leftBlink` | 왼쪽 감기 가중치 0~1 |
-| `right-blink` | `rightBlink` | 오른쪽 감기 가중치 0~1 |
-| `accessories` | `accessories` | 액세서리 배열 JSON. 기본 `[]` |
-| `render-style` | `renderStyle` | `flat`만 공개 지원. 생략 시 `flat`; 이전 `3d` 입력은 `flat`으로 정규화 |
+| HTML 속성 | React prop | React 타입 | 허용 값 / 기본값 |
+| --- | --- | --- | --- |
+| `design` | `design` | `AvatarDesign` | HTML은 완전한 디자인 JSON 문자열. 기본 `createDesign()`의 v7 디자인 |
+| `shape` | `shape` | `MaterialShapeName` | 35개 카탈로그 이름. 상위 디자인의 도형, 없으면 `square` |
+| `body-color` | `bodyColor` | `string` | `#RRGGBB`. 상위 디자인 색, 없으면 `#e9b64d` |
+| `eye-color` | `eyeColor` | `string` | `#RRGGBB`. 상위 디자인 색, 없으면 `#24242c` |
+| `expression` | `expression` | `EyeExpression` | `neutral` / `smile` / `blink`. 생략 시 디자인의 양쪽 가중치 유지, 초기 `neutral` |
+| `left-expression` | `leftExpression` | `EyeExpression` | 왼쪽 `neutral` / `smile` / `blink`. 생략 시 공통 expression/디자인 사용 |
+| `right-expression` | `rightExpression` | `EyeExpression` | 오른쪽 `neutral` / `smile` / `blink`. 생략 시 공통 expression/디자인 사용 |
+| `smile` | `smile` | `number` | 양쪽 웃음 가중치 0~1. 생략 시 expression/디자인 사용, 초기 0 |
+| `blink` | `blink` | `number` | 양쪽 감기 가중치 0~1. 생략 시 expression/디자인 사용, 초기 0 |
+| `left-smile` | `leftSmile` | `number` | 왼쪽 웃음 0~1. 생략 시 공통 smile/expression/디자인 사용, 초기 0 |
+| `right-smile` | `rightSmile` | `number` | 오른쪽 웃음 0~1. 생략 시 공통 smile/expression/디자인 사용, 초기 0 |
+| `left-blink` | `leftBlink` | `number` | 왼쪽 감기 0~1. 생략 시 공통 blink/expression/디자인 사용, 초기 0 |
+| `right-blink` | `rightBlink` | `number` | 오른쪽 감기 0~1. 생략 시 공통 blink/expression/디자인 사용, 초기 0 |
+| `accessories` | `accessories` | `readonly AccessoryDesign[]` | HTML은 배열 JSON. 생략 시 디자인 장비, 초기 `[]`. 지정 시 배열 전체 교체 |
+| `render-style` | `renderStyle` | `RenderStyle` (`'flat'`) | `flat`만 공개 지원, 기본 `flat`. HTML의 이전 `3d` 입력은 `flat`으로 정규화 |
 
 ### 장비 슬롯
 
-처음에는 모든 슬롯이 비어 있습니다. 색상 기본값은 베레모·보타이·스카프 `#b84742`, 헤일로·링 귀걸이 `#f7cc5b`, 안경·선글라스·콧수염·턱수염 `#31323d`, 왕관 `#e5ad35`, 목걸이 `#9b6c2a`, 별 귀걸이 `#a66a22`입니다.
+**12개 프리셋, 6개 독립 슬롯**입니다. 모든 슬롯은 처음에 비어 있습니다. 슬롯 선택을 생략하면 `accessories`/`design`의 장비를 사용하며, `none`을 지정하면 상위 데이터에 장비가 있어도 해제합니다. 선택 prop은 아래 프리셋 문자열 union이고 색 prop은 `string`입니다.
 
-| 슬롯 | HTML 속성 | React props | 허용 프리셋 |
-| --- | --- | --- | --- |
-| 머리 `head` | `head-accessory`, `head-color` | `headAccessory`, `headColor` | `beret`, `halo`, `crown`, `none` |
-| 눈 `eyes` | `eyes-accessory`, `eyes-color` | `eyesAccessory`, `eyesColor` | `glasses`, `sunglasses`, `none` |
-| 입 `mouth` | `mouth-accessory`, `mouth-color` | `mouthAccessory`, `mouthColor` | `moustache`, `goatee`, `none` |
-| 목 `neck` | `neck-accessory`, `neck-color` | `neckAccessory`, `neckColor` | `bowTie`, `scarf`, `necklace`, `none` |
-| 왼쪽 귀 `leftEar` | `left-ear-accessory`, `left-ear-color` | `leftEarAccessory`, `leftEarColor` | `earring`, `starEarring`, `none` |
-| 오른쪽 귀 `rightEar` | `right-ear-accessory`, `right-ear-color` | `rightEarAccessory`, `rightEarColor` | `earring`, `starEarring`, `none` |
+| HTML 속성 | React prop | 허용 값 / 생략 시 동작 |
+| --- | --- | --- |
+| `head-accessory` | `headAccessory` | `beret` / `halo` / `crown` / `none`. `head` 슬롯의 상위 장비 사용, 초기 비어 있음 |
+| `head-color` | `headColor` | `#RRGGBB`. 머리 장비의 기존 색 유지, 새 장비는 프리셋 기본색 |
+| `eyes-accessory` | `eyesAccessory` | `glasses` / `sunglasses` / `none`. `eyes` 슬롯의 상위 장비 사용, 초기 비어 있음 |
+| `eyes-color` | `eyesColor` | `#RRGGBB`. 눈 장비의 기존 색 유지, 새 장비는 프리셋 기본색 |
+| `mouth-accessory` | `mouthAccessory` | `moustache` / `goatee` / `none`. `mouth` 슬롯의 상위 장비 사용, 초기 비어 있음 |
+| `mouth-color` | `mouthColor` | `#RRGGBB`. 입 장비의 기존 색 유지, 새 장비는 프리셋 기본색 |
+| `neck-accessory` | `neckAccessory` | `bowTie` / `scarf` / `necklace` / `none`. `neck` 슬롯의 상위 장비 사용, 초기 비어 있음 |
+| `neck-color` | `neckColor` | `#RRGGBB`. 목 장비의 기존 색 유지, 새 장비는 프리셋 기본색 |
+| `left-ear-accessory` | `leftEarAccessory` | `earring` / `starEarring` / `none`. `leftEar` 슬롯의 상위 장비 사용, 초기 비어 있음 |
+| `left-ear-color` | `leftEarColor` | `#RRGGBB`. 왼쪽 귀 장비의 기존 색 유지, 새 장비는 프리셋 기본색 |
+| `right-ear-accessory` | `rightEarAccessory` | `earring` / `starEarring` / `none`. `rightEar` 슬롯의 상위 장비 사용, 초기 비어 있음 |
+| `right-ear-color` | `rightEarColor` | `#RRGGBB`. 오른쪽 귀 장비의 기존 색 유지, 새 장비는 프리셋 기본색 |
 
-`eye-color`는 눈 자체의 색, `eyes-color`는 눈 슬롯의 **안경 색**입니다. 각 `*-color`는 `#RRGGBB`이고 빈 슬롯에도 미리 지정할 수 있습니다. `none`은 명시적으로 장비를 해제합니다. 속성을 제거하면 아래 단계의 `accessories`/`design`에 있는 장비가 다시 나타날 수 있으므로 제거와 `none`을 구분하세요. 사용자 지정 id가 필요하면 `accessories` JSON을 사용합니다.
+프리셋 기본색은 베레모·보타이·스카프 `#b84742`, 헤일로·링 귀걸이 `#f7cc5b`, 안경·선글라스·콧수염·턱수염 `#31323d`, 왕관 `#e5ad35`, 목걸이 `#9b6c2a`, 별 귀걸이 `#a66a22`입니다.
+
+`eye-color`/`eyeColor`는 **눈 자체**, `eyes-color`/`eyesColor`는 **안경 등 눈 슬롯 장비**의 색입니다. 빈 슬롯에도 색을 미리 지정할 수 있습니다. 슬롯 선택을 제거하면 아래 단계의 `accessories`/`design` 장비가 다시 나타날 수 있으므로 제거와 `none`을 구분하세요. 사용자 지정 id가 필요하면 `accessories` JSON을 사용합니다.
 
 ```html
 <sidekick-avatar
   head-accessory="halo"
-  eyes-accessory="glasses"
-  eyes-color="#334155"
+  eyes-accessory="glasses" eyes-color="#334155"
   mouth-accessory="moustache"
   neck-accessory="scarf"
-  left-ear-accessory="earring"
-  left-ear-color="#f7cc5b"
-  right-ear-accessory="earring"
-  right-ear-color="#a4b8c9"
+  left-ear-accessory="earring" left-ear-color="#f7cc5b"
+  right-ear-accessory="earring" right-ear-color="#a4b8c9"
 ></sidekick-avatar>
 ```
 
 ### 런타임·카메라·애니메이션
 
-| HTML 속성 | React prop | 값 / 기본값 |
+| HTML 속성 | React prop | React 타입 | 허용 값 / 기본값 |
+| --- | --- | --- | --- |
+| `activity` | `activity` | `Activity` | `idle` / `thinking` / `listening` / `speaking` / `celebrating` / `still`. 기본 `idle` |
+| `paused` | `paused` | `boolean` | 기본 `false`. 반복 모션 일시 정지 |
+| `interaction` | `interaction` | `'none' \| 'box'` | 기본 `none`. `box`는 드래그/클릭/키보드 활성화 |
+| `mouse-tracking` | `mouseTracking` | `boolean` | 기본 `false`. 문서 전체의 마우스 시선 추적 |
+| `camera` | `camera` | `CameraPreset \| Partial<CameraAngles>` | HTML은 `front` / `three-quarter` / `side`, 기본 `front`. React는 `{yaw,pitch,roll}` 부분 객체도 허용 |
+| `camera-yaw` | `cameraYaw` | `number` | -360~360도. camera 프리셋의 yaw, 없으면 0 |
+| `camera-pitch` | `cameraPitch` | `number` | -90~90도. camera 프리셋의 pitch, 없으면 0 |
+| `camera-roll` | `cameraRoll` | `number` | -180~180도. camera 프리셋의 roll, 없으면 0 |
+| `gaze-x` | `gazeX` | `number` | -1~1. 기본 0. 마우스 추적을 끄면 사용하는 명시적 시선 |
+| `gaze-y` | `gazeY` | `number` | -1~1. 기본 0 |
+| `shape-duration` | `shapeDuration` | `number` | 도형 속성 전환 시간 0~60000ms. 기본 450 |
+| `shape-easing` | `shapeEasing` | `MotionOptions['easing']` | `smooth` / `linear`. 기본 `smooth` |
+| `motion-duration` | `motionDuration` | `number` | 눈·포즈 속성 전환 시간 0~60000ms. 기본 400 |
+| `motion-easing` | `motionEasing` | `MotionOptions['easing']` | `smooth` / `linear`. 기본 `smooth` |
+| `motion` | `motion` | `MotionTarget` | HTML은 JSON 문자열. 초기 포즈는 회전·얼굴 이동 0, 공통 눈 뜨기 1, 좌우 눈은 디자인 가중치 |
+| `time` | `time` | `number` | 반복 애니메이션 시간 0~86400초. 기본 0. 프레임마다 변경되는 readback 값이 아닌 seek 입력 |
+
+React의 `camera={{ yaw: 35 }}`는 `camera-yaw` 속성으로 연결됩니다. 같은 축의 별도 prop인 `cameraYaw`를 함께 주면 별도 prop이 우선합니다. 생략한 객체 축은 새 요소에서는 0이고, 이전에 래퍼가 소유한 축을 제거하면 선언적 기본값으로 돌아갑니다. 명령형 `setCamera({yaw:35})`는 지정하지 않은 현재 축을 유지합니다.
+
+`MotionTarget`은 부분 목표이며 지정하지 않은 채널은 유지합니다. 지원하는 중첩 필드는 전부 다음과 같습니다.
+
+| `motion` 필드 | 타입·범위 | 초기값 / 의미 |
 | --- | --- | --- |
-| `activity` | `activity` | `idle` / `thinking` / `listening` / `speaking` / `celebrating` / `still`. 기본 `idle` |
-| `paused` | `paused` | boolean. 기본 `false` |
-| `interaction` | `interaction` | `none` / `box`. 기본 `none` |
-| `mouse-tracking` | `mouseTracking` | boolean. 기본 `false` |
-| `camera` | `camera` | `front` / `three-quarter` / `side`. 기본 `front`. React에서는 `{yaw,pitch,roll}` 부분 객체도 가능 |
-| `camera-yaw` | `cameraYaw` | -360~360도. 기본 0 |
-| `camera-pitch` | `cameraPitch` | -90~90도. 기본 0 |
-| `camera-roll` | `cameraRoll` | -180~180도. 기본 0 |
-| `gaze-x` | `gazeX` | -1~1. 기본 0 |
-| `gaze-y` | `gazeY` | -1~1. 기본 0 |
-| `shape-duration` | `shapeDuration` | 도형 속성 전환 시간 0~60000ms. 기본 450 |
-| `shape-easing` | `shapeEasing` | `smooth` / `linear`. 기본 `smooth` |
-| `motion-duration` | `motionDuration` | 눈·포즈 속성 전환 시간 0~60000ms. 기본 400 |
-| `motion-easing` | `motionEasing` | `smooth` / `linear`. 기본 `smooth` |
-| `motion` | `motion` | `MotionTarget` JSON. 기본 포즈는 회전·얼굴 이동 0, 눈 뜨기 제한 1 |
-| `time` | `time` | 반복 애니메이션 시간 0~86400초. 기본 0 |
+| `body.rotation` | `[number, number, number]`, 각 -2π~2π 라디안 | `[0,0,0]`, 몸체 회전 |
+| `face.uv` | `[number, number]`, 각 -0.5~0.5 | `[0,0]`, 얼굴 위치의 런타임 이동 |
+| `eyes.left.weights.smile`, `eyes.right.weights.smile` | `number`, 0~1 | 각 눈의 디자인 가중치, 처음에는 0 |
+| `eyes.left.weights.blink`, `eyes.right.weights.blink` | `number`, 0~1 | 각 눈의 디자인 가중치, 처음에는 0 |
+| `eyes.openness` | `number`, 0~1 | 1, 공통 눈 뜨기 제한 |
+| `accessories.<id>.rotation` | `[number, number, number]`, 각 -π~π 라디안 | `[0,0,0]`, 현재 장착된 고유 id의 회전 |
+| `eyes.left.expression`, `eyes.right.expression` | `EyeExpression` | 이전 호환 입력. `neutral` / `smile` / `blink`를 가중치로 변환 |
+| `eyes.left.openness`, `eyes.right.openness` | `number`, 0~1 | 이전 호환 입력. 감기 가중치로 변환 |
+
+한 눈에 `weights`와 이전 `expression`/`openness`를 섞으면 오류입니다. 새 코드는 `weights`를 사용하세요. `motion={}`/`motion="{}"`는 새 목표 채널이 없다는 뜻이며 초기화하지 않습니다. `motion` prop/속성 제거는 아래 제거 규칙대로 기본 포즈로 복원합니다. 카메라 각도는 **도**, 포즈 회전은 **라디안**입니다.
+
+### React 참조와 이벤트 props
+
+이 표의 props는 HTML 속성으로 쓰지 않습니다. HTML에서는 아래 DOM 이벤트를 `addEventListener()`로 구독합니다. 콜백은 React SyntheticEvent가 아닌 원래 `CustomEvent`를 받고 반환값은 `void`입니다. 모든 콜백의 기본값은 `undefined`이며 생략하면 호출하지 않습니다.
+
+| React prop | 타입 | 값·동작 |
+| --- | --- | --- |
+| `ref` | `React.Ref<SidekickAvatarRef>` | 기본 없음. 객체 ref 또는 callback ref. 실제 커스텀 요소가 업그레이드된 뒤 전달, 정리 시 해제 |
+| `onReady` | `SidekickEventHandler<'sidekick-ready'>` | `CustomEvent<{}>`. props 적용 후 렌더 준비 완료 |
+| `onError` | `SidekickEventHandler<'sidekick-error'>` | `CustomEvent<SidekickErrorDetail>`. `message: string`, 선택 `attribute: string`, `value: string \| null`, `recoverable: boolean` |
+| `onDesignChange` | `SidekickEventHandler<'sidekick-design-change'>` | `CustomEvent<{design: AvatarDesign}>` |
+| `onCameraChange` | `SidekickEventHandler<'sidekick-camera-change'>` | `CustomEvent<{camera: CameraAngles}>` |
+| `onMotionEnd` | `SidekickEventHandler<'sidekick-motion-end'>` | `CustomEvent<{finished: boolean}>` |
+| `onShapeEnd` | `SidekickEventHandler<'sidekick-shape-end'>` | `CustomEvent<{finished: boolean}>` |
+| `onActivate` | `SidekickEventHandler<'sidekick-activate'>` | `CustomEvent<{}>`. 클릭 또는 Enter/Space 활성화 |
+
+이 밖의 props는 `HTMLAttributes<SidekickAvatarRef>`를 따릅니다. 예: `id?: string`, `className?: string`, `style?: React.CSSProperties`, `aria-*`, `data-*`, 일반 DOM 이벤트. `children`과 `dangerouslySetInnerHTML`은 래퍼가 지원하지 않습니다. `onError`는 위의 Sidekick 오류 콜백으로 정의합니다. `key`는 React의 요소 식별값이고 HTML 속성/Sidekick 설정이 아닙니다.
 
 ### 변경·제거·오류 규칙
 
-- boolean은 `mouse-tracking`, `mouse-tracking=""`, `mouse-tracking="true"`, `mouse-tracking="1"`이 켜짐입니다. `="false"`, `="0"` 또는 속성 제거는 꺼짐입니다. `paused`도 같습니다. React에서는 `{true}` / `{false}`를 사용하세요.
+- boolean은 네이티브 HTML boolean과 달리 문자열 `"false"`도 해석합니다. `mouse-tracking`, `mouse-tracking=""`, `mouse-tracking="true"`, `mouse-tracking="1"`이 켜짐입니다. `="false"`, `="0"` 또는 속성 제거는 꺼짐입니다. `paused`도 같습니다. React에서는 `{true}` / `{false}`를 사용하세요. React의 `false`는 명시적인 꺼짐 값이며 prop 생략과 다릅니다. `null`, `"TRUE"`, `"yes"` 등은 지원하지 않습니다.
 - 지원하는 속성에 잘못된 도형 이름·프리셋·JSON·숫자 범위·색상 형식을 넣으면 오류입니다. 관찰하지 않는 임의 HTML 속성은 브라우저의 일반 속성으로 남으며 라이브러리 설정에 적용되지 않습니다. 색상 축약 `#fff`, CSS 색상명, `NaN`, `Infinity`는 지원하지 않습니다. 값을 생략하려면 빈 문자열 대신 속성을 제거하세요.
+- React의 `undefined`/생략 및 HTML `removeAttribute()`는 그 입력의 덮어쓰기만 해제합니다. `design` 아래 입력이 있으면 그것을 사용합니다. 슬롯을 반드시 비우려면 `none`, 장비 배열을 반드시 비우려면 `[]`를 지정하세요.
 - 같은 JavaScript 작업 안에서 바꾼 여러 속성은 다음 마이크로태스크에서 묶어 검증·적용합니다. 잘못된 배치는 이전 유효 런타임 상태를 유지하고 `sidekick-error`를 발생시킵니다. 원래 입력 문자열은 DOM에 남아 있으므로 오류 속성을 고치거나 제거해야 합니다.
 - 초기 HTML 속성은 첫 렌더 전에 적용합니다. 연결 후 `shape`·눈 가중치·`motion` 변경은 해당 timing 속성으로 전환합니다. timing만 바꾸면 진행 중인 전환을 다시 시작하지 않습니다.
 - 디자인 속성은 `design`을 기본 데이터로 사용하고 개별 속성이 해당 부분만 덮어씁니다. 개별 속성을 제거하면 그 아래의 선언적 데이터 또는 기본값이 드러납니다. `accessories`는 기본 장비 배열을 바꾸고, 슬롯 속성은 그 위에 적용됩니다.
@@ -383,7 +564,7 @@ await bot.setEyeWeights('right', { blink: 0.4 }, { duration: 180 });
 await bot.setExpression('both', 'neutral');
 ```
 
-35개 도형 사이 전환은 현재 보이는 윤곽에서 다음 목표로 이어집니다. 목표 이름은 즉시 `design.body.shape`에 저장되며 모프 중간 기하를 JSON에 넣지 않습니다. 색상·장비 편집은 진행 중 도형 전환을 유지합니다. `design`/`setDesign()`으로 도형을 바꾸면 즉시 적용합니다. 모션 줄이기·일시 정지·연결되지 않은 요소에서는 전환을 즉시 적용합니다.
+35개 도형 사이 전환은 현재 보이는 윤곽에서 다음 목표로 이어집니다. 목표 이름은 즉시 `design.body.shape`에 저장되며 모프 중간 기하를 JSON에 넣지 않습니다. 색상·장비 편집은 진행 중 도형 전환을 유지합니다. 요소의 JavaScript `design` 프로퍼티/`setDesign()`으로 도형을 바꾸면 즉시 적용합니다. HTML `design` 속성 및 React `design` prop의 도형 변경은 `shape-duration`/`shapeDuration`으로 전환합니다. 모션 줄이기·일시 정지·연결되지 않은 요소에서는 전환을 즉시 적용합니다.
 
 눈의 `smile`·`blink`는 각각 0~1이고 합을 1로 정규화하지 않습니다. `left`는 정면 화면 왼쪽인 모델 -X, `right`는 +X입니다. 부분 가중치 변경은 생략한 값과 반대쪽 눈을 유지합니다. 프리셋은 정확히 `neutral → {smile:0,blink:0}`, `smile → {smile:1,blink:0}`, `blink → {smile:0,blink:1}`입니다. `blink`는 감긴 상태를 유지하므로 다시 열려면 `neutral` 또는 새 가중치를 보내세요.
 
@@ -477,22 +658,23 @@ WebGL2와 Custom Elements를 지원하는 현대 브라우저가 필요합니다
 
 ## Studio와 개발
 
-Studio는 **React 19 + Vite 8 + Tailwind CSS 4 + 실제 shadcn/ui Radix/Nova 컴포넌트**, Slate 색상 토큰으로 구현한 별도 편집기입니다. 코어를 사용하는 웹사이트에는 이 UI 의존성이 들어가지 않습니다.
+Studio는 **React 19 + Vite 8 + Tailwind CSS 4 + 실제 shadcn/ui Radix/Nova 컴포넌트**, Slate 색상 토큰으로 구현한 별도 편집기입니다. 코어를 사용하는 웹사이트에는 이 UI 의존성이 들어가지 않습니다. 아래는 소스를 개발하는 사람을 위한 명령이며 Node.js 22.22.2 이상을 사용합니다.
 
 ```sh
 npm ci
 npm run dev
 # http://127.0.0.1:5173
 
-npm run build:library   # npm/Git 배포용 dist/library 생성
+npm run build:library   # 패키지 모듈/타입과 dist/browser의 prebuilt 번들 생성
 npm run check:library   # 소스와 체크인된 산출물 일치 검사
 npm run build:studio    # Vite 편집기 빌드
 npm run build:all       # 라이브러리 + dist/src + 편집기 + 고지
 npm start              # 빌드한 편집기 제공
 npm run pack:library   # 라이브러리 재빌드 후 tarball 생성
+npm run pack:release   # 커밋된 깨끗한 checkout에서 release/에 ZIP·tarball·SHA256SUMS 생성
 ```
 
-외부 접근이 필요할 때만 `HOST=0.0.0.0`을 사용하세요. 포트는 `PORT`로 바꿉니다. 정적 Studio 배포는 `dist/` 전체를 사용합니다. 루트 `dist/index.html`과 호환 경로 `dist/playground/index.html`, 해시된 `dist/assets/`를 생성합니다. npm 패키지는 Studio 출력 대신 `dist/library/`를 포함합니다.
+외부 접근이 필요할 때만 `HOST=0.0.0.0`을 사용하세요. 포트는 `PORT`로 바꿉니다. 정적 Studio 배포는 `dist/` 전체를 사용합니다. 루트 `dist/index.html`과 호환 경로 `dist/playground/index.html`, 해시된 `dist/assets/`를 생성합니다. npm 패키지는 Studio 출력 대신 `dist/library/`와 `dist/browser/`를 포함합니다. 소비자는 이 개발용 빌드 명령을 실행할 필요가 없습니다. `pack:release`는 변경 사항과 prebuilt 산출물을 모두 커밋한 깨끗한 checkout 및 시스템 `zip` 명령이 필요하며, GitHub Release를 자동 게시하지 않습니다.
 
 ### Studio에서 할 수 있는 일
 

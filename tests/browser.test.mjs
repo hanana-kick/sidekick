@@ -412,15 +412,15 @@ test('context loss is surfaced and restoration rebuilds the renderer', async t =
 test('representative catalog shapes and curated accessories remain transparent at canvas borders', async t => {
   const page = await pageFor(t);
   const result = await page.locator('#flat').evaluate(a => {
-    const { createDesign, createAccessory, ACCESSORY_PRESETS } = window.fixtureAPI;
+    const { createDesign, createAccessory, ACCESSORY_PRESETS, ACCESSORY_SLOTS_BY_PRESET } = window.fixtureAPI;
     a.paused = true; a.setActivity('still'); const checks = [];
-    for (const shape of ['circle', 'square', 'verySunny', 'puffy', 'pixelTriangle']) for (const preset of ACCESSORY_PRESETS) {
-      const accessory = preset === 'earring' ? createAccessory(preset, { slot: 'leftEar' }) : createAccessory(preset);
+    for (const shape of ['circle', 'square', 'verySunny', 'puffy', 'pixelTriangle']) for (const preset of ACCESSORY_PRESETS) for (const slot of ACCESSORY_SLOTS_BY_PRESET[preset]) {
+      const accessory = createAccessory(preset, { slot });
       a.design = createDesign({ body: { shape }, accessories: [accessory] });
       for (const yaw of [0, Math.PI / 2, Math.PI]) {
         a.setView(yaw); const { pixels, width, height } = a.capturePixels(); let border = 0, visible = 0;
         for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) { const alpha = pixels[(y * width + x) * 4 + 3]; if (alpha) { visible++; if (x === 0 || y === 0 || x === width - 1 || y === height - 1) border++; } }
-        checks.push({ shape, preset, yaw, border, visible });
+        checks.push({ shape, preset, slot, yaw, border, visible });
       }
     }
     return checks;

@@ -174,7 +174,9 @@ export function SidekickAvatar(props) {
         else {
             // Never evaluate the HTMLElement subclass during SSR, including SSR followed
             // by hydration in the same Node process. The native module stays client-only.
-            void import('./register.js').then(({ defineSidekick }) => {
+            // Import the implementation, not the public barrel: mixing a barrel's
+            // namespace with an auto-register entry can create circular Vite chunks.
+            void import('./element/avatar.js').then(({ defineSidekick }) => {
                 if (!active || element.current !== node)
                     return;
                 defineSidekick();

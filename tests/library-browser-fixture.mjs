@@ -1,10 +1,11 @@
 import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
-import { readFile, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'vite';
 import { createPackageConsumer } from './package-fixture.mjs';
+import { buildReactPeers } from '../scripts/build-react-peers.mjs';
 
 const packageName = '@hanana-kick/sidekick';
 const repository = fileURLToPath(new URL('..', import.meta.url));
@@ -17,7 +18,7 @@ const css = `
   sidekick-avatar{width:240px;height:240px}.label{margin:20px 0 0;font-size:14px}pre{font:13px/1.7 ui-monospace,monospace;white-space:pre-wrap;color:#446456;margin:20px 0 0}
   #sandbox{position:absolute;top:900px;left:32px}.status{font-size:12px;color:#71806c;margin-top:32px}
 `;
-const shell = (title, body, entry) => `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>${css}</style></head><body><main><div class="eyebrow">Sidekick · installed package</div><h1>${title}</h1>${body}<div class="status">Local package assets only · transparent WebGL rendering</div></main><div id="sandbox"></div><script type="module" src="${entry}"></script></body></html>`;
+const shell = (title, body, entry, scripts = `<script type="module" src="${entry}"></script>`) => `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>${css}</style></head><body><main><div class="eyebrow">Sidekick · installed package</div><h1>${title}</h1>${body}<div class="status">Local package assets only · transparent WebGL rendering</div></main><div id="sandbox"></div>${scripts}</body></html>`;
 
 /** A real tarball consumer: neither Studio nor a source alias can satisfy these imports. */
 export async function createLibraryBrowserFixture() {
@@ -74,7 +75,7 @@ import { hydrateRoot } from 'react-dom/client';
 import { SidekickAvatar } from '${packageName}/react';
 const element = document.getElementById('hydrated-avatar');
 const state = window.hydration = { before: element, ref: null, events: [], errors: [] };
-const props = { id: 'hydrated-avatar', shape: 'heart', bodyColor: '#b7a5ce', activity: 'still', paused: true, 'aria-label': 'Hydrated companion', ref: value => { state.ref = value; }, onReady: event => state.events.push({ type: event.type, configured: state.ref ? { shape: state.ref.design.body.shape, color: state.ref.design.body.color } : null }) };
+const props = { id: 'hydrated-avatar', shape: 'heart', bodyColor: '#b7a5ce', activity: 'still', paused: true, 'aria-label': 'Hydrated companion', ref: value => { state.ref = value; }, onReady: event => state.events.push({ type: event.type, configured: state.ref ? { shape: state.ref.design.body.shape, color: state.ref.design.body.color } : null }), onError: event => state.errors.push({ type: event.type, detail: event.detail }) };
 const tree = () => React.createElement(StrictMode, null, React.createElement(SidekickAvatar, props));
 const root = hydrateRoot(document.getElementById('root'), tree(), { onRecoverableError: error => state.errors.push(error.message) });
 window.rerenderHydration = () => root.render(tree());
@@ -92,6 +93,28 @@ window.fixtureLoaded = true;
     });
     // Also exercise the unbundled, self-contained CDN artifact from the tarball itself.
     await writeFile(join(output, 'cdn.html'), shell('A companion from a script tag', `<p>Direct browser module from the installed package, without a bundler.</p><div class="card"><div class="canvas"><sidekick-avatar id="cdn-avatar"></sidekick-avatar></div></div>`, '/package/dist/library/auto.js'));
+
+    // These pages and release artifacts bypass Vite entirely. Copy the exact
+    // published bytes only after the consumer build, so a transform cannot hide
+    // missing imports, unresolved globals, chunk dependencies, or registration.
+    await mkdir(join(output, 'prebuilt'));
+    for (const name of ['sidekick.js', 'sidekick.iife.js', 'sidekick-react.js', 'sidekick-element.js']) {
+      await copyFile(join(packagePath, 'dist/browser', name), join(output, 'prebuilt', name));
+    }
+    const prebuiltBody = `<p>Downloaded release bundle, served unchanged. No consumer build or package manager.</p><div class="card"><div class="canvas"><sidekick-avatar id="prebuilt-avatar"></sidekick-avatar></div><div class="label">Standalone browser bundle</div></div>`;
+    const captureEvents = `<script>window.prebuilt = {events: []}; for (const type of ['sidekick-ready', 'sidekick-error', 'sidekick-design-change', 'sidekick-camera-change', 'sidekick-motion-end', 'sidekick-shape-end', 'sidekick-activate']) document.getElementById('prebuilt-avatar').addEventListener(type, event => window.prebuilt.events.push({type, detail: event.detail, native: event instanceof CustomEvent}));</script>`;
+    await writeFile(join(output, 'prebuilt-esm.html'), shell('A companion from one ES module', prebuiltBody, null,
+      `${captureEvents}<script type="module">import * as api from '/prebuilt/sidekick.js'; window.libraryAPI = api; window.fixtureLoaded = true;</script>`));
+    await writeFile(join(output, 'prebuilt-classic.html'), shell('A companion from one classic script', prebuiltBody, null,
+      `${captureEvents}<script src="/prebuilt/sidekick.iife.js"></script><script>window.libraryAPI = window.Sidekick; window.fixtureLoaded = true;</script>`));
+
+    // Use the same official React 19 peers as the downloadable release. The
+    // wrapper and lazy renderer remain untouched, resolved by an import map.
+    await buildReactPeers(join(output, 'vendor'));
+    const reactEntry = (await readFile(join(directory, 'react.mjs'), 'utf8')).replace(`'${packageName}/react'`, "'/prebuilt/sidekick-react.js'");
+    await writeFile(join(output, 'prebuilt-react.mjs'), reactEntry);
+    await writeFile(join(output, 'prebuilt-react.html'), shell('React with a prebuilt wrapper', `<p>Unchanged release modules with React 19 provided by an import map.</p><div id="root"></div>`, null,
+      `<script type="importmap">${JSON.stringify({ imports: { react: '/vendor/react.js', 'react-dom/client': '/vendor/react-dom-client.js' } })}</script><script type="module" src="/prebuilt-react.mjs"></script>`));
     const pagesOutput = join(directory, 'pages');
     execFileSync(process.execPath, [join(repository, 'node_modules/vite/bin/vite.js'), 'build', '--outDir', pagesOutput, '--emptyOutDir'], { cwd: repository, env: { ...process.env, SIDEKICK_BASE: '/sidekick/' }, stdio: ['ignore', 'pipe', 'pipe'] });
     const server = createFixtureServer(output, packagePath);
@@ -99,7 +122,7 @@ window.fixtureLoaded = true;
     await new Promise((resolveListen, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolveListen); });
     await new Promise((resolveListen, reject) => { pagesServer.once('error', reject); pagesServer.listen(0, '127.0.0.1', resolveListen); });
     return {
-      directory, output, baseURL: 'http://127.0.0.1:' + server.address().port,
+      directory, output, packagePath, baseURL: 'http://127.0.0.1:' + server.address().port,
       pagesURL: 'http://127.0.0.1:' + pagesServer.address().port + '/sidekick/',
       async cleanup() { await Promise.all([new Promise(done => server.close(done)), new Promise(done => pagesServer.close(done))]); await consumer.cleanup(); },
     };
