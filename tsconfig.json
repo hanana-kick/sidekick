@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "useDefineForClassFields": false,
+    "experimentalDecorators": false,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "paths": {
+      "sidekick": ["./src/index.ts"],
+      "sidekick/avatar": ["./src/avatar.ts"],
+      "sidekick/theme": ["./src/theme.ts"],
+      "sidekick/elements": ["./src/elements.ts"],
+      "sidekick/react": ["./src/react.tsx"],
+      "sidekick/*": ["./src/*.ts", "./src/*.tsx"]
+    },
+    "types": ["node"]
+  },
+  "include": [
+    "src",
+    "tests",
+    "playground",
+    "vite.config.ts",
+    "vite.iife.config.ts",
+    "vite.playground.config.ts",
+    "vitest.config.ts",
+    "eslint.config.js"
+  ]
+}

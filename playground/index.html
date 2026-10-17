@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>sidekick · bot avatar playground</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f8fb;
+        --fg: #16181d;
+        --panel: #ffffff;
+        --line: #e3e6ee;
+        --muted: #6b7280;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #101217;
+          --fg: #e8eaf0;
+          --panel: #171a21;
+          --line: #262a34;
+          --muted: #9aa2b1;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        font:
+          14px/1.5 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        margin: 28px 0 12px;
+      }
+      p.lede {
+        margin: 0 0 20px;
+        color: var(--muted);
+      }
+      .bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      input,
+      select,
+      button {
+        font: inherit;
+        color: inherit;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 6px 10px;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: var(--fg);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .cell {
+        display: grid;
+        place-items: center;
+        gap: 6px;
+        padding: 8px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      .cell figcaption {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      skk-avatar {
+        display: block;
+      }
+      .stage {
+        position: relative;
+        height: 260px;
+        overflow: hidden;
+        border-radius: 12px;
+        background: repeating-linear-gradient(
+          45deg,
+          transparent 0 10px,
+          color-mix(in srgb, var(--line) 55%, transparent) 10px 20px
+        );
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        font-size: 12px;
+      }
+      .row {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>sidekick</h1>
+    <p class="lede">Bot avatar web components — canvas-rendered 2D and 3D, driven by the avatar engine.</p>
+
+    <div class="panel bar">
+      <label>seed <input id="seed" value="sidekick" size="14" /></label>
+      <label
+        >shape
+        <select id="shape">
+          <option value="">auto</option>
+        </select>
+      </label>
+      <label
+        >mode
+        <select id="mode">
+          <option>2d</option>
+          <option>3d</option>
+        </select>
+      </label>
+      <button id="random">randomize</button>
+      <button id="copy">copy JSON</button>
+      <code id="out"></code>
+    </div>
+
+    <h2>Single avatar</h2>
+    <div class="panel row">
+      <skk-avatar id="hero" style="width: 160px; height: 160px"></skk-avatar>
+      <div class="bar" id="states"></div>
+    </div>
+
+    <h2>Gallery (hash generated)</h2>
+    <div class="grid" id="gallery"></div>
+
+    <h2>Placement / bot</h2>
+    <div class="panel row">
+      <label
+        >position
+        <select id="position">
+          <option>bottom-right</option>
+          <option>bottom-left</option>
+          <option>top-right</option>
+          <option>top-left</option>
+          <option>center</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="drag" /> drag</label>
+      <label><input type="checkbox" id="persist" /> persist</label>
+      <button id="move">move to 120,140</button>
+      <button id="reset">reset</button>
+      <button id="say">say hello</button>
+    </div>
+    <div class="stage" id="stage"></div>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
