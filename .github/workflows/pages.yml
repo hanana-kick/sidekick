@@ -78,10 +78,10 @@ jobs:
       - run: npm ci
       - name: Install Chromium for the live deployment check
         run: node node_modules/playwright-core/cli.js install --with-deps chromium
-      - name: Verify the deployed project URL in Chromium
+      - name: Verify the deployed custom domain and project redirect in Chromium
         run: xvfb-run -a node --test tests/live-pages.test.mjs
         env:
-          SIDEKICK_LIVE_URL: https://hanana-kick.github.io/sidekick/
+          SIDEKICK_LIVE_URL: https://sidekick.hananakick.cc/
           SIDEKICK_HEADED: '1'
           SIDEKICK_SCREENSHOTS: artifacts
       - name: Save live Pages screenshots
