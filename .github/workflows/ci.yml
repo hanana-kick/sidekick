@@ -1,0 +1,35 @@
+name: Sidekick checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - run: xvfb-run -a npm run test:browser
+        env:
+          SIDEKICK_HEADED: '1'
+          SIDEKICK_SCREENSHOTS: artifacts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-screenshots
+          path: artifacts/
+          if-no-files-found: ignore
