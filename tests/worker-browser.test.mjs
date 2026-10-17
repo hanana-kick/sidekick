@@ -194,7 +194,7 @@ for (const failWorker of ['', 'constructor']) test(`${failWorker ? 'fallback' : 
 
 test('real two-finger touch transitions orbit → pinch → orbit without jumps, pan or activation', async t => {
   const page = await pageFor(t, { touch: true }), cdp = await page.context().newCDPSession(page);
-  t.after(() => cdp.detach());
+  // pageFor owns page cleanup, which also closes its attached CDP session.
   await page.locator('#avatar').evaluate(avatar => {
     avatar.interaction = 'box'; avatar.paused = true; window.activations = 0; avatar.addEventListener('sidekick-activate', () => activations++);
     window.touchPointers = new Map(); window.touchEvents = [];
