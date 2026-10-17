@@ -3,6 +3,7 @@ import { cameraPreset, createCamera } from '../core/camera.js';
 import { eyeExpressionWeights } from '../core/expressions.js';
 import { MotionTimeline, validateMotionOptions } from '../core/motion.js';
 import { validateShapeMotionOptions } from '../core/shape-motion.js';
+import { parseTrackingMode } from '../core/tracking.js';
 export const ACCESSORY_ATTRIBUTE_SLOTS = Object.freeze({ head: 'head', eyes: 'eyes', mouth: 'mouth', neck: 'neck', 'left-ear': 'leftEar', 'right-ear': 'rightEar' });
 export const SIDEKICK_ATTRIBUTES = Object.freeze([
     'design', 'shape', 'body-color', 'eye-color', 'expression', 'left-expression', 'right-expression',
@@ -10,7 +11,7 @@ export const SIDEKICK_ATTRIBUTES = Object.freeze([
     'head-accessory', 'head-color', 'eyes-accessory', 'eyes-color', 'mouth-accessory', 'mouth-color',
     'neck-accessory', 'neck-color', 'left-ear-accessory', 'left-ear-color', 'right-ear-accessory', 'right-ear-color',
     'camera', 'camera-yaw', 'camera-pitch', 'camera-roll', 'gaze-x', 'gaze-y', 'activity', 'paused',
-    'interaction', 'mouse-tracking', 'render-style', 'shape-duration', 'shape-easing', 'motion-duration', 'motion-easing', 'motion', 'time',
+    'interaction', 'mouse-tracking', 'tracking-mode', 'render-style', 'shape-duration', 'shape-easing', 'motion-duration', 'motion-easing', 'motion', 'time',
 ]);
 export class SidekickAttributeError extends TypeError {
     attribute;
@@ -114,6 +115,8 @@ export function resolveSidekickAttributes(attributes) {
         void new MotionTimeline({ left: design.eyes.left, right: design.eyes.right }).to(target, { duration: 0 });
         return target;
     }, undefined);
+    const legacyTracking = read('mouse-tracking', parseBooleanAttribute, false);
+    const trackingMode = read('tracking-mode', parseTrackingMode, legacyTracking ? 'eyes' : 'off');
     read('render-style', value => choice(value, ['flat', '3d']), 'flat');
     return {
         design: parseDesign(design), camera,
@@ -121,7 +124,7 @@ export function resolveSidekickAttributes(attributes) {
         activity: read('activity', value => choice(value, ACTIVITIES), 'idle'),
         paused: read('paused', parseBooleanAttribute, false),
         interaction: read('interaction', value => choice(value, ['none', 'box']), 'none'),
-        mouseTracking: read('mouse-tracking', parseBooleanAttribute, false),
+        mouseTracking: trackingMode !== 'off', trackingMode,
         shapeOptions, motionOptions, motion,
         time: read('time', value => number(value, 0, 86400, 'time'), 0),
     };

@@ -122,8 +122,9 @@ export function contourDistanceOutline(contour) {
 }
 const DISTANCE_STRIDE = 10, WINDING_BUCKETS = 64;
 const distanceIndexes = new WeakMap();
-function makeDistanceIndex(contour) {
-    const points = contourDistanceOutline(contour), edges = new Float64Array(points.length * DISTANCE_STRIDE);
+const exactDistanceIndexes = new WeakMap();
+function makeDistanceIndex(contour, exact = false) {
+    const points = exact ? contour.points : contourDistanceOutline(contour), edges = new Float64Array(points.length * DISTANCE_STRIDE);
     for (let i = 0; i < points.length; i++) {
         const a = points[i], b = points[(i + 1) % points.length], dx = b[0] - a[0], dy = b[1] - a[1];
         edges.set([a[0], a[1], dx, dy, 1 / (dx * dx + dy * dy), b[1], Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])], i * DISTANCE_STRIDE);
@@ -158,7 +159,7 @@ function makeDistanceIndex(contour) {
             buckets[b].push(offset);
     }
     const index = { edges, root, buckets, minY, maxY, yScale };
-    distanceIndexes.set(contour, index);
+    (exact ? exactDistanceIndexes : distanceIndexes).set(contour, index);
     return index;
 }
 function boxDistance(node, x, y) {
@@ -193,8 +194,8 @@ function nearestDistance(node, edges, x, y, best) {
     return best;
 }
 /** Positive inside, negative outside, zero on the current renderer silhouette. */
-export function contourSignedDistance(contour, x, y) {
-    const index = distanceIndexes.get(contour) ?? makeDistanceIndex(contour), { edges } = index;
+function signedDistance(index, x, y) {
+    const { edges } = index;
     const minimum = nearestDistance(index.root, edges, x, y, Infinity);
     let contained = false;
     if (y >= index.minY && y <= index.maxY) {
@@ -206,6 +207,14 @@ export function contourSignedDistance(contour, x, y) {
         }
     }
     return Math.sqrt(minimum) * (contained ? 1 : -1);
+}
+/** Current renderer field, retaining its bounded outline simplification. */
+export function contourSignedDistance(contour, x, y) {
+    return signedDistance(distanceIndexes.get(contour) ?? makeDistanceIndex(contour), x, y);
+}
+/** Internal continuous-fit field over the full current contour, without simplification switches. */
+export function contourSignedDistanceExact(contour, x, y) {
+    return signedDistance(exactDistanceIndexes.get(contour) ?? makeDistanceIndex(contour, true), x, y);
 }
 /** Renderer boundary, shared with the continuous target-XY distance field. */
 export function contourBoundaryPoints(contour) { return contourDistanceOutline(contour); }

@@ -6,6 +6,8 @@ import {
 } from '../dist/src/core/design.js';
 import { resolveDesign } from '../dist/src/core/resolved-design.js';
 import { SidekickAvatar } from '../dist/src/element/avatar.js';
+import { RenderEngine } from '../dist/src/runtime/render-engine.js';
+import { bareAvatarFixture } from './helpers/render-runtime.mjs';
 import { legacyDesign, legacyAccessory } from './legacy-fixtures.mjs';
 
 const fixedPresets = ['beret', 'halo', 'crown', 'glasses', 'sunglasses', 'moustache', 'goatee', 'bowTie', 'scarf', 'necklace'];
@@ -21,11 +23,7 @@ function savedDesign(version, accessories = [legacyAccessory('beret', 'hat'), le
     : structuredClone(accessory));
   return design;
 }
-function avatarForTest() {
-  const avatar = new SidekickAvatar();
-  avatar.hasAttribute = () => false; avatar.isConnected = true; avatar.dispatchEvent = () => true;
-  return avatar;
-}
+const avatarForTest = () => bareAvatarFixture(SidekickAvatar, RenderEngine, true);
 
 test('v7 slots and all preset mappings are complete, immutable and side-aware', () => {
   assert.equal(createDesign().version, 7);
@@ -190,23 +188,23 @@ test('resolved geometry is internal, side-specific and isolated from canonical e
 });
 
 test('avatar equip/remove preserve unrelated shape, eye and opposite-ear animation clocks', async () => {
-  const avatar = avatarForTest(); avatar.design = createDesign({ accessories: complete() });
+  const { avatar, runtime } = avatarForTest(); avatar.design = createDesign({ accessories: complete() });
   const shape = avatar.setShape('heart', { duration: 1000, easing: 'linear' });
   const eyes = avatar.setEyeWeights('both', { smile: .8 }, { duration: 1000, easing: 'linear' });
   const body = avatar.motion.to({ body: { rotation: [0, 1, 0] } }, { duration: 1000, easing: 'linear' });
   const left = avatar.motion.to({ accessories: { 'earring-left': { rotation: [0, 0, 1] } } }, { duration: 1000, easing: 'linear' });
   const right = avatar.motion.to({ accessories: { 'earring-right': { rotation: [0, 0, -1] } } }, { duration: 1000, easing: 'linear' });
-  avatar.timeline.advance(300); avatar.shapeTimeline.advance(300);
-  const pose = avatar.pose, contour = structuredClone(avatar.shapeTimeline.contour);
+  runtime.advanceMotion(300); runtime.advanceShape(300);
+  const pose = avatar.pose, contour = structuredClone(runtime.shape.contour);
   await avatar.equipAccessory(make('scarf', 'scarf'));
-  assert.deepEqual(avatar.pose, pose); assert.deepEqual(avatar.shapeTimeline.contour, contour);
+  assert.deepEqual(avatar.pose, pose); assert.deepEqual(runtime.shape.contour, contour);
   await avatar.removeAccessory('earring-left'); assert.deepEqual(await left, { finished: false });
   assert.equal(avatar.pose.accessories['earring-left'], undefined); assert.deepEqual(avatar.pose.accessories['earring-right'], pose.accessories['earring-right']);
-  assert.deepEqual(avatar.pose.eyes, pose.eyes); assert.deepEqual(avatar.pose.rotation, pose.rotation); assert.deepEqual(avatar.shapeTimeline.contour, contour);
+  assert.deepEqual(avatar.pose.eyes, pose.eyes); assert.deepEqual(avatar.pose.rotation, pose.rotation); assert.deepEqual(runtime.shape.contour, contour);
   const before = avatar.design, beforePose = avatar.pose;
   await assert.rejects(avatar.equipAccessory({ ...make('moustache'), slot: 'neck' })); await assert.rejects(avatar.removeAccessory('missing'));
   assert.deepEqual(avatar.design, before); assert.deepEqual(avatar.pose, beforePose);
-  avatar.timeline.advance(700); avatar.shapeTimeline.advance(700);
+  runtime.advanceMotion(700); runtime.advanceShape(700);
   for (const pending of [shape, eyes, body, right]) assert.deepEqual(await pending, { finished: true });
   assert.equal(avatar.pose.accessories['earring-left'], undefined); assert.deepEqual(avatar.pose.accessories['earring-right'], [0, 0, -1]);
 });

@@ -24,7 +24,7 @@ test('packed core installs offline without React, Studio, or lifecycle builds', 
   const files = consumer.packed.files.map(file => file.path);
   assert.ok(files.every(file => file === 'package.json' || file === 'README.md' || file.startsWith('dist/library/') || file.startsWith('dist/browser/') || file.startsWith('third_party/material-shapes/')), files.join('\n'));
   assert.ok(files.includes('dist/library/react.d.ts'));
-  for (const file of ['sidekick.js', 'sidekick.iife.js', 'sidekick-react.js', 'sidekick-element.js']) assert.ok(files.includes('dist/browser/' + file));
+  for (const file of ['sidekick.js', 'sidekick.iife.js', 'sidekick-react.js', 'sidekick-element.js', 'sidekick-fallback.js', 'sidekick.worker.js']) assert.ok(files.includes('dist/browser/' + file));
   assert.ok(files.includes('third_party/material-shapes/LICENSE'));
   assert.ok(!files.some(file => /\.map$|playground|assets\//.test(file)));
   for (const entry of ['./dist/library/index.js', './dist/library/auto.js', './src/index.ts', './src/auto.ts', './dist/browser/sidekick.js', './dist/browser/sidekick.iife.js', '**/*.css']) assert.ok(consumer.manifest.sideEffects.includes(entry));
@@ -51,9 +51,9 @@ test('packed core installs offline without React, Studio, or lifecycle builds', 
     console.log(createBrowserScene());
     const design: AvatarDesign = createDesign();
     const shape: MaterialShapeName = 'heart';
-    const attrs: SidekickAttributes = { shape, 'mouse-tracking': 'false', 'camera-yaw': 12 };
+    const attrs: SidekickAttributes = { shape, 'tracking-mode': 'eyes-and-body', 'mouse-tracking': 'false', 'camera-yaw': 12 };
     const avatar: SidekickAvatar = document.createElement('sidekick-avatar');
-    avatar.design = design; avatar.camera = createCamera(); avatar.mouseTracking = true;
+    avatar.design = design; avatar.camera = createCamera(); avatar.mouseTracking = true; avatar.trackingMode = 'eyes-and-body';
     avatar.addEventListener('sidekick-error', event => { const typed: SidekickEventMap['sidekick-error'] = event; console.log(typed.detail.message); });
     defineSidekick(); console.log(attrs);
     // @ts-expect-error unsupported shape
@@ -72,7 +72,7 @@ test('packed React subpath supports strict types, refs, events and DOM-free serv
     const prebuilt = <PrebuiltAvatar shape="heart" onError={event => console.log(event.detail.message)} />;
     console.log(prebuilt);
     const ref = createRef<SidekickAvatarRef>();
-    const props: SidekickAvatarProps = { design: createDesign(), camera: { yaw: 12 }, mouseTracking: false, headAccessory: 'beret' };
+    const props: SidekickAvatarProps = { design: createDesign(), camera: { yaw: 12 }, trackingMode: 'eyes-and-body', mouseTracking: false, headAccessory: 'beret' };
     const tree = <SidekickAvatar {...props} ref={ref} shape="heart" leftSmile={0.4} paused={false} onReady={event => event.detail} onError={event => console.log(event.detail.message)} onCameraChange={event => console.log(event.detail.camera.yaw)} onMotionEnd={event => console.log(event.detail.finished)} />;
     ref.current?.setShape('circle', { duration: 450 });
     // @ts-expect-error shape is a catalog name

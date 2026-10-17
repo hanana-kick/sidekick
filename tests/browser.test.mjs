@@ -120,12 +120,12 @@ test('HTTP build serves real assets, rejects traversal, and has explicit MIME ty
 
 test('Flat body is unlit and transparent; legacy 3d style normalizes without changing pixels', async t => {
   const page = await pageFor(t);
-  const result = await page.locator('#flat').evaluate(a => {
+  const result = await page.locator('#flat').evaluate(async a => {
     a.paused = true; a.setActivity('still'); a.seek(0);
     a.design = window.fixtureAPI.createDesign({ body: { color: '#e9b64d' }, accessories: [] });
-    const before = a.capturePixels();
+    const before = (await a.capturePixelsAsync());
     a.setAttribute('render-style', '3d');
-    const after = a.capturePixels(); let changed = 0, bodyPixels = 0, inkPixels = 0, unexpected = 0;
+    const after = (await a.capturePixelsAsync()); let changed = 0, bodyPixels = 0, inkPixels = 0, unexpected = 0;
     for (let i = 0; i < before.pixels.length; i += 4) {
       if (before.pixels[i] !== after.pixels[i] || before.pixels[i + 1] !== after.pixels[i + 1] || before.pixels[i + 2] !== after.pixels[i + 2] || before.pixels[i + 3] !== after.pixels[i + 3]) changed++;
       if (before.pixels[i + 3] !== 255) continue;
@@ -145,11 +145,11 @@ test('Flat body is unlit and transparent; legacy 3d style normalizes without cha
 
 test('rotating 180 degrees hides body-surface eye ink', async t => {
   const page = await pageFor(t);
-  const result = await page.evaluate(() => {
+  const result = await page.evaluate(async () => {
     const a = document.getElementById('flat'); a.paused = true; a.setActivity('still');
     a.design = window.fixtureAPI.createDesign();
-    const ink = () => { const { pixels } = a.capturePixels(); let n = 0; for (let i = 0; i < pixels.length; i += 4) if (pixels[i] === 36 && pixels[i + 1] === 36 && pixels[i + 2] === 44 && pixels[i + 3] === 255) n++; return n; };
-    a.setView(0); const front = ink(); a.setView(Math.PI); return { front, back: ink() };
+    const ink = async () => { const { pixels } = (await a.capturePixelsAsync()); let n = 0; for (let i = 0; i < pixels.length; i += 4) if (pixels[i] === 36 && pixels[i + 1] === 36 && pixels[i + 2] === 44 && pixels[i + 3] === 255) n++; return n; };
+    a.setView(0); const front = (await ink()); a.setView(Math.PI); return { front, back: (await ink()) };
   });
   assert.ok(result.front > 200); assert.equal(result.back, 0);
 });
@@ -166,8 +166,8 @@ test('shape transitions keep eye/accessory edits, reject invalid targets, and fi
     }
     const targetAfterInvalid = a.design.body.shape;
     a.paused = true;
-    const completed = await transition, atPause = a.capturePixels().pixels;
-    const target = a.design; a.design = { ...target, body: { ...target.body, shape: 'circle' } }; a.design = target; const targetPixels = a.capturePixels().pixels;
+    const completed = await transition, atPause = (await a.capturePixelsAsync()).pixels;
+    const target = a.design; a.design = { ...target, body: { ...target.body, shape: 'circle' } }; a.design = target; const targetPixels = (await a.capturePixelsAsync()).pixels;
     let difference = 0; for (let i = 3; i < atPause.length; i += 4) if (atPause[i] !== targetPixels[i]) difference++;
     const pausedChange = await a.setShape('puffy', { duration: 1500 });
     return { invalid, targetAfterInvalid, completed, difference, pausedChange, design: a.design, running: a.diagnostics.running };
@@ -210,7 +210,7 @@ test('detach during shape transition cancels the old promise and reconnects at t
     const parent = a.parentElement, target = 'puffy';
     const transition = a.setShape(target, { duration: 5000 }); a.remove();
     const cancelled = await transition; parent.append(a);
-    const restored = a.capturePixels().pixels, saved = a.design; a.design = { ...saved, body: { ...saved.body, shape: 'circle' } }; a.design = saved; const endpoint = a.capturePixels().pixels;
+    const restored = (await a.capturePixelsAsync()).pixels, saved = a.design; a.design = { ...saved, body: { ...saved.body, shape: 'circle' } }; a.design = saved; const endpoint = (await a.capturePixelsAsync()).pixels;
     let difference = 0; for (let i = 3; i < restored.length; i += 4) if (restored[i] !== endpoint[i]) difference++;
     return { cancelled, difference, shape: a.design.body.shape, ready: a.ready };
   });
@@ -226,8 +226,8 @@ test('surface eye capsules follow body roll and stay in the body pass across cat
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     // At a front view, body-local XY preserves the glyph and its roll.
     // Oblique views use the real curved surface, so projected aspect is not fixed.
-    function components() {
-      const { pixels, width, height } = a.capturePixels(), mask = new Uint8Array(width * height), groups = [];
+    async function components() {
+      const { pixels, width, height } = (await a.capturePixelsAsync()), mask = new Uint8Array(width * height), groups = [];
       for (let i = 0; i < mask.length; i++) mask[i] = pixels[i * 4] > 220 && pixels[i * 4 + 1] < 45 && pixels[i * 4 + 2] > 220 && pixels[i * 4 + 3] === 255 ? 1 : 0;
       for (let start = 0; start < mask.length; start++) {
         if (!mask[start]) continue;
@@ -253,7 +253,7 @@ test('surface eye capsules follow body roll and stay in the body pass across cat
       a.design = createDesign({ body: { shape, color: '#c0b080' }, eyes: { color: '#ff00ff' } });
       for (const [yaw, pitch, roll] of [[0, 0, 0], [0, 0, 0.45], [0, 0, -0.6], [0.35, 0.18, 0.45], [-0.35, -0.15, -0.6]]) {
         a.setView(yaw, pitch); await a.motion.to({ body: { rotation: [0, 0, roll] } }, { duration: 0 });
-        checks.push({ shape, yaw, pitch, roll, groups: components(), drawCalls: a.diagnostics.drawCalls });
+        checks.push({ shape, yaw, pitch, roll, groups: (await components()), drawCalls: a.diagnostics.drawCalls });
       }
     }
     return checks;
@@ -279,10 +279,10 @@ test('curated eyes and independent expressions cannot protrude beyond the body s
     for (const shape of ['square', 'triangle', 'puffy', 'pixelTriangle', 'verySunny', 'clover4Leaf', 'burst', 'cookie9Sided']) {
       for (const yaw of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
         a.design = createDesign({ body: { shape } }); a.setView(yaw);
-        const base = a.capturePixels();
+        const base = (await a.capturePixelsAsync());
         for (const [left, right] of [['smile', 'neutral'], ['blink', 'smile'], ['blink', 'blink']]) {
           a.design = createDesign({ body: { shape }, eyes: { left: { weights: window.fixtureAPI.eyeExpressionWeights(left) }, right: { weights: window.fixtureAPI.eyeExpressionWeights(right) } } });
-          const next = a.capturePixels(); let alphaDiff = 0, coloredDiff = 0, backInk = 0;
+          const next = (await a.capturePixelsAsync()); let alphaDiff = 0, coloredDiff = 0, backInk = 0;
           for (let i = 0; i < base.pixels.length; i += 4) {
             if (base.pixels[i + 3] !== next.pixels[i + 3]) alphaDiff++;
             if (base.pixels[i] !== next.pixels[i] || base.pixels[i + 1] !== next.pixels[i + 1] || base.pixels[i + 2] !== next.pixels[i + 2]) coloredDiff++;
@@ -394,31 +394,31 @@ test('detach/reconnect cancels motion and releases then recreates GPU resources'
     const parent = a.parentElement; const motion = a.motion.to({ face: { uv: [0.2, 0] } }, { duration: 3000 });
     a.remove(); const detached = a.diagnostics, cancelled = await motion;
     for (let i = 0; i < 3; i++) { parent.append(a); a.remove(); }
-    parent.append(a); return { detached, cancelled, reconnected: a.diagnostics, canvases: a.shadowRoot.querySelectorAll('canvas').length };
+    parent.append(a); await a.capturePixelsAsync(); return { detached, cancelled, reconnected: a.diagnostics, canvases: a.shadowRoot.querySelectorAll('canvas').length };
   });
   assert.equal(result.detached.buffers, 0); assert.equal(result.detached.running, false); assert.equal(result.cancelled.finished, false);
-  assert.equal(result.reconnected.buffers, 9); assert.equal(result.reconnected.ready, true); assert.equal(result.canvases, 1);
+  assert.equal(result.reconnected.buffers, 8); assert.equal(result.reconnected.ready, true); assert.equal(result.canvases, 1);
 });
 
-test('context loss is surfaced and restoration rebuilds the renderer', async t => {
-  const page = await pageFor(t);
+test('main-thread fallback context loss is surfaced and restoration rebuilds the renderer', async t => {
+  const page = await pageFor(t, {}, page => page.addInitScript(() => { window.Worker = undefined; }));
   const supported = await page.locator('#flat').evaluate(a => { const gl = a.shadowRoot.querySelector('canvas').getContext('webgl2'); window.lossExtension = gl.getExtension('WEBGL_lose_context'); window.lossExtension?.loseContext(); return !!window.lossExtension; });
   assert.equal(supported, true); await page.waitForFunction(() => !document.getElementById('flat').ready);
   await page.waitForTimeout(100); await page.evaluate(() => window.lossExtension.restoreContext());
   await page.waitForFunction(() => document.getElementById('flat').ready);
-  assert.equal(await page.locator('#flat').evaluate(a => a.diagnostics.buffers), 9);
+  assert.equal(await page.locator('#flat').evaluate(a => a.diagnostics.buffers), 8);
 });
 
 test('representative catalog shapes and curated accessories remain transparent at canvas borders', async t => {
   const page = await pageFor(t);
-  const result = await page.locator('#flat').evaluate(a => {
+  const result = await page.locator('#flat').evaluate(async a => {
     const { createDesign, createAccessory, ACCESSORY_PRESETS, ACCESSORY_SLOTS_BY_PRESET } = window.fixtureAPI;
     a.paused = true; a.setActivity('still'); const checks = [];
     for (const shape of ['circle', 'square', 'verySunny', 'puffy', 'pixelTriangle']) for (const preset of ACCESSORY_PRESETS) for (const slot of ACCESSORY_SLOTS_BY_PRESET[preset]) {
       const accessory = createAccessory(preset, { slot });
       a.design = createDesign({ body: { shape }, accessories: [accessory] });
       for (const yaw of [0, Math.PI / 2, Math.PI]) {
-        a.setView(yaw); const { pixels, width, height } = a.capturePixels(); let border = 0, visible = 0;
+        a.setView(yaw); const { pixels, width, height } = (await a.capturePixelsAsync()); let border = 0, visible = 0;
         for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) { const alpha = pixels[(y * width + x) * 4 + 3]; if (alpha) { visible++; if (x === 0 || y === 0 || x === width - 1 || y === height - 1) border++; } }
         checks.push({ shape, preset, slot, yaw, border, visible });
       }
@@ -431,6 +431,7 @@ test('representative catalog shapes and curated accessories remain transparent a
 test('WebGL unavailable produces a visible fallback, not a false ready state', async t => {
   const page = await browser.newPage({ viewport: { width: 1024, height: 768 } }); t.after(() => page.close());
   const disableWebGL = () => {
+    window.Worker = undefined;
     const original = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (type, ...args) { return type === 'webgl2' ? null : original.call(this, type, ...args); };
   };
@@ -448,8 +449,8 @@ test('surface eye ink follows rounded geometry, can remain at true side view, an
     a.style.width = '420px'; a.style.height = '420px'; a.paused = true; a.setActivity('still'); a.seek(0);
     a.design = window.fixtureAPI.createDesign({ body: { shape: 'square', color: '#c0b080' }, eyes: { color: '#ff00ff' }, accessories: [] });
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    function measure() {
-      const { pixels, width, height } = a.capturePixels(), mask = new Uint8Array(width * height), groups = [];
+    async function measure() {
+      const { pixels, width, height } = (await a.capturePixelsAsync()), mask = new Uint8Array(width * height), groups = [];
       for (let i = 0; i < mask.length; i++) mask[i] = pixels[i * 4] > 220 && pixels[i * 4 + 1] < 45 && pixels[i * 4 + 2] > 220 && pixels[i * 4 + 3] === 255 ? 1 : 0;
       for (let start = 0; start < mask.length; start++) {
         if (!mask[start]) continue;
@@ -466,7 +467,9 @@ test('surface eye ink follows rounded geometry, can remain at true side view, an
       }
       return { groups, area: groups.reduce((sum, group) => sum + group.area, 0) };
     }
-    return [[0, 0], [60, 0], [75, 0], [0, 60], [90, 0], [-90, 0], [180, 0]].map(([yaw, pitch]) => { a.setCamera({ yaw, pitch, roll: 0 }); return { yaw, pitch, ...measure() }; });
+    const samples = [];
+    for (const [yaw, pitch] of [[0, 0], [60, 0], [75, 0], [0, 60], [90, 0], [-90, 0], [180, 0]]) { a.setCamera({ yaw, pitch, roll: 0 }); samples.push({ yaw, pitch, ...(await measure()) }); }
+    return samples;
   });
   const front = cases[0]; assert.equal(front.groups.length, 2); assert.ok(front.area > 100);
   for (const sample of cases.slice(1, 4)) {
@@ -534,8 +537,8 @@ test('curated smile is visibly wider than neutral and changes surface ink only',
     a.style.width = '420px'; a.style.height = '420px'; a.paused = true; a.setActivity('still'); a.seek(0); a.resetCamera();
     a.design = window.fixtureAPI.createDesign({ body: { shape: 'square' }, eyes: { color: '#ff00ff' }, accessories: [] });
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    function measure() {
-      const { pixels, width, height } = a.capturePixels();
+    async function measure() {
+      const { pixels, width, height } = (await a.capturePixelsAsync());
       const groups = [[], []];
       for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
         const i = (y * width + x) * 4;
@@ -543,8 +546,8 @@ test('curated smile is visibly wider than neutral and changes surface ink only',
       }
       return { pixels, widths: groups.map(xs => xs.length ? Math.max(...xs) - Math.min(...xs) + 1 : 0) };
     }
-    const neutral = measure();
-    await a.setExpression('both', 'smile', { duration: 0 }); const smile = measure();
+    const neutral = (await measure());
+    await a.setExpression('both', 'smile', { duration: 0 }); const smile = (await measure());
     let alphaChanges = 0;
     for (let i = 3; i < neutral.pixels.length; i += 4) if (neutral.pixels[i] !== smile.pixels[i]) alphaChanges++;
     return { neutral: neutral.widths, smile: smile.widths, alphaChanges };
@@ -564,7 +567,7 @@ test('curated smile keeps uniform normal-direction thickness and round caps', as
     for (const target of [{ radius: 0.75, thickness: 0.22 }]) {
       // Curated geometry stays identical when only animation weights change.
       a.design = window.fixtureAPI.createDesign({ body: { shape: 'square', color: '#000000' }, eyes: { color: '#ff00ff' }, accessories: [] });
-      const neutral = a.capturePixels(), bounds = [null, null];
+      const neutral = (await a.capturePixelsAsync()), bounds = [null, null];
       for (let y = 0; y < neutral.height; y++) for (let x = 0; x < neutral.width; x++) {
         const i = (y * neutral.width + x) * 4;
         if (neutral.pixels[i] <= 127 || neutral.pixels[i + 3] !== 255) continue;
@@ -573,7 +576,7 @@ test('curated smile keeps uniform normal-direction thickness and round caps', as
         b.minX = Math.min(b.minX, x); b.maxX = Math.max(b.maxX, x); b.minY = Math.min(b.minY, y); b.maxY = Math.max(b.maxY, y);
       }
       await a.setExpression('both', 'smile', { duration: 0 });
-      const smile = a.capturePixels();
+      const smile = (await a.capturePixelsAsync());
       // Bilinear readback measures the 50% ink boundary without counting AA as
       // extra thickness. Pixel coordinates refer to readPixels' bottom-up rows.
       function ink(x, y) {
@@ -634,8 +637,8 @@ test('curated rounded volume tapers continuously toward its silhouette', async t
   const cases = await page.locator('#flat').evaluate(async a => {
     a.style.width = '500px'; a.style.height = '500px'; a.paused = true; a.setActivity('still'); a.seek(0);
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    function silhouette() {
-      const capture = a.capturePixels(), rows = [];
+    async function silhouette() {
+      const capture = (await a.capturePixelsAsync()), rows = [];
       for (let y = 0; y < capture.height; y++) {
         let min = capture.width, max = -1;
         for (let x = 0; x < capture.width; x++) if (capture.pixels[(y * capture.width + x) * 4 + 3] > 127) { min = Math.min(min, x); max = x; }
@@ -647,7 +650,7 @@ test('curated rounded volume tapers continuously toward its silhouette', async t
     const cases = [];
     for (const shape of ['square', 'circle']) {
       a.design = window.fixtureAPI.createDesign({ body: { shape, color: '#c0b080' }, eyes: { color: '#c0b080' }, accessories: [] });
-      a.resetCamera(); const front = silhouette(); a.setCameraPreset('side'); const side = silhouette();
+      a.resetCamera(); const front = (await silhouette()); a.setCameraPreset('side'); const side = (await silhouette());
       cases.push({ shape, front: { width: front.width, height: front.height }, side: { width: side.width, height: side.height, samples: side.samples }, drawCalls: a.diagnostics.drawCalls });
     }
     return cases;
@@ -696,10 +699,13 @@ test('Studio rapid shape selections continue from the visible contour and retain
   });
   await shapeButton(page, 'verySunny').click(); await page.waitForTimeout(130);
   const difference = await page.locator('#flat').evaluate(a => {
+    // Read the presented frame twice in one task: dispatching a worker command
+    // must not clear or replace the visible canvas. Exact contour joins are
+    // checked separately on the engine's deterministic timeline.
     const before = a.capturePixels().pixels; document.querySelector('[data-shape=clover4Leaf]').click(); const after = a.capturePixels().pixels;
     let changed = 0; for (let i = 3; i < before.length; i += 4) if (before[i] !== after[i]) changed++; return changed;
   });
-  assert.equal(difference, 0, 'Retarget starts at the exact current outline');
+  assert.equal(difference, 0, 'Retarget preserves the currently presented frame without flashing');
   const results = await page.evaluate(async () => ({ results: await Promise.all(window.shapePromises), calls: window.shapeCalls }));
   assert.deepEqual(results.results.map(item => item.finished), [false, true]);
   assert.deepEqual(results.calls.map(item => item.options), [{ duration: 800, easing: 'linear' }, { duration: 800, easing: 'linear' }]);
@@ -799,7 +805,7 @@ test('Studio JSON export uses applied design rather than an invalid unsaved draf
   await page.locator('#design-json').fill('{invalid'); await page.locator('#import-json').click();
   const pending = page.waitForEvent('download'); await page.locator('#export-json').click(); const download = await pending;
   const exported = JSON.parse(await readFile(await download.path(), 'utf8'));
-  assert.equal(download.suggestedFilename(), 'sidekick.scene.json'); assert.equal(exported.sceneVersion, 1); assert.equal(exported.design.version, 7); assert.equal(exported.design.body.color, '#a4b8c9');
+  assert.equal(download.suggestedFilename(), 'sidekick.scene.json'); assert.equal(exported.sceneVersion, 2); assert.equal(exported.design.version, 7); assert.equal(exported.design.body.color, '#a4b8c9');
   assert.equal(await page.locator('#design-json').inputValue(), '{invalid');
 });
 

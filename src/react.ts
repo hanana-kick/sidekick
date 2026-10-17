@@ -6,6 +6,7 @@ import type { AccessoryDesign, Activity, AvatarDesign, RenderStyle } from './cor
 import type { CameraAngles, CameraPreset } from './core/camera.js';
 import type { EyeExpression } from './core/expressions.js';
 import type { MotionOptions, MotionTarget } from './core/motion.js';
+import type { TrackingMode } from './core/tracking.js';
 import type { MaterialShapeName } from './core/shapes.js';
 import type { SidekickAvatar as SidekickElement } from './element/avatar.js';
 import type { SidekickAttributes, SidekickEventMap } from './element/attributes.js';
@@ -51,7 +52,9 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
   activity?: Activity;
   paused?: boolean;
   interaction?: 'none' | 'box';
+  /** Legacy eyes-only alias; trackingMode takes precedence when supplied. */
   mouseTracking?: boolean;
+  trackingMode?: TrackingMode;
   renderStyle?: RenderStyle;
   shapeDuration?: number;
   shapeEasing?: MotionOptions['easing'];
@@ -77,7 +80,7 @@ const attributeProps = {
   mouthAccessory: 'mouth-accessory', mouthColor: 'mouth-color', neckAccessory: 'neck-accessory', neckColor: 'neck-color',
   leftEarAccessory: 'left-ear-accessory', leftEarColor: 'left-ear-color', rightEarAccessory: 'right-ear-accessory', rightEarColor: 'right-ear-color',
   cameraYaw: 'camera-yaw', cameraPitch: 'camera-pitch', cameraRoll: 'camera-roll', gazeX: 'gaze-x', gazeY: 'gaze-y',
-  activity: 'activity', paused: 'paused', interaction: 'interaction', mouseTracking: 'mouse-tracking', renderStyle: 'render-style',
+  activity: 'activity', paused: 'paused', interaction: 'interaction', mouseTracking: 'mouse-tracking', trackingMode: 'tracking-mode', renderStyle: 'render-style',
   shapeDuration: 'shape-duration', shapeEasing: 'shape-easing', motionDuration: 'motion-duration', motionEasing: 'motion-easing', time: 'time',
 } as const satisfies Partial<Record<keyof SidekickAvatarProps, string>>;
 const eventProps = {

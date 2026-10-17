@@ -1,9 +1,8 @@
 import { createElement, memo, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { ArrowDownToLine, CircleHelp, Copy, FileJson, FileUp, ImageDown, MousePointer2, Move, Pause, Play, RotateCcw, Sparkles } from 'lucide-react';
+import { ArrowDownToLine, CircleHelp, Copy, FileJson, FileUp, ImageDown, Move, Pause, Play, RotateCcw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Toggle } from '@/components/ui/toggle';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +12,7 @@ import type { Activity, AccessoryPreset } from '../src/core/design.js';
 import { CAMERA_PRESETS } from '../src/core/camera.js';
 import type { CameraPreset } from '../src/core/camera.js';
 import type { EyeExpression } from '../src/core/expressions.js';
+import type { TrackingMode } from '../src/core/tracking.js';
 import { MATERIAL_SHAPE_LABELS } from '../src/core/shapes.js';
 import type { SidekickAvatar } from '../src/element/avatar.js';
 import { ACCESSORY_NAMES, EQUIPMENT_GROUPS, SLOT_NAMES, StudioController } from './studio-controller.js';
@@ -72,9 +72,14 @@ function AnimationPanel({ state, controller }: { state: StudioState; controller:
       <ToggleGroup type="single" variant="outline" value={state.activity} onValueChange={activity => { if (activity) controller.setActivity(activity as Activity); }} aria-label="봇 상태" className="activity-options">
         {Object.entries(ACTIVITY_LABELS).map(([activity, label]) => <ToggleGroupItem key={activity} value={activity} data-activity={activity}>{label}</ToggleGroupItem>)}
       </ToggleGroup>
-      <div className="tracking-control"><Toggle id="mouse-tracking" variant="outline" pressed={state.mouseTracking} onPressedChange={controller.setMouseTracking} aria-label="마우스 시선 추적" aria-describedby="mouse-tracking-help"><MousePointer2 aria-hidden="true" />마우스 시선 추적<span className="tracking-state">{state.mouseTracking ? '켜짐' : '꺼짐'}</span></Toggle>
-        <FieldDescription id="mouse-tracking-help">페이지의 마우스를 눈이 따라봅니다. 드래그 회전과 별도로 동작하며 디자인 JSON에는 저장하지 않습니다.</FieldDescription>
-      </div>
+      <FieldSet className="tracking-control"><FieldLegend variant="label">마우스 시선 추적</FieldLegend>
+        <ToggleGroup type="single" variant="outline" value={state.trackingMode} onValueChange={mode => { if (mode) controller.setTrackingMode(mode as TrackingMode); }} aria-label="마우스 시선 추적 모드" aria-describedby="mouse-tracking-help">
+          <ToggleGroupItem id="tracking-off" value="off">꺼짐</ToggleGroupItem>
+          <ToggleGroupItem id="mouse-tracking" value="eyes">눈만</ToggleGroupItem>
+          <ToggleGroupItem id="tracking-eyes-and-body" value="eyes-and-body">눈과 몸</ToggleGroupItem>
+        </ToggleGroup>
+        <FieldDescription id="mouse-tracking-help">눈만 또는 눈과 몸이 페이지의 마우스를 따라봅니다. 몸 움직임은 기존 모션 위에 부드럽게 더해지며 카메라 각도를 바꾸지 않습니다. 장면 JSON에 저장됩니다.</FieldDescription>
+      </FieldSet>
       <div className="motion-actions"><Button id="look-left" variant="ghost" size="sm" onClick={() => controller.look(-.9)}>왼쪽 보기</Button><Button id="look-center" variant="ghost" size="sm" onClick={() => controller.look(0)}>정면 보기</Button><Button id="look-right" variant="ghost" size="sm" onClick={() => controller.look(.9)}>오른쪽 보기</Button><Button id="face-motion" variant="outline" size="sm" aria-pressed={state.movedFace} onClick={controller.toggleFace}>얼굴 이동</Button></div>
     </section>
     <Separator />

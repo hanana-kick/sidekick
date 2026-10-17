@@ -2,19 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CAMERA_PRESETS, cameraPreset, cameraViewMatrix, createAccessory, createCamera, createDesign, patchCamera, SidekickAvatar, patchDesign } from '../dist/src/index.js';
 import { multiply, transform } from '../dist/src/core/math.js';
+import { RenderEngine } from '../dist/src/runtime/render-engine.js';
+import { bareAvatarFixture } from './helpers/render-runtime.mjs';
 
-function avatarForTest(connected = false) {
-  const avatar = new SidekickAvatar(), events = [], attributes = new Map();
-  avatar.isConnected = connected;
-  avatar.hasAttribute = name => attributes.has(name);
-  avatar.getAttribute = name => attributes.get(name) ?? null;
-  avatar.setAttribute = (name, value) => {
-    const old = attributes.get(name) ?? null; attributes.set(name, String(value));
-    if (SidekickAvatar.observedAttributes.includes(name)) avatar.attributeChangedCallback(name, old, String(value));
-  };
-  avatar.dispatchEvent = event => { events.push(event); return true; };
-  return { avatar, events, attributes };
-}
+const avatarForTest = (connected = false) => bareAvatarFixture(SidekickAvatar, RenderEngine, connected);
 const close = (actual, expected, tolerance = 1e-6) => assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`);
 
 test('camera exposes independent degree settings, immutable presets, and partial updates', () => {
@@ -80,51 +71,51 @@ test('legacy radians setView forwards into the same camera and validates both ax
 });
 
 test('camera changes preserve in-flight body and shape animation and render separately from pose', async () => {
-  const { avatar } = avatarForTest(true);
+  const { avatar, runtime } = avatarForTest(true);
   const body = avatar.motion.to({ body: { rotation: [0.2, 0.3, 0.7] } }, { duration: 1000 });
   const shape = avatar.setShape('heart', { duration: 1000 });
-  avatar.timeline.advance(200); avatar.shapeTimeline.advance(200);
-  const pose = avatar.pose, contour = avatar.shapeTimeline.contour, design = avatar.design;
-  let frame;
-  avatar.readyState = true; avatar.renderer = { render: (configuration, state) => { frame = { configuration, state }; } };
+  runtime.advanceMotion(200); runtime.advanceShape(200);
+  const pose = avatar.pose, contour = runtime.shape.contour, design = avatar.design;
   avatar.setCamera({ yaw: 65, pitch: 20, roll: -10 });
-  assert.equal(avatar.timeline.active, true); assert.equal(avatar.shapeTimeline.active, true);
-  assert.deepEqual(avatar.pose, pose); assert.deepEqual(avatar.design, design); assert.strictEqual(avatar.shapeTimeline.contour, contour);
-  assert.deepEqual(frame.state.camera, avatar.camera); assert.deepEqual(frame.state.pose, pose); assert.equal(frame.state.view, undefined);
+  assert.equal(runtime.timeline.active, true); assert.equal(runtime.shape.active, true);
+  assert.deepEqual(avatar.pose, pose); assert.deepEqual(avatar.design, design); assert.strictEqual(runtime.shape.contour, contour);
+  const frame = runtime.render();
+  assert.deepEqual(frame.camera, avatar.camera); assert.deepEqual(frame.pose, pose); assert.equal(frame.view, undefined);
   avatar.design = patchDesign(avatar.design, { body: { color: '#abcdef' } }); assert.deepEqual(avatar.camera, { yaw: 65, pitch: 20, roll: -10 });
-  avatar.timeline.advance(800); avatar.shapeTimeline.advance(800);
+  runtime.advanceMotion(800); runtime.advanceShape(800);
   assert.deepEqual(await body, { finished: true }); assert.deepEqual(await shape, { finished: true });
 });
 
 test('pointer orbit updates the same degree camera, preserves roll, clamps axes and emits no activation after drag', () => {
-  const { avatar, events } = avatarForTest(); avatar.interaction = 'box';
+  const { avatar, events } = avatarForTest(); avatar.interaction = 'box'; avatar.connected = true;
   let captured = false;
   avatar.canvas = { setPointerCapture() { captured = true; }, hasPointerCapture() { return captured; }, releasePointerCapture() { captured = false; } };
   avatar.setCamera({ yaw: 10, pitch: 15, roll: 25 }); const pose = avatar.pose;
   avatar.onPointerDown({ button: 0, pointerId: 7, clientX: 100, clientY: 100 });
   avatar.onPointerMove({ pointerId: 8, clientX: 500, clientY: 500 }); assert.equal(avatar.camera.yaw, 10);
   avatar.onPointerMove({ pointerId: 7, clientX: 150, clientY: 120 });
+  assert.equal(avatar.camera.yaw, 10, 'Pointer commands wait for the coalesced input flush'); avatar.flushInput();
   close(avatar.camera.yaw, 10 + 0.5 * 180 / Math.PI); close(avatar.camera.pitch, 15 + 0.14 * 180 / Math.PI); assert.equal(avatar.camera.roll, 25);
   assert.deepEqual(events.at(-1).detail.camera, avatar.camera); assert.deepEqual(avatar.pose, pose);
-  avatar.onPointerMove({ pointerId: 7, clientX: 10000, clientY: -10000 }); assert.deepEqual(avatar.camera, { yaw: 360, pitch: -90, roll: 25 });
+  avatar.onPointerMove({ pointerId: 7, clientX: 10000, clientY: -10000 }); avatar.flushInput(); assert.deepEqual(avatar.camera, { yaw: 360, pitch: -90, roll: 25 });
   avatar.onPointerUp({ pointerId: 7 }); assert.equal(captured, false); assert.ok(events.every(event => event.type !== 'sidekick-activate'));
   const before = avatar.camera; avatar.onPointerMove({ pointerId: 7, clientX: 0, clientY: 0 }); assert.deepEqual(avatar.camera, before);
   avatar.onPointerDown({ button: 0, pointerId: 9, clientX: 0, clientY: 0 }); avatar.onPointerCancel(); avatar.onPointerMove({ pointerId: 9, clientX: 50, clientY: 50 }); assert.deepEqual(avatar.camera, before);
 });
 
 test('simultaneous eye edit and accessory removal preserve camera, body motion and the untouched eye track', async () => {
-  const { avatar } = avatarForTest(true);
+  const { avatar, runtime } = avatarForTest(true);
   avatar.design = createDesign({ accessories: [createAccessory('beret', 'hat'), createAccessory('glasses', 'frames')] });
   avatar.setCamera({ yaw: 30, pitch: 15, roll: -10 });
   const body = avatar.motion.to({ body: { rotation: [0.2, 0.3, 0.5] } }, { duration: 1000 });
   const right = avatar.setExpression('right', 'smile', { duration: 1000 });
   const hat = avatar.motion.to({ accessories: { hat: { rotation: [0.2, 0.3, 0.4] } } }, { duration: 1000 });
-  avatar.timeline.advance(200); const before = avatar.pose;
+  runtime.advanceMotion(200); const before = avatar.pose;
   avatar.design = patchDesign(avatar.design, { eyes: { left: { expression: 'blink' } }, accessories: avatar.design.accessories.filter(part => part.id !== 'hat') });
   assert.deepEqual(await hat, { finished: false });
   assert.deepEqual(avatar.pose.rotation, before.rotation); assert.deepEqual(avatar.pose.eyes.right, before.eyes.right);
   assert.equal(avatar.pose.eyes.left.openness, 0); assert.equal(avatar.pose.accessories.hat, undefined);
-  avatar.timeline.advance(800);
+  runtime.advanceMotion(800);
   assert.deepEqual(await body, { finished: true }); assert.deepEqual(await right, { finished: true });
   assert.deepEqual(avatar.pose.rotation, [0.2, 0.3, 0.5]); assert.equal(avatar.pose.eyes.right.smile, 1);
   assert.equal(avatar.pose.accessories.hat, undefined, 'Removed accessory tracks cannot recreate a stale pose entry');

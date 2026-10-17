@@ -1,14 +1,16 @@
 import type { AccessoryDesign, Activity, AvatarDesign, DesignPatch, RenderStyle } from '../core/design.js';
+import type { TrackingMode } from '../core/tracking.js';
 import type { ShapeMotionOptions, ShapeMotionResult } from '../core/shape-motion.js';
 import type { MaterialShapeName } from '../core/shapes.js';
 import type { EyeExpression, EyeShapeWeights } from '../core/expressions.js';
 import type { CameraAngles, CameraPreset } from '../core/camera.js';
 import type { MotionOptions, MotionResult, MotionTarget, Pose } from '../core/motion.js';
 import type { SnapshotOptions } from '../core/pixels.js';
+import type { PixelBuffer } from '../core/pixels.js';
 import type { SidekickEventMap } from './attributes.js';
 declare const HTMLElementBase: typeof HTMLElement;
 export declare class SidekickAvatar extends HTMLElementBase {
-    static observedAttributes: ("shape" | "smile" | "blink" | "expression" | "accessories" | "design" | "motion" | "camera" | "activity" | "paused" | "interaction" | "time" | "body-color" | "eye-color" | "left-expression" | "right-expression" | "left-smile" | "right-smile" | "left-blink" | "right-blink" | "head-accessory" | "head-color" | "eyes-accessory" | "eyes-color" | "mouth-accessory" | "mouth-color" | "neck-accessory" | "neck-color" | "left-ear-accessory" | "left-ear-color" | "right-ear-accessory" | "right-ear-color" | "camera-yaw" | "camera-pitch" | "camera-roll" | "gaze-x" | "gaze-y" | "mouse-tracking" | "render-style" | "shape-duration" | "shape-easing" | "motion-duration" | "motion-easing")[];
+    static observedAttributes: ("shape" | "smile" | "blink" | "expression" | "accessories" | "design" | "motion" | "camera" | "activity" | "paused" | "interaction" | "time" | "body-color" | "eye-color" | "left-expression" | "right-expression" | "left-smile" | "right-smile" | "left-blink" | "right-blink" | "head-accessory" | "head-color" | "eyes-accessory" | "eyes-color" | "mouth-accessory" | "mouth-color" | "neck-accessory" | "neck-color" | "left-ear-accessory" | "left-ear-color" | "right-ear-accessory" | "right-ear-color" | "camera-yaw" | "camera-pitch" | "camera-roll" | "gaze-x" | "gaze-y" | "mouse-tracking" | "tracking-mode" | "render-style" | "shape-duration" | "shape-easing" | "motion-duration" | "motion-easing")[];
     addEventListener<K extends keyof SidekickEventMap>(type: K, listener: (this: SidekickAvatar, event: SidekickEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
     addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
     addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions): void;
@@ -16,9 +18,24 @@ export declare class SidekickAvatar extends HTMLElementBase {
     removeEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
     removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions): void;
     private configuration;
-    private timeline;
-    private shapeTimeline;
-    private renderer?;
+    private validator;
+    private currentPose;
+    private bridge?;
+    private generation;
+    private acknowledgedRevision;
+    private poseRevision;
+    private timeRevision;
+    private snapshotState?;
+    private nextRequest;
+    private commandBatch?;
+    private requests;
+    private inputFrame;
+    private pendingResize;
+    private pendingPointer?;
+    private pendingDrag?;
+    private connected;
+    private transferred;
+    private captureCanvas?;
     private canvas?;
     private fallback?;
     private sizeObserver?;
@@ -26,10 +43,7 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private media?;
     private visible;
     private reduced;
-    private raf;
-    private lastTick;
     private elapsed;
-    private frames;
     private readyState;
     private currentActivity;
     private cameraAngles;
@@ -37,13 +51,13 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private manualGaze;
     private pausedState;
     private interactionState;
-    private mouseTrackingState;
+    private trackingModeState;
+    private trackedGaze?;
     private trackingDocument?;
     private acceptedAttributes;
     private pendingAttributes;
     private attributesQueued;
     private propertiesUpgraded;
-    private gazeVelocity;
     private drag?;
     readonly motion: {
         to: (target: MotionTarget, options?: MotionOptions) => Promise<MotionResult>;
@@ -71,11 +85,17 @@ export declare class SidekickAvatar extends HTMLElementBase {
     setActivity(value: Activity): void;
     get paused(): boolean;
     set paused(value: boolean);
+    /** Legacy enabled flag. An explicit tracking-mode always takes precedence. */
     get mouseTracking(): boolean;
     set mouseTracking(value: boolean);
+    get trackingMode(): TrackingMode;
+    set trackingMode(value: TrackingMode);
+    /** Clear transient cursor reaction immediately, for explicit scene resets/imports. */
+    resetTracking(): void;
     get interaction(): 'none' | 'box';
     set interaction(value: 'none' | 'box');
     get ready(): boolean;
+    /** Last acknowledged worker pose; configuration and camera getters are immediate. */
     get pose(): Pose;
     get diagnostics(): {
         ready: boolean;
@@ -83,6 +103,17 @@ export declare class SidekickAvatar extends HTMLElementBase {
         frames: number;
         drawCalls: number;
         buffers: number;
+        backend: 'worker' | 'main' | 'none';
+        generation: number;
+        revision: number;
+        acknowledgedRevision: number;
+        time: number;
+        renderCpu: {
+            lastMs: number;
+            totalMs: number;
+            maxMs: number;
+        };
+        renderedRotation: Pose['rotation'];
     };
     /** Camera viewing angles in degrees. Reads return an independent snapshot. */
     get camera(): CameraAngles;
@@ -98,12 +129,13 @@ export declare class SidekickAvatar extends HTMLElementBase {
         y: number;
     }): void;
     seek(seconds: number): void;
-    /** Stable readback for exports/tests without permanently preserving the WebGL buffer. */
-    capturePixels(): {
-        width: number;
-        height: number;
-        pixels: Uint8Array;
-    };
+    /**
+     * Worker mode reads the latest browser-presented bitmap without flushing commands.
+     * Use capturePixelsAsync() when fresh ordered GPU output is required. Rows are bottom-up.
+     */
+    capturePixels(): PixelBuffer;
+    /** Render and read a fresh frame after every preceding command and pending input. */
+    capturePixelsAsync(): Promise<PixelBuffer>;
     snapshot(options?: SnapshotOptions): Promise<Blob>;
     connectedCallback(): void;
     disconnectedCallback(): void;
@@ -115,23 +147,35 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private upgradeProperties;
     private immediateMotion;
     private initializeRenderer;
+    private runtimeFailure;
+    private acceptSnapshot;
+    private disposeBridge;
+    private request;
+    private resolveRequest;
+    private send;
+    private batch;
+    private runtimeState;
+    private syncState;
+    private attachCanvasListeners;
+    private detachCanvasListeners;
+    private replaceCanvas;
     private updateInteraction;
     private resize;
+    private queueInput;
+    private cancelInput;
+    private flushInput;
     private emit;
-    private gazeMoving;
-    private resetShape;
     private resetEyes;
-    private needsAnimation;
-    private wake;
-    private stop;
-    private tick;
-    private draw;
     private onMotionPreference;
     private onVisibility;
     private setGazeTarget;
     private updateMouseTracking;
     private detachMouseTracking;
+    private updateTrackingBody;
+    private restoreManualTracking;
     private onTrackingBlur;
+    private onTrackingLeave;
+    private onTrackingOut;
     private onTrackedPointerMove;
     private clearDrag;
     private onKey;
@@ -139,7 +183,6 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private onPointerMove;
     private onPointerUp;
     private onPointerCancel;
-    private onContextLost;
     private onContextRestored;
 }
 export declare function defineSidekick(tagName?: string): void;

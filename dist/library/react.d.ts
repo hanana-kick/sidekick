@@ -3,6 +3,7 @@ import type { AccessoryDesign, Activity, AvatarDesign, RenderStyle } from './cor
 import type { CameraAngles, CameraPreset } from './core/camera.js';
 import type { EyeExpression } from './core/expressions.js';
 import type { MotionOptions, MotionTarget } from './core/motion.js';
+import type { TrackingMode } from './core/tracking.js';
 import type { MaterialShapeName } from './core/shapes.js';
 import type { SidekickAvatar as SidekickElement } from './element/avatar.js';
 import type { SidekickAttributes, SidekickEventMap } from './element/attributes.js';
@@ -46,7 +47,9 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
     activity?: Activity;
     paused?: boolean;
     interaction?: 'none' | 'box';
+    /** Legacy eyes-only alias; trackingMode takes precedence when supplied. */
     mouseTracking?: boolean;
+    trackingMode?: TrackingMode;
     renderStyle?: RenderStyle;
     shapeDuration?: number;
     shapeEasing?: MotionOptions['easing'];

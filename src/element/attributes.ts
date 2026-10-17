@@ -7,6 +7,8 @@ import type { EyeExpression } from '../core/expressions.js';
 import { MotionTimeline, validateMotionOptions } from '../core/motion.js';
 import type { MotionOptions, MotionResult, MotionTarget } from '../core/motion.js';
 import { validateShapeMotionOptions } from '../core/shape-motion.js';
+import { parseTrackingMode } from '../core/tracking.js';
+import type { TrackingMode } from '../core/tracking.js';
 import type { MaterialShapeName } from '../core/shapes.js';
 
 /** HTML strings are strict: unlike native booleans, the literal "false" disables. */
@@ -49,6 +51,7 @@ export interface SidekickAttributes {
   paused?: BooleanAttribute;
   interaction?: 'none' | 'box';
   'mouse-tracking'?: BooleanAttribute;
+  'tracking-mode'?: TrackingMode;
   'render-style'?: 'flat' | '3d';
   'shape-duration'?: NumericAttribute;
   'shape-easing'?: 'linear' | 'smooth';
@@ -65,7 +68,7 @@ export const SIDEKICK_ATTRIBUTES = Object.freeze([
   'head-accessory', 'head-color', 'eyes-accessory', 'eyes-color', 'mouth-accessory', 'mouth-color',
   'neck-accessory', 'neck-color', 'left-ear-accessory', 'left-ear-color', 'right-ear-accessory', 'right-ear-color',
   'camera', 'camera-yaw', 'camera-pitch', 'camera-roll', 'gaze-x', 'gaze-y', 'activity', 'paused',
-  'interaction', 'mouse-tracking', 'render-style', 'shape-duration', 'shape-easing', 'motion-duration', 'motion-easing', 'motion', 'time',
+  'interaction', 'mouse-tracking', 'tracking-mode', 'render-style', 'shape-duration', 'shape-easing', 'motion-duration', 'motion-easing', 'motion', 'time',
 ] as const satisfies readonly SidekickAttributeName[]);
 
 export interface SidekickErrorDetail { message: string; attribute?: string; value?: string | null; recoverable?: boolean }
@@ -90,6 +93,7 @@ export interface ResolvedAttributes {
   paused: boolean;
   interaction: 'none' | 'box';
   mouseTracking: boolean;
+  trackingMode: TrackingMode;
   shapeOptions: Required<MotionOptions>;
   motionOptions: Required<MotionOptions>;
   motion?: MotionTarget;
@@ -177,6 +181,8 @@ export function resolveSidekickAttributes(attributes: AttributeValues): Resolved
     void new MotionTimeline({ left: design.eyes.left, right: design.eyes.right }).to(target, { duration: 0 });
     return target;
   }, undefined);
+  const legacyTracking = read('mouse-tracking', parseBooleanAttribute, false);
+  const trackingMode = read('tracking-mode', parseTrackingMode, legacyTracking ? 'eyes' : 'off');
   read('render-style', value => choice(value, ['flat', '3d']), 'flat');
   return {
     design: parseDesign(design), camera,
@@ -184,7 +190,7 @@ export function resolveSidekickAttributes(attributes: AttributeValues): Resolved
     activity: read('activity', value => choice(value, ACTIVITIES), 'idle'),
     paused: read('paused', parseBooleanAttribute, false),
     interaction: read('interaction', value => choice(value, ['none', 'box']), 'none'),
-    mouseTracking: read('mouse-tracking', parseBooleanAttribute, false),
+    mouseTracking: trackingMode !== 'off', trackingMode,
     shapeOptions, motionOptions, motion,
     time: read('time', value => number(value, 0, 86400, 'time'), 0),
   };

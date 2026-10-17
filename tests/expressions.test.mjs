@@ -4,21 +4,13 @@ import { createEyeState, expressionPose, expressionDuration, automaticBlink, com
 import { MotionTimeline, initialPose, activityFrame } from '../dist/src/core/motion.js';
 import { createDesign, patchDesign } from '../dist/src/core/design.js';
 import { SidekickAvatar } from '../dist/src/element/avatar.js';
+import { RenderEngine } from '../dist/src/runtime/render-engine.js';
+import { bareAvatarFixture } from './helpers/render-runtime.mjs';
 
 const near = (a, b, epsilon = 1e-10) => assert.ok(Math.abs(a - b) < epsilon, `${a} != ${b}`);
 const eyes = (left = {}, right = {}) => ({ left: createEyeState(left), right: createEyeState(right) });
 // The component's non-rendering API also works before it is connected to a browser.
-function avatarForTest(connected = false) {
-  const avatar = new SidekickAvatar();
-  const events = [];
-  const attributes = new Map();
-  avatar.hasAttribute = name => attributes.has(name);
-  avatar.setAttribute = (name, value) => { const old = attributes.get(name) ?? null; attributes.set(name, String(value)); avatar.attributeChangedCallback(name, old, String(value)); };
-  avatar.toggleAttribute = (name, enabled) => { const old = attributes.get(name) ?? null; if (enabled) attributes.set(name, ''); else attributes.delete(name); avatar.attributeChangedCallback(name, old, enabled ? '' : null); };
-  avatar.isConnected = connected;
-  avatar.dispatchEvent = event => { events.push(event); return true; };
-  return { avatar, events };
-}
+const avatarForTest = (connected = false) => bareAvatarFixture(SidekickAvatar, RenderEngine, connected);
 
 test('expression recipes map semantic states to bounded numeric channels', () => {
   assert.deepEqual(expressionPose({ expression: 'neutral', openness: 0.65 }), { openness: 0.65, smile: 0 });
@@ -154,25 +146,25 @@ test('setExpression persists independently and resolves immediately while discon
 });
 
 test('unrelated design edits preserve animation, changed expressions replace stale targets', async () => {
-  const { avatar } = avatarForTest(true);
+  const { avatar, runtime } = avatarForTest(true);
   const moving = avatar.setExpression('left', 'smile', { duration: 1000, easing: 'linear' });
-  avatar.timeline.advance(250); near(avatar.pose.eyes.left.smile, 0.25);
+  runtime.advanceMotion(250); near(avatar.pose.eyes.left.smile, 0.25);
   avatar.design = patchDesign(avatar.design, { body: { color: '#abcdef' } });
-  assert.equal(avatar.timeline.active, true); near(avatar.pose.eyes.left.smile, 0.25);
-  avatar.timeline.advance(750); assert.deepEqual(await moving, { finished: true });
+  assert.equal(runtime.timeline.active, true); near(avatar.pose.eyes.left.smile, 0.25);
+  runtime.advanceMotion(750); assert.deepEqual(await moving, { finished: true });
   const pending = avatar.setExpression('right', 'blink', { duration: 1000 });
-  avatar.timeline.advance(200);
+  runtime.advanceMotion(200);
   avatar.design = patchDesign(avatar.design, { eyes: { right: { expression: 'neutral', openness: 0.7 } } });
-  assert.deepEqual(await pending, { finished: false }); assert.equal(avatar.timeline.active, false);
+  assert.deepEqual(await pending, { finished: false }); assert.equal(runtime.timeline.active, false);
   assert.deepEqual(avatar.pose.eyes.right, { openness: 0.7, smile: 0 });
-  avatar.timeline.advance(1000); assert.deepEqual(avatar.pose.eyes.right, { openness: 0.7, smile: 0 });
+  runtime.advanceMotion(1000); assert.deepEqual(avatar.pose.eyes.right, { openness: 0.7, smile: 0 });
 });
 
 test('reduced-motion preference change completes both eye targets and settles the promise', async () => {
-  const { avatar } = avatarForTest(true);
+  const { avatar, runtime } = avatarForTest(true);
   const moving = avatar.setExpression('both', 'blink', { duration: 1000 });
-  avatar.timeline.advance(200); avatar.media = { matches: true }; avatar.onMotionPreference();
-  assert.deepEqual(await moving, { finished: true }); assert.equal(avatar.timeline.active, false);
+  runtime.advanceMotion(200); avatar.media = { matches: true }; avatar.onMotionPreference();
+  assert.deepEqual(await moving, { finished: true }); assert.equal(runtime.timeline.active, false);
   assert.deepEqual(avatar.pose.eyes, { left: { openness: 0, smile: 0 }, right: { openness: 0, smile: 0 } });
   assert.deepEqual(await avatar.setExpression('both', 'smile', { duration: 1000 }), { finished: true });
   assert.deepEqual(avatar.pose.eyes, { left: { openness: 1, smile: 1 }, right: { openness: 1, smile: 1 } });
@@ -189,10 +181,10 @@ test('setExpression applies exact presets after a transient motion override', as
 });
 
 test('paused expression updates are immediate and still reject invalid timing atomically', async () => {
-  const { avatar } = avatarForTest(true);
+  const { avatar, runtime } = avatarForTest(true);
   avatar.paused = true;
   assert.deepEqual(await avatar.setExpression('both', 'smile', { duration: 60000 }), { finished: true });
-  assert.equal(avatar.timeline.active, false); assert.equal(avatar.pose.eyes.left.smile, 1);
+  assert.equal(runtime.timeline.active, false); assert.equal(avatar.pose.eyes.left.smile, 1);
   const before = avatar.design;
   assert.throws(() => avatar.setExpression('left', 'blink', { duration: -5 }));
   assert.throws(() => avatar.setExpression('right', 'blink', { easing: 'instant' }));
@@ -200,18 +192,18 @@ test('paused expression updates are immediate and still reject invalid timing at
 });
 
 test('one-eye design edits preserve the shared openness clock and invalid designs preserve all motion', async () => {
-  const { avatar } = avatarForTest(true);
+  const { avatar, runtime } = avatarForTest(true);
   const pending = avatar.motion.to({ eyes: { left: { expression: 'smile' }, openness: 0 } }, { duration: 1000 });
-  avatar.timeline.advance(300); const before = avatar.pose;
+  runtime.advanceMotion(300); const before = avatar.pose;
   const bad = avatar.design; bad.eyes.right.weights.blink = NaN;
   assert.throws(() => { avatar.design = bad; });
-  assert.deepEqual(avatar.pose, before); assert.equal(avatar.timeline.active, true);
+  assert.deepEqual(avatar.pose, before); assert.equal(runtime.timeline.active, true);
   avatar.design = patchDesign(avatar.design, { eyes: { right: { expression: 'smile' } } });
   near(avatar.pose.openness, before.openness);
   assert.deepEqual(avatar.pose.eyes, { left: before.eyes.left, right: { openness: 1, smile: 1 } });
-  assert.equal(avatar.timeline.active, true); avatar.timeline.advance(700);
+  assert.equal(runtime.timeline.active, true); runtime.advanceMotion(700);
   assert.deepEqual(await pending, { finished: true }); near(avatar.pose.openness, 0);
-  assert.deepEqual(avatar.pose.eyes.left, { openness: 1, smile: 1 }); assert.equal(avatar.timeline.active, false);
+  assert.deepEqual(avatar.pose.eyes.left, { openness: 1, smile: 1 }); assert.equal(runtime.timeline.active, false);
   avatar.design = patchDesign(avatar.design, { eyes: { left: { expression: 'blink' }, right: { expression: 'blink' } } });
   near(avatar.pose.openness, 1); assert.deepEqual(avatar.pose.eyes, { left: { openness: 0, smile: 0 }, right: { openness: 0, smile: 0 } });
 });
@@ -268,26 +260,26 @@ test('rapid reversing retargets remain continuous, bounded and finish at the lat
 });
 
 test('editing one persisted eye leaves the other eye and body clocks untouched', async () => {
-  const { avatar } = avatarForTest(true);
+  const { avatar, runtime } = avatarForTest(true);
   const left = avatar.setExpression('left', 'smile', { duration: 1000, easing: 'linear' });
   const body = avatar.motion.to({ body: { rotation: [0, 1, 0] } }, { duration: 1200, easing: 'linear' });
-  avatar.timeline.advance(300);
+  runtime.advanceMotion(300);
   avatar.design = patchDesign(avatar.design, { eyes: { right: { expression: 'blink' } } });
   near(avatar.pose.eyes.left.smile, 0.3); near(avatar.pose.rotation[1], 0.25); near(avatar.pose.eyes.right.openness, 0);
-  avatar.timeline.advance(700); assert.deepEqual(await left, { finished: true }); near(avatar.pose.rotation[1], 1000 / 1200);
-  avatar.timeline.advance(200); assert.deepEqual(await body, { finished: true });
+  runtime.advanceMotion(700); assert.deepEqual(await left, { finished: true }); near(avatar.pose.rotation[1], 1000 / 1200);
+  runtime.advanceMotion(200); assert.deepEqual(await body, { finished: true });
 });
 
 test('expression defaults give quick closure and gentler opening, and pause settles all tracks', async () => {
   assert.equal(expressionDuration('blink'), 90); assert.equal(expressionDuration('neutral'), 180); assert.equal(expressionDuration('smile'), 280);
-  const { avatar } = avatarForTest(true);
-  const close = avatar.setExpression('left', 'blink'); avatar.timeline.advance(89); assert.equal(avatar.timeline.active, true);
-  avatar.timeline.advance(1); assert.deepEqual(await close, { finished: true });
-  const open = avatar.setExpression('left', 'neutral'); avatar.timeline.advance(179); assert.equal(avatar.timeline.active, true);
-  avatar.timeline.advance(1); assert.deepEqual(await open, { finished: true });
-  const smile = avatar.setExpression('both', 'smile'); avatar.timeline.advance(100);
+  const { avatar, runtime } = avatarForTest(true);
+  const close = avatar.setExpression('left', 'blink'); runtime.advanceMotion(89); assert.equal(runtime.timeline.active, true);
+  runtime.advanceMotion(1); assert.deepEqual(await close, { finished: true });
+  const open = avatar.setExpression('left', 'neutral'); runtime.advanceMotion(179); assert.equal(runtime.timeline.active, true);
+  runtime.advanceMotion(1); assert.deepEqual(await open, { finished: true });
+  const smile = avatar.setExpression('both', 'smile'); runtime.advanceMotion(100);
   avatar.paused = true;
-  assert.deepEqual(await smile, { finished: true }); assert.equal(avatar.timeline.active, false);
+  assert.deepEqual(await smile, { finished: true }); assert.equal(runtime.timeline.active, false);
 });
 
 test('automatic blink closes once, holds briefly, and opens more slowly with smooth boundaries', () => {
@@ -353,55 +345,41 @@ test('accessory removal cancels only its channel and never resurrects removed po
   timeline.advance(500); assert.equal(timeline.active, false); assert.equal(timeline.pose.accessories.hat, undefined);
 });
 
-async function withFrameGlobals(work) {
-  const previous = { document: globalThis.document, requestAnimationFrame: globalThis.requestAnimationFrame, cancelAnimationFrame: globalThis.cancelAnimationFrame };
-  globalThis.document = { hidden: false, removeEventListener() {} };
-  globalThis.requestAnimationFrame = () => 1; globalThis.cancelAnimationFrame = () => {};
-  try { await work(); }
-  finally { for (const [key, value] of Object.entries(previous)) { if (value === undefined) delete globalThis[key]; else globalThis[key] = value; } }
-}
-
 test('detach and context loss cancel expression promises and restore persisted eye recipes', async () => {
-  await withFrameGlobals(async () => {
-    for (const reason of ['disconnect', 'context']) {
-      const { avatar } = avatarForTest(true);
-      avatar.removeEventListener = () => {};
-      avatar.design = createDesign({ eyes: { left: { openness: 0.6 }, right: { openness: 0.8 } } });
-      const persisted = avatar.setExpression('left', 'smile', { duration: 1000 });
-      const transient = avatar.motion.to({ eyes: { right: { expression: 'blink' }, openness: 0.5 } }, { duration: 1000 });
-      avatar.timeline.advance(300); assert.ok(avatar.pose.eyes.left.smile > 0 && avatar.pose.eyes.left.smile < 1);
-      avatar.fallback = { textContent: '', hidden: true };
-      let disposed = false; avatar.renderer = { dispose() { disposed = true; } };
-      if (reason === 'disconnect') { avatar.isConnected = false; avatar.disconnectedCallback(); }
-      else { const event = new Event('webglcontextlost', { cancelable: true }); avatar.onContextLost(event); assert.equal(event.defaultPrevented, true); }
-      assert.deepEqual(await persisted, { finished: false }); assert.deepEqual(await transient, { finished: false });
-      assert.equal(disposed, true); assert.equal(avatar.timeline.active, false); assert.equal(avatar.ready, false);
-      assert.deepEqual(avatar.pose.eyes, { left: { openness: 1, smile: 1 }, right: { openness: 0.8, smile: 0 } }); near(avatar.pose.openness, 1);
-      let rendered; avatar.readyState = true; avatar.isConnected = true;
-      avatar.renderer = { render(_design, state) { rendered = structuredClone(state.pose); } };
-      avatar.draw(); assert.deepEqual(rendered.eyes, avatar.pose.eyes);
-    }
-  });
+  for (const reason of ['disconnect', 'context']) {
+    const { avatar, runtime, connect } = avatarForTest(true);
+    avatar.design = createDesign({ eyes: { left: { openness: 0.6 }, right: { openness: 0.8 } } });
+    const persisted = avatar.setExpression('left', 'smile', { duration: 1000 });
+    const transient = avatar.motion.to({ eyes: { right: { expression: 'blink' }, openness: 0.5 } }, { duration: 1000 });
+    runtime.advanceMotion(300); assert.ok(avatar.pose.eyes.left.smile > 0 && avatar.pose.eyes.left.smile < 1);
+    if (reason === 'disconnect') { avatar.isConnected = false; avatar.disconnectedCallback(); }
+    else { const event = new Event('webglcontextlost', { cancelable: true }); runtime.renderer.canvas.dispatchEvent(event); assert.equal(event.defaultPrevented, true); }
+    assert.deepEqual(await persisted, { finished: false }); assert.deepEqual(await transient, { finished: false });
+    assert.equal(runtime.renderer.disposals, 1); assert.equal(runtime.timeline.active, false); assert.equal(avatar.ready, false);
+    assert.deepEqual(avatar.pose.eyes, { left: { openness: 1, smile: 1 }, right: { openness: 0.8, smile: 0 } }); near(avatar.pose.openness, 1);
+    const restored = connect(), rendered = restored.render().pose;
+    assert.deepEqual(rendered.eyes, avatar.pose.eyes);
+  }
 });
 
 test('a connected unavailable renderer finishes expression requests immediately and validates first', async () => {
-  const { avatar } = avatarForTest(true); avatar.canvas = {}; avatar.readyState = false;
+  const { avatar, connect } = avatarForTest(); avatar.isConnected = true;
   assert.deepEqual(await avatar.setExpression('left', 'smile', { duration: 1000 }), { finished: true });
   assert.deepEqual(await avatar.motion.to({ eyes: { right: { expression: 'blink' } } }, { duration: 1000 }), { finished: true });
-  assert.equal(avatar.timeline.active, false); assert.equal(avatar.pose.eyes.left.smile, 1); assert.equal(avatar.pose.eyes.right.openness, 0);
+  assert.equal(avatar.requests.size, 0); assert.equal(avatar.ready, false); assert.equal(avatar.pose.eyes.left.smile, 1); assert.equal(avatar.pose.eyes.right.openness, 0);
   const before = avatar.design;
   assert.throws(() => avatar.setExpression('left', 'neutral', { duration: NaN }));
   assert.throws(() => avatar.setExpression('left', 'neutral', { easing: 'instant' }));
   assert.throws(() => avatar.setExpression('left', 'invalid'));
   assert.deepEqual(avatar.design, before);
+  const runtime = connect(); assert.equal(runtime.timeline.active, false);
+  assert.equal(avatar.pose.eyes.left.smile, 1); assert.equal(avatar.pose.eyes.right.openness, 0);
 });
 
 test('delayed active frames honor expression durations without unbounding spring timing', async () => {
-  await withFrameGlobals(async () => {
-    const { avatar } = avatarForTest(true); avatar.readyState = true; avatar.currentActivity = 'still'; avatar.renderer = { render() {} };
-    const done = avatar.setExpression('both', 'smile', { duration: 280 });
-    avatar.tick(20); avatar.tick(520);
-    assert.deepEqual(await done, { finished: true }); assert.equal(avatar.timeline.active, false);
-    assert.equal(avatar.pose.eyes.left.smile, 1); assert.equal(avatar.pose.eyes.right.smile, 1); near(avatar.elapsed, 0.05);
-  });
+  const { avatar, runtime } = avatarForTest(true);
+  const done = avatar.setExpression('both', 'smile', { duration: 280 });
+  runtime.frame(20); runtime.frame(520);
+  assert.deepEqual(await done, { finished: true }); assert.equal(runtime.timeline.active, false);
+  assert.equal(avatar.pose.eyes.left.smile, 1); assert.equal(avatar.pose.eyes.right.smile, 1); near(avatar.diagnostics.time, 0.05);
 });

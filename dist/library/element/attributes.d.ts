@@ -2,6 +2,7 @@ import type { Activity, AvatarDesign, Vec2 } from '../core/design.js';
 import type { CameraAngles, CameraPreset } from '../core/camera.js';
 import type { EyeExpression } from '../core/expressions.js';
 import type { MotionOptions, MotionResult, MotionTarget } from '../core/motion.js';
+import type { TrackingMode } from '../core/tracking.js';
 import type { MaterialShapeName } from '../core/shapes.js';
 /** HTML strings are strict: unlike native booleans, the literal "false" disables. */
 export type BooleanAttribute = boolean | '' | 'true' | 'false' | '1' | '0';
@@ -43,6 +44,7 @@ export interface SidekickAttributes {
     paused?: BooleanAttribute;
     interaction?: 'none' | 'box';
     'mouse-tracking'?: BooleanAttribute;
+    'tracking-mode'?: TrackingMode;
     'render-style'?: 'flat' | '3d';
     'shape-duration'?: NumericAttribute;
     'shape-easing'?: 'linear' | 'smooth';
@@ -60,7 +62,7 @@ export declare const ACCESSORY_ATTRIBUTE_SLOTS: Readonly<{
     readonly 'left-ear': "leftEar";
     readonly 'right-ear': "rightEar";
 }>;
-export declare const SIDEKICK_ATTRIBUTES: readonly ["design", "shape", "body-color", "eye-color", "expression", "left-expression", "right-expression", "smile", "blink", "left-smile", "right-smile", "left-blink", "right-blink", "accessories", "head-accessory", "head-color", "eyes-accessory", "eyes-color", "mouth-accessory", "mouth-color", "neck-accessory", "neck-color", "left-ear-accessory", "left-ear-color", "right-ear-accessory", "right-ear-color", "camera", "camera-yaw", "camera-pitch", "camera-roll", "gaze-x", "gaze-y", "activity", "paused", "interaction", "mouse-tracking", "render-style", "shape-duration", "shape-easing", "motion-duration", "motion-easing", "motion", "time"];
+export declare const SIDEKICK_ATTRIBUTES: readonly ["design", "shape", "body-color", "eye-color", "expression", "left-expression", "right-expression", "smile", "blink", "left-smile", "right-smile", "left-blink", "right-blink", "accessories", "head-accessory", "head-color", "eyes-accessory", "eyes-color", "mouth-accessory", "mouth-color", "neck-accessory", "neck-color", "left-ear-accessory", "left-ear-color", "right-ear-accessory", "right-ear-color", "camera", "camera-yaw", "camera-pitch", "camera-roll", "gaze-x", "gaze-y", "activity", "paused", "interaction", "mouse-tracking", "tracking-mode", "render-style", "shape-duration", "shape-easing", "motion-duration", "motion-easing", "motion", "time"];
 export interface SidekickErrorDetail {
     message: string;
     attribute?: string;
@@ -91,6 +93,7 @@ export interface ResolvedAttributes {
     paused: boolean;
     interaction: 'none' | 'box';
     mouseTracking: boolean;
+    trackingMode: TrackingMode;
     shapeOptions: Required<MotionOptions>;
     motionOptions: Required<MotionOptions>;
     motion?: MotionTarget;

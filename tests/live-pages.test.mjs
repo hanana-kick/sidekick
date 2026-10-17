@@ -45,8 +45,8 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
         return avatar?.ready === true && avatar.design.body.shape === 'puffy' && avatar.design.accessories.some(item => item.preset === 'glasses');
       });
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-      const rendered = await page.locator('#flat').evaluate(element => {
-        const { pixels } = element.capturePixels();
+      const rendered = await page.locator('#flat').evaluate(async element => {
+        const { pixels } = (await element.capturePixelsAsync());
         return { ready: element.ready, shape: element.design.body.shape, glasses: element.design.accessories.some(item => item.preset === 'glasses'),
           visible: pixels.some((value, index) => index % 4 === 3 && value === 255), transparent: pixels[3] === 0 };
       });

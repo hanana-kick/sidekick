@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,7 +8,7 @@ import { buildBrowser } from './build-browser.mjs';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const checking = process.argv.includes('--check');
 const temporary = checking ? mkdtempSync(join(tmpdir(), 'sidekick-library-check-')) : undefined;
-const outputRoot = temporary ?? resolve(root, 'dist');
+const outputRoot = resolve(temporary ?? root, 'dist');
 const output = join(outputRoot, 'library');
 function files(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
@@ -17,6 +17,9 @@ function files(directory) {
   }).sort();
 }
 try {
+  // Rolldown uses package.json sideEffects when inlining lazy modules. Keep
+  // the same package-relative paths and metadata as the published build.
+  if (temporary) copyFileSync(join(root, 'package.json'), join(temporary, 'package.json'));
   if (!checking) rmSync(output, { recursive: true, force: true });
   execFileSync(process.execPath, [resolve(root, 'node_modules/typescript/bin/tsc'), '-p', resolve(root, 'tsconfig.library.json'), '--outDir', output], { cwd: root, stdio: 'inherit' });
   await buildBrowser({ libraryDirectory: output, outputDirectory: join(outputRoot, 'browser') });

@@ -10,3 +10,5 @@ export { alphaBounds, cropPixels } from './core/pixels.js';
 export type { PixelBuffer, AlphaBounds, SnapshotOptions } from './core/pixels.js';
 export { MAX_SCENE_BYTES, createScene, parseScene, serializeScene, migrateScene } from './core/scene.js';
 export type { SidekickScene, SceneInput, SceneMigration } from './core/scene.js';
+export { TRACKING_MODES } from './core/tracking.js';
+export type { TrackingMode } from './core/tracking.js';

@@ -16,7 +16,9 @@ export declare const CONTOUR_MAPPING_TOLERANCE = 0.00075;
 export declare function simplifyContourPoints(points: readonly ContourPoint[], tolerance?: number): ContourPoint[];
 /** Current planar outline, simplified below 0.1 pixel at a 256px display width. */
 export declare function contourDistanceOutline(contour: ShapeContour): readonly ContourPoint[];
-/** Positive inside, negative outside, zero on the current renderer silhouette. */
+/** Current renderer field, retaining its bounded outline simplification. */
 export declare function contourSignedDistance(contour: ShapeContour, x: number, y: number): number;
+/** Internal continuous-fit field over the full current contour, without simplification switches. */
+export declare function contourSignedDistanceExact(contour: ShapeContour, x: number, y: number): number;
 /** Renderer boundary, shared with the continuous target-XY distance field. */
 export declare function contourBoundaryPoints(contour: ShapeContour): readonly ContourPoint[];

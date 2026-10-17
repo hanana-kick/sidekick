@@ -20,7 +20,7 @@ export interface RenderState {
 }
 /** Dependency-free WebGL2 backend. No DOM outside the supplied canvas is owned here. */
 export declare class AvatarRenderer {
-    readonly canvas: HTMLCanvasElement;
+    readonly canvas: HTMLCanvasElement | OffscreenCanvas;
     readonly gl: WebGL2RenderingContext;
     private program;
     private uniforms;
@@ -40,7 +40,10 @@ export declare class AvatarRenderer {
     private blinkGate;
     private framingKey;
     private frameSpan;
-    constructor(canvas: HTMLCanvasElement);
+    private displayAspect?;
+    private inputSignature;
+    private resolvedInput?;
+    constructor(canvas: HTMLCanvasElement | OffscreenCanvas);
     private upload;
     resize(width: number, height: number, dpr?: number): void;
     private draw;

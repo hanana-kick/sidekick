@@ -18,7 +18,7 @@ export declare const CATALOG_ACCESSORY_EXTENT: Readonly<Record<CatalogAccessoryP
 /**
  * Bounded low-poly catalog geometry in body-local coordinates. Rigid pieces
  * retain their authored silhouettes and receive one exact front clearance
- * translation; cloth follows the surface before the same conservative solve.
+ * translation; the scarf hangs from two contact folds before the same solve.
  * Camera, gaze, eye expression, color and frame history never enter the fit.
  */
 export declare function catalogAccessoryGeometry(body: BodyDesign, accessory: ResolvedAccessoryDesign, squash?: number, contourOverride?: ShapeContour, profileOverride?: ShapeProfile, rotation?: Vec3): CatalogAccessoryGeometry;

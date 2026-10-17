@@ -5,6 +5,7 @@ import { BODY_SIZE, sampleAccessorySurface } from '../core/surface.js';
 import { cross, normalize, sub, transform } from '../core/math.js';
 import { viewPoint } from './eye-projection.js';
 import { drapedFrontLifts, rigidFrontLift } from './rigid-contact.js';
+import { drapedScarf } from './scarf-geometry.js';
 export const CATALOG_ACCESSORY_CLEARANCE = 0.002;
 /** Conservative local extents used by shape-independent camera framing. */
 export const CATALOG_ACCESSORY_EXTENT = Object.freeze({ moustache: .24, goatee: .20, bowTie: .26, scarf: .47, necklace: .38, earring: .23, starEarring: .23 });
@@ -132,51 +133,6 @@ function starEarringPattern(side) {
     return mesh;
 }
 const patterns = { goatee: goateePattern(), leftStarEarring: starEarringPattern(-1), rightStarEarring: starEarringPattern(1), moustache: moustachePattern(), bowTie: bowTiePattern(), leftEarring: earringPattern(-1), rightEarring: earringPattern(1) };
-/** Closed, thin cloth patch. A fixed grid provides coherent cloth silhouettes. */
-function clothPatch(mesh, columns, rows, xy, height, thickness, lift = 0) {
-    const indexStart = mesh.indices.length;
-    const start = mesh.points.length, sheet = (columns + 1) * (rows + 1), rowWidth = rows + 1;
-    for (let front = 0; front <= 1; front++)
-        for (let i = 0; i <= columns; i++)
-            for (let j = 0; j <= rows; j++) {
-                const [x, y] = xy(i / columns, j / rows);
-                mesh.points.push([x, y, height(x, y) + CATALOG_ACCESSORY_CLEARANCE + lift + front * thickness]);
-            }
-    for (let i = 0; i < columns; i++)
-        for (let j = 0; j < rows; j++) {
-            const a = start + i * rowWidth + j, b = a + rowWidth, c = a + 1, d = b + 1;
-            mesh.indices.push(a, c, b, c, d, b, a + sheet, b + sheet, c + sheet, c + sheet, b + sheet, d + sheet);
-        }
-    const boundary = [
-        ...Array.from({ length: columns }, (_, i) => start + i * rowWidth),
-        ...Array.from({ length: rows }, (_, j) => start + columns * rowWidth + j),
-        ...Array.from({ length: columns }, (_, i) => start + (columns - i) * rowWidth + rows),
-        ...Array.from({ length: rows }, (_, j) => start + rows - j),
-    ];
-    for (let i = 0; i < boundary.length; i++) {
-        const a = boundary[i], b = boundary[(i + 1) % boundary.length];
-        mesh.indices.push(a, b, a + sheet, b, b + sheet, a + sheet);
-    }
-    const a = mesh.points[start], b = mesh.points[start + rowWidth], c = mesh.points[start + 1];
-    if ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]) < 0) {
-        for (let i = indexStart; i < mesh.indices.length; i += 3)
-            [mesh.indices[i + 1], mesh.indices[i + 2]] = [mesh.indices[i + 2], mesh.indices[i + 1]];
-    }
-}
-function scarfPattern(center, size, height) {
-    const mesh = empty(), [x, y] = center;
-    // The collar is draped over the lower-front shoulder. Its ends curve upward
-    // and its back follows the actual rounded body, without fabricating a neck.
-    clothPatch(mesh, 32, 3, (u, v) => { const t = u * 2 - 1; return [x + .34 * size * t, y + size * (.055 * t * t + (v - .5) * .086)]; }, height, .026 * size);
-    // One connected hanging end, with a shallow cut at its hem and a slight fold.
-    clothPatch(mesh, 5, 16, (u, v) => {
-        const hem = .020 * (1 - Math.abs(u * 2 - 1)) * v ** 8;
-        return [x + size * (.105 + .035 * v + (u - .5) * .090), y + size * (.024 - .265 * v + hem)];
-    }, height, .022 * size);
-    mesh.mainIndexCount = mesh.indices.length;
-    clothPatch(mesh, 5, 3, (u, v) => [x + size * (.105 + (u - .5) * .058), y + size * ((v - .5) * .095)], height, .018 * size, .027 * size);
-    return mesh;
-}
 function necklacePattern(center, size, height) {
     const mesh = empty(), [x, y] = center, radius = .0095 * size;
     // A fine curved chain settles across the lower shoulder, with a centered drop.
@@ -218,7 +174,7 @@ function geometry(mesh, attachment, seating) {
 /**
  * Bounded low-poly catalog geometry in body-local coordinates. Rigid pieces
  * retain their authored silhouettes and receive one exact front clearance
- * translation; cloth follows the surface before the same conservative solve.
+ * translation; the scarf hangs from two contact folds before the same solve.
  * Camera, gaze, eye expression, color and frame history never enter the fit.
  */
 export function catalogAccessoryGeometry(body, accessory, squash = 1, contourOverride, profileOverride, rotation = accessory.rotation) {
@@ -230,11 +186,7 @@ export function catalogAccessoryGeometry(body, accessory, squash = 1, contourOve
     const height = (x, y) => contourVolumeHeight(contour, x / scales[0], y / scales[1]) * scales[2];
     let mesh;
     if (accessory.preset === 'scarf' || accessory.preset === 'necklace') {
-        mesh = accessory.preset === 'scarf' ? scarfPattern(frame.position, size, height) : necklacePattern(frame.position, size, height);
-        if (accessory.preset === 'scarf') {
-            const lifts = drapedFrontLifts(mesh.points, mesh.indices, contour, scales);
-            mesh.points.forEach((point, i) => { point[2] += lifts[i]; });
-        }
+        mesh = accessory.preset === 'scarf' ? drapedScarf(frame.position, size, contour, scales, height) : necklacePattern(frame.position, size, height);
         const posed = transform(frame.position, rotation);
         mesh.points = mesh.points.map(point => viewPoint(posed, sub(point, frame.position)));
     }

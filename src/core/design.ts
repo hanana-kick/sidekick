@@ -53,7 +53,7 @@ export const ACTIVITIES: readonly Activity[] = Object.freeze(['idle', 'thinking'
 const regions: Region[] = ['face', 'crown', 'left', 'right'];
 const defaults: AvatarDesign = {
   version: 7,
-  body: { shape: 'square', color: '#e9b64d' },
+  body: { shape: 'square', color: '#ffcc37' },
   eyes: { color: '#24242c', left: createEyeState(), right: createEyeState() },
   accessories: [],
 };

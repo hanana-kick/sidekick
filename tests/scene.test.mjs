@@ -11,13 +11,13 @@ test('scene envelope round-trips design, all runtime controls and target poses',
   assert.deepEqual(migrateScene(serializeScene(scene)), { scene, warnings: [], legacyDesign: false });
   const legacy = migrateScene(serializeDesign(scene.design));
   assert.equal(legacy.legacyDesign, true); assert.deepEqual(legacy.scene.design, scene.design);
-  assert.deepEqual(legacy.scene.camera, { yaw: 0, pitch: 0, roll: 0 }); assert.equal(legacy.scene.mouseTracking, false);
+  assert.deepEqual(legacy.scene.camera, { yaw: 0, pitch: 0, roll: 0 }); assert.equal(legacy.scene.trackingMode, 'off');
   scene.design.body.color = '#aabbcc'; assert.notEqual(legacy.scene.design.body.color, scene.design.body.color);
 });
 
 test('invalid scene versions, fields, ranges, motion references and geometry fail before application', () => {
   const scene = createScene();
-  for (const patch of [{ sceneVersion: 2 }, { camera: { yaw: 500, pitch: 0, roll: 0 } }, { camera: {} }, { gaze: { x: 5, y: 0 } },
+  for (const patch of [{ sceneVersion: 3 }, { camera: { yaw: 500, pitch: 0, roll: 0 } }, { camera: {} }, { gaze: { x: 5, y: 0 } },
     { time: Infinity }, { shapeDuration: undefined }, { motionDuration: -1 }, { motionEasing: 'bounce' }, { paused: 'false' }, { extra: 1 },
     { motion: { accessories: { missing: { rotation: [0, 0, 0] } } } }, { motion: { body: { rotation: [0, 0, 10] } } },
     { design: { ...scene.design, body: { ...scene.design.body, depth: .3 } } }]) assert.throws(() => parseScene({ ...scene, ...patch }));

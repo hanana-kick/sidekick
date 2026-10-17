@@ -16,7 +16,6 @@ const vertexSource = `#version 300 es
 precision highp float;
 layout(location=0) in vec3 position;
 layout(location=1) in vec3 normal;
-layout(location=2) in vec3 surfaceDirection;
 uniform mat4 model;
 uniform mat4 projection;
 uniform vec2 faceScale;
@@ -127,6 +126,9 @@ export class AvatarRenderer {
     blinkGate = new EyeBlinkGate();
     framingKey = '';
     frameSpan = 2.4;
+    displayAspect;
+    inputSignature = '';
+    resolvedInput;
     constructor(canvas) {
         this.canvas = canvas;
         const gl = canvas.getContext('webgl2', { alpha: true, antialias: true, premultipliedAlpha: true, powerPreference: 'low-power' });
@@ -137,71 +139,101 @@ export class AvatarRenderer {
             const shader = gl.createShader(type);
             if (!shader)
                 throw new Error('셰이더를 생성하지 못했습니다.');
-            gl.shaderSource(shader, source);
-            gl.compileShader(shader);
-            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                const info = gl.getShaderInfoLog(shader);
-                gl.deleteShader(shader);
-                throw new Error(info ?? '셰이더 컴파일 오류');
+            try {
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
+                    throw new Error(gl.getShaderInfoLog(shader) ?? '셰이더 컴파일 오류');
+                return shader;
             }
-            return shader;
+            catch (error) {
+                gl.deleteShader(shader);
+                throw error;
+            }
         };
-        const vertex = compile(gl.VERTEX_SHADER, vertexSource), fragment = compile(gl.FRAGMENT_SHADER, fragmentSource);
-        const program = gl.createProgram();
-        if (!program)
-            throw new Error('WebGL 프로그램을 생성하지 못했습니다.');
-        gl.attachShader(program, vertex);
-        gl.attachShader(program, fragment);
-        gl.linkProgram(program);
-        gl.deleteShader(vertex);
-        gl.deleteShader(fragment);
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-            const info = gl.getProgramInfoLog(program);
-            gl.deleteProgram(program);
-            throw new Error(info ?? '프로그램 연결 오류');
+        let vertex, fragment, program = null;
+        const uploaded = [];
+        try {
+            vertex = compile(gl.VERTEX_SHADER, vertexSource);
+            fragment = compile(gl.FRAGMENT_SHADER, fragmentSource);
+            program = gl.createProgram();
+            if (!program)
+                throw new Error('WebGL 프로그램을 생성하지 못했습니다.');
+            gl.attachShader(program, vertex);
+            gl.attachShader(program, fragment);
+            gl.linkProgram(program);
+            if (!gl.getProgramParameter(program, gl.LINK_STATUS))
+                throw new Error(gl.getProgramInfoLog(program) ?? '프로그램 연결 오류');
+            this.program = program;
+            const uniform = (name) => { const location = gl.getUniformLocation(program, name); if (!location)
+                throw new Error(`uniform ${name} 없음`); return location; };
+            this.uniforms = { model: uniform('model'), projection: uniform('projection'), color: uniform('color'), eyesOn: uniform('eyesOn'), eyeColor: uniform('eyeColor'), eyeCenters: uniform('eyeCenters'), eyeSize: uniform('eyeSize'), eyeStates: uniform('eyeStates'), eyeLeftTargets: uniform('eyeLeftTargets'), eyeRightTargets: uniform('eyeRightTargets'), faceScale: uniform('faceScale') };
+            const upload = (data) => { const mesh = this.upload(data); uploaded.push(mesh); return mesh; };
+            // The first render uploads the requested body; prebuilding a square here
+            // would duplicate both CPU triangulation and GPU uploads on every startup.
+            this.meshes = { body: upload({ vertices: new Float32Array(0), indices: new Uint16Array(0) }), beret: upload({ vertices: new Float32Array(0), indices: new Uint16Array(0) }), glasses: upload({ vertices: new Float32Array(0), indices: new Uint16Array(0) }), halo: upload(torus(0.055)) };
+            this.bodyDirections = new Float32Array(0);
+            gl.enable(gl.DEPTH_TEST);
+            gl.enable(gl.CULL_FACE);
+            gl.cullFace(gl.BACK);
+            gl.clearColor(0, 0, 0, 0);
         }
-        this.program = program;
-        const uniform = (name) => { const location = gl.getUniformLocation(program, name); if (!location)
-            throw new Error(`uniform ${name} 없음`); return location; };
-        this.uniforms = { model: uniform('model'), projection: uniform('projection'), color: uniform('color'), eyesOn: uniform('eyesOn'), eyeColor: uniform('eyeColor'), eyeCenters: uniform('eyeCenters'), eyeSize: uniform('eyeSize'), eyeStates: uniform('eyeStates'), eyeLeftTargets: uniform('eyeLeftTargets'), eyeRightTargets: uniform('eyeRightTargets'), faceScale: uniform('faceScale') };
-        this.meshes = { body: this.upload(bodyGeometry({ kind: 'material', name: 'square' }), true), beret: this.upload({ vertices: new Float32Array(0), indices: new Uint16Array(0) }), glasses: this.upload({ vertices: new Float32Array(0), indices: new Uint16Array(0) }), halo: this.upload(torus(0.055)) };
-        this.bodyDirections = this.meshes.body.data.vertices.slice();
-        gl.enable(gl.DEPTH_TEST);
-        gl.enable(gl.CULL_FACE);
-        gl.cullFace(gl.BACK);
-        gl.clearColor(0, 0, 0, 0);
+        catch (error) {
+            // A failed constructor has no owner able to call dispose(). Roll back
+            // every completed mesh as well as the program; upload handles its partial mesh.
+            for (const mesh of uploaded)
+                this.deleteMesh(mesh);
+            if (program)
+                gl.deleteProgram(program);
+            throw error;
+        }
+        finally {
+            if (vertex)
+                gl.deleteShader(vertex);
+            if (fragment)
+                gl.deleteShader(fragment);
+        }
     }
-    upload(data, surface = false) {
-        const gl = this.gl, vao = gl.createVertexArray(), buffer = gl.createBuffer(), index = gl.createBuffer();
-        if (!vao || !buffer || !index)
-            throw new Error('GPU 버퍼를 생성하지 못했습니다.');
-        gl.bindVertexArray(vao);
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, data.vertices, gl.DYNAMIC_DRAW);
-        gl.enableVertexAttribArray(0);
-        gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
-        gl.enableVertexAttribArray(1);
-        gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data.indices, gl.STATIC_DRAW);
-        let directionBuffer;
-        if (surface) {
-            directionBuffer = gl.createBuffer() ?? undefined;
-            if (!directionBuffer)
-                throw new Error('표면 좌표 버퍼를 생성하지 못했습니다.');
-            gl.bindBuffer(gl.ARRAY_BUFFER, directionBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, data.vertices, gl.STATIC_DRAW);
-            gl.enableVertexAttribArray(2);
-            gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 24, 0);
+    upload(data) {
+        const gl = this.gl;
+        let vao = null, buffer = null, index = null;
+        try {
+            vao = gl.createVertexArray();
+            buffer = gl.createBuffer();
+            index = gl.createBuffer();
+            if (!vao || !buffer || !index)
+                throw new Error('GPU 버퍼를 생성하지 못했습니다.');
+            gl.bindVertexArray(vao);
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, data.vertices, gl.DYNAMIC_DRAW);
+            gl.enableVertexAttribArray(0);
+            gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
+            gl.enableVertexAttribArray(1);
+            gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data.indices, gl.STATIC_DRAW);
+            gl.bindVertexArray(null);
+            return { vao, buffer, index, count: data.indices.length, data };
         }
-        else
-            gl.vertexAttrib3f(2, 0, 0, 1);
-        gl.bindVertexArray(null);
-        return { directionBuffer, vao, buffer, index, count: data.indices.length, data };
+        catch (error) {
+            gl.bindVertexArray(null);
+            if (buffer)
+                gl.deleteBuffer(buffer);
+            if (index)
+                gl.deleteBuffer(index);
+            if (vao)
+                gl.deleteVertexArray(vao);
+            throw error;
+        }
     }
     resize(width, height, dpr = 1) {
         const ratio = clamp(dpr, 1, 2);
-        const w = Math.max(1, Math.min(2048, Math.round(width * ratio))), h = Math.max(1, Math.min(2048, Math.round(height * ratio)));
+        const cssWidth = Math.max(1, width), cssHeight = Math.max(1, height);
+        // Cap both axes with one scale. Independent caps stretch large wide/tall hosts.
+        const scale = Math.min(ratio, 2048 / Math.max(cssWidth, cssHeight));
+        const w = Math.max(1, Math.round(cssWidth * scale)), h = Math.max(1, Math.round(cssHeight * scale));
+        // Use the displayed aspect, so backing-pixel rounding cannot deform the body.
+        this.displayAspect = cssWidth / cssHeight;
         if (this.canvas.width !== w || this.canvas.height !== h) {
             this.canvas.width = w;
             this.canvas.height = h;
@@ -218,7 +250,13 @@ export class AvatarRenderer {
     render(input, state) {
         if (this.disposed || this.gl.isContextLost())
             return;
-        const design = resolveDesign(input);
+        // Direct renderer consumers may edit the same design object between frames.
+        const signature = JSON.stringify(input);
+        if (signature !== this.inputSignature) {
+            this.resolvedInput = resolveDesign(input);
+            this.inputSignature = signature;
+        }
+        const design = this.resolvedInput;
         const gl = this.gl, { pose } = state, activity = activityFrame(state.activity, state.time, state.reduced);
         const roll = pose.rotation[2] + activity.roll;
         const camera = state.camera ?? { yaw: (state.view?.[0] ?? 0) * 180 / Math.PI, pitch: (state.view?.[1] ?? 0) * 180 / Math.PI, roll: 0 };
@@ -226,7 +264,7 @@ export class AvatarRenderer {
         // composition preserves combined yaw/pitch/roll, unlike adding Euler angles.
         const model = transform([0, activity.bob, 0], [pose.rotation[0], pose.rotation[1], roll]);
         const root = multiply(cameraViewMatrix(camera), model);
-        const aspect = this.canvas.width / this.canvas.height;
+        const aspect = this.displayAspect ?? this.canvas.width / this.canvas.height;
         const contour = state.contour ?? shapeContour({ kind: 'material', name: design.body.shape });
         const profile = state.profile ?? resolveShapeProfile(design.body.shape);
         if (contour !== this.bodyContour) {
@@ -235,16 +273,20 @@ export class AvatarRenderer {
             body.data = { vertices: data.vertices.slice(), indices: data.indices };
             body.count = data.indices.length;
             this.bodyDirections = data.vertices;
+            // Upload the final positions once; the old path uploaded canonical positions
+            // then immediately replaced them and also uploaded an unused direction attribute.
+            for (let i = 0; i < this.bodyDirections.length; i += 6) {
+                const d = [this.bodyDirections[i], this.bodyDirections[i + 1], this.bodyDirections[i + 2]];
+                body.data.vertices.set(deformBodyPoint(design.body, d, 1, profile), i);
+            }
             gl.bindVertexArray(body.vao);
             gl.bindBuffer(gl.ARRAY_BUFFER, body.buffer);
             gl.bufferData(gl.ARRAY_BUFFER, body.data.vertices, gl.DYNAMIC_DRAW);
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, body.index);
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data.indices, gl.DYNAMIC_DRAW);
-            gl.bindBuffer(gl.ARRAY_BUFFER, body.directionBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, data.vertices, gl.DYNAMIC_DRAW);
             gl.bindVertexArray(null);
             this.bodyContour = contour;
-            this.bodyDeformation = '';
+            this.bodyDeformation = String(profile.depth);
         }
         // Shape-independent envelope: selecting/retargeting a contour cannot pump zoom.
         const framingKey = JSON.stringify(design.accessories);
@@ -407,7 +449,7 @@ export class AvatarRenderer {
         }
         gl.bindVertexArray(null);
     }
-    get stats() { return { drawCalls: this.drawCount, buffers: [...Object.values(this.meshes), ...Array.from(this.catalogMeshes.values(), item => item.mesh)].reduce((count, mesh) => count + 2 + (mesh.directionBuffer ? 1 : 0), 0) }; }
+    get stats() { return { drawCalls: this.drawCount, buffers: [...Object.values(this.meshes), ...Array.from(this.catalogMeshes.values(), item => item.mesh)].reduce(count => count + 2, 0) }; }
     /** Call immediately after render; the drawing buffer need not be preserved between frames. */
     readPixels() {
         const pixels = new Uint8Array(this.canvas.width * this.canvas.height * 4);
@@ -415,8 +457,6 @@ export class AvatarRenderer {
         return pixels;
     }
     deleteMesh(mesh) {
-        if (mesh.directionBuffer)
-            this.gl.deleteBuffer(mesh.directionBuffer);
         this.gl.deleteBuffer(mesh.buffer);
         this.gl.deleteBuffer(mesh.index);
         this.gl.deleteVertexArray(mesh.vao);

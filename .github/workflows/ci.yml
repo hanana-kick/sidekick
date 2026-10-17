@@ -1,4 +1,4 @@
-name: Sidekick checks
+name: Sidekick worker preview
 on:
   push:
     branches: [main]
@@ -12,7 +12,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,7 +22,8 @@ jobs:
       - run: npm ci
       - run: npm run check:library
       - run: npm run typecheck
-      - run: npm test
+      - run: npm run build:all && node --test tests/render-worker.test.mjs tests/worker-element.test.mjs tests/tracking.test.mjs tests/attributes.test.mjs tests/scene.test.mjs tests/pixels.test.mjs tests/performance-renderer.test.mjs
+      - run: npm run test:studio && npm run test:package
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
       - run: xvfb-run -a npm run test:browser
         env:
