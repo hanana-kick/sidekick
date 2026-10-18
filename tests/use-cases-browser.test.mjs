@@ -54,7 +54,7 @@ test('natural section flights queue rapid taps without clipping through any edge
  if(process.env.SIDEKICK_SCREENSHOTS){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/use-cases-desktop.png`,fullPage:true});}
 });
 
-for (const viewport of [{width:1280,height:900},{width:390,height:844},{width:320,height:640}]) {
+for (const viewport of [{width:1280,height:900},{width:390,height:844},{width:320,height:480}]) {
  test(`sequential visible walkthrough ${viewport.width}: choose, move, scroll, bind, submit, read code`, async t => {
   const name=`usecase-walkthrough-${viewport.width}`;
   const out=process.env.SIDEKICK_SCREENSHOTS;
@@ -63,6 +63,7 @@ for (const viewport of [{width:1280,height:900},{width:390,height:844},{width:32
   const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   t.after(async()=>{await context.close();assert.deepEqual(errors,[]);});
   const shot=async step=>{if(out)await page.screenshot({path:`${out}/${name}-${step}.png`});};
+  const visibleBot=async()=>{const b=await page.locator('#demo-bot').boundingBox(),bar=await page.locator('.scenario-bar').boundingBox();assert.ok(b.y+b.height/2>bar.y+bar.height && b.y+b.height/2<viewport.height-8, `bot center ${b.y+b.height/2} must be visible below controls in ${viewport.width}x${viewport.height}`);};
   await page.goto(`${base}/use-cases.html`);await page.waitForSelector('#demo-bot[data-configured]');
   await shot('01-open');
   assert.equal(await page.locator('section.case:visible').count(),1);
@@ -73,16 +74,16 @@ for (const viewport of [{width:1280,height:900},{width:390,height:844},{width:32
   await start(page,'section');await page.locator('#back-to-demo').click();await page.waitForTimeout(700);
   await page.locator('[data-section="right"]').click();
   await page.waitForFunction(()=>document.querySelector('#demo-bot').movementState.phase==='idle');
-  await shot('03-section-right');
+  await shot('03-section-right');await visibleBot();
   const section=await page.locator('#section-area').boundingBox(),bot=await page.locator('#demo-bot').boundingBox();
   assert.ok(bot.x>=section.x&&bot.x+bot.width<=section.x+section.width+1);
   await start(page,'anchor');await page.locator('#case-anchor').scrollIntoViewIfNeeded();
-  await page.locator('#anchor-shift').click();await page.waitForTimeout(1100);await shot('04-anchor-follow');
+  await page.locator('#anchor-shift').click();await page.waitForTimeout(1100);await shot('04-anchor-follow');await visibleBot();
   const delta=await page.evaluate(()=>{const b=document.querySelector('#demo-bot').getBoundingClientRect(),a=document.querySelector('#anchor-target').getBoundingClientRect();return Math.abs(b.x+b.width/2-a.x-a.width/2);});assert.ok(delta<2);
   await page.locator('#anchor-detach').click();await page.locator('#anchor-shift').click();await page.waitForTimeout(1000);await shot('05-anchor-detach');
   assert.equal(await page.locator('#demo-bot').evaluate(b=>b.elementAnchor),null);
   await start(page,'events');await page.locator('#task-submit').click();await shot('06-task-pending');
-  await page.waitForFunction(()=>document.querySelector('#event-status').textContent==='작업 완료');await page.waitForTimeout(400);await shot('07-task-success');
+  await page.waitForFunction(()=>document.querySelector('#event-status').textContent==='작업 완료');await page.waitForTimeout(400);await shot('07-task-success');await visibleBot();
   await page.selectOption('#task-result','error');await page.locator('#task-submit').click();await page.waitForFunction(()=>document.querySelector('#event-status').textContent.includes('작업 실패'));await shot('08-task-error');
   await page.locator('#case-events summary').click();await page.locator('#code-events').scrollIntoViewIfNeeded();await shot('09-code');
   assert.match(await page.locator('#code-events').textContent(),/function connectTaskEvents/);

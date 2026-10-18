@@ -22,7 +22,7 @@ function exampleSource(name) {
   return actionSource.slice(start, end < 0 ? undefined : end).replace('export function ', 'function ').trim();
 }
 function renderCode(kind, source) { codes[kind] = source; $(`code-${kind}`).textContent = source; }
-renderCode('viewport', common + `// Small transparent canvas; DOM is fixed to the viewport.\nbot.style.width = '128px'; bot.style.height = '128px';\n${exampleSource('dockInViewport')}\nawait dockInViewport(bot);\nconst controller = new AbortController();\nwindow.addEventListener('resize', () => dockInViewport(bot), { signal: controller.signal });\n// Optional natural exit:\n// await bot.exit({ to: 'right' });\n// On unmount: controller.abort(); bot.remove();`);
+renderCode('viewport', common + `// Small transparent canvas; DOM is fixed to the viewport.\nbot.style.width = '200px'; bot.style.height = '200px';\n${exampleSource('dockInViewport')}\nawait dockInViewport(bot);\nconst controller = new AbortController();\nwindow.addEventListener('resize', () => dockInViewport(bot), { signal: controller.signal });\n// Optional natural exit:\n// await bot.exit({ to: 'right' });\n// On unmount: controller.abort(); bot.remove();`);
 renderCode('section', common + `const section = document.querySelector('#section-area');\nsection.style.position = 'relative'; section.style.overflow = 'hidden';\nbot.placement = 'inline';\nbot.style.position = 'absolute'; bot.style.left = '0'; bot.style.top = '0';\n// Put the bot inside section BEFORE initialization. Its DOM origin is the anchor.\n${exampleSource('sectionDestination')}\n// Queue destinations until the preceding flight is finished to avoid\n// outward inertia on abrupt reversal near a container boundary.\nawait bot.moveTo(sectionDestination(bot, section, { x: 200, y: 100 }));\n// A resize requires re-clamping the current position to the new section size.\n// The container scrolls with the document; no scroll listener is needed.`);
 function refreshAnchorCode() {
   const options = { alignX: $('align-x').value, alignY: $('align-y').value, x: Number($('offset-x').value), y: Number($('offset-y').value), anchor: $('anchor-follow').checked };
@@ -140,7 +140,7 @@ for (const button of document.querySelectorAll('[data-copy]')) button.addEventLi
 window.addEventListener('pagehide', () => { stop(); headerObserver.disconnect(); });
 document.addEventListener('visibilitychange', () => { if (active) active.bot.paused = document.hidden || active.visible === false || session.scene.paused; });
 
-$('anchor-detach').addEventListener('click', () => { if (active?.kind !== 'anchor') return; active.bot.detachAnchor(); $('anchor-status').textContent = '연결 해제 · 현재 화면 위치에 머뭅니다.'; });
+$('anchor-detach').addEventListener('click', () => { if (active?.kind !== 'anchor') return; active.bot.detachAnchor(); $('anchor-status').textContent = '연결 해제 · 이후 DOM 위치를 따라가지 않습니다.'; });
 $('anchor-shift').addEventListener('click', () => $('anchor-target').classList.toggle('shifted'));
 for (const button of document.querySelectorAll('[data-scroll-demo]')) button.addEventListener('click', () => $('scroll-demo').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' }));
 $('back-to-demo').addEventListener('click', () => document.querySelector('section.case:not([hidden])').scrollIntoView({ behavior: 'smooth', block: 'start' }));
