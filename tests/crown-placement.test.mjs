@@ -5,6 +5,7 @@ import { CROWN_SUPPORTS } from '../dist/src/core/crown-profiles.js';
 import { resolveShapeProfile } from '../dist/src/core/shape-profiles.js';
 import { shapeContour } from '../dist/src/core/contours.js';
 import { sampleAccessorySurface } from '../dist/src/core/surface.js';
+import { activityFrame } from '../dist/src/core/motion.js';
 import { ShapeTimeline } from '../dist/src/core/shape-motion.js';
 import { beretGeometry } from '../dist/src/renderer/beret-geometry.js';
 import { bodyGeometry } from '../dist/src/renderer/body-geometry.js';
@@ -64,5 +65,15 @@ test('crown support anchors use actual canonical coordinates rather than perimet
  const frame=sampleAccessorySurface(body,crown,1,undefined,profile);
  assert.ok(Math.abs(frame.position[0]-CROWN_SUPPORTS[shape][0]*.59)<1e-6,shape+' exact support X');
  assert.ok(Math.abs(frame.position[1]-CROWN_SUPPORTS[shape][1]*.59)<1e-6,shape+' exact support Y');
+ }
+});
+
+test('sampled activity squash retains crown rigidity through 2730 catalog states',()=>{
+ for(const shape of MATERIAL_SHAPE_NAMES){
+ const body=createResolvedFixture({body:{shape}}).body,profile=resolveShapeProfile(shape);
+ for(const activity of ['idle','thinking','listening','speaking','celebrating','still'])for(let sample=0;sample<=12;sample++){
+ const state=activityFrame(activity,sample*.5,false);
+ rigid(beretGeometry(body,crown,state.squash),profile.accessories.crown.scale,shape+'/'+activity+'/'+sample);
+ }
  }
 });
