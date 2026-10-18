@@ -91,6 +91,14 @@ export class SidekickAvatar extends HTMLElementBase {
         this.anchorCleanup = observeElementAnchor(this.ownerDocument, () => {
             if (this.anchorState !== state)
                 return;
+            if (!this.isConnected || !state.target.isConnected || state.target.ownerDocument !== this.ownerDocument) {
+                this.detachAnchor();
+                return;
+            }
+            // display:none has no layout origin: its zero rectangle must not be added
+            // to the current translation repeatedly. Keep the binding for restoration.
+            if (!this.getClientRects().length || !state.target.getClientRects().length)
+                return;
             let point;
             try {
                 point = resolveElementTarget(this, this.position, state.target, { anchor: true, x: state.x, y: state.y, alignX: state.alignX, alignY: state.alignY }).position;
