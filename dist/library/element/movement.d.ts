@@ -90,6 +90,8 @@ export declare class AvatarMovement {
     private travelFraction;
     private sample;
     private sampleTrack;
+    private paced;
+    private samplePaced;
     private samplePhysical;
     private tick;
 }

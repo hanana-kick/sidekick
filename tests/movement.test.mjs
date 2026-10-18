@@ -126,7 +126,7 @@ test('fixed integration produces matching traces at 30, 60 and 120 Hz', async ()
     for (const field of ['position', 'velocity', 'acceleration']) for (const axis of ['x', 'y']) close(trace[i][field][axis], traces[0][i][field][axis], 1e-6, `${field}.${axis} at sample ${i}`);
   }
 });
-test('natural duration is a speed hint; an explicit maximum speed overrides that hint', async () => {
+test('explicit physical limits use duration as a speed hint; paced defaults keep the deadline', async () => {
   const traces = [];
   for (const duration of [10, 60000]) {
     const f = fixture(), result = f.controller.to({ x: 700, y: 0 }, { ...physics, duration });
@@ -137,7 +137,8 @@ test('natural duration is a speed hint; an explicit maximum speed overrides that
   const fast = fixture(), slow = fixture();
   const fastResult = fast.controller.to({ x: 700, y: 0 }, { duration: 400 });
   const slowResult = slow.controller.to({ x: 700, y: 0 }, { duration: 4000 });
-  advance(fast, 400); advance(slow, 400); assert.ok(fast.controller.state.speed > slow.controller.state.speed);
+  advance(fast, 200); advance(slow, 200); assert.ok(fast.controller.state.speed > slow.controller.state.speed);
+  advance(fast, 400); assert.equal(fast.controller.state.phase, 'idle');
   finish(fast); finish(slow); await Promise.all([fastResult, slowResult]);
 });
 test('natural easing cannot reintroduce a timed velocity reset', async () => {
@@ -425,4 +426,73 @@ test('early oblique retargets converge across display rates without perpendicula
     assert.equal(f.events.length, 3);
     f.states.forEach(finiteState);
   }
+});
+
+test('paced natural flight has equal total time and normalized acceleration timing at every distance and refresh rate', async () => {
+  const reference = [];
+  for (const hz of [30, 60, 120]) for (const distance of [50, 200, 800]) {
+    const f = fixture(), result = f.controller.to({ x: distance, y: 0 }, { duration: 1000 });
+    const trace = [];
+    for (let time = 100; time <= 1000; time += 100) {
+      advance(f, time, hz); const state = f.controller.state;
+      trace.push([state.position.x / distance, state.velocity.x / distance, state.acceleration.x / distance]);
+      finiteState(state); boundedPresentation(f.presentations.at(-1));
+    }
+    assert.deepEqual(await result, { finished: true, position: { x: distance, y: 0 } });
+    assert.equal(f.now, 1000); assert.equal(f.callbacks.size, 0);
+    close(trace[4][1] * distance, 1.875 * distance);
+    assert.ok(trace[0][2] > 0 && trace[7][2] < 0);
+    reference.push(trace);
+  }
+  for (const trace of reference.slice(1)) for (let i = 0; i < trace.length; i++) for (let j = 0; j < 3; j++) close(trace[i][j], reference[0][i][j], 1e-9);
+});
+test('paced retarget is C2 continuous and keeps inherited momentum on reversal', async () => {
+  const f = fixture(); const first = f.controller.to({ x: 800, y: 200 }, { duration: 1000 });
+  advance(f, 350); const before = f.controller.state, pose = structuredClone(f.presentations.at(-1));
+  const next = f.controller.to({ x: 20, y: 100 }, { duration: 1000 });
+  assert.equal((await first).finished, false);
+  assert.deepEqual(f.controller.state.position, before.position);
+  assert.deepEqual(f.controller.state.velocity, before.velocity);
+  assert.deepEqual(f.controller.state.acceleration, before.acceleration);
+  assert.deepEqual(f.presentations.at(-1), pose);
+  f.at(350.01);
+  close(f.controller.state.velocity.x, before.velocity.x, 0.1);
+  close(f.controller.state.acceleration.x, before.acceleration.x, 1);
+  assert.ok(f.controller.position.x > before.position.x);
+  finish(f); assert.deepEqual(await next, { finished: true, position: { x: 20, y: 100 } });
+});
+test('paced cancellation decelerates continuously without endpoint oscillation or repeated stop restarts', async () => {
+  const f = fixture(), result = f.controller.to({ x: 800, y: 0 }, { duration: 1000 });
+  advance(f, 500); const before = f.controller.state;
+  f.controller.cancel(); assert.deepEqual(f.controller.state.velocity, before.velocity); assert.deepEqual(f.controller.state.acceleration, before.acceleration);
+  let previous = before;
+  for (let t = 510; t <= 740; t += 10) {
+    f.at(t); f.controller.cancel(); const current = f.controller.state;
+    assert.ok(current.position.x >= previous.position.x - 1e-8); assert.ok(current.speed <= previous.speed + 1e-8);
+    previous = current;
+  }
+  assert.equal((await result).finished, false); assert.equal(f.callbacks.size, 0); assert.equal(f.controller.state.speed, 0);
+  assert.ok(f.controller.position.x > before.position.x);
+});
+test('paced repeated taps settle once per request and never produce nonfinite state', async () => {
+  const f = fixture(), requests = [];
+  for (let i = 0; i < 20; i++) {
+    requests.push(f.controller.to({ x: i % 2 ? 100 : 800, y: i % 3 ? 100 : 700 }, { duration: 600 }));
+    advance(f, f.now + 40, 120); finiteState(f.controller.state); boundedPresentation(f.presentations.at(-1));
+  }
+  finish(f); const results = await Promise.all(requests);
+  assert.equal(results.filter(r => r.finished).length, 1); assert.equal(f.events.length, 20); assert.deepEqual(f.controller.position, { x: 100, y: 100 });
+});
+test('paced bank is smooth without alternating acceleration impulses during straight flight', async () => {
+  const f = fixture(), request = f.controller.to({ x: 800, y: 0 }, { duration: 1000 });
+  const banks = [];
+  for (let t = 0; t <= 1000; t += 5) { f.at(t); banks.push(f.presentations.at(-1)?.bank ?? 0); }
+  await request;
+  let signChanges = 0, lastSign = 0;
+  for (let i = 1; i < banks.length; i++) {
+    assert.ok(Math.abs(banks[i] - banks[i - 1]) < 0.006, `bank jump ${i}: ${banks[i] - banks[i - 1]}`);
+    const sign = Math.sign(banks[i]); if (sign && lastSign && sign !== lastSign) signChanges++;
+    if (sign) lastSign = sign;
+  }
+  assert.equal(signChanges, 1, 'one smooth change from accelerating lean to braking lean');
 });

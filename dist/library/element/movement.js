@@ -53,6 +53,16 @@ function turn(from, to, progress) {
     const angle = start + difference * progress;
     return [Math.cos(angle), Math.sin(angle)];
 }
+/** Quintic Hermite boundary conditions preserve position, velocity and acceleration on retarget. */
+function trajectory(from, to, velocity, acceleration, seconds) {
+    const v = velocity * seconds, a = acceleration * seconds * seconds / 2, d = to - from;
+    return [from, v, a, 10 * d - 6 * v - 3 * a, -15 * d + 8 * v + 3 * a, 6 * d - 3 * v - a];
+}
+function evaluate(c, t, seconds) {
+    return [c[0] + t * (c[1] + t * (c[2] + t * (c[3] + t * (c[4] + t * c[5])))),
+        (c[1] + t * (2 * c[2] + t * (3 * c[3] + t * (4 * c[4] + t * 5 * c[5])))) / seconds,
+        (2 * c[2] + t * (6 * c[3] + t * (12 * c[4] + t * 20 * c[5]))) / (seconds * seconds)];
+}
 /** DOM translation has a separate clock from the renderer and never resizes its surface. */
 export class AvatarMovement {
     host;
@@ -92,6 +102,15 @@ export class AvatarMovement {
             this.reset();
             this.report();
             return new Promise(resolve => this.notify(result, resolve));
+        }
+        if (timing.travel === 'natural' && options.maxSpeed === undefined && options.acceleration === undefined && options.deceleration === undefined) {
+            return new Promise(resolve => {
+                this.track = this.paced(to, now, duration, false, resolve);
+                this.progress = 0;
+                this.phase = Math.hypot(this.velocity.x, this.velocity.y) > 0.1 ? 'flight' : 'takeoff';
+                this.report();
+                this.schedule();
+            });
         }
         if (timing.travel === 'natural') {
             return new Promise(resolve => {
@@ -148,6 +167,18 @@ export class AvatarMovement {
             track.finished = false;
             return;
         }
+        if (track.kind === 'paced') {
+            if (!track.stopping) {
+                // A finite braking interval, retaining momentum rather than freezing the element.
+                const seconds = Math.min(0.24, Math.max(0.12, track.duration / 1000 * 0.3));
+                const target = this.host.constrain({ x: this.point.x + this.velocity.x * seconds / 2 + this.acceleration.x * seconds * seconds / 12, y: this.point.y + this.velocity.y * seconds / 2 + this.acceleration.y * seconds * seconds / 12 });
+                this.track = this.paced(target, this.host.now(), seconds * 1000, true, track.resolve);
+            }
+            this.phase = 'braking';
+            this.report();
+            this.schedule();
+            return;
+        }
         if (track.kind === 'physical') {
             track.stopping = true;
             this.phase = 'braking';
@@ -189,6 +220,12 @@ export class AvatarMovement {
         if (revision !== this.revision)
             return;
         const track = this.track;
+        if (track?.kind === 'paced') {
+            const duration = Math.max(1, track.start + track.duration - now);
+            this.track = this.paced(this.host.constrain(track.to), now, duration, track.stopping, track.resolve);
+            this.report();
+            return;
+        }
         if (track?.kind === 'physical') {
             track.to = this.host.constrain(track.to);
             this.report();
@@ -210,7 +247,7 @@ export class AvatarMovement {
     finish() { this.revision++; this.finishCurrent(); }
     finishCurrent() {
         const track = this.track;
-        if (track?.kind === 'physical' && !track.stopping) {
+        if ((track?.kind === 'physical' || track?.kind === 'paced') && !track.stopping) {
             this.write(this.host.constrain(track.to));
             this.progress = 1;
             this.complete(track, true);
@@ -300,6 +337,10 @@ export class AvatarMovement {
             this.finishCurrent();
             return;
         }
+        if (track.kind === 'paced') {
+            this.samplePaced(track, now);
+            return;
+        }
         if (track.kind === 'physical') {
             this.samplePhysical(track, now);
             return;
@@ -353,6 +394,54 @@ export class AvatarMovement {
             this.present({ direction: [...track.presentation.direction], strength: track.presentation.strength * decay, lift: track.presentation.lift * decay, bank: track.presentation.bank * decay });
         }
         if (this.track === track)
+            this.report();
+    }
+    paced(to, now, duration, stopping, resolve) {
+        const seconds = duration / 1000, distance = Math.hypot(to.x - this.point.x, to.y - this.point.y);
+        return { kind: 'paced', to, start: now, last: now, duration, stopping, resolve,
+            x: trajectory(this.point.x, to.x, this.velocity.x, this.acceleration.x, seconds),
+            y: trajectory(this.point.y, to.y, this.velocity.y, this.acceleration.y, seconds),
+            referenceSpeed: Math.max(1, 1.875 * distance / seconds, Math.hypot(this.velocity.x, this.velocity.y)),
+            referenceAcceleration: Math.max(1, 5.774 * distance / (seconds * seconds), Math.hypot(this.acceleration.x, this.acceleration.y)),
+            presentation: copyPresentation(this.presentation) };
+    }
+    samplePaced(track, now) {
+        // Preserve the profile when a background tab resumes, rather than teleporting.
+        const elapsedMs = Math.max(0, now - track.last);
+        if (elapsedMs > 100)
+            track.start += elapsedMs - 100;
+        track.last = now;
+        const raw = clamp((now - track.start) / track.duration), seconds = track.duration / 1000;
+        const x = evaluate(track.x, raw, seconds), y = evaluate(track.y, raw, seconds);
+        const point = this.host.constrain({ x: x[0], y: y[0] });
+        this.velocity = { x: point.x === x[0] ? x[1] : 0, y: point.y === y[0] ? y[1] : 0 };
+        this.acceleration = { x: point.x === x[0] ? x[2] : 0, y: point.y === y[0] ? y[2] : 0 };
+        if (!track.stopping)
+            this.progress = raw;
+        this.phase = track.stopping ? 'braking' : raw < 0.25 ? 'takeoff' : raw < 0.65 ? 'flight' : 'landing';
+        this.write(point);
+        if (this.track !== track)
+            return;
+        const speed = Math.hypot(this.velocity.x, this.velocity.y);
+        const heading = turn(this.presentation.direction, speed > 0.5 ? direction(this.velocity.x, this.velocity.y) : this.presentation.direction, 1 - Math.exp(-18 * Math.min(0.1, elapsedMs / 1000)));
+        const blend = smooth(clamp((now - track.start) / Math.min(140, track.duration * 0.35)));
+        const intensity = Math.min(1, track.referenceSpeed / 100);
+        const strength = Math.min(1, speed / track.referenceSpeed) * intensity;
+        const bank = Math.max(-0.10, Math.min(0.10, -this.acceleration.x / track.referenceAcceleration * 0.10));
+        // Blend a retarget's inherited pose; do not expose integration-tick sign changes as body nods.
+        this.present({ direction: heading,
+            strength: track.presentation.strength * (1 - blend) + strength * blend,
+            lift: track.presentation.lift * (1 - blend) + 0.06 * strength * blend,
+            bank: track.presentation.bank * (1 - blend) + bank * blend });
+        if (this.track !== track)
+            return;
+        if (raw === 1) {
+            this.write(track.to);
+            this.velocity = { x: 0, y: 0 };
+            this.acceleration = { x: 0, y: 0 };
+            this.complete(track, !track.stopping);
+        }
+        else
             this.report();
     }
     samplePhysical(track, now) {
@@ -425,8 +514,9 @@ export class AvatarMovement {
         const strength = Math.min(1, speed / 100);
         // Banking changes sign under braking; it is derived from physical acceleration.
         const bank = Math.max(-0.12, Math.min(0.12, -this.acceleration.x / Math.max(track.acceleration, track.deceleration) * 0.12));
+        const bankBlend = 1 - Math.exp(-12 * elapsed);
         if (!arrived)
-            this.present({ direction: heading, strength, lift: 0.06 * strength, bank });
+            this.present({ direction: heading, strength, lift: 0.06 * strength, bank: this.presentation.bank + (bank - this.presentation.bank) * bankBlend });
         if (this.track !== track)
             return;
         if (arrived) {
