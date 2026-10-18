@@ -38,12 +38,14 @@ test('all 35 crown fits preserve every vertex distance through squash and access
     for(const squash of [.86,1,1.14])for(const rotation of [[0,0,0],[.1,-.1,.05]])rigid(beretGeometry(body,crown,squash,undefined,profile,rotation),profile.accessories.crown.scale,shape+'/'+squash);
   }
 });
-test('rigid crown metal does not cross body triangles on 35 settled shapes',()=>{
+test('rigid crown metal does not cross body triangles in 105 catalog squash states',()=>{
   for(const shape of MATERIAL_SHAPE_NAMES){
     const body=createResolvedFixture({body:{shape}}).body,profile=resolveShapeProfile(shape),contour=shapeContour({kind:'material',name:shape});
-    const mesh=beretGeometry(body,crown,1,contour,profile);
-    const overlap=intersections(triangles(mesh),triangles(bodyGeometry(contour),[.59,.59,profile.depth*.5]));
-    assert.equal(overlap.count,0,shape+': '+JSON.stringify(overlap.samples));
+    for(const squash of [.86,1,1.14]){
+    const stretch=1/Math.sqrt(squash),mesh=beretGeometry(body,crown,squash,contour,profile);
+    const overlap=intersections(triangles(mesh),triangles(bodyGeometry(contour),[.59*stretch,.59*squash,profile.depth*.5*stretch]));
+    assert.equal(overlap.count,0,shape+'/'+squash+': '+JSON.stringify(overlap.samples));
+    }
   }
 });
 test('interrupted body morphs interpolate rigid crown placement, never the metal mesh',()=>{
