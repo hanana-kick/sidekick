@@ -247,10 +247,12 @@ test('shared custom-element brand stays identical across pages and compact viewp
         const text = getComputedStyle(link), box = link.getBoundingClientRect();
         return { font: text.fontFamily, size: text.fontSize, weight: text.fontWeight, text: link.textContent,
           width: box.width, height: box.height, paused: avatar.paused, tracking: avatar.trackingMode,
-          canvasWidth: avatar.getBoundingClientRect().width, shape: avatar.design.body.shape };
+          canvasWidth: avatar.getBoundingClientRect().width, shape: avatar.design.body.shape,
+          accessories: avatar.design.accessories.map(a => a.preset).sort(), smile: avatar.design.eyes.left.weights.smile };
       });
       assert.ok(brand.paused); assert.equal(brand.tracking, 'off'); assert.equal(brand.shape, 'ghostish');
       assert.ok(brand.canvasWidth <= 44);
+      assert.deepEqual(brand.accessories, ['beret', 'bowTie', 'glasses']); assert.equal(brand.smile, 1);
       if (reference) assert.deepEqual(brand, reference); else reference = brand;
       const layout = await page.evaluate(() => {
         const header = document.querySelector('.app-header').getBoundingClientRect();

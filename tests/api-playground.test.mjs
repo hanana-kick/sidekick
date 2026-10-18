@@ -181,17 +181,26 @@ test('physical telemetry displays signed vectors, magnitudes and state-backed tr
 
 test('both pages share a paused native avatar brand and accessible navigation', async t => {
   const { mountSiteHeader } = await import('../playground/shared-header.js');
+  const { resolveSidekickAttributes } = await import('../dist/library/element/attributes.js');
   const dom = new JSDOM('<div id="header"></div>', { url: 'https://sidekick.test/nested/' });
   t.after(() => dom.window.close());
   const host = dom.window.document.getElementById('header');
   for (const page of ['studio', 'api']) {
     const cleanup = mountSiteHeader(host, page, '/nested/');
     const avatar = host.querySelector('sidekick-avatar');
+    const resolved = resolveSidekickAttributes(new Map([...avatar.attributes].map(a => [a.name, a.value])));
+    assert.equal(resolved.design.body.shape, 'ghostish');
+    assert.equal(resolved.paused, true);
+    assert.equal(resolved.trackingMode, 'off');
+    assert.equal(resolved.interaction, 'none');
+    assert.deepEqual(resolved.design.accessories.map(a => a.preset).sort(), ['beret', 'bowTie', 'glasses']);
+    assert.equal(resolved.design.eyes.left.weights.smile, 1);
+    assert.equal(resolved.design.eyes.right.weights.smile, 1);
     assert.equal(avatar.getAttribute('shape'), 'ghostish');
     assert.equal(avatar.getAttribute('body-color'), '#FFCC37');
     assert.equal(avatar.getAttribute('head-accessory'), 'beret');
     assert.equal(avatar.getAttribute('eyes-accessory'), 'glasses');
-    assert.equal(avatar.getAttribute('neck-accessory'), 'bowtie');
+    assert.equal(avatar.getAttribute('neck-accessory'), 'bowTie');
     assert.equal(avatar.getAttribute('expression'), 'smile');
     assert.equal(avatar.getAttribute('aria-hidden'), 'true');
     assert.ok(avatar.hasAttribute('paused'));
