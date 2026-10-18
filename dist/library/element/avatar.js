@@ -50,6 +50,8 @@ export class SidekickAvatar extends HTMLElementBase {
     cancelTransition() { this.playback.cancelTransition(); }
     placementState = 'inline';
     boundsState = 'viewport';
+    movementBox;
+    measureMovementBox() { this.movementBox = { width: this.offsetWidth, height: this.offsetHeight }; }
     travelPresentation;
     movement = new AvatarMovement({
         now: () => performance.now(), immediate: () => this.paused || this.reduced || !this.connected,
@@ -91,14 +93,17 @@ export class SidekickAvatar extends HTMLElementBase {
         const view = this.ownerDocument.defaultView;
         if (!view)
             return { ...point };
-        return { x: clamp(point.x, 0, Math.max(0, view.innerWidth - this.offsetWidth)), y: clamp(point.y, 0, Math.max(0, view.innerHeight - this.offsetHeight)) };
+        if (!this.movementBox)
+            this.measureMovementBox();
+        return { x: clamp(point.x, 0, Math.max(0, view.innerWidth - this.movementBox.width)), y: clamp(point.y, 0, Math.max(0, view.innerHeight - this.movementBox.height)) };
     }
     updatePlacement() {
         this.style.setProperty('--sidekick-position', this.placementState === 'viewport' ? 'fixed' : 'relative');
         this.style.setProperty('--sidekick-inset', this.placementState === 'viewport' ? '0px' : 'auto');
+        this.measureMovementBox();
         this.movement.resize();
     }
-    onViewportResize = () => { this.movement.resize(); };
+    onViewportResize = () => { this.measureMovementBox(); this.movement.resize(); };
     configuration = createDesign();
     // This zero-duration reducer validates commands synchronously. It never runs animation.
     validator = new MotionTimeline({ left: this.configuration.eyes.left, right: this.configuration.eyes.right });
@@ -816,7 +821,7 @@ export class SidekickAvatar extends HTMLElementBase {
         this.style.setProperty('--sidekick-touch-action', this.interaction === 'box' ? 'none' : 'auto');
         this.style.setProperty('--sidekick-cursor', this.interaction === 'box' ? 'grab' : 'auto');
     }
-    resize = () => { this.movement.resize(); this.pendingResize = true; this.queueInput(); };
+    resize = () => { this.measureMovementBox(); this.movement.resize(); this.pendingResize = true; this.queueInput(); };
     queueInput() { if (!this.inputFrame && this.connected)
         this.inputFrame = requestAnimationFrame(this.flushInput); }
     cancelInput() { if (this.inputFrame)

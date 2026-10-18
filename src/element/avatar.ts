@@ -59,6 +59,8 @@ export class SidekickAvatar extends HTMLElementBase {
   cancelTransition(): void { this.playback.cancelTransition(); }
   private placementState: AvatarPlacement = 'inline';
   private boundsState: MovementBounds = 'viewport';
+  private movementBox?: { width: number; height: number };
+  private measureMovementBox(): void { this.movementBox = { width: this.offsetWidth, height: this.offsetHeight }; }
   private travelPresentation?: TravelPresentation;
   private movement = new AvatarMovement({
     now: () => performance.now(), immediate: () => this.paused || this.reduced || !this.connected,
@@ -90,14 +92,15 @@ export class SidekickAvatar extends HTMLElementBase {
     if (this.placementState !== 'viewport' || this.boundsState === 'none' || !this.connected) return { ...point };
     const view = this.ownerDocument.defaultView;
     if (!view) return { ...point };
-    return { x: clamp(point.x, 0, Math.max(0, view.innerWidth - this.offsetWidth)), y: clamp(point.y, 0, Math.max(0, view.innerHeight - this.offsetHeight)) };
+    if (!this.movementBox) this.measureMovementBox();
+    return { x: clamp(point.x, 0, Math.max(0, view.innerWidth - this.movementBox!.width)), y: clamp(point.y, 0, Math.max(0, view.innerHeight - this.movementBox!.height)) };
   }
   private updatePlacement(): void {
     this.style.setProperty('--sidekick-position', this.placementState === 'viewport' ? 'fixed' : 'relative');
     this.style.setProperty('--sidekick-inset', this.placementState === 'viewport' ? '0px' : 'auto');
-    this.movement.resize();
+    this.measureMovementBox(); this.movement.resize();
   }
-  private onViewportResize = (): void => { this.movement.resize(); };
+  private onViewportResize = (): void => { this.measureMovementBox(); this.movement.resize(); };
   private configuration = createDesign();
   // This zero-duration reducer validates commands synchronously. It never runs animation.
   private validator = new MotionTimeline({ left: this.configuration.eyes.left, right: this.configuration.eyes.right });
@@ -583,7 +586,7 @@ export class SidekickAvatar extends HTMLElementBase {
     this.style.setProperty('--sidekick-touch-action', this.interaction === 'box' ? 'none' : 'auto');
     this.style.setProperty('--sidekick-cursor', this.interaction === 'box' ? 'grab' : 'auto');
   }
-  private resize = (): void => { this.movement.resize(); this.pendingResize = true; this.queueInput(); };
+  private resize = (): void => { this.measureMovementBox(); this.movement.resize(); this.pendingResize = true; this.queueInput(); };
   private queueInput(): void { if (!this.inputFrame && this.connected) this.inputFrame = requestAnimationFrame(this.flushInput); }
   private cancelInput(): void { if (this.inputFrame) cancelAnimationFrame(this.inputFrame); this.inputFrame = 0; this.pendingResize = false; this.pendingPointer = undefined; this.pendingDrag = undefined; this.pendingZoom = undefined; this.pendingPinchDistance = undefined; }
   private flushInput = (): void => {

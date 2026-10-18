@@ -29,6 +29,8 @@ export declare class SidekickAvatar extends HTMLElementBase {
     cancelTransition(): void;
     private placementState;
     private boundsState;
+    private movementBox?;
+    private measureMovementBox;
     private travelPresentation?;
     private movement;
     get placement(): AvatarPlacement;

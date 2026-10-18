@@ -260,3 +260,13 @@ test('moving the host recalculates gaze toward a stationary mouse without changi
   assert.deepEqual(a.gazeTarget, [-1, 0]); assert.deepEqual(a.camera, camera);
   a.resetTracking(); await a.moveTo({ x: 0, y: 0 }, { duration: 0 }); a.flushInput(); assert.deepEqual(a.gazeTarget, [0, 0]);
 });
+
+test('movement bounds reuse resize-cached box dimensions instead of per-frame layout reads', async t => {
+  const a = avatar(t); let reads = 0;
+  Object.defineProperty(a, 'offsetWidth', { get() { reads++; return 200; } });
+  Object.defineProperty(a, 'offsetHeight', { get() { reads++; return 200; } });
+  a.placement = 'viewport'; reads = 0;
+  await a.moveTo({ x: 10, y: 20 }, { duration: 0 });
+  await a.moveTo({ x: 30, y: 40 }, { duration: 0 });
+  assert.equal(reads, 0);
+});
