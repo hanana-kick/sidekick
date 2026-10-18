@@ -121,7 +121,7 @@ async function pageFor(t, entry = 'vanilla', options = {}, url = entryURL(entry)
 }
 async function settle(page) { await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))); }
 async function stateOf(page, selector = '#bare') {
-  return page.locator(selector).evaluate(element => ({ design: element.design, camera: element.camera, gaze: element.pose.gaze, activity: element.activity, paused: element.paused, interaction: element.interaction, mouseTracking: element.mouseTracking }));
+  return page.locator(selector).evaluate(element => ({ design: element.design, bodyOrientation: element.bodyOrientation, zoom: element.zoom, gaze: element.pose.gaze, activity: element.activity, paused: element.paused, interaction: element.interaction, mouseTracking: element.mouseTracking }));
 }
 
 async function compareReactPixelsToNative(t, page, screenshotName) {
@@ -154,7 +154,7 @@ async function compareReactPixelsToNative(t, page, screenshotName) {
     native.style.cssText = 'position:fixed;left:0;top:0;width:280px;height:280px;pointer-events:none';
     native.paused = true; native.setActivity('still'); native.seek(0);
     native.design = { version: 7, body: { shape: 'puffy', color: '#8bba9c' }, eyes: { color: '#27372f', left: { weights: { smile: 0.25, blink: 0 } }, right: { weights: { smile: 0, blink: 0.15 } } }, accessories: [] };
-    native.setCamera({ yaw: 12, pitch: 5, roll: -4 }); native.lookAt({ space: 'view', x: 0.2, y: -0.1 });
+    native.setBodyOrientation({ yaw: 12, pitch: 5, roll: -4 }); native.lookAt({ space: 'view', x: 0.2, y: -0.1 });
     try {
       document.body.append(native);
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -238,16 +238,16 @@ for (const [format, filename] of [['esm', 'sidekick.js'], ['classic', 'sidekick.
     const result = await page.locator('#prebuilt-avatar').evaluate(async element => {
       const api = window.libraryAPI;
       const design = api.createDesign({ body: { shape: 'heart', color: '#83aa91' }, accessories: [api.createAccessory('crown'), api.createAccessory('starEarring', { slot: 'rightEar' })] });
-      const scene = api.createScene({ design, paused: true, activity: 'still', camera: { yaw: 15 } });
+      const scene = api.createScene({ design, paused: true, activity: 'still', bodyOrientation: { yaw: 15 } });
       element.design = api.parseDesign(api.serializeDesign(design));
       const roundTrip = api.parseScene(api.serializeScene(scene));
-      for (const [name, value] of Object.entries({ shape: 'circle', 'body-color': '#b7a5ce', 'eye-color': '#27372f', 'left-smile': '0.65', 'camera-yaw': '23', paused: 'true', activity: 'still', interaction: 'box' })) element.setAttribute(name, value);
+      for (const [name, value] of Object.entries({ shape: 'circle', 'body-color': '#b7a5ce', 'eye-color': '#27372f', 'left-smile': '0.65', 'body-yaw': '23', paused: 'true', activity: 'still', interaction: 'box' })) element.setAttribute(name, value);
       await Promise.resolve();
-      const configured = { design: element.design, camera: element.camera, paused: element.paused, activity: element.activity };
+      const configured = { design: element.design, bodyOrientation: element.bodyOrientation, zoom: element.zoom, paused: element.paused, activity: element.activity };
       await element.capturePixelsAsync();
-      const beforeInvalid = JSON.stringify({ design: element.design, camera: element.camera, pose: element.pose });
+      const beforeInvalid = JSON.stringify({ design: element.design, bodyOrientation: element.bodyOrientation, zoom: element.zoom, pose: element.pose });
       element.setAttribute('shape', 'puffy'); element.setAttribute('body-color', 'invalid'); await Promise.resolve();
-      const invalidUnchanged = beforeInvalid === JSON.stringify({ design: element.design, camera: element.camera, pose: element.pose });
+      const invalidUnchanged = beforeInvalid === JSON.stringify({ design: element.design, bodyOrientation: element.bodyOrientation, zoom: element.zoom, pose: element.pose });
       const reportedError = window.prebuilt.events.filter(event => event.type === 'sidekick-error').at(-1);
       element.setAttribute('body-color', '#83aa91'); await Promise.resolve();
       const recovered = { shape: element.design.body.shape, color: element.design.body.color };
@@ -267,7 +267,7 @@ for (const [format, filename] of [['esm', 'sidekick.js'], ['classic', 'sidekick.
     });
     assert.deepEqual(result.roundTrip, result.scene); assert.equal(result.configured.design.body.shape, 'circle');
     assert.equal(result.configured.design.body.color, '#b7a5ce'); assert.equal(result.configured.design.eyes.color, '#27372f');
-    assert.equal(result.configured.design.eyes.left.weights.smile, 0.65); assert.equal(result.configured.camera.yaw, 23);
+    assert.equal(result.configured.design.eyes.left.weights.smile, 0.65); assert.equal(result.configured.bodyOrientation.yaw, 23);
     assert.deepEqual(result.configured.design.accessories.map(accessory => [accessory.preset, accessory.slot]), [['crown', 'head'], ['starEarring', 'rightEar']]);
     assert.equal(result.configured.paused, true); assert.equal(result.configured.activity, 'still'); assert.equal(result.invalidUnchanged, true);
     assert.equal(result.reportedError.detail.attribute, 'body-color'); assert.equal(result.reportedError.native, true);
@@ -275,7 +275,7 @@ for (const [format, filename] of [['esm', 'sidekick.js'], ['classic', 'sidekick.
     assert.equal(result.activeListeners, 1); assert.equal(result.disabledListeners, 0); assert.deepEqual(result.face, [0.15, -0.1]); assert.equal(result.finalShape, 'heart');
     await page.locator('#prebuilt-avatar').focus(); await page.keyboard.press('Enter');
     const events = await page.evaluate(() => window.prebuilt.events);
-    for (const type of ['sidekick-ready', 'sidekick-design-change', 'sidekick-camera-change', 'sidekick-motion-end', 'sidekick-shape-end', 'sidekick-activate']) assert.ok(events.some(event => event.type === type && event.native), type);
+    for (const type of ['sidekick-ready', 'sidekick-design-change', 'sidekick-body-orientation-change', 'sidekick-motion-end', 'sidekick-shape-end', 'sidekick-activate']) assert.ok(events.some(event => event.type === type && event.native), type);
     assert.ok(events.some(event => event.type === 'sidekick-motion-end' && event.detail.finished));
     assert.ok(events.some(event => event.type === 'sidekick-shape-end' && event.detail.finished));
     assert.equal(events.filter(event => event.type === 'sidekick-error').length, 1, 'Only the intentionally invalid attribute emits an error');
@@ -299,15 +299,15 @@ test('prebuilt React release runs directly through an import map, lazily registe
   for (const filename of ['sidekick-react.js', 'sidekick-element.js']) assert.deepEqual(await readFile(`${fixture.output}/prebuilt/${filename}`), await readFile(`${fixture.packagePath}/dist/browser/${filename}`));
   const initial = await page.evaluate(() => {
     const element = window.consumer.element;
-    return { refMatches: element === document.getElementById('react-avatar'), ready: element.ready, design: element.design, camera: element.camera,
+    return { refMatches: element === document.getElementById('react-avatar'), ready: element.ready, design: element.design, bodyOrientation: element.bodyOrientation, zoom: element.zoom,
       events: window.consumer.events,
     };
   });
   assert.equal(initial.refMatches, true); assert.equal(initial.ready, true); assert.equal(initial.design.body.shape, 'puffy');
-  assert.deepEqual(initial.camera, { yaw: 12, pitch: 5, roll: -4, zoom: 1 });
+  assert.deepEqual(initial.bodyOrientation, { yaw: 12, pitch: 5, roll: -4 });
   const readyEvents = initial.events.filter(event => event.name === 'Ready');
   assert.ok(readyEvents.length > 0);
-  for (const event of readyEvents) assert.deepEqual(event.configured, { shape: 'puffy', camera: { yaw: 12, pitch: 5, roll: -4, zoom: 1 }, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } });
+  for (const event of readyEvents) assert.deepEqual(event.configured, { shape: 'puffy', bodyOrientation: { yaw: 12, pitch: 5, roll: -4 }, zoom: 1, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } });
   assert.deepEqual(initial.events.filter(event => event.name === 'Error'), []);
   await page.evaluate(() => { window.prebuiltReactHost = window.consumer.element; window.renderConsumer({ shape: 'heart', bodyColor: '#b7a5ce', mouseTracking: false }); });
   await page.waitForFunction(() => window.consumer.element.design.body.shape === 'heart'); await settle(page);
@@ -356,7 +356,7 @@ test('prebuilt React loads its adjacent lazy fallback when worker creation is de
     { buffers: 0, globalPointer: 0, globalTrackingExit: 0, elementEvents: 0 });
 });
 
-test('complete declarative config has order-independent JSON, scalar, expression, slot, camera and motion precedence', async t => {
+test('complete declarative config has order-independent JSON, scalar, expression, slot, bodyOrientation and motion precedence', async t => {
   const page = await pageFor(t);
   const result = await page.evaluate(async () => {
     const api = window.libraryAPI;
@@ -368,7 +368,7 @@ test('complete declarative config has order-independent JSON, scalar, expression
       'head-accessory': 'halo', 'head-color': '#102030', 'eyes-accessory': 'glasses', 'eyes-color': '#203040',
       'mouth-accessory': 'moustache', 'mouth-color': '#304050', 'neck-accessory': 'scarf', 'neck-color': '#405060',
       'left-ear-accessory': 'earring', 'left-ear-color': '#506070', 'right-ear-accessory': 'earring', 'right-ear-color': '#607080',
-      camera: 'three-quarter', 'camera-yaw': '27', 'camera-pitch': '-13', 'camera-roll': '17', 'gaze-x': '0.25', 'gaze-y': '-0.35',
+      'body-orientation': 'three-quarter', 'body-yaw': '27', 'body-pitch': '-13', 'body-roll': '17', 'gaze-x': '0.25', 'gaze-y': '-0.35',
       activity: 'still', paused: 'true', interaction: 'box', 'mouse-tracking': 'false',
       'shape-duration': '125', 'shape-easing': 'linear', 'motion-duration': '150', 'motion-easing': 'smooth',
       motion: JSON.stringify({ body: { rotation: [0.1, 0.2, 0.3] }, face: { uv: [0.1, -0.2] } }), time: '2.5',
@@ -376,7 +376,7 @@ test('complete declarative config has order-independent JSON, scalar, expression
     const make = entries => { const element = document.createElement('sidekick-avatar'); for (const [key, value] of entries) element.setAttribute(key, value); document.getElementById('sandbox').append(element); return element; };
     const a = make(Object.entries(attrs)), b = make(Object.entries(attrs).reverse());
     await Promise.all([a.capturePixelsAsync(), b.capturePixelsAsync()]);
-    const snapshot = element => ({ design: element.design, camera: element.camera, pose: element.pose, paused: element.paused, activity: element.activity, interaction: element.interaction, tracking: element.mouseTracking, ready: element.ready });
+    const snapshot = element => ({ design: element.design, bodyOrientation: element.bodyOrientation, zoom: element.zoom, pose: element.pose, paused: element.paused, activity: element.activity, interaction: element.interaction, tracking: element.mouseTracking, ready: element.ready });
     const result = { first: snapshot(a), reversed: snapshot(b) }; a.remove(); b.remove(); return result;
   });
   assert.deepEqual(result.first, result.reversed);
@@ -386,19 +386,19 @@ test('complete declarative config has order-independent JSON, scalar, expression
   assert.deepEqual(state.design.accessories.map(a => [a.slot, a.preset, a.color]), [
     ['head', 'halo', '#102030'], ['eyes', 'glasses', '#203040'], ['mouth', 'moustache', '#304050'], ['neck', 'scarf', '#405060'], ['leftEar', 'earring', '#506070'], ['rightEar', 'earring', '#607080'],
   ]);
-  assert.deepEqual(state.camera, { yaw: 27, pitch: -13, roll: 17, zoom: 1 }); assert.deepEqual(state.pose.gaze, [0.25, -0.35]);
+  assert.deepEqual(state.bodyOrientation, { yaw: 27, pitch: -13, roll: 17 }); assert.deepEqual(state.pose.gaze, [0.25, -0.35]);
   assert.deepEqual(state.pose.rotation, [0.1, 0.2, 0.3]); assert.deepEqual(state.pose.face, [0.1, -0.2]);
   assert.equal(state.paused, true); assert.equal(state.activity, 'still'); assert.equal(state.interaction, 'box'); assert.equal(state.tracking, false); assert.equal(state.ready, true);
 });
 
-test('invalid live attribute batches leave design, camera and pose unchanged, report the offending field, and recover atomically', async t => {
+test('invalid live attribute batches leave design, bodyOrientation and pose unchanged, report the offending field, and recover atomically', async t => {
   const page = await pageFor(t);
   const results = await page.locator('#bare').evaluate(async element => {
     element.setAttribute('paused', 'true'); element.setAttribute('activity', 'still'); await Promise.resolve();
-    const snapshot = () => JSON.stringify({ design: element.design, camera: element.camera, pose: element.pose, paused: element.paused, activity: element.activity, interaction: element.interaction, tracking: element.mouseTracking });
+    const snapshot = () => JSON.stringify({ design: element.design, bodyOrientation: element.bodyOrientation, zoom: element.zoom, pose: element.pose, paused: element.paused, activity: element.activity, interaction: element.interaction, tracking: element.mouseTracking });
     const invalid = [
       ['body-color', 'red'], ['eye-color', '#123'], ['design', '{'], ['accessories', '[{}]'],
-      ['left-smile', '1.2'], ['right-blink', 'NaN'], ['left-expression', 'angry'], ['camera-pitch', '91'],
+      ['left-smile', '1.2'], ['right-blink', 'NaN'], ['left-expression', 'angry'], ['body-pitch', '91'],
       ['gaze-x', '2'], ['head-accessory', 'glasses'], ['left-ear-color', 'transparent'], ['paused', 'yes'],
       ['mouse-tracking', 'yes'], ['interaction', 'orbit'], ['activity', 'unknown'], ['motion', '{"body":{"rotation":[0,0,"bad"]}}'],
       ['shape-duration', '-1'], ['motion-easing', 'ease'], ['time', 'Infinity'],
@@ -407,12 +407,12 @@ test('invalid live attribute batches leave design, camera and pose unchanged, re
     const results = [];
     for (const [attribute, value] of invalid) {
       const before = snapshot(), previous = element.getAttribute(attribute), target = element.design.body.shape === 'heart' ? 'puffy' : 'heart';
-      element.setAttribute('shape', target); element.setAttribute('camera-yaw', '19'); element.setAttribute(attribute, value);
+      element.setAttribute('shape', target); element.setAttribute('body-yaw', '19'); element.setAttribute(attribute, value);
       await Promise.resolve();
       results.push({ attribute, unchanged: before === snapshot(), rawPreserved: element.getAttribute(attribute) === value, error: errors.at(-1) });
       if (previous === null) element.removeAttribute(attribute); else element.setAttribute(attribute, previous);
       await Promise.resolve();
-      results.at(-1).recovered = element.design.body.shape === target && element.camera.yaw === 19;
+      results.at(-1).recovered = element.design.body.shape === target && element.bodyOrientation.yaw === 19;
     }
     return results;
   });
@@ -423,23 +423,23 @@ test('invalid live attribute batches leave design, camera and pose unchanged, re
   }
 });
 
-test('removing scalar and slot overrides reveals JSON and defaults without losing unrelated imperative camera or motion', async t => {
+test('removing scalar and slot overrides reveals JSON and defaults without losing unrelated imperative bodyOrientation or motion', async t => {
   const page = await pageFor(t);
   const result = await page.locator('#bare').evaluate(async element => {
     const api = window.libraryAPI;
     const design = api.createDesign({ body: { shape: 'circle', color: '#123456' }, eyes: { left: { weights: { smile: 0.35, blink: 0.45 } } }, accessories: [api.createAccessory('beret', 'saved-hat')] });
     for (const [key, value] of Object.entries({ design: JSON.stringify(design), shape: 'heart', 'body-color': '#abcdef', 'left-smile': '0.8', 'head-accessory': 'halo', 'head-color': '#102030', paused: 'true', activity: 'still' })) element.setAttribute(key, value);
     await Promise.resolve();
-    element.setCamera({ yaw: 31, pitch: 7, roll: -12 }); await element.motion.to({ face: { uv: [0.15, -0.1] } }, { duration: 0 });
+    element.setBodyOrientation({ yaw: 31, pitch: 7, roll: -12 }); await element.motion.to({ face: { uv: [0.15, -0.1] } }, { duration: 0 });
     for (const key of ['shape', 'body-color', 'left-smile', 'head-accessory', 'head-color']) element.removeAttribute(key);
     await Promise.resolve(); const revealed = element.design;
     element.setAttribute('head-accessory', 'none'); await Promise.resolve(); const removed = element.design.accessories;
     element.removeAttribute('head-accessory'); await Promise.resolve(); const restored = element.design.accessories;
     element.removeAttribute('design'); await Promise.resolve();
-    return { revealed, expected: design, removed, restored, defaults: element.design, expectedDefaults: api.createDesign(), camera: element.camera, face: element.pose.face };
+    return { revealed, expected: design, removed, restored, defaults: element.design, expectedDefaults: api.createDesign(), bodyOrientation: element.bodyOrientation, zoom: element.zoom, face: element.pose.face };
   });
   assert.deepEqual(result.revealed, result.expected); assert.deepEqual(result.removed, []); assert.deepEqual(result.restored, result.expected.accessories);
-  assert.deepEqual(result.defaults, result.expectedDefaults); assert.deepEqual(result.camera, { yaw: 31, pitch: 7, roll: -12, zoom: 1 }); assert.deepEqual(result.face, [0.15, -0.1]);
+  assert.deepEqual(result.defaults, result.expectedDefaults); assert.deepEqual(result.bodyOrientation, { yaw: 31, pitch: 7, roll: -12 }); assert.deepEqual(result.face, [0.15, -0.1]);
 });
 
 test('paused and mouse-tracking support explicit false/zero/removal and live declarative animations emit completion events', async t => {
@@ -483,7 +483,7 @@ test('legacy mouse tracking remains explicit, bounded, ignores touch and restore
   const result = await page.locator('#bare').evaluate(async element => {
     const move = (x, y, pointerType = 'mouse') => document.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y, pointerType, bubbles: true }));
     element.mouseTracking = false;
-    element.lookAt({ space: 'view', x: 0.2, y: -0.3 }); element.setCamera({ yaw: 25, pitch: 4, roll: -5 });
+    element.lookAt({ space: 'view', x: 0.2, y: -0.3 }); element.setBodyOrientation({ yaw: 25, pitch: 4, roll: -5 });
     // Pointer events are coalesced until the next frame. A fresh capture orders
     // each input (or ignored input) before inspecting the acknowledged pose.
     move(10000, -10000); await element.capturePixelsAsync(); const disabled = element.pose.gaze;
@@ -493,12 +493,12 @@ test('legacy mouse tracking remains explicit, bounded, ignores touch and restore
     move(-10000, 10000); await element.capturePixelsAsync(); const leftBottom = element.pose.gaze;
     element.mouseTracking = false; await element.capturePixelsAsync(); const restored = element.pose.gaze;
     move(10000, -10000); await element.capturePixelsAsync();
-    return { disabled, enabledListeners, rightTop, touch, leftBottom, restored, afterDisabledMove: element.pose.gaze, listeners: window.listenerAudit(element).globalPointer, camera: element.camera };
+    return { disabled, enabledListeners, rightTop, touch, leftBottom, restored, afterDisabledMove: element.pose.gaze, listeners: window.listenerAudit(element).globalPointer, bodyOrientation: element.bodyOrientation, zoom: element.zoom };
   });
   assert.deepEqual(result.disabled, [0.2, -0.3]); assert.equal(result.enabledListeners, 1);
   assert.deepEqual(result.rightTop, [1, 1]); assert.deepEqual(result.touch, result.rightTop); assert.deepEqual(result.leftBottom, [-1, -1]);
   assert.deepEqual(result.restored, [0.2, -0.3]); assert.deepEqual(result.afterDisabledMove, result.restored); assert.equal(result.listeners, 0);
-  assert.deepEqual(result.camera, { yaw: 25, pitch: 4, roll: -5, zoom: 1 });
+  assert.deepEqual(result.bodyOrientation, { yaw: 25, pitch: 4, roll: -5 });
 });
 
 test('tracking listeners release on disconnect, reconnect once, and stop responding while detached', async t => {
@@ -535,7 +535,7 @@ test('main fallback tracking releases global listeners while offscreen or WebGL 
   await page.waitForFunction(() => document.getElementById('bare').ready && window.listenerAudit(document.getElementById('bare')).globalPointer === 1);
 });
 
-test('orbit drag controls camera without competing with tracking, which resumes after pointer release', async t => {
+test('orbit drag controls bodyOrientation without competing with tracking, which resumes after pointer release', async t => {
   const page = await pageFor(t);
   await page.locator('#bare').evaluate(element => { element.interaction = 'box'; element.mouseTracking = true; });
   await settle(page);
@@ -544,9 +544,9 @@ test('orbit drag controls camera without competing with tracking, which resumes 
   const before = await stateOf(page);
   await page.mouse.down(); await page.mouse.move(bounds.x + bounds.width / 2 + 65, bounds.y + bounds.height / 2 + 30, { steps: 5 });
   const dragged = await stateOf(page); await page.mouse.up();
-  assert.notEqual(dragged.camera.yaw, before.camera.yaw); assert.notEqual(dragged.camera.pitch, before.camera.pitch); assert.deepEqual(dragged.gaze, before.gaze);
+  assert.notEqual(dragged.bodyOrientation.yaw, before.bodyOrientation.yaw); assert.notEqual(dragged.bodyOrientation.pitch, before.bodyOrientation.pitch); assert.deepEqual(dragged.gaze, before.gaze);
   await page.mouse.move(1040, 60); const resumed = await stateOf(page);
-  assert.notDeepEqual(resumed.gaze, dragged.gaze); assert.deepEqual(resumed.camera, dragged.camera);
+  assert.notDeepEqual(resumed.gaze, dragged.gaze); assert.deepEqual(resumed.bodyOrientation, dragged.bodyOrientation); assert.equal(resumed.zoom, dragged.zoom);
 });
 
 test('PNG snapshots crop to the real alpha bounds, preserve every rendered alpha pixel, and support transparent padding or full canvas', async t => {
@@ -562,7 +562,7 @@ test('PNG snapshots crop to the real alpha bounds, preserve every rendered alpha
     const checks = [];
     for (const shape of ['square', 'puffy', 'heart']) {
       element.design = window.libraryAPI.createDesign({ body: { shape }, accessories: [window.libraryAPI.createAccessory('beret'), window.libraryAPI.createAccessory('scarf'), window.libraryAPI.createAccessory('earring', { slot: 'leftEar' })] });
-      element.setCamera({ yaw: 15, pitch: -5, roll: 12 });
+      element.setBodyOrientation({ yaw: 15, pitch: -5, roll: 12 });
       const source = (await element.capturePixelsAsync());
       let minX = source.width, minY = source.height, maxX = -1, maxY = -1, sourceVisible = 0;
       for (let y = 0; y < source.height; y++) for (let x = 0; x < source.width; x++) {
@@ -598,22 +598,22 @@ test('typed React entry renders real pixels, forwards the element ref and callba
   assert.ok(page.workers().length > 0);
   const initial = await page.evaluate(() => {
     const element = window.consumer.element;
-    return { same: element === document.getElementById('react-avatar'), tag: element.localName, design: element.design, camera: element.camera, gaze: element.pose.gaze, tracking: element.mouseTracking, paused: element.paused,
+    return { same: element === document.getElementById('react-avatar'), tag: element.localName, design: element.design, bodyOrientation: element.bodyOrientation, zoom: element.zoom, gaze: element.pose.gaze, tracking: element.mouseTracking, paused: element.paused,
       aria: element.getAttribute('aria-label'), consumer: element.dataset.consumer, className: element.className,
       events: window.consumer.events };
   });
   assert.equal(initial.same, true); assert.equal(initial.tag, 'sidekick-avatar'); assert.equal(initial.design.body.shape, 'puffy'); assert.equal(initial.design.body.color, '#8bba9c');
   assert.equal(initial.design.eyes.left.weights.smile, 0.25); assert.equal(initial.design.eyes.right.weights.blink, 0.15);
-  assert.deepEqual(initial.camera, { yaw: 12, pitch: 5, roll: -4, zoom: 1 }); assert.deepEqual(initial.gaze, [0.2, -0.1]);
+  assert.deepEqual(initial.bodyOrientation, { yaw: 12, pitch: 5, roll: -4 }); assert.deepEqual(initial.gaze, [0.2, -0.1]);
   assert.equal(initial.tracking, true); assert.equal(initial.paused, true); assert.equal(initial.aria, 'React companion'); assert.equal(initial.consumer, 'react'); assert.equal(initial.className, 'consumer-avatar');
   assert.ok(initial.events.some(event => event.name === 'Ready')); assert.ok(initial.events.every(event => event.native));
-  for (const event of initial.events.filter(event => event.name === 'Ready')) assert.deepEqual(event.configured, { shape: 'puffy', camera: { yaw: 12, pitch: 5, roll: -4, zoom: 1 }, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } }, 'onReady observes applied props through the published ref');
-  await page.evaluate(() => { window.originalReactElement = window.consumer.element; window.renderConsumer({ shape: 'heart', bodyColor: '#b7a5ce', leftSmile: 0.8, rightBlink: undefined, paused: false, mouseTracking: false, camera: { yaw: -25, pitch: 3, roll: 8 } }); });
+  for (const event of initial.events.filter(event => event.name === 'Ready')) assert.deepEqual(event.configured, { shape: 'puffy', bodyOrientation: { yaw: 12, pitch: 5, roll: -4 }, zoom: 1, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } }, 'onReady observes applied props through the published ref');
+  await page.evaluate(() => { window.originalReactElement = window.consumer.element; window.renderConsumer({ shape: 'heart', bodyColor: '#b7a5ce', leftSmile: 0.8, rightBlink: undefined, paused: false, mouseTracking: false, bodyOrientation: { yaw: -25, pitch: 3, roll: 8 }, zoom: 1.4 }); });
   await page.waitForFunction(() => window.consumer.element?.design.body.shape === 'heart'); await settle(page);
   const next = await stateOf(page, '#react-avatar');
   assert.equal(await page.evaluate(() => window.originalReactElement === window.consumer.element), true);
   assert.equal(next.design.body.color, '#b7a5ce'); assert.equal(next.design.eyes.left.weights.smile, 0.8); assert.equal(next.design.eyes.right.weights.blink, 0);
-  assert.deepEqual(next.camera, { yaw: -25, pitch: 3, roll: 8, zoom: 1 }); assert.equal(next.paused, false); assert.equal(next.mouseTracking, false);
+  assert.deepEqual(next.bodyOrientation, { yaw: -25, pitch: 3, roll: 8 }); assert.equal(next.zoom, 1.4); assert.equal(next.paused, false); assert.equal(next.mouseTracking, false);
   assert.equal(await page.locator('#react-avatar').getAttribute('right-blink'), null);
 });
 
@@ -640,18 +640,18 @@ test('React StrictMode rerenders keep native callbacks single and unmount releas
   assert.equal(await page.evaluate(() => window.listenerAudit(window.consumer.element).globalPointer), 1);
   const readySnapshots = await page.evaluate(() => window.consumer.events.filter(event => event.name === 'Ready').map(event => event.configured));
   assert.ok(readySnapshots.length >= 2, 'A newly mounted host receives ready even after registration');
-  for (const snapshot of readySnapshots) assert.deepEqual(snapshot, { shape: 'puffy', camera: { yaw: 12, pitch: 5, roll: -4, zoom: 1 }, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } });
+  for (const snapshot of readySnapshots) assert.deepEqual(snapshot, { shape: 'puffy', bodyOrientation: { yaw: 12, pitch: 5, roll: -4 }, zoom: 1, left: { smile: 0.25, blink: 0 }, right: { smile: 0, blink: 0.15 } });
 });
 
-test('React SSR hydration preserves the server host and repeated renders retain canvas, imperative camera and motion state', async t => {
+test('React SSR hydration preserves the server host and repeated renders retain canvas, imperative bodyOrientation and motion state', async t => {
   const page = await pageFor(t, 'hydration');
   await page.waitForFunction(() => window.hydration.ref?.ready);
   const first = await page.evaluate(async () => {
     const element = window.hydration.ref;
-    element.setCamera({ yaw: 33, pitch: 6, roll: 11 });
+    element.setBodyOrientation({ yaw: 33, pitch: 6, roll: 11 });
     await element.motion.to({ face: { uv: [0.18, -0.11] }, body: { rotation: [0, 0, 0.2] } }, { duration: 0 });
     window.hydration.canvas = element.shadowRoot.querySelector('canvas');
-    return { hostPreserved: element === window.hydration.before, design: element.design, camera: element.camera, pose: element.pose, errors: window.hydration.errors };
+    return { hostPreserved: element === window.hydration.before, design: element.design, bodyOrientation: element.bodyOrientation, zoom: element.zoom, pose: element.pose, errors: window.hydration.errors };
   });
   assert.equal(first.hostPreserved, true); assert.equal(first.design.body.shape, 'heart'); assert.equal(first.design.body.color, '#b7a5ce'); assert.deepEqual(first.errors, []);
   const readyEvents = await page.evaluate(() => window.hydration.events);
@@ -659,10 +659,10 @@ test('React SSR hydration preserves the server host and repeated renders retain 
   for (let i = 0; i < 3; i++) { await page.evaluate(() => window.rerenderHydration()); await settle(page); }
   const after = await page.evaluate(() => {
     const element = window.hydration.ref;
-    return { hostPreserved: element === window.hydration.before, canvasPreserved: element.shadowRoot.querySelector('canvas') === window.hydration.canvas, camera: element.camera, pose: element.pose, errors: window.hydration.errors, ready: element.ready };
+    return { hostPreserved: element === window.hydration.before, canvasPreserved: element.shadowRoot.querySelector('canvas') === window.hydration.canvas, bodyOrientation: element.bodyOrientation, zoom: element.zoom, pose: element.pose, errors: window.hydration.errors, ready: element.ready };
   });
   assert.equal(after.hostPreserved, true); assert.equal(after.canvasPreserved, true); assert.equal(after.ready, true);
-  assert.deepEqual(after.camera, first.camera); assert.deepEqual(after.pose, first.pose); assert.deepEqual(after.errors, []);
+  assert.deepEqual(after.bodyOrientation, first.bodyOrientation); assert.equal(after.zoom, first.zoom); assert.deepEqual(after.pose, first.pose); assert.deepEqual(after.errors, []);
 });
 
 test('Studio generated HTML and React snippets match live controls, copy the displayed code, and HTML renders in the packed consumer', async t => {
@@ -673,7 +673,7 @@ test('Studio generated HTML and React snippets match live controls, copy the dis
   await page.getByRole('tab', { name: '애니메이션', exact: true }).click();
   await page.locator('#pause').click(); await page.locator('#mouse-tracking').click(); await page.locator('#look-right').click();
   await page.locator('#left-expression').click(); await page.getByRole('option', { name: '웃음', exact: true }).click();
-  await page.getByRole('tab', { name: '카메라', exact: true }).click(); await page.locator('[data-camera-preset="three-quarter"]').click();
+  await page.getByRole('tab', { name: '몸체 방향', exact: true }).click(); await page.locator('[data-body-orientation-preset="three-quarter"]').click();
   await page.getByRole('tab', { name: 'JSON', exact: true }).click();
   const snippets = await page.evaluate(() => {
     const html = document.getElementById('api-example').textContent, react = document.getElementById('react-example').textContent;
@@ -688,10 +688,12 @@ test('Studio generated HTML and React snippets match live controls, copy the dis
   assert.equal(snippets.design.body.shape, 'heart'); assert.equal(snippets.design.body.color, '#92a8cf'); assert.equal(snippets.design.eyes.left.weights.smile, 1);
   assert.ok(snippets.design.accessories.some(accessory => accessory.preset === 'glasses'));
   for (const [attribute, prop, expected] of [
-    ['camera-yaw', 'cameraYaw', 45], ['camera-pitch', 'cameraPitch', 0], ['camera-roll', 'cameraRoll', 0],
+    ['zoom', 'zoom', 1], ['body-yaw', 'bodyYaw', 45], ['body-pitch', 'bodyPitch', 0], ['body-roll', 'bodyRoll', 0],
     ['tracking-mode', 'trackingMode', 'eyes'], ['paused', 'paused', true], ['gaze-x', 'gazeX', 0.9], ['gaze-y', 'gazeY', 0],
     ['activity', 'activity', 'idle'], ['interaction', 'interaction', 'box'], ['shape-duration', 'shapeDuration', 450], ['motion-duration', 'motionDuration', 400],
   ]) { assert.equal(snippets.attrs[attribute], String(expected), attribute); assert.equal(snippets.props[prop], expected, prop); }
+  assert.doesNotMatch(snippets.html + snippets.react, /camera|cameraYaw|cameraPitch|cameraRoll/);
+  assert.equal(snippets.scene.sceneVersion, 3); assert.equal(Object.hasOwn(snippets.scene, 'camera'), false); assert.equal(Object.hasOwn(snippets.scene, 'view'), false);
   assert.deepEqual(JSON.parse(snippets.attrs.motion), snippets.scene.motion); assert.deepEqual(snippets.props.motion, snippets.scene.motion);
   await page.evaluate(() => { window.copiedSnippets = []; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.copiedSnippets.push(text); } } }); });
   await page.locator('#copy-html').click();
@@ -704,10 +706,10 @@ test('Studio generated HTML and React snippets match live controls, copy the dis
     template.content.querySelectorAll('script').forEach(script => script.remove());
     const host = template.content.querySelector('sidekick-avatar'); document.getElementById('sandbox').append(host);
     await host.capturePixelsAsync();
-    const result = { ready: host.ready, design: host.design, camera: host.camera, paused: host.paused, tracking: host.mouseTracking, gaze: host.pose.gaze, interaction: host.interaction };
+    const result = { ready: host.ready, design: host.design, bodyOrientation: host.bodyOrientation, zoom: host.zoom, paused: host.paused, tracking: host.mouseTracking, gaze: host.pose.gaze, interaction: host.interaction };
     host.remove(); return result;
   }, snippets.html);
-  assert.equal(rendered.ready, true); assert.deepEqual(rendered.design, snippets.scene.design); assert.deepEqual(rendered.camera, snippets.scene.camera);
+  assert.equal(rendered.ready, true); assert.deepEqual(rendered.design, snippets.scene.design); assert.deepEqual(rendered.bodyOrientation, snippets.scene.bodyOrientation); assert.equal(rendered.zoom, snippets.scene.zoom);
   assert.equal(rendered.paused, true); assert.equal(rendered.tracking, true); assert.deepEqual(rendered.gaze, [0.9, 0]); assert.equal(rendered.interaction, 'box');
 });
 
@@ -753,17 +755,17 @@ for (const name of ['root', 'project']) for (const route of ['', 'playground/', 
     const page = await pageFor(t, 'pages', { viewport: { width: 1440, height: 1040 } }, new URL(route, deployment.url).href);
     await page.locator('[data-shape="puffy"]').click();
     await page.locator('[data-equipment="eyes"][data-accessory="glasses"]').click();
-    await page.getByRole('tab', { name: '카메라', exact: true }).click();
-    await page.locator('[data-camera-preset="three-quarter"]').click();
+    await page.getByRole('tab', { name: '몸체 방향', exact: true }).click();
+    await page.locator('[data-body-orientation-preset="three-quarter"]').click();
     await page.waitForFunction(() => {
       const avatar = document.getElementById('flat');
-      return avatar?.ready === true && avatar.design.body.shape === 'puffy' && avatar.camera.yaw === 45 && avatar.design.accessories.some(item => item.preset === 'glasses');
+      return avatar?.ready === true && avatar.design.body.shape === 'puffy' && avatar.bodyOrientation.yaw === 45 && avatar.design.accessories.some(item => item.preset === 'glasses');
     });
     await settle(page);
     const live = await page.locator('#flat').evaluate(async element => {
       const capture = (await element.capturePixelsAsync());
       return { ready: element.ready, backend: element.diagnostics.backend, shape: element.design.body.shape, accessories: element.design.accessories.map(item => item.preset),
-        yaw: element.camera.yaw, visible: capture.pixels.some((value, index) => index % 4 === 3 && value === 255), transparent: capture.pixels[3] === 0 };
+        yaw: element.bodyOrientation.yaw, visible: capture.pixels.some((value, index) => index % 4 === 3 && value === 255), transparent: capture.pixels[3] === 0 };
     });
     assert.equal(live.ready, true); assert.equal(live.backend, 'worker'); assert.ok(page.workers().length > 0); assert.equal(live.shape, 'puffy'); assert.ok(live.accessories.includes('glasses'));
     assert.equal(live.yaw, 45); assert.equal(live.visible, true); assert.equal(live.transparent, true);
@@ -861,7 +863,7 @@ test('Studio JSON file import applies a complete scene and export round-trips it
   await page.getByRole('tab', { name: 'JSON', exact: true }).click();
   const scene = await page.evaluate(() => window.libraryAPI.createScene({
     design: window.libraryAPI.createDesign({ body: { shape: 'heart', color: '#b7a5ce' }, eyes: { left: { weights: { smile: 0.7, blink: 0.2 } } }, accessories: [window.libraryAPI.createAccessory('glasses', 'frames')] }),
-    camera: { yaw: 32, pitch: -8, roll: 7 }, activity: 'thinking', paused: true, mouseTracking: false, interaction: 'box',
+    bodyOrientation: { yaw: 32, pitch: -8, roll: 7 }, zoom: 1.15, activity: 'thinking', paused: true, mouseTracking: false, interaction: 'box',
     gaze: { x: -0.4, y: 0.3 }, time: 1.5, shapeDuration: 250, shapeEasing: 'linear', motionDuration: 160, motionEasing: 'linear',
     motion: { body: { rotation: [0, 0.1, 0.3] }, face: { uv: [0.2, -0.1] }, accessories: { frames: { rotation: [0, 0.1, 0] } } },
   }));
@@ -870,16 +872,16 @@ test('Studio JSON file import applies a complete scene and export round-trips it
   await input.setInputFiles(file(scene));
   await page.waitForFunction(() => document.getElementById('flat').design.body.color === '#b7a5ce');
   const loaded = await stateOf(page, '#flat');
-  assert.deepEqual(loaded.design, scene.design); assert.deepEqual(loaded.camera, scene.camera); assert.deepEqual(loaded.gaze, [-0.4, 0.3]);
+  assert.deepEqual(loaded.design, scene.design); assert.deepEqual(loaded.bodyOrientation, scene.bodyOrientation); assert.equal(loaded.zoom, scene.zoom); assert.deepEqual(loaded.gaze, [-0.4, 0.3]);
   assert.equal(loaded.activity, scene.activity); assert.equal(loaded.paused, true); assert.equal(loaded.mouseTracking, false);
   assert.deepEqual(JSON.parse(await page.locator('#design-json').inputValue()), scene);
   assert.deepEqual(await page.locator('#flat').evaluate(element => [element.pose.rotation, element.pose.face, element.pose.accessories.frames]), [[0, 0.1, 0.3], [0.2, -0.1], [0, 0.1, 0]]);
   const downloadEvent = page.waitForEvent('download'); await page.locator('#export-json').click(); const download = await downloadEvent;
   assert.equal(download.suggestedFilename(), 'sidekick.scene.json'); assert.deepEqual(JSON.parse(await readFile(await download.path(), 'utf8')), scene);
-  const snapshot = () => page.locator('#flat').evaluate(element => ({ design: element.design, camera: element.camera, pose: element.pose, paused: element.paused, tracking: element.mouseTracking, activity: element.activity, storage: Object.fromEntries(Object.entries(localStorage)), json: document.getElementById('design-json').value }));
+  const snapshot = () => page.locator('#flat').evaluate(element => ({ design: element.design, bodyOrientation: element.bodyOrientation, zoom: element.zoom, pose: element.pose, paused: element.paused, tracking: element.mouseTracking, activity: element.activity, storage: Object.fromEntries(Object.entries(localStorage)), json: document.getElementById('design-json').value }));
   const before = await snapshot();
   for (const [bad, message] of [
-    ['{', /./], [{ ...scene, camera: { ...scene.camera, pitch: 91 } }, /camera\.pitch/],
+    ['{', /./], [{ ...scene, camera: { yaw: 10 } }, /camera/], [{ ...scene, view: [0.2, 0.1] }, /view/], [{ ...scene, bodyOrientation: { ...scene.bodyOrientation, pitch: 91 } }, /bodyOrientation\.pitch/],
     [{ ...scene, motion: { accessories: { 'missing-accessory': { rotation: [0, 0, 0] } } } }, /missing-accessory/],
     [{ ...scene, unexpected: true }, /unexpected/], [' '.repeat(65537), /64 KiB/],
   ]) {
@@ -892,7 +894,7 @@ test('Studio JSON file import applies a complete scene and export round-trips it
   await input.setInputFiles(file(scene)); await page.waitForFunction(() => document.getElementById('json-error').textContent === '');
   const legacy = { ...scene.design, body: { shape: 'puffy', color: '#81b5a1' } };
   await input.setInputFiles(file(legacy)); await page.waitForFunction(() => document.getElementById('flat').design.body.shape === 'puffy');
-  const migrated = await stateOf(page, '#flat'); assert.deepEqual(migrated.design, legacy); assert.deepEqual(migrated.camera, { yaw: 0, pitch: 0, roll: 0, zoom: 1 });
+  const migrated = await stateOf(page, '#flat'); assert.deepEqual(migrated.design, legacy); assert.deepEqual(migrated.bodyOrientation, { yaw: 0, pitch: 0, roll: 0 }); assert.equal(migrated.zoom, 1);
   assert.equal(migrated.mouseTracking, true); assert.equal(migrated.paused, false); assert.equal(migrated.activity, 'idle');
   assert.equal(await page.locator('#flat').evaluate(element => element.trackingMode), 'eyes-and-body');
 });
@@ -938,7 +940,7 @@ test('tracking modes render eye-only and additive body behavior while preserving
   });
   await page.waitForFunction(() => document.getElementById('bare').pose.gaze[0] > .99);
   const eyes = await page.locator('#bare').evaluate(async element => ({
-    base: element.pose.rotation, rendered: window.trackingFrames.at(-1), camera: element.camera,
+    base: element.pose.rotation, rendered: window.trackingFrames.at(-1), bodyOrientation: element.bodyOrientation, zoom: element.zoom,
     sameBody: (await element.capturePixelsAsync()).pixels.filter((_, i) => i % 4 === 3).every((alpha, i) => alpha === window.baselineAlpha[i]),
   }));
   assert.deepEqual(eyes.base, [0, 0, 0]); assert.deepEqual(eyes.rendered, eyes.base); assert.equal(eyes.sameBody, true);
@@ -950,8 +952,8 @@ test('tracking modes render eye-only and additive body behavior while preserving
   });
   assert.deepEqual(start.after, start.before, 'Changing modes must not snap the rendered body');
   await page.waitForFunction(() => window.bodyMotionFinished && window.trackingFrames.at(-1)[1] > .5);
-  const body = await page.locator('#bare').evaluate(element => ({ base: element.pose.rotation, rendered: window.trackingFrames.at(-1), camera: element.camera }));
-  assert.deepEqual(body.base, [.2, .3, .1]); assert.deepEqual(body.camera, eyes.camera);
+  const body = await page.locator('#bare').evaluate(element => ({ base: element.pose.rotation, rendered: window.trackingFrames.at(-1), bodyOrientation: element.bodyOrientation, zoom: element.zoom }));
+  assert.deepEqual(body.base, [.2, .3, .1]); assert.deepEqual(body.bodyOrientation, eyes.bodyOrientation);
   for (const [i, limit] of [[0, .14], [1, .22], [2, .035]]) assert.ok(Math.abs(body.rendered[i] - body.base[i]) <= limit + .000001);
   const off = await page.locator('#bare').evaluate(element => {
     const before = window.trackingFrames.at(-1); element.trackingMode = 'off';
@@ -1055,4 +1057,15 @@ test('paused tracking settles to neutral and Studio imports do not retain an old
   await page.waitForFunction(() => document.getElementById('flat').pose.rotation[1] === -.2);
   const imported = await page.locator('#flat').evaluate(async element => { await element.capturePixelsAsync(); return { rendered: window.trackingRotation, base: element.pose.rotation, mode: element.trackingMode }; });
   assert.deepEqual(imported.rendered, [.1, -.2, .3]); assert.deepEqual(imported.base, imported.rendered); assert.equal(imported.mode, 'eyes-and-body');
+});
+
+test('React body orientation and zoom callbacks report distinct changes without camera aliases', async t => {
+  const page = await pageFor(t, 'react');
+  await page.evaluate(() => { window.consumer.events.length = 0; window.renderConsumer({ bodyOrientation: { yaw: 25, pitch: -8, roll: 6 }, zoom: 1.2 }); });
+  await page.waitForFunction(() => window.consumer.element.bodyOrientation.yaw === 25 && window.consumer.element.zoom === 1.2);
+  await settle(page);
+  const result = await page.evaluate(() => ({ events: window.consumer.events.filter(event => ['BodyOrientationChange', 'ZoomChange'].includes(event.name)), attributes: window.consumer.element.getAttributeNames(), oldAPI: 'camera' in window.consumer.element }));
+  assert.ok(result.events.some(event => event.name === 'BodyOrientationChange' && event.type === 'sidekick-body-orientation-change' && event.native && event.detail.bodyOrientation.yaw === 25 && !Object.hasOwn(event.detail, 'zoom')));
+  assert.ok(result.events.some(event => event.name === 'ZoomChange' && event.type === 'sidekick-zoom-change' && event.native && event.detail.zoom === 1.2 && !Object.hasOwn(event.detail, 'bodyOrientation')));
+  assert.equal(result.oldAPI, false); assert.equal(result.attributes.some(name => name === 'camera' || name.startsWith('camera-')), false);
 });

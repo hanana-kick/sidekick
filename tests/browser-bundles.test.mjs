@@ -138,13 +138,13 @@ test('optional release React peers are deterministic, production-only and run ra
     assert.equal(globals.customElements.get('sidekick-avatar'), undefined, 'wrapper import must leave native class lazy');
     const errors = [], ref = react.namespace.createRef();
     const root = client.namespace.createRoot(globals.document.querySelector('#root'));
-    root.render(react.namespace.createElement(wrapper.namespace.SidekickAvatar, { ref, shape: 'heart', cameraYaw: 12, onError: event => errors.push(event) }));
+    root.render(react.namespace.createElement(wrapper.namespace.SidekickAvatar, { ref, shape: 'heart', bodyYaw: 12, onError: event => errors.push(event) }));
     for (let attempt = 0; attempt < 100 && !ref.current; attempt++) await new Promise(resolve => setTimeout(resolve, 20));
     const avatar = globals.document.querySelector('sidekick-avatar');
     assert.equal(typeof globals.customElements.get('sidekick-avatar'), 'function');
     assert.equal(ref.current, avatar);
     assert.equal(avatar.design.body.shape, 'heart');
-    assert.equal(avatar.camera.yaw, 12);
+    assert.equal(avatar.bodyOrientation.yaw, 12);
     assert.equal(errors.length, 1); assert.match(errors[0].detail.message, /WebGL/);
     root.unmount(); assert.equal(ref.current, null);
     dom.window.close(); console.log('Raw release import-map React passed');

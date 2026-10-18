@@ -478,7 +478,7 @@ test('surface eye ink follows rounded geometry, can remain at true side view, an
       return { groups, area: groups.reduce((sum, group) => sum + group.area, 0) };
     }
     const samples = [];
-    for (const [yaw, pitch] of [[0, 0], [60, 0], [75, 0], [0, 60], [90, 0], [-90, 0], [180, 0]]) { a.setCamera({ yaw, pitch, roll: 0 }); samples.push({ yaw, pitch, ...(await measure()) }); }
+    for (const [yaw, pitch] of [[0, 0], [60, 0], [75, 0], [0, 60], [90, 0], [-90, 0], [180, 0]]) { a.setBodyOrientation({ yaw, pitch, roll: 0 }); samples.push({ yaw, pitch, ...(await measure()) }); }
     return samples;
   });
   const front = cases[0]; assert.equal(front.groups.length, 2); assert.ok(front.area > 100);
@@ -544,7 +544,7 @@ test('setEyeWeights preserves other weights, color edits and independent running
 test('curated smile is visibly wider than neutral and changes surface ink only', async t => {
   const page = await pageFor(t);
   const result = await page.locator('#flat').evaluate(async a => {
-    a.style.width = '420px'; a.style.height = '420px'; a.paused = true; a.setActivity('still'); a.seek(0); a.resetCamera();
+    a.style.width = '420px'; a.style.height = '420px'; a.paused = true; a.setActivity('still'); a.seek(0); a.resetBodyOrientation();
     a.design = window.fixtureAPI.createDesign({ body: { shape: 'square' }, eyes: { color: '#ff00ff' }, accessories: [] });
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     async function measure() {
@@ -571,7 +571,7 @@ test('curated smile is visibly wider than neutral and changes surface ink only',
 test('curated smile keeps uniform normal-direction thickness and round caps', async t => {
   const page = await pageFor(t, { viewport: { width: 1600, height: 1200 }, deviceScaleFactor: 2 });
   const cases = await page.locator('#flat').evaluate(async a => {
-    a.style.width = '640px'; a.style.height = '640px'; a.paused = true; a.setActivity('still'); a.seek(0); a.resetCamera();
+    a.style.width = '640px'; a.style.height = '640px'; a.paused = true; a.setActivity('still'); a.seek(0); a.resetBodyOrientation();
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const cases = [];
     for (const target of [{ radius: 0.75, thickness: 0.22 }]) {
@@ -660,7 +660,7 @@ test('curated rounded volume tapers continuously toward its silhouette', async t
     const cases = [];
     for (const shape of ['square', 'circle']) {
       a.design = window.fixtureAPI.createDesign({ body: { shape, color: '#c0b080' }, eyes: { color: '#c0b080' }, accessories: [] });
-      a.resetCamera(); const front = (await silhouette()); a.setCameraPreset('side'); const side = (await silhouette());
+      a.resetBodyOrientation(); const front = (await silhouette()); a.setBodyOrientationPreset('side'); const side = (await silhouette());
       cases.push({ shape, front: { width: front.width, height: front.height }, side: { width: side.width, height: side.height, samples: side.samples }, drawCalls: a.diagnostics.drawCalls });
     }
     return cases;
@@ -694,7 +694,7 @@ test('shadcn Studio keeps one transparent preview, real silhouette buttons and c
   await page.locator('#shape-search').fill('');
   await shapeButton(page, 'heart').focus(); await shapeButton(page, 'heart').press('Home');
   assert.equal(await page.locator('#material-shape button:focus').getAttribute('data-shape'), 'circle');
-  for (const name of ['애니메이션', '카메라', 'JSON', '외형']) await tab(page, name);
+  for (const name of ['애니메이션', '몸체 방향', 'JSON', '외형']) await tab(page, name);
   assert.equal(await page.evaluate(() => document.getElementById('flat') === window.originalAvatar && document.querySelector('[data-shape=heart]') === window.originalShapeTile), true);
   if (screenshots) await page.screenshot({ path: screenshots + '/studio-desktop.png' });
 });
@@ -797,16 +797,16 @@ test('Studio v1–v6 imports migrate deterministically, disclose discarded geome
   }
 });
 
-test('Studio import and reset settle interrupted shapes and reset camera/expression controls', async t => {
+test('Studio import and reset settle interrupted shapes and reset bodyOrientation/expression controls', async t => {
   const page = await pageFor(t, { reducedMotion: 'no-preference' });
   await tab(page, '애니메이션'); await setRange(page, 'shape-duration', 1500); await choose(page, 'left-expression', 'smile');
   await tab(page, '외형'); await shapeButton(page, 'boom').click();
   const imported = await designOf(page); imported.body.shape = 'heart'; imported.body.color = '#aabbcc';
   await importJSON(page, imported); assert.equal((await designOf(page)).body.shape, 'heart');
-  await tab(page, '카메라'); await page.locator('[data-camera-preset=side]').click();
+  await tab(page, '몸체 방향'); await page.locator('[data-body-orientation-preset=side]').click();
   await page.locator('#reset').click();
   const reset = await designOf(page); assert.equal(reset.body.shape, 'square'); assert.deepEqual(reset.eyes.left.weights, { smile: 0, blink: 0 });
-  assert.deepEqual(await page.locator('#flat').evaluate(a => a.camera), { yaw: 0, pitch: 0, roll: 0, zoom: 1 });
+  assert.deepEqual(await page.locator('#flat').evaluate(a => a.bodyOrientation), { yaw: 0, pitch: 0, roll: 0 });
   await tab(page, '애니메이션'); assert.equal(await rangeValue(page, 'shape-duration'), 450); assert.match(await page.locator('#shape-easing').textContent(), /부드럽게/);
 });
 
@@ -867,25 +867,26 @@ test('Studio keyboard tabs, named slider thumbs and Select Escape retain accessi
   assert.equal(await page.locator('#shape-easing').evaluate(el => document.activeElement === el), true);
 });
 
-test('Studio camera degree controls, presets, API and orbit stay synchronized without changing body pose', async t => {
+test('Studio bodyOrientation degree controls, presets, API and orbit stay synchronized without changing body pose', async t => {
   const page = await pageFor(t);
-  // Isolate camera edits from the independent, default-on pointer gaze layer.
+  // Isolate bodyOrientation edits from the independent, default-on pointer gaze layer.
   await tab(page, '애니메이션'); await page.locator('#tracking-off').click();
   await page.locator('#flat').evaluate(a => { a.paused = true; a.setActivity('still'); });
   const initial = await page.locator('#flat').evaluate(a => ({ pose: a.pose, design: a.design }));
-  await tab(page, '카메라'); await setRange(page, 'view-yaw', 52); await setRange(page, 'view-pitch', -23); await setRange(page, 'view-roll', 17);
-  assert.deepEqual(await page.locator('#flat').evaluate(a => a.camera), { yaw: 52, pitch: -23, roll: 17, zoom: 1 });
+  await tab(page, '몸체 방향'); await setRange(page, 'body-yaw', 52); await setRange(page, 'body-pitch', -23); await setRange(page, 'body-roll', 17);
+  assert.deepEqual(await page.locator('#flat').evaluate(a => a.bodyOrientation), { yaw: 52, pitch: -23, roll: 17 });
   assert.deepEqual(await page.locator('#flat').evaluate(a => a.pose), initial.pose); assert.deepEqual(await designOf(page), initial.design);
-  await page.locator('[data-camera-preset=side]').click(); assert.equal(await rangeValue(page, 'view-yaw'), 90);
-  await page.locator('#flat').evaluate(a => a.setCamera({ yaw: 21, pitch: 12, roll: 9 }));
-  await page.waitForFunction(() => document.getElementById('view-yaw').getAttribute('aria-valuenow') === '21');
+  await page.locator('[data-body-orientation-preset=side]').click(); assert.equal(await rangeValue(page, 'body-yaw'), 90);
+  await page.locator('#flat').evaluate(a => { a.setBodyOrientation({ yaw: 21, pitch: 12, roll: 9 }); a.zoom = 1.2; });
+  await page.waitForFunction(() => document.getElementById('body-yaw').getAttribute('aria-valuenow') === '21');
   const box = await page.locator('#flat').boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 + 55, box.y + box.height / 2 + 25, { steps: 5 }); await page.mouse.up();
-  const camera = await page.locator('#flat').evaluate(a => a.camera);
-  assert.notEqual(camera.yaw, 21); assert.equal(camera.roll, 9); assert.ok(Math.abs(await rangeValue(page, 'view-yaw') - camera.yaw) < .001);
+  const bodyOrientation = await page.locator('#flat').evaluate(a => a.bodyOrientation);
+  assert.notEqual(bodyOrientation.yaw, 21); assert.equal(bodyOrientation.roll, 9); assert.ok(Math.abs(await rangeValue(page, 'body-yaw') - bodyOrientation.yaw) < .001);
   assert.deepEqual(await page.locator('#flat').evaluate(a => a.pose), initial.pose);
-  await page.locator('#reset-camera').click(); assert.deepEqual(await page.locator('#flat').evaluate(a => a.camera), { yaw: 0, pitch: 0, roll: 0, zoom: 1 });
+  await page.locator('#reset-body-orientation').click(); assert.deepEqual(await page.locator('#flat').evaluate(a => a.bodyOrientation), { yaw: 0, pitch: 0, roll: 0 });
+  assert.equal(await page.locator('#flat').evaluate(a => a.zoom), 1.2, 'Body orientation reset preserves zoom');
 });
 
 test('Studio saved v7 design restores all equipment, colors and independent weights on reload', async t => {
@@ -931,18 +932,18 @@ test('Studio failed recovery backup protects the original while allowing an expo
   assert.equal(await page.locator('#status').getAttribute('data-error'), 'true');
 });
 
-test('preview wheel zoom leaves settings-panel scrolling and camera slider synchronization intact', async t => {
+test('preview wheel zoom leaves settings-panel scrolling and bodyOrientation slider synchronization intact', async t => {
   const page = await pageFor(t, { viewport: { width: 1280, height: 700 } });
   const preview = await page.locator('#flat').boundingBox();
   await page.mouse.move(preview.x + preview.width / 2, preview.y + preview.height / 2); await page.mouse.wheel(0, -100);
-  await page.waitForFunction(() => document.getElementById('flat').camera.zoom > 1);
-  const zoom = await page.locator('#flat').evaluate(avatar => avatar.camera.zoom);
+  await page.waitForFunction(() => document.getElementById('flat').zoom > 1);
+  const zoom = await page.locator('#flat').evaluate(avatar => avatar.zoom);
   const settings = page.locator('.settings-scroll'), box = await settings.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel(0, 400);
   await page.waitForFunction(() => document.querySelector('.settings-scroll').scrollTop > 0);
-  assert.equal(await page.locator('#flat').evaluate(avatar => avatar.camera.zoom), zoom);
-  await page.locator('#camera-tab').click(); assert.ok(Math.abs(await rangeValue(page, 'view-zoom') - zoom) < .001);
-  await page.locator('#reset-camera').click(); assert.equal(await rangeValue(page, 'view-zoom'), 1);
+  assert.equal(await page.locator('#flat').evaluate(avatar => avatar.zoom), zoom);
+  await page.locator('#body-orientation-tab').click(); assert.ok(Math.abs(await rangeValue(page, 'zoom') - zoom) < .001);
+  await page.locator('#reset-zoom').click(); assert.equal(await rangeValue(page, 'zoom'), 1);
 });
 
 test('scene editor renders OG preset, exports full-size PNG and roundtrips composition JSON', async () => {
@@ -989,4 +990,27 @@ test('scene editor renders OG preset, exports full-size PNG and roundtrips compo
     await page.waitForFunction(() => document.querySelector('.composition-status')?.textContent.includes('정지 프레임'));
     if(screenshots)await page.screenshot({path:`${screenshots}/scene-editor-mobile.png`});
   } finally { await page.close(); }
+});
+
+for (const legacyKey of ['camera', 'view']) test(`Studio first load rejects saved ${legacyKey} preferences and offers a usable reset`, async t => {
+  const seed = await pageFor(t);
+  const design = await designOf(seed);
+  const raw = JSON.stringify({ ...design, [legacyKey]: legacyKey === 'camera' ? { yaw: 80, pitch: 20, roll: 10, zoom: 2 } : [0.5, 0.25] });
+  const page = await pageFor(t, {}, page => page.addInitScript(raw => {
+    if (!sessionStorage.getItem('seeded-obsolete-preference')) {
+      localStorage.clear(); localStorage.setItem('sidekick.design.v7', raw);
+      sessionStorage.setItem('seeded-obsolete-preference', '1');
+    }
+  }, raw));
+  assert.equal(await page.locator('#saved-design-warning').isVisible(), true);
+  assert.equal(await page.locator('#design-json').inputValue(), raw);
+  assert.equal(await page.evaluate(() => localStorage.getItem('sidekick.design.v7')), raw, 'Do not silently migrate or overwrite unsupported keys');
+  assert.deepEqual(await page.locator('#flat').evaluate(a => ({ bodyOrientation: a.bodyOrientation, zoom: a.zoom })), { bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 });
+  await page.locator('#reset').click();
+  assert.equal(await page.locator('#saved-design-warning').count(), 0);
+  const recovery = await page.evaluate(() => ({ original: localStorage.getItem('sidekick.design.v7.recovery'), saved: JSON.parse(localStorage.getItem('sidekick.design.v7')) }));
+  assert.equal(recovery.original, raw);
+  assert.equal(Object.hasOwn(recovery.saved, 'camera'), false); assert.equal(Object.hasOwn(recovery.saved, 'view'), false);
+  await page.reload(); await page.waitForFunction(() => document.getElementById('flat')?.ready === true);
+  assert.equal(await page.locator('#saved-design-warning').count(), 0);
 });

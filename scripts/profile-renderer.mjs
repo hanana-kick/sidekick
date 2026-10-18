@@ -26,7 +26,7 @@ function runScenario(name, shape, equipped, mode = 'static') {
   const before = counter.snapshot(), samples = [];
   for (let i = 0; i < frameCount; i++) {
     if (mode === 'idle') { state.activity = 'idle'; state.reduced = false; state.time = (i + 1) / 60; }
-    if (mode === 'tracking') { state.camera = { yaw: Math.sin(i / 10) * 30, pitch: Math.cos(i / 10) * 20, roll: 0 }; state.pose.rotation = [.1 * Math.sin(i / 8), .2 * Math.cos(i / 8), 0]; state.pose.gaze = [Math.sin(i / 7) * .3, Math.cos(i / 7) * .3]; }
+    if (mode === 'tracking') { state.bodyOrientation = { yaw: Math.sin(i / 10) * 30, pitch: Math.cos(i / 10) * 20, roll: 0 }; state.pose.rotation = [.1 * Math.sin(i / 8), .2 * Math.cos(i / 8), 0]; state.pose.gaze = [Math.sin(i / 7) * .3, Math.cos(i / 7) * .3]; }
     samples.push(measure(() => renderer.render(design, state)));
   }
   const resources = counter.snapshot(), result = { name, shape, equipped, mode, constructorMs, coldMs, samplesMs: samples, ...distribution(samples), uploads: numericDelta(resources, before), resources };

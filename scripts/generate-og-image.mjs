@@ -63,7 +63,7 @@ try {
   });
   const pose = initialPose();
   pose.eyes.left.smile = pose.eyes.right.smile = 1;
-  renderer.render(design, { pose, activity: 'still', time: 0, delta: 0, reduced: true, style: 'flat', camera: { yaw: 0, pitch: 0, roll: 0 } });
+  renderer.render(design, { pose, activity: 'still', time: 0, delta: 0, reduced: true, style: 'flat', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 } });
   assert.ok(captured.draws.length > 1, 'Expected production body and accessory draws');
   for (const [stage, type] of [['vertex', captured.gl.VERTEX_SHADER], ['fragment', captured.gl.FRAGMENT_SHADER]]) {
     fs.writeFileSync(path.join(temp, stage + '.glsl'), captured.shaders.find(shader => shader.type === type).source);

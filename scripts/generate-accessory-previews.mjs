@@ -69,7 +69,7 @@ try {
   for(const preset of ACCESSORY_PRESETS){
     const accessory=preset==='earring'||preset==='starEarring'?createAccessory(preset,{slot:'rightEar'}):createAccessory(preset);
     const [yaw,pitch]=views[preset];
-    renderer.render(createDesign({accessories:[accessory]}),{pose:initialPose(),activity:'still',time:0,delta:0,reduced:true,style:'flat',camera:{yaw,pitch,roll:0}});
+    renderer.render(createDesign({accessories:[accessory]}),{pose:initialPose(),activity:'still',time:0,delta:0,reduced:true,style:'flat',bodyOrientation:{yaw,pitch,roll:0}});
     const draws=captured.draws.filter(draw=>draw.uniforms.get('eyesOn')?.values[0]===0);assert.ok(draws.length);
     let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
     for(const draw of draws){const model=draw.uniforms.get('model').values,v=new Float32Array(draw.vertices.buffer,draw.vertices.byteOffset,draw.vertices.length/4);for(let i=0;i<v.length;i+=6){const x=model[0]*v[i]+model[4]*v[i+1]+model[8]*v[i+2]+model[12],y=model[1]*v[i]+model[5]*v[i+1]+model[9]*v[i+2]+model[13];minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);}}

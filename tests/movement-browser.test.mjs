@@ -30,7 +30,7 @@ for (const reducedMotion of ['no-preference', 'reduce']) test(`bounded canvas mo
     const second = bot.moveTo({ x: 200, y: 300 }, { duration: 100 });
     const firstResult = await first, secondResult = await second;
     const final = await bot.capturePixelsAsync(); const rect = bot.getBoundingClientRect();
-    return { firstResult, secondResult, current, events, rect: { x: rect.x, y: rect.y }, size: [initial.width, initial.height, final.width, final.height], generation: [generation, bot.diagnostics.generation], sameCanvas: canvas === bot.shadowRoot.querySelector('canvas'), camera: bot.camera, color: bot.design.body.color, reduced };
+    return { firstResult, secondResult, current, events, rect: { x: rect.x, y: rect.y }, size: [initial.width, initial.height, final.width, final.height], generation: [generation, bot.diagnostics.generation], sameCanvas: canvas === bot.shadowRoot.querySelector('canvas'), bodyOrientation: bot.bodyOrientation, zoom: bot.zoom, color: bot.design.body.color, reduced };
   }, reducedMotion === 'reduce');
   assert.equal(result.firstResult.finished, reducedMotion === 'reduce'); assert.equal(result.secondResult.finished, true);
   assert.deepEqual(result.rect, { x: 200, y: 300 }); assert.deepEqual(result.size.slice(0, 2), result.size.slice(2)); assert.equal(result.sameCanvas, true); assert.equal(result.generation[0], result.generation[1]);

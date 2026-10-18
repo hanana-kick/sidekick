@@ -53,11 +53,11 @@ for (const entry of ['native', 'esm', 'classic']) test(`${entry}: default render
   assert.ok(page.workers().length >= 1);
 });
 
-test('fresh readback flushes immediate CSS size/design/camera changes and exports exact alpha bounds', async t => {
+test('fresh readback flushes immediate CSS size/design/bodyOrientation changes and exports exact alpha bounds', async t => {
   const page = await pageFor(t);
   const result = await page.evaluate(async () => {
     const avatar = document.getElementById('avatar'); avatar.paused = true;
-    avatar.style.width = '511px'; avatar.style.height = '233px'; avatar.setCamera({ yaw: 33, pitch: 9, roll: -8 }); await avatar.updateDesign({ body: { color: '#3366aa' } });
+    avatar.style.width = '511px'; avatar.style.height = '233px'; avatar.setBodyOrientation({ yaw: 33, pitch: 9, roll: -8 }); await avatar.updateDesign({ body: { color: '#3366aa' } });
     const image = await avatar.capturePixelsAsync();
     let minX = image.width, minY = image.height, maxX = -1, maxY = -1, alphaSum = 0;
     for (let y = 0; y < image.height; y++) for (let x = 0; x < image.width; x++) { const alpha = image.pixels[(y * image.width + x) * 4 + 3]; alphaSum += alpha; if (alpha) { minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); } }
@@ -71,10 +71,10 @@ test('fresh readback flushes immediate CSS size/design/camera changes and export
       const target = ((maxY - y + 7) * canvas.width + x - minX + 7) * 4; edgeSamples++;
       for (let channel = 0; channel < 3; channel++) maxEdgeError = Math.max(maxEdgeError, Math.abs(png[target + channel] - Math.min(255, Math.round(image.pixels[source + channel] * 255 / alpha))));
     }
-    return { edgeSamples, maxEdgeError, size: [image.width, image.height], expected: [Math.round(511 * Math.min(devicePixelRatio, 2)), Math.round(233 * Math.min(devicePixelRatio, 2))], png: [canvas.width, canvas.height], bounds: [maxX - minX + 1 + 14, maxY - minY + 1 + 14], alphaSum, exportedAlpha, type: blob.type, camera: avatar.camera, color: avatar.design.body.color };
+    return { edgeSamples, maxEdgeError, size: [image.width, image.height], expected: [Math.round(511 * Math.min(devicePixelRatio, 2)), Math.round(233 * Math.min(devicePixelRatio, 2))], png: [canvas.width, canvas.height], bounds: [maxX - minX + 1 + 14, maxY - minY + 1 + 14], alphaSum, exportedAlpha, type: blob.type, bodyOrientation: avatar.bodyOrientation, zoom: avatar.zoom, color: avatar.design.body.color };
   });
   assert.deepEqual(result.size, result.expected); assert.deepEqual(result.png, result.bounds); assert.equal(result.type, 'image/png'); assert.equal(result.exportedAlpha, result.alphaSum); assert.ok(result.edgeSamples > 0); assert.ok(result.maxEdgeError <= 2, `PNG edge color drift ${result.maxEdgeError}`);
-  assert.deepEqual(result.camera, { yaw: 33, pitch: 9, roll: -8, zoom: 1 }); assert.equal(result.color, '#3366aa');
+  assert.deepEqual(result.bodyOrientation, { yaw: 33, pitch: 9, roll: -8 }); assert.equal(result.color, '#3366aa');
 });
 
 test('independent worker motion requests survive color edits and settle cancellation on disconnect', async t => {
@@ -149,16 +149,16 @@ for (const failWorker of ['', 'constructor']) test(`${failWorker ? 'fallback' : 
   const page = await pageFor(t, { failWorker });
   await page.locator('#avatar').evaluate(avatar => { avatar.interaction = 'box'; avatar.paused = true; });
   await page.mouse.move(160, 140); await page.mouse.wheel(0, -100);
-  await page.waitForFunction(() => document.getElementById('avatar').camera.zoom > 1);
-  const first = await page.locator('#avatar').evaluate(avatar => avatar.camera.zoom);
+  await page.waitForFunction(() => document.getElementById('avatar').zoom > 1);
+  const first = await page.locator('#avatar').evaluate(avatar => avatar.zoom);
   assert.ok(Math.abs(first - Math.exp(.2)) < .001);
   await page.keyboard.down('Control'); await page.mouse.wheel(0, -40); await page.keyboard.up('Control');
-  await page.waitForFunction(previous => document.getElementById('avatar').camera.zoom > previous, first);
+  await page.waitForFunction(previous => document.getElementById('avatar').zoom > previous, first);
   assert.equal(await page.evaluate(() => visualViewport.scale), 1);
-  const before = await page.locator('#avatar').evaluate(avatar => { avatar.interaction = 'none'; return avatar.camera; });
+  const before = await page.locator('#avatar').evaluate(avatar => { avatar.interaction = 'none'; return { ...avatar.bodyOrientation, zoom: avatar.zoom }; });
   await page.mouse.wheel(0, -200);
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  assert.deepEqual(await page.locator('#avatar').evaluate(avatar => avatar.camera), before);
+  assert.deepEqual(await page.locator('#avatar').evaluate(avatar => ({ ...avatar.bodyOrientation, zoom: avatar.zoom })), before);
 });
 
 for (const failWorker of ['', 'constructor']) test(`${failWorker ? 'fallback' : 'worker'}: centered zoom preserves wide/tall aspect and PNG exports visible clipped pixels`, async t => {
@@ -172,11 +172,11 @@ for (const failWorker of ['', 'constructor']) test(`${failWorker ? 'fallback' : 
     };
     const cases = [];
     for (const [width, height] of [[480, 240], [240, 480]]) {
-      avatar.style.width = `${width}px`; avatar.style.height = `${height}px`; avatar.resetCamera();
-      const normal = bounds(await avatar.capturePixelsAsync()); avatar.setCamera({ zoom: 1.5 }); const zoomed = bounds(await avatar.capturePixelsAsync());
+      avatar.style.width = `${width}px`; avatar.style.height = `${height}px`; avatar.resetBodyOrientation(); avatar.zoom = 1;
+      const normal = bounds(await avatar.capturePixelsAsync()); avatar.zoom = 1.5; const zoomed = bounds(await avatar.capturePixelsAsync());
       cases.push({ width, height, normal, zoomed });
     }
-    avatar.style.width = '240px'; avatar.style.height = '240px'; avatar.setCamera({ zoom: 3 });
+    avatar.style.width = '240px'; avatar.style.height = '240px'; avatar.zoom = 3;
     const clipped = bounds(await avatar.capturePixelsAsync()), blob = await avatar.snapshot({ padding: 0 }), bitmap = await createImageBitmap(blob), output = document.createElement('canvas');
     output.width = bitmap.width; output.height = bitmap.height; const context = output.getContext('2d'); context.drawImage(bitmap, 0, 0); bitmap.close();
     const pixels = context.getImageData(0, 0, output.width, output.height).data; let alpha = 0; for (let i = 3; i < pixels.length; i += 4) alpha += pixels[i];
@@ -210,28 +210,28 @@ test('real two-finger touch transitions orbit → pinch → orbit without jumps,
     await cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points.map(([id, x, y]) => ({ id, x, y, radiusX: 4, radiusY: 4, force: 1 })) });
     // CDP acknowledges injection before Chromium necessarily dispatches every
     // compositor-coalesced pointer event. Wait for the actual DOM coordinates,
-    // independently of camera state, before asking the renderer for a barrier.
+    // independently of bodyOrientation state, before asking the renderer for a barrier.
     await page.waitForFunction(expected => {
       const actual = [...touchPointers.values()];
       return actual.length === expected.length && expected.every(([, x, y]) => actual.some(([ax, ay]) => Math.abs(ax - x) < .01 && Math.abs(ay - y) < .01));
     }, expectedActive);
   };
-  const camera = () => page.locator('#avatar').evaluate(async avatar => { await avatar.capturePixelsAsync(); return avatar.camera; });
-  await touch('touchStart', [[1, 100, 100]]); await touch('touchMove', [[1, 120, 100]]); const orbit = await camera(); assert.ok(orbit.yaw > 0);
+  const bodyOrientation = () => page.locator('#avatar').evaluate(async avatar => { await avatar.capturePixelsAsync(); return { ...avatar.bodyOrientation, zoom: avatar.zoom }; });
+  await touch('touchStart', [[1, 100, 100]]); await touch('touchMove', [[1, 120, 100]]); const orbit = await bodyOrientation(); assert.ok(orbit.yaw > 0);
   await touch('touchStart', [[2, 220, 100]], [[1, 120, 100], [2, 220, 100]]);
-  await touch('touchMove', [[1, 100, 100], [2, 240, 100]]); const pinch = await camera();
-  t.diagnostic('Touch input and camera: ' + JSON.stringify(await page.evaluate(() => ({ events: touchEvents, camera: document.getElementById('avatar').camera }))));
+  await touch('touchMove', [[1, 100, 100], [2, 240, 100]]); const pinch = await bodyOrientation();
+  t.diagnostic('Touch input and bodyOrientation: ' + JSON.stringify(await page.evaluate(() => ({ events: touchEvents, bodyOrientation: document.getElementById('avatar').bodyOrientation }))));
   assert.ok(Math.abs(pinch.zoom - 1.4) < .01, `Expected 1.4× pinch, received ${pinch.zoom}`); assert.equal(pinch.yaw, orbit.yaw); assert.equal(pinch.pitch, orbit.pitch);
-  await touch('touchMove', [[1, 120, 130], [2, 260, 130]]); const translated = await camera();
+  await touch('touchMove', [[1, 120, 130], [2, 260, 130]]); const translated = await bodyOrientation();
   assert.ok(Math.abs(translated.zoom - pinch.zoom) < .01); assert.equal(translated.yaw, pinch.yaw); assert.equal(translated.pitch, pinch.pitch);
   // Chromium's default CDP path releases the supplied touch IDs; omitted IDs remain active.
-  await touch('touchEnd', [[2, 260, 130]], [[1, 120, 130]]); const released = await camera(); assert.deepEqual(released, translated);
-  await touch('touchMove', [[1, 130, 130]]); const resumed = await camera();
+  await touch('touchEnd', [[2, 260, 130]], [[1, 120, 130]]); const released = await bodyOrientation(); assert.deepEqual(released, translated);
+  await touch('touchMove', [[1, 130, 130]]); const resumed = await bodyOrientation();
   assert.ok(Math.abs(resumed.yaw - released.yaw - .1 * 180 / Math.PI) < .01); assert.equal(resumed.zoom, released.zoom);
   await touch('touchEnd', []); assert.equal(await page.evaluate(() => activations), 0);
   await touch('touchStart', [[1, 100, 100], [2, 200, 100]]); await touch('touchMove', [[1, 90, 100], [2, 210, 100]]);
-  const accepted = await camera(); await touch('touchCancel', []); assert.deepEqual(await camera(), accepted);
-  const reconnected = await page.locator('#avatar').evaluate(async avatar => { avatar.remove(); document.body.append(avatar); await avatar.capturePixelsAsync(); return avatar.camera; });
+  const accepted = await bodyOrientation(); await touch('touchCancel', []); assert.deepEqual(await bodyOrientation(), accepted);
+  const reconnected = await page.locator('#avatar').evaluate(async avatar => { avatar.remove(); document.body.append(avatar); await avatar.capturePixelsAsync(); return { ...avatar.bodyOrientation, zoom: avatar.zoom }; });
   assert.deepEqual(reconnected, accepted);
 });
 
@@ -246,17 +246,17 @@ test('real wheel zoom during concurrent shape, eye and body motion preserves eve
     ]);
   });
   await page.waitForFunction(() => { const value = document.getElementById('avatar').pose.eyes.left.smile; return value > .1 && value < .8; });
-  const before = await page.locator('#avatar').evaluate(avatar => ({ pose: avatar.pose, camera: avatar.camera }));
+  const before = await page.locator('#avatar').evaluate(avatar => ({ pose: avatar.pose, bodyOrientation: avatar.bodyOrientation, zoom: avatar.zoom }));
   await page.mouse.move(160, 140); await page.mouse.wheel(0, -100);
-  await page.waitForFunction(() => document.getElementById('avatar').camera.zoom > 1);
+  await page.waitForFunction(() => document.getElementById('avatar').zoom > 1);
   const result = await page.evaluate(async () => {
     const completions = await motionResults, avatar = document.getElementById('avatar'); await avatar.capturePixelsAsync();
-    return { completions, pose: avatar.pose, shape: avatar.design.body.shape, camera: avatar.camera };
+    return { completions, pose: avatar.pose, shape: avatar.design.body.shape, bodyOrientation: avatar.bodyOrientation, zoom: avatar.zoom };
   });
   assert.ok(before.pose.eyes.left.smile > 0 && before.pose.eyes.left.smile < 1);
   assert.deepEqual(result.completions, [{ finished: true }, { finished: true }, { finished: true }]);
   assert.equal(result.shape, 'heart'); assert.equal(result.pose.eyes.left.smile, 1); assert.deepEqual(result.pose.rotation, [.2, .3, .4]);
-  assert.equal(result.camera.yaw, before.camera.yaw); assert.equal(result.camera.pitch, before.camera.pitch); assert.equal(result.camera.roll, before.camera.roll); assert.ok(result.camera.zoom > 1);
+  assert.equal(result.bodyOrientation.yaw, before.bodyOrientation.yaw); assert.equal(result.bodyOrientation.pitch, before.bodyOrientation.pitch); assert.equal(result.bodyOrientation.roll, before.bodyOrientation.roll); assert.ok(result.zoom > 1);
 });
 
 for (const failWorker of ['', 'constructor']) test(`${failWorker || 'worker'}: far pointer preserves paired eye motion on concave heart`, async t => {
@@ -313,4 +313,56 @@ for (const failWorker of ['', 'constructor']) test(`${failWorker || 'worker'}: f
   }
   if(mode==='eyes') for(let eye=0;eye<2;eye++)assert.ok(Math.abs(restored.eyes[eye].x-neutral.eyes[eye].x)<1,'return to neutral');
  }
+});
+
+for (const failWorker of ['', 'constructor']) test(`${failWorker ? 'fallback' : 'worker'}: authored body facing rotates real pixels with unchanged animation and separate zoom events`, async t => {
+  const page = await pageFor(t, { failWorker });
+  const result = await page.locator('#avatar').evaluate(async avatar => {
+    avatar.paused = true; avatar.trackingMode = 'off'; avatar.setActivity('still');
+    await avatar.updateDesign({ body: { shape: 'square', color: '#ffffff' }, eyes: { color: '#000000' } });
+    await avatar.motion.to({ body: { rotation: [0, 0, 0] } }, { duration: 0 });
+    const events = [];
+    for (const type of ['sidekick-body-orientation-change', 'sidekick-zoom-change', 'sidekick-camera-change']) avatar.addEventListener(type, event => events.push({ type, detail: event.detail }));
+    const sample = async orientation => {
+      avatar.setBodyOrientation(orientation);
+      const { width, height, pixels } = await avatar.capturePixelsAsync();
+      let eyeX = 0, eyeY = 0, count = 0, alpha = 0;
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        if (pixels[i + 3] > 200) {
+          alpha++;
+          if (pixels[i] < 32 && pixels[i + 1] < 32 && pixels[i + 2] < 32) { eyeX += x; eyeY += y; count++; }
+        }
+      }
+      return { x: eyeX / count - width / 2, y: eyeY / count - height / 2, count, alpha, pose: avatar.pose.rotation };
+    };
+    const front = await sample({ yaw: 0, pitch: 0, roll: 0 });
+    const right = await sample({ yaw: 35, pitch: 0, roll: 0 });
+    const left = await sample({ yaw: -35, pitch: 0, roll: 0 });
+    const tilt = await sample({ yaw: 0, pitch: 30, roll: 0 });
+    const untilt = await sample({ yaw: 0, pitch: -30, roll: 0 });
+    const roll = await sample({ yaw: 0, pitch: 0, roll: 45 });
+    const unroll = await sample({ yaw: 0, pitch: 0, roll: -45 });
+    const eventStart = events.length;
+    avatar.zoom = 1.25;
+    const zoomed = { orientation: avatar.bodyOrientation, zoom: avatar.zoom };
+    avatar.resetBodyOrientation();
+    const reset = { orientation: avatar.bodyOrientation, zoom: avatar.zoom };
+    return { front, right, left, tilt, untilt, roll, unroll, zoomed, reset, events: events.slice(eventStart),
+      oldAPI: ['camera', 'setCamera', 'resetCamera', 'setCameraPreset'].filter(key => key in avatar) };
+  });
+  for (const name of ['front', 'right', 'left', 'tilt', 'untilt', 'roll', 'unroll']) {
+    assert.ok(result[name].count > 10, `${name} contains visible eyes`);
+    assert.deepEqual(result[name].pose, [0, 0, 0], `${name} preserves authored animation pose`);
+  }
+  assert.ok(result.right.x > result.front.x + 5 && result.left.x < result.front.x - 5, 'Positive yaw faces screen right');
+  assert.ok(result.tilt.y < result.untilt.y - 5, 'Positive pitch tilts the upper body toward the viewer (GL y is upward)');
+  assert.ok(result.roll.x < result.unroll.x - 5, 'Positive roll rotates the upper face counterclockwise');
+  assert.deepEqual(result.zoomed, { orientation: { yaw: 0, pitch: 0, roll: -45 }, zoom: 1.25 });
+  assert.deepEqual(result.reset, { orientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1.25 });
+  assert.deepEqual(result.events, [
+    { type: 'sidekick-zoom-change', detail: { zoom: 1.25 } },
+    { type: 'sidekick-body-orientation-change', detail: { bodyOrientation: { yaw: 0, pitch: 0, roll: 0 } } },
+  ]);
+  assert.deepEqual(result.oldAPI, [], 'Removed camera API is not retained as aliases');
 });

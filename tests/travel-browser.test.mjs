@@ -39,7 +39,7 @@ for (const fallback of [false, true]) test(`inertial flight, velocity-continuous
   const initial = await page.evaluate(async () => {
     window.events = []; bot.addEventListener('sidekick-move-end', e => events.push(e.detail)); const p = await bot.capturePixelsAsync();
     window.flight = bot.moveTo({ x: 600, y: 150 }, { maxSpeed: 300, acceleration: 600, deceleration: 800 });
-    return { width: p.width, height: p.height, design: bot.design, camera: bot.camera, generation: bot.diagnostics.generation };
+    return { width: p.width, height: p.height, design: bot.design, bodyOrientation: bot.bodyOrientation, zoom: bot.zoom, generation: bot.diagnostics.generation };
   });
   await page.waitForFunction(() => bot.movementState.phase === 'flight' && bot.movementState.speed >= 290);
   const flying = await page.evaluate(async () => { await bot.capturePixelsAsync(); return { state: bot.movementState, diagnostics: bot.diagnostics, activity: bot.activity }; });
@@ -59,11 +59,11 @@ for (const fallback of [false, true]) test(`inertial flight, velocity-continuous
   if (process.env.SIDEKICK_SCREENSHOTS) await page.screenshot({ path: `${process.env.SIDEKICK_SCREENSHOTS}/flight-${fallback ? 'fallback' : 'worker'}-left.png` });
   const final = await page.evaluate(async () => {
     const result = await second, pixels = await bot.capturePixelsAsync();
-    return { result, state: bot.movementState, design: bot.design, camera: bot.camera, width: pixels.width, height: pixels.height, events, travel: bot.diagnostics.travel, generation: bot.diagnostics.generation };
+    return { result, state: bot.movementState, design: bot.design, bodyOrientation: bot.bodyOrientation, zoom: bot.zoom, width: pixels.width, height: pixels.height, events, travel: bot.diagnostics.travel, generation: bot.diagnostics.generation };
   });
   assert.deepEqual(final.result, { finished: true, position: { x: 80, y: 380 } }); assert.equal(final.state.phase, 'idle'); assert.equal(final.state.speed, 0);
   assert.deepEqual(final.state.acceleration, { x: 0, y: 0 }); assert.equal(final.travel.strength, 0);
-  assert.deepEqual(final.design, initial.design); assert.deepEqual(final.camera, initial.camera); assert.deepEqual([final.width, final.height], [initial.width, initial.height]); assert.equal(final.events.length, 2); assert.equal(final.generation, initial.generation);
+  assert.deepEqual(final.design, initial.design); assert.deepEqual(final.bodyOrientation, initial.bodyOrientation); assert.equal(final.zoom, initial.zoom); assert.deepEqual([final.width, final.height], [initial.width, initial.height]); assert.equal(final.events.length, 2); assert.equal(final.generation, initial.generation);
   await saveTrace(page, `flight-${fallback ? 'fallback' : 'worker'}`);
 });
 test('cancelMove brakes to rest, settles and does not restore an expired activity', async t => {

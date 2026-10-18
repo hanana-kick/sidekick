@@ -59,7 +59,7 @@ let previous=null;
 for(let frame=0;frame<=lastFrame;frame++){
 if(stopReason)break;
 const time=frame/warmupFps,delta=frame===0?0:1/warmupFps;
-renderer.render(design,{pose:initialPose(),eyeMotion:{left:false,right:false},activity,time,delta,reduced:false,style:'flat',view:[0,0],camera});
+renderer.render(design,{pose:initialPose(),eyeMotion:{left:false,right:false},activity,time,delta,reduced:false,style:'flat',bodyOrientation:{yaw:camera.yaw,pitch:camera.pitch,roll:camera.roll},zoom:camera.zoom??1});
 total.warmupRenderCalls++;summary.warmupRenderCalls++;
 if(targetFrames?!targetFrames.has(frame):frame%sampleEvery!==0)continue;
 assert.equal(captured.draws.length,3,'Crown must record body, band, points draws');

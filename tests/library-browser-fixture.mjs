@@ -37,13 +37,13 @@ import { SidekickAvatar } from '${packageName}/react';
 const state = window.consumer = { element: null, events: [], refHistory: [], props: {
   id: 'react-avatar', shape: 'puffy', bodyColor: '#8bba9c', eyeColor: '#27372f',
   leftSmile: 0.25, rightBlink: 0.15, activity: 'still', paused: true,
-  interaction: 'box', mouseTracking: true, camera: { yaw: 12, pitch: 5, roll: -4 },
+  interaction: 'box', mouseTracking: true, bodyOrientation: { yaw: 12, pitch: 5, roll: -4 },
   gazeX: 0.2, gazeY: -0.1, style: { width: 280, height: 280 },
   'aria-label': 'React companion', className: 'consumer-avatar', 'data-consumer': 'react',
 } };
-const callbacks = Object.fromEntries(['Ready', 'Error', 'DesignChange', 'CameraChange', 'MotionEnd', 'ShapeEnd', 'Activate'].map(name => [
+const callbacks = Object.fromEntries(['Ready', 'Error', 'DesignChange', 'BodyOrientationChange', 'ZoomChange', 'MotionEnd', 'ShapeEnd', 'Activate'].map(name => [
   'on' + name, event => state.events.push({ name, type: event.type, detail: event.detail, native: event instanceof CustomEvent,
-    ...(name === 'Ready' ? { configured: state.element ? { shape: state.element.design.body.shape, camera: state.element.camera, left: state.element.design.eyes.left.weights, right: state.element.design.eyes.right.weights } : null } : {}),
+    ...(name === 'Ready' ? { configured: state.element ? { shape: state.element.design.body.shape, bodyOrientation: state.element.bodyOrientation, zoom: state.element.zoom, left: state.element.design.eyes.left.weights, right: state.element.design.eyes.right.weights } : null } : {}),
   }),
 ]));
 const ref = element => { state.element = element; state.refHistory.push(element ? 'element' : 'null'); };
@@ -103,7 +103,7 @@ window.fixtureLoaded = true;
       await copyFile(join(packagePath, 'dist/browser', name), join(output, 'prebuilt', name));
     }
     const prebuiltBody = `<p>Downloaded release bundle, served unchanged. No consumer build or package manager.</p><div class="card"><div class="canvas"><sidekick-avatar id="prebuilt-avatar"></sidekick-avatar></div><div class="label">Standalone browser bundle</div></div>`;
-    const captureEvents = `<script>window.prebuilt = {events: []}; for (const type of ['sidekick-ready', 'sidekick-error', 'sidekick-design-change', 'sidekick-camera-change', 'sidekick-motion-end', 'sidekick-shape-end', 'sidekick-activate']) document.getElementById('prebuilt-avatar').addEventListener(type, event => window.prebuilt.events.push({type, detail: event.detail, native: event instanceof CustomEvent}));</script>`;
+    const captureEvents = `<script>window.prebuilt = {events: []}; for (const type of ['sidekick-ready', 'sidekick-error', 'sidekick-design-change', 'sidekick-body-orientation-change', 'sidekick-zoom-change', 'sidekick-motion-end', 'sidekick-shape-end', 'sidekick-activate']) document.getElementById('prebuilt-avatar').addEventListener(type, event => window.prebuilt.events.push({type, detail: event.detail, native: event instanceof CustomEvent}));</script>`;
     await writeFile(join(output, 'prebuilt-esm.html'), shell('A companion from one ES module', prebuiltBody, null,
       `${captureEvents}<script type="module">import * as api from '/prebuilt/sidekick.js'; window.libraryAPI = api; window.fixtureLoaded = true;</script>`));
     await writeFile(join(output, 'prebuilt-classic.html'), shell('A companion from one classic script', prebuiltBody, null,
