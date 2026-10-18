@@ -20,7 +20,7 @@ npm install https://github.com/hanana-kick/sidekick.git
 npm install https://github.com/hanana-kick/sidekick.git#v0.6.0
 ```
 
-빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.5.0`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.6.0`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
 
 npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. ESM과 일반 `<script>`용 JS, 전용 렌더링 worker를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
 
@@ -1179,3 +1179,8 @@ await avatar.enter({ x: 240, y: 120 }, { from: 'top', maxSpeed: 1350 });
 - 결과는 `{ finished, position, presence }`입니다. 읽기 전용 `presenceState`는 `visible`, `entering`, `exiting`, `hidden` 중 하나입니다. 완료 이벤트는 `sidekick-enter-end` / `sidekick-exit-end`, React props는 `onEnterEnd` / `onExitEnd`입니다. React ref에서도 같은 메서드를 사용합니다.
 - `inline` 배치에서는 사용할 수 없습니다. 입퇴장 중 새 입퇴장 명령은 현재 위치와 관성에서 다시 목표를 잡습니다. 일반 `moveTo` / `moveBy`는 입퇴장을 취소하고 봇을 보이게 합니다. `cancelMove()`는 숨기지 않고 제동합니다.
 - 퇴장이 완전히 끝난 뒤 렌더러와 추적 구독을 비활성화합니다. 디자인·활동·추적 설정은 보존하며 재입장 시 복원합니다. 창 크기가 바뀌면 진행 중인 퇴장 목적지를 새 화면 경계에 맞춥니다.
+
+| React prop | 타입 / 의미 |
+| --- | --- |
+| `onEnterEnd` | `SidekickEventHandler<'sidekick-enter-end'>`: 입장 완료/취소 `{finished, position, presence}` |
+| `onExitEnd` | `SidekickEventHandler<'sidekick-exit-end'>`: 퇴장 완료/취소 `{finished, position, presence}` |
