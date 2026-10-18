@@ -1,0 +1,28 @@
+name: Use Cases interaction walkthrough
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  walkthrough:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build:all
+      - run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - run: xvfb-run -a node --test --test-concurrency=1 tests/use-cases-browser.test.mjs tests/api-playground-browser.test.mjs tests/movement-browser.test.mjs
+        env:
+          SIDEKICK_HEADED: '1'
+          SIDEKICK_SCREENSHOTS: artifacts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: interaction-walkthrough
+          path: artifacts/
+          if-no-files-found: ignore
