@@ -227,7 +227,13 @@ export function sampleAccessorySurface(body, accessory, squash = 1, contourOverr
     const deformedTangent = [orientation[0] * stretch, orientation[1] * squash, orientation[2] * stretch];
     const bitangent = normalize(cross(normal, deformedTangent)), tangent = normalize(cross(bitangent, normal));
     let point;
-    if (accessory.preset === 'halo') {
+    if (accessory.preset === 'crown') {
+        // Crown support is authored in canonical XY, not perimeter arc phase.
+        // Concave outlines have very different arc lengths; a phase cannot name
+        // the same summit reliably. The rigid seating solver determines depth.
+        point = [anchor.uv[0], anchor.uv[1], 0];
+    }
+    else if (accessory.preset === 'halo') {
         point = [0, Math.max(...contour.points.map(p => p[1])), 0];
     }
     else if (anchor.region === 'face') {

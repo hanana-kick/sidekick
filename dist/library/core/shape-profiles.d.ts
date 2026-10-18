@@ -22,7 +22,8 @@ export interface ShapeEyeProfile {
     offsetY: number;
 }
 /** Internal equipment fit. Position and model orientation are deliberately independent.
- * Crown UV chooses a lobe by perimeter phase; rotation describes the cap band /
+ * Head UV usually chooses a lobe by perimeter phase; crown alone stores exact
+ * canonical support XY. Rotation describes the cap band /
  * halo plane in an upright crown frame, never the radial direction to that lobe.
  */
 export interface CuratedAccessoryMount {
