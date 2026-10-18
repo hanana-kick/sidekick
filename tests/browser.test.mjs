@@ -955,6 +955,9 @@ test('scene editor renders OG preset, exports full-size PNG and roundtrips compo
     const pngPending=page.waitForEvent('download'); await page.locator('#export-composition-png').click();
     const png=await pngPending, pngBytes=await readFile(await png.path());
     assert.equal(pngBytes.readUInt32BE(16),1200); assert.equal(pngBytes.readUInt32BE(20),630);
+    assert.equal(await page.locator('sidekick-avatar').count(),1, 'temporary export renderer is removed');
+    const canvasRect=await page.locator('.composition-preview canvas').boundingBox();
+    await page.mouse.move(canvasRect.x+canvasRect.width*.24,canvasRect.y+canvasRect.height*.5);await page.mouse.down();await page.mouse.move(canvasRect.x+canvasRect.width*.29,canvasRect.y+canvasRect.height*.55);await page.mouse.up();
     const jsonPending=page.waitForEvent('download'); await page.locator('#export-composition-json').click();
     const json=await jsonPending, doc=JSON.parse(await readFile(await json.path(),'utf8'));
     assert.equal(doc.compositionVersion,1); assert.equal(doc.composition.text,'Sidekick\nHello');
