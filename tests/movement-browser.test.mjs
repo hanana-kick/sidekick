@@ -126,10 +126,11 @@ for (const placement of ['viewport','inline']) test(`persistent element binding 
   const state=bot.elementAnchor;state.x=5000;await frame();errors.push(error());
   bot.detachAnchor();const frozen=bot.position;target.style.marginTop='90px';scroller.scrollTop=150;await frame();
   const detached=bot.elementAnchor===null&&JSON.stringify(frozen)===JSON.stringify(bot.position);
-  await bot.moveToElement(target,{anchor:true});target.remove();await frame();const removed=bot.elementAnchor===null;
-  scroller.remove();return {errors,detached,removed};
+  await bot.moveToElement(target,{anchor:true});bot.append(target);await frame();const reparented=bot.elementAnchor===null;
+  scroller.append(target);await bot.moveToElement(target,{anchor:true});target.remove();await frame();const removed=bot.elementAnchor===null;
+  scroller.remove();return {errors,detached,removed,reparented};
  },placement);
- assert.ok(result.errors.every(error=>error<.1),JSON.stringify(result));assert.ok(result.detached);assert.ok(result.removed);
+ assert.ok(result.errors.every(error=>error<.1),JSON.stringify(result));assert.ok(result.detached);assert.ok(result.removed);assert.ok(result.reparented);
 });
 
 test('binding replacement, validation atomicity and public movement/presence teardown', async t=>{

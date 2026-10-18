@@ -96,7 +96,7 @@ export class SidekickAvatar extends HTMLElementBase {
     this.anchorCleanup = observeElementAnchor(this.ownerDocument, () => {
       if (this.anchorState !== state) return;
       let point: AvatarPosition;
-      try { point = resolveElementTarget(this, this.position, state.target, { x: state.x, y: state.y, alignX: state.alignX, alignY: state.alignY }).position; }
+      try { point = resolveElementTarget(this, this.position, state.target, { anchor: true, x: state.x, y: state.y, alignX: state.alignX, alignY: state.alignY }).position; }
       catch { this.detachAnchor(); return; }
       return () => { if (this.anchorState === state) this.movement.followTarget(point); };
     });

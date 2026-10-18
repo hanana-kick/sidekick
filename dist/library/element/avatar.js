@@ -93,7 +93,7 @@ export class SidekickAvatar extends HTMLElementBase {
                 return;
             let point;
             try {
-                point = resolveElementTarget(this, this.position, state.target, { x: state.x, y: state.y, alignX: state.alignX, alignY: state.alignY }).position;
+                point = resolveElementTarget(this, this.position, state.target, { anchor: true, x: state.x, y: state.y, alignX: state.alignX, alignY: state.alignY }).position;
             }
             catch {
                 this.detachAnchor();
