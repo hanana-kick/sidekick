@@ -526,3 +526,11 @@ test('paced progress stays monotonic after resize and retains original completio
   for (let t = 510; t <= 1000; t += 10) { f.at(t); assert.ok(f.controller.state.progress >= previous); previous = f.controller.state.progress; }
   finish(f); assert.deepEqual(await result, { finished: true, position: { x: 650, y: 0 } });
 });
+
+test('sub-microsecond durations complete immediately without nonfinite telemetry or presentation', async () => {
+  for (const duration of [Number.MIN_VALUE, 1e-100, 0.000001]) {
+    const f = fixture(), result = await f.controller.to({ x: 1, y: 0 }, { duration });
+    assert.deepEqual(result, { finished: true, position: { x: 1, y: 0 } });
+    finiteState(f.controller.state); boundedPresentation(f.presentations.at(-1)); assert.equal(f.callbacks.size, 0);
+  }
+});

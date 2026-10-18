@@ -137,7 +137,7 @@ export class AvatarMovement {
     // Superseding transfers presentation ownership to the new request instead of starting a separate landing.
     if (this.track) this.complete(this.track, false, false);
     const to = this.host.constrain(target), duration = this.host.immediate() ? 0 : timing.duration;
-    if (!duration || (to.x === this.point.x && to.y === this.point.y && Math.hypot(this.velocity.x, this.velocity.y) < 0.01)) {
+    if (duration < 0.001 || (to.x === this.point.x && to.y === this.point.y && Math.hypot(this.velocity.x, this.velocity.y) < 0.01)) {
       this.write(to);
       if (revision !== this.revision) return this.result(false);
       this.progress = 1;
