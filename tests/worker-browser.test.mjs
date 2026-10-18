@@ -38,7 +38,7 @@ const originalContext = OffscreenCanvas.prototype.getContext;
 OffscreenCanvas.prototype.getContext = function(kind, ...args) {
   const gl = originalContext.call(this, kind, ...args);
   if(kind === 'webgl2' && gl) {
-    gpuAudit.contexts++;
+    gpuAudit.contexts++; globalThis.gpuCanvas = this;
     for(const [method, counter] of [['drawElements','draws'],['bufferData','uploads'],['bufferSubData','uploads'],['clear','clears']]) {
       const original = gl[method].bind(gl);
       gl[method] = (...args) => { gpuAudit[counter]++; if(counter === 'uploads') { const source = args[method === 'bufferData' ? 1 : 2]; gpuAudit.uploadBytes += typeof source === 'number' ? source : source?.byteLength ?? 0; } return original(...args); };
@@ -403,17 +403,23 @@ test('worker WebGL performs zero RAF/draw/upload work fully outside and resumes 
   await page.waitForTimeout(100);
   const outside = await gpu(); await page.waitForTimeout(300);
   assert.deepEqual(await gpu(), outside, 'Fully unseen: zero worker RAF callbacks, GL draws, clears and uploads');
-  const oldSize = await page.locator('#avatar').evaluate(avatar => [avatar.diagnostics.width, avatar.diagnostics.height]);
+  const oldSize = await worker.evaluate(() => [gpuCanvas.width, gpuCanvas.height]);
   for (const width of [350, 370, 390]) {
     await page.locator('#avatar').evaluate((avatar, width) => { avatar.style.width = `${width}px`; }, width);
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   }
   assert.deepEqual(await gpu(), outside, 'Hidden layout changes do not draw or upload');
-  assert.deepEqual(await page.locator('#avatar').evaluate(avatar => [avatar.diagnostics.width, avatar.diagnostics.height]), oldSize, 'Hidden resize keeps old framebuffer until needed');
+  assert.deepEqual(await worker.evaluate(() => [gpuCanvas.width, gpuCanvas.height]), oldSize, 'Hidden resize keeps old framebuffer until needed');
 
   // One pixel is enough to become visible. The pending latest size applies once.
   await page.locator('#avatar').evaluate(avatar => { avatar.style.left = `${innerWidth - 1}px`; });
-  await page.waitForFunction(() => { const avatar = document.getElementById('avatar'); return avatar.diagnostics.running && avatar.diagnostics.width === Math.round(390 * Math.min(devicePixelRatio, 2)); });
+  await page.waitForFunction(() => document.getElementById('avatar').diagnostics.running);
+  const expectedWidth = await page.evaluate(() => Math.round(390 * Math.min(devicePixelRatio, 2)));
+  const resizeDeadline = Date.now() + 10000;
+  while (await worker.evaluate(() => gpuCanvas.width) !== expectedWidth) {
+    assert.ok(Date.now() < resizeDeadline, 'Worker framebuffer applies pending visible resize');
+    await page.waitForTimeout(25);
+  }
   const resumed = await gpu(); assert.ok(resumed.draws > outside.draws);
   await page.locator('#avatar').evaluate(avatar => { avatar.paused = true; });
   await page.waitForFunction(() => !document.getElementById('avatar').diagnostics.running);
