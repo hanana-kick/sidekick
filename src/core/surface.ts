@@ -205,7 +205,12 @@ export function sampleAccessorySurface(body: BodyDesign, accessory: Pick<Resolve
   const canonicalNormal = directionAt({ ...anchor, uv: [0, 0] });
   const helper: Vec3 = anchor.region === 'crown' ? [0, 0, -1] : [0, 1, 0];
   const baseTangent = normalize(cross(helper, canonicalNormal)), baseBitangent = normalize(cross(canonicalNormal, baseTangent));
-  const orientation = multiply(frameMatrix([0, 0, 0], baseTangent, baseBitangent, canonicalNormal), transform([0, 0, 0], mount.rotation));
+  // Crown opening yaw is local: align its oval first, then lean the whole circlet.
+  // A world-space yaw after leaning would rotate the support direction as well.
+  const mountRotation = accessory.preset === 'crown'
+    ? multiply(transform([0, 0, 0], [mount.rotation[0], mount.rotation[1], 0]), transform([0, 0, 0], [0, 0, mount.rotation[2]]))
+    : transform([0, 0, 0], mount.rotation);
+  const orientation = multiply(frameMatrix([0, 0, 0], baseTangent, baseBitangent, canonicalNormal), mountRotation);
   const stretch = 1 / Math.sqrt(squash);
   // A band's plane follows the body deformation by inverse-transpose, while the
   // orthonormalized frame keeps the accessory itself rigid rather than squashing it.

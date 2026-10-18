@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
 import { MATERIAL_SHAPE_NAMES } from '../dist/src/core/shapes.js';
 import { CROWN_SUPPORTS } from '../dist/src/core/crown-profiles.js';
 import { resolveShapeProfile } from '../dist/src/core/shape-profiles.js';
@@ -28,7 +30,7 @@ function rigid(mesh,scale,label){
 test('each catalog shape has an independently authored immutable crown support',()=>{
   assert.deepEqual(Object.keys(CROWN_SUPPORTS),MATERIAL_SHAPE_NAMES);
   for(const [shape,support] of Object.entries(CROWN_SUPPORTS)){
-    assert.ok(Object.isFrozen(support)); assert.equal(support.length,4);
+    assert.ok(Object.isFrozen(support)); assert.ok(support.length === 4 || support.length === 5);
     assert.ok(support.every(Number.isFinite)); assert.ok(support[3]>=.95&&support[3]<=1.50,shape+' restrained uniform size');
   }
 });
@@ -78,4 +80,14 @@ test('sampled activity squash retains crown rigidity through 2730 catalog states
  rigid(beretGeometry(body,crown,state.squash),profile.accessories.crown.scale,shape+'/'+activity+'/'+sample);
  }
  }
+});
+
+test('crown cavity shading preserves original vertices and every oriented triangle',()=>{
+  const expected=JSON.parse(fs.readFileSync(new URL('./fixtures/crown-shell-v0.6.0.json',import.meta.url),'utf8'));
+  const hash=value=>createHash('sha256').update(value).digest('hex');
+  assert.equal(hash(Buffer.from(baseline.vertices.buffer)),expected.vertices);
+  const triangles=[];for(let i=0;i<baseline.indices.length;i+=3){const a=Array.from(baseline.indices.slice(i,i+3));while(a[0]!==Math.min(...a))a.push(a.shift());triangles.push(a.join(','));}
+  assert.equal(hash(triangles.sort().join(';')),expected.orientedTriangles);
+  assert.equal(baseline.bandIndexCount,80*6*4,'band and inner wall share the existing darker material batch');
+  assert.equal(baseline.crownIndexCount,80*6*2,'outer wall and lip retain the main color');
 });

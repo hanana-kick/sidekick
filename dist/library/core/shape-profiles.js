@@ -193,7 +193,7 @@ function defaults(shape, depth, eyes, beretU, beretTilt, beretScale = 1, haloHei
     const [mouthY, neckY, size, leftEarV, rightEarV, earSize, mouthTilt, neckTilt] = LOWER_ACCESSORY_FITS[shape];
     const tie = BOW_TIE_FITS[shape];
     const fit = BERET_FIT_PROFILES[shape];
-    const [crownX, crownY, crownTilt, crownScale] = CROWN_SUPPORTS[shape];
+    const [crownX, crownY, crownTilt, crownScale, crownYaw = 0] = CROWN_SUPPORTS[shape];
     const front = (y, scale, tilt = 0) => ({ anchor: { region: 'face', uv: [0, Math.atan(y) / 0.9], offset: 0 }, rotation: [tilt, 0, 0], scale });
     return immutable({
         beretApertureX: shape === 'pentagon' ? .73 : shape === 'flower' ? .82 : shape === 'pixelTriangle' ? .87 : 1, beretApertureZ: shape === 'flower' ? 1.08 : 1,
@@ -208,7 +208,7 @@ function defaults(shape, depth, eyes, beretU, beretTilt, beretScale = 1, haloHei
         mounts: { head: { uv: [0, 0], offset: 0 }, face: { uv: [0, 0], offset: 0 } },
         accessories: {
             beret: { anchor: { region: 'crown', uv: [beretU, 0], offset: 0 }, rotation: [0, beretTilt, 0], scale: beretScale },
-            crown: { anchor: { region: 'crown', uv: [crownX, crownY], offset: 0 }, rotation: [0, crownTilt * Math.PI / 180, 0], scale: crownScale },
+            crown: { anchor: { region: 'crown', uv: [crownX, crownY], offset: 0 }, rotation: [0, crownTilt * Math.PI / 180, crownYaw * Math.PI / 180], scale: crownScale },
             halo: { anchor: { region: 'crown', uv: [0, 0], offset: haloHeight }, rotation: [0, 0, 0], scale: 1 },
             glasses: { anchor: { region: 'face', uv: [0, 0.1], offset: 0 }, rotation: [0, 0, 0], scale: glassesScale },
             sunglasses: { anchor: { region: 'face', uv: [0, 0.1], offset: 0 }, rotation: [0, 0, 0], scale: glassesScale },

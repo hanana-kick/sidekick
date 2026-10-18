@@ -131,20 +131,23 @@ function makeCrownShell(): { geometry: Geometry; bandIndexCount: number } {
     const z = ring <= 1 || ring === 6 ? -.030 : ring === 2 || ring === 5 ? .034 : .104 + .132 * peak;
     points.push([rx * Math.cos(angle), ry * Math.sin(angle), z]);
   }
-  let bandIndexCount = 0;
   for (let ring = 0; ring < 6; ring++) {
     for (let i = 0; i < segments; i++) {
       const next = (i + 1) % segments, a = ring * segments + i, b = ring * segments + next, c = (ring + 1) * segments + i, d = (ring + 1) * segments + next;
       indices.push(a, b, c, b, d, c);
     }
-    if (ring === 1) bandIndexCount = indices.length;
   }
   // Weld the repeated inner-bottom ring to keep the shell topologically closed.
   for (let i = 0; i < indices.length; i++) if (indices[i]! >= 6 * segments) indices[i]! -= 6 * segments;
   points.length = 6 * segments;
   const vertices = new Float32Array(points.length * 6); points.forEach((p, i) => vertices.set(p, i * 6));
   accumulateNormals(vertices, indices);
-  return { geometry: { vertices, indices: new Uint16Array(indices) }, bandIndexCount };
+  // The hollow circlet's inner wall uses the same structural shade as its band.
+  // Rebatch existing triangles only: vertices, winding and physical shape stay
+  // identical, and the renderer retains exactly two crown draws.
+  const groupSize = segments * 6;
+  const materialIndices = [0, 1, 4, 5, 2, 3].flatMap(ring => indices.slice(ring * groupSize, (ring + 1) * groupSize));
+  return { geometry: { vertices, indices: new Uint16Array(materialIndices) }, bandIndexCount: groupSize * 4 };
 }
 const shells = { beret: makeShell(), crown: makeCrownShell() };
 interface ProjectedShell {
