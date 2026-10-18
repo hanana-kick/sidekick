@@ -58,7 +58,7 @@ async function executeAndCompare(page) {
 }
 async function blankPoint(page) {
   return page.evaluate(() => {
-    for (let y = innerHeight - 15; y > 90; y -= 30) for (let x = innerWidth - 15; x > 5; x -= 30) {
+    for (let y = innerHeight - 15; y > 90; y -= 30) for (const x of [3, innerWidth - 3, ...Array.from({ length: Math.floor(innerWidth / 30) }, (_, i) => innerWidth - 15 - i * 30)]) {
       const element = document.elementFromPoint(x, y);
       if (element?.id === 'free-space' || element === document.body || element === document.documentElement || (element?.tagName === 'MAIN' && !element.closest('.controls-panel'))) return { x, y };
     }
@@ -168,6 +168,7 @@ test('JavaScript and React copy stays synchronized and mobile controls stay insi
 
 test('mobile taps and swipe gestures use page coordinates without control-scroll movement', async t => {
   const page = await pageFor(t, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await page.locator('#free-space').scrollIntoViewIfNeeded();
   const point = await blankPoint(page);
   await page.touchscreen.tap(point.x, point.y);
   assert.equal((await lastCall(page)).method, 'moveTo');
