@@ -4,7 +4,7 @@ import { createDesign, createAccessory, MATERIAL_SHAPE_NAMES } from '../dist/src
 import { resolveDesign } from '../dist/src/core/resolved-design.js';
 import { resolveShapeProfile, accessoryMountProfile, interpolateShapeProfile, sameShapeProfile } from '../dist/src/core/shape-profiles.js';
 import { sampleAccessorySurface } from '../dist/src/core/surface.js';
-import { shapeContour, contourSignedDistance } from '../dist/src/core/contours.js';
+import { shapeContour, contourSignedDistance, contourSignedDistanceExact } from '../dist/src/core/contours.js';
 import { ShapeTimeline } from '../dist/src/core/shape-motion.js';
 import { bodyGeometry } from '../dist/src/renderer/body-geometry.js';
 import { catalogAccessoryGeometry, accessoryDetailColor } from '../dist/src/renderer/catalog-accessory-geometry.js';
@@ -44,7 +44,34 @@ function envelope(contour) {
   };
   envelopes.set(contour, sample); return sample;
 }
+// Cloth may tuck into the body by a sub-pixel seam allowance. Projected Z
+// penetration is not a physical distance near the equator, so use the local
+// implicit-field normal to bound inset rather than requiring a floating shell.
+function assertClothSeated(mesh, contour, profile, squash, label) {
+  const stretch = 1 / Math.sqrt(squash), sx = .59 * stretch, sy = .59 * squash, sz = profile.depth * .5 * stretch;
+  let minimum = Infinity;
+  const check = p => {
+    const x = p[0] / sx, y = p[1] / sy, z = p[2] / sz, d = contourSignedDistanceExact(contour, x, y);
+    if (d <= 0) return;
+    const f = z * z * (d + .65 * (x * x + y * y)) - d;
+    if (f >= 0) return;
+    const step = .0001;
+    const dx = (contourSignedDistanceExact(contour, x + step, y) - contourSignedDistanceExact(contour, x - step, y)) / (2 * step);
+    const dy = (contourSignedDistanceExact(contour, x, y + step) - contourSignedDistanceExact(contour, x, y - step)) / (2 * step);
+    const gradient = Math.hypot((dx * (z * z - 1) + 1.3 * x * z * z) / sx, (dy * (z * z - 1) + 1.3 * y * z * z) / sy, 2 * z * (d + .65 * (x * x + y * y)) / sz);
+    minimum = Math.min(minimum, f / Math.max(.01, gradient));
+  };
+  for (let i = 0; i < mesh.vertices.length / 6; i++) if (i >= 320 || [1, 2, 3].includes(i % 8)) check(point(mesh, i));
+  for (let i = 0; i < mesh.indices.length; i += 3) {
+    if (i < 40 * 8 * 6 && ![1, 2].includes(Math.floor(i / 6) % 8)) continue;
+    const p = [mesh.indices[i], mesh.indices[i + 1], mesh.indices[i + 2]].map(index => point(mesh, index));
+    check([0, 1, 2].map(k => (p[0][k] + p[1][k] + p[2][k]) / 3));
+  }
+  assert.ok(minimum > -.012, `${label}: excessive surface-normal cloth inset ${-minimum}`);
+}
+
 function assertClear(mesh, contour, profile, squash, label, wrapped = false) {
+  if (wrapped) return assertClothSeated(mesh, contour, profile, squash, label);
   const front = envelope(contour), stretch = 1 / Math.sqrt(squash), sx = .59 * stretch, sy = .59 * squash, sz = profile.depth * .5 * stretch;
   let minimum = Infinity;
   const check = p => { minimum = Math.min(minimum, (wrapped ? Math.abs(p[2]) : p[2]) - front(p[0] / sx, p[1] / sy) * sz); };
@@ -245,6 +272,9 @@ test('all mouth and neck preset combinations keep separate silhouettes throughou
     const result = [];
     for (let i = 0; i < mesh.indices.length; i += 3) {
       const points = [0, 1, 2].map(j => point(mesh, mesh.indices[i + j]));
+      // A wrapped scarf has a rear face hidden by the opaque body. It cannot
+      // overlap a front mouth silhouette merely by sharing the same XY pixels.
+      if (points.every(p => p[2] <= 0)) continue;
       if (area(points) > 1e-12) result.push({ points, minX: Math.min(...points.map(p => p[0])), maxX: Math.max(...points.map(p => p[0])), minY: Math.min(...points.map(p => p[1])), maxY: Math.max(...points.map(p => p[1])) });
     }
     return result;

@@ -17,22 +17,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 버전을 고정하려면 릴리스 태그를 지정합니다.
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.2.2
+npm install https://github.com/hanana-kick/sidekick.git#v0.2.3
 ```
 
-빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.2.2`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.2.3`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
 
 npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. ESM과 일반 `<script>`용 JS, 전용 렌더링 worker를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
 
 ### GitHub Release에서 다운로드
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases)를 엽니다.
-2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.2.2.zip` 또는 `hanana-kick-sidekick-0.2.2.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
+2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.2.3.zip` 또는 `hanana-kick-sidekick-0.2.3.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
 3. 일반 HTML 사이트에서는 브라우저 ZIP을 풀고 아래 파일을 사이트의 정적 파일 디렉터리에 복사합니다. 동봉된 `START-HERE.txt`를 읽고 `esm.html`, `classic.html`, `react.html` 중 원하는 예제를 열면 됩니다. 예제의 `/vendor/sidekick/`은 **사용자 사이트의 경로**입니다. 배포 경로에 맞게 바꾸세요.
 
 | 빌드된 파일 | 용도 | 필요한 파일·의존성 |
 | --- | --- | --- |
-| `sidekick-browser-0.2.2.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
+| `sidekick-browser-0.2.3.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
 | `sidekick.js` | 브라우저 ESM. `import`와 `<script type="module">` 사용 | `sidekick.worker.js`를 같은 디렉터리에 유지 |
 | `sidekick.iife.js` | 일반 classic `<script>`. API는 `window.Sidekick` | `sidekick.worker.js`를 같은 디렉터리에 유지. `type="module"` 사용 안 함 |
 | `sidekick-react.js` | React 19용 ESM 컴포넌트 | `sidekick-element.js`·`sidekick-fallback.js`·`sidekick.worker.js`를 같은 디렉터리에 유지하고 `react` peer를 제공 |
@@ -40,7 +40,7 @@ npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.co
 | `sidekick-fallback.js` | worker를 사용할 수 없을 때 React 요소가 불러오는 렌더러 | 직접 import하지 않음. 나머지 파일과 같은 버전 사용 |
 | `sidekick.worker.js` | OffscreenCanvas 전용 worker | 브라우저 진입 파일 옆에 배치. 별도 script 태그로 불러오지 않음 |
 | `vendor/react.js`, `vendor/react-dom-client.js` | 브라우저 ZIP의 선택적 React 19/ReactDOM ESM | 아래 빌드 없는 React 예제용. import map으로 연결하며 React를 이미 제공하는 앱에는 불필요 |
-| `hanana-kick-sidekick-0.2.2.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
+| `hanana-kick-sidekick-0.2.3.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
 | `SHA256SUMS` | ZIP과 tarball의 다운로드 무결성 확인 | 같은 Release의 체크섬 파일 |
 
 ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보관하세요. **GitHub Release 자산은 다운로드한 뒤 본인 사이트에서 제공하세요.** 다운로드 URL은 브라우저 JS 호스팅용 URL이 아니며 자산 응답의 MIME·CORS 동작이 정적 호스팅과 다릅니다. 아래 예제의 `src`/`import`는 내려받은 파일을 제공하는 사이트 경로를 사용합니다.
@@ -52,7 +52,7 @@ ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보�
 Release에서 받은 tarball을 사용할 프로젝트에서 설치합니다. 이 명령은 Sidekick 소스를 컴파일하거나 Studio를 빌드하지 않습니다.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.2.2.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.2.3.tgz
 ```
 
 React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 마운트하는 `react-dom`도 사용자가 같은 버전으로 준비합니다. 코어만 쓰는 프로젝트에는 React가 필요 없습니다.
@@ -789,7 +789,7 @@ SIDEKICK_HEADED=1 xvfb-run -a npm run test:browser
 
 눈은 별도 돌출 메시가 아니라 몸체 곡면 셰이더의 캡슐/곡선 색상 마스크입니다. 기울임에 따라 투영되며 몸체 밖·뒷면·가려진 부분에 그리지 않습니다. 정확한 측면에도 둥근 앞면의 가까운 눈 일부가 보일 수 있습니다. 눈 비율·간격·위치는 내부 기본값이고 도형과 함께 보간합니다. 표정은 몸체 실루엣·알파 커버리지를 바꾸지 않습니다. 얼굴 이동과 시선은 독립적이며 안경 같은 얼굴 장비는 얼굴 이동만 따라갑니다.
 
-액세서리는 도형별 내부 장착 규칙을 사용합니다. 안경 앞면은 하나의 평면 강체이며, 베레모·왕관의 하단 밴드는 몸체의 지지 면에 맞춥니다. 목도리는 몸체 아래쪽을 앞·옆·뒤로 한 바퀴 감싸는 닫힌 천 띠와, 매듭에 연결되어 아래로 처지는 두 끝으로 구성합니다. 도형별 지지 영역에 맞추며 실시간 천 물리 시뮬레이션은 아닙니다. 몸체 메시와 표면 질의는 같은 볼륨 함수 `h = sqrt(d / (d + 0.65 × r²))`, 앞뒤 높이 `±depth × h / 2`를 사용합니다. XY 윤곽에서 높이는 0이고 중심에서는 전체 깊이가 `depth`입니다. 이는 Sidekick의 볼륨 모델이며 AndroidX의 3D 모델 재현이 아닙니다.
+액세서리는 도형별 내부 장착 규칙을 사용합니다. 안경 앞면은 하나의 평면 강체이며, 베레모는 몸체 위쪽의 실제 단면을 감싸는 입구와 커프로 착용하며, 상단 일부가 불투명한 모자 안으로 들어갑니다. 하트는 한쪽 넓은 로브를 감쌉니다. 왕관의 하단 밴드는 몸체의 지지 면에 맞춥니다. 목도리는 몸체 아래쪽을 앞·옆·뒤로 한 바퀴 감싸는 닫힌 천 띠와, 매듭에 연결되어 아래로 처지는 두 끝으로 구성합니다. 목도리의 넓은 천 띠는 높이별 몸체 단면을 따릅니다. 도형 전환 중에도 장비를 숨기지 않습니다. 공개 액세서리 회전 모션은 유지하며, 베레모는 맞춰진 입구를 중심으로 회전합니다. 도형별 영역에 맞추는 모델링이며 실시간 천 물리 시뮬레이션은 아닙니다. 몸체 메시와 표면 질의는 같은 볼륨 함수 `h = sqrt(d / (d + 0.65 × r²))`, 앞뒤 높이 `±depth × h / 2`를 사용합니다. XY 윤곽에서 높이는 0이고 중심에서는 전체 깊이가 `depth`입니다. 이는 Sidekick의 볼륨 모델이며 AndroidX의 3D 모델 재현이 아닙니다.
 
 곡선→폴리라인 허용오차는 정규화 `[-1,1]` 기준 `0.00005`입니다. 메시 세분화 목표(표면 거리 `0.010`, 중앙 높이 `0.006`)는 샘플 기준이며 모든 위치·픽셀의 오차 보장이 아닙니다. 최대 8회 분할·앞면 12,000점 예산을 사용하므로 작은 삼각형 근사 오차가 보일 수 있습니다. 도형 모프의 대응점 계산은 Sidekick 방식이며 Android Material `Morph`와 픽셀 일치를 보장하지 않습니다.
 
@@ -802,4 +802,6 @@ SIDEKICK_HEADED=1 xvfb-run -a npm run test:browser
 
 ### 이번 버전과 진행 중인 개선
 
-0.2.2는 앞·옆·뒤로 이어지는 목도리 둘레와 자유롭게 처지는 끝을 추가합니다. 몸체 메시 계산의 중복 할당·질의를 줄였으며, 322개 메시와 12개 네이티브 렌더에서 기존 결과와 바이트가 같음을 확인했습니다. 분리된 CPU ABBA 검사에서는 총 몸체 계산 시간이 약7.9% 줄었지만 지연 시간의 꼬리 구간은 일관되게 개선되지 않았습니다. 브라우저 FPS나 모든 기기의 성능 보장은 아닙니다. OffscreenCanvas, 시선 추적 모드, 비율 보정, 휠·핀치 확대/축소와 기본 색 `#FFCC37`은 유지합니다. 머리 장비의 새 접촉면 보정은 아직 후속 작업입니다.
+0.2.2는 앞·옆·뒤로 이어지는 목도리 둘레와 자유롭게 처지는 끝을 추가합니다. 몸체 메시 계산의 중복 할당·질의를 줄였으며, 322개 메시와 12개 네이티브 렌더에서 기존 결과와 바이트가 같음을 확인했습니다. 분리된 CPU ABBA 검사에서는 총 몸체 계산 시간이 약7.9% 줄었지만 지연 시간의 꼬리 구간은 일관되게 개선되지 않았습니다. 브라우저 FPS나 모든 기기의 성능 보장은 아닙니다. OffscreenCanvas, 시선 추적 모드, 비율 보정, 휠·핀치 확대/축소와 기본 색 `#FFCC37`은 유지합니다.
+
+0.2.3은 베레모의 실제 착용 입구·넓은 커프·감싸는 크라운과, 몸체 높이별 단면을 따르는 넓은 목도리 천을 제공합니다. 도형 전환 중에도 착용 상태를 유지합니다. 베레모의 초기 피팅 결과는 캐시하고 몸체의 부풀기·회전 모션에 재사용합니다. 이 캐시는 임의 도형 전환의 계산 비용이나 저사양 GPU의 FPS를 보장하지 않습니다.

@@ -1,3 +1,4 @@
+import { wornBeret } from './worn-beret.js';
 import { shapeContour } from '../core/contours.js';
 import { resolveShapeProfile } from '../core/shape-profiles.js';
 import { BODY_SIZE, sampleAccessorySurface } from '../core/surface.js';
@@ -229,6 +230,10 @@ function separation(body, hat, current) {
 export function beretGeometry(body, accessory, squash = 1, contourOverride, profileOverride, rotation = accessory.rotation) {
     const contour = contourOverride ?? shapeContour({ kind: 'material', name: body.shape });
     const profile = profileOverride ?? resolveShapeProfile(body.shape);
+    if (accessory.preset === "beret") {
+        const stretch = 1 / Math.sqrt(squash);
+        return wornBeret(contour, [BODY_SIZE[0] * .5 * stretch, BODY_SIZE[1] * .5 * squash, profile.depth * .5 * stretch], body.shape, rotation);
+    }
     const preset = accessory.preset === 'crown' ? 'crown' : 'beret', shell = shells[preset];
     const mount = profile.accessories[preset];
     const neutralProfile = { ...profile, accessories: { ...profile.accessories, [preset]: { ...mount, anchor: { ...mount.anchor, offset: 0 } } } };
