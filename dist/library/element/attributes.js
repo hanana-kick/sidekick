@@ -117,8 +117,8 @@ export function resolveSidekickAttributes(attributes) {
         void new MotionTimeline({ left: design.eyes.left, right: design.eyes.right }).to(target, { duration: 0 });
         return target;
     }, undefined);
-    const legacyTracking = read('mouse-tracking', parseBooleanAttribute, false);
-    const trackingMode = read('tracking-mode', parseTrackingMode, legacyTracking ? 'eyes' : 'off');
+    const legacyTracking = read('mouse-tracking', parseBooleanAttribute, undefined);
+    const trackingMode = read('tracking-mode', parseTrackingMode, legacyTracking === undefined ? 'eyes-and-body' : legacyTracking ? 'eyes' : 'off');
     read('render-style', value => choice(value, ['flat', '3d']), 'flat');
     return {
         placement: read('placement', value => choice(value, ['inline', 'viewport']), 'inline'),

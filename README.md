@@ -17,22 +17,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 버전을 고정하려면 릴리스 태그를 지정합니다.
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.4.2
+npm install https://github.com/hanana-kick/sidekick.git#v0.4.3
 ```
 
-빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.4.2`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.4.3`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
 
 npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. ESM과 일반 `<script>`용 JS, 전용 렌더링 worker를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
 
 ### GitHub Release에서 다운로드
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases)를 엽니다.
-2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.4.2.zip` 또는 `hanana-kick-sidekick-0.4.2.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
+2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.4.3.zip` 또는 `hanana-kick-sidekick-0.4.3.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
 3. 일반 HTML 사이트에서는 브라우저 ZIP을 풀고 아래 파일을 사이트의 정적 파일 디렉터리에 복사합니다. 동봉된 `START-HERE.txt`를 읽고 `esm.html`, `classic.html`, `react.html` 중 원하는 예제를 열면 됩니다. 예제의 `/vendor/sidekick/`은 **사용자 사이트의 경로**입니다. 배포 경로에 맞게 바꾸세요.
 
 | 빌드된 파일 | 용도 | 필요한 파일·의존성 |
 | --- | --- | --- |
-| `sidekick-browser-0.4.2.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
+| `sidekick-browser-0.4.3.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
 | `sidekick.js` | 브라우저 ESM. `import`와 `<script type="module">` 사용 | `sidekick.worker.js`를 같은 디렉터리에 유지 |
 | `sidekick.iife.js` | 일반 classic `<script>`. API는 `window.Sidekick` | `sidekick.worker.js`를 같은 디렉터리에 유지. `type="module"` 사용 안 함 |
 | `sidekick-react.js` | React 19용 ESM 컴포넌트 | `sidekick-element.js`·`sidekick-fallback.js`·`sidekick.worker.js`를 같은 디렉터리에 유지하고 `react` peer를 제공 |
@@ -40,7 +40,7 @@ npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.co
 | `sidekick-fallback.js` | worker를 사용할 수 없을 때 React 요소가 불러오는 렌더러 | 직접 import하지 않음. 나머지 파일과 같은 버전 사용 |
 | `sidekick.worker.js` | OffscreenCanvas 전용 worker | 브라우저 진입 파일 옆에 배치. 별도 script 태그로 불러오지 않음 |
 | `vendor/react.js`, `vendor/react-dom-client.js` | 브라우저 ZIP의 선택적 React 19/ReactDOM ESM | 아래 빌드 없는 React 예제용. import map으로 연결하며 React를 이미 제공하는 앱에는 불필요 |
-| `hanana-kick-sidekick-0.4.2.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
+| `hanana-kick-sidekick-0.4.3.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
 | `SHA256SUMS` | ZIP과 tarball의 다운로드 무결성 확인 | 같은 Release의 체크섬 파일 |
 
 ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보관하세요. **GitHub Release 자산은 다운로드한 뒤 본인 사이트에서 제공하세요.** 다운로드 URL은 브라우저 JS 호스팅용 URL이 아니며 자산 응답의 MIME·CORS 동작이 정적 호스팅과 다릅니다. 아래 예제의 `src`/`import`는 내려받은 파일을 제공하는 사이트 경로를 사용합니다.
@@ -52,7 +52,7 @@ ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보�
 Release에서 받은 tarball을 사용할 프로젝트에서 설치합니다. 이 명령은 Sidekick 소스를 컴파일하거나 Studio를 빌드하지 않습니다.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.4.2.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.4.3.tgz
 ```
 
 React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 마운트하는 `react-dom`도 사용자가 같은 버전으로 준비합니다. 코어만 쓰는 프로젝트에는 React가 필요 없습니다.
@@ -71,12 +71,12 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 
 ## CDN으로 빌드 없이 사용하기
 
-현재 CDN 권장 버전은 **0.4.2**입니다. 아래 URL은 GitHub 태그에 커밋된 **빌드 완료 JS**를 jsDelivr가 제공하므로 소스 빌드, npm 설치, npm 계정이 필요 없습니다. `main`, `latest`, 버전 범위 대신 **정확한 태그**를 고정하세요. 이전 `v0.2.7` 파일은 변경하지 않았습니다. 0.2.7도 같은 CDN 경로로 다운로드할 수 있지만, 다른 출처의 페이지에서는 worker 생성이 막혀 메인 스레드로 폴백하므로 신규 CDN 사용에는 위에 고정한 현재 버전을 사용하세요.
+현재 CDN 권장 버전은 **0.4.3**입니다. 아래 URL은 GitHub 태그에 커밋된 **빌드 완료 JS**를 jsDelivr가 제공하므로 소스 빌드, npm 설치, npm 계정이 필요 없습니다. `main`, `latest`, 버전 범위 대신 **정확한 태그**를 고정하세요. 이전 `v0.2.7` 파일은 변경하지 않았습니다. 0.2.7도 같은 CDN 경로로 다운로드할 수 있지만, 다른 출처의 페이지에서는 worker 생성이 막혀 메인 스레드로 폴백하므로 신규 CDN 사용에는 위에 고정한 현재 버전을 사용하세요.
 
 ### 일반 HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.2/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.3/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
@@ -88,7 +88,7 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.2/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.3/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -104,15 +104,15 @@ React와 ReactDOM은 동일한 19.3.1의 미리 빌드된 ESM을 제공합니다
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.2/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.2/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.3/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.3/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.2/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.3/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
@@ -969,13 +969,17 @@ Both HTML entry pages include static Open Graph and Twitter card tags with the c
 | `MoveOptions` 필드 | 의미 / 기본값 |
 | --- | --- |
 | `travel` | `'natural'` 기본 / `'none'` |
-| `maxSpeed` | 자연 비행의 최고 속도, CSS px/s. 1–100000. 생략 시 `거리 / max(0.1, duration / 1000)`을 80–100000 px/s로 제한 |
-| `acceleration` | 자연 비행의 가속 한도, CSS px/s². 1–100000, 기본 `1800` |
-| `deceleration` | 자연 비행의 감속 한도, CSS px/s². 1–100000, 기본 `2200`; 도착·반전·cancelMove 제동에 사용 |
+| `maxSpeed` | 자연 비행의 최고 속도, CSS px/s. 1–100000. 생략 시 `1.5 × clamp(거리 / max(0.1, duration / 1000), 80, 100000)`, 즉 자동 상한 120–150000 px/s. 명시한 값에는 1.5배를 적용하지 않음 |
+| `acceleration` | 자연 비행의 목표 가속력 한도, CSS px/s². 1–100000, 기본 `1800`; 실제 가속도는 아래 응답 곡선을 따라 접근 |
+| `deceleration` | 자연 비행의 목표 제동력 한도, CSS px/s². 1–100000, 기본 `2200`; 도착·반전·cancelMove 제동에 사용 |
 | `duration` | 0–60000ms, 직접 메서드 기본 `400`. natural에서 maxSpeed 생략 시 속도 힌트이며 실제 완료 시간은 보장하지 않음. `0`은 두 모드 모두 즉시 적용 |
 | `easing` | `'smooth'` 기본 / `'linear'`. `travel: 'none'`의 시간 기반 보간에만 적용 |
 
 자연 비행에서는 거리·현재 속도·가속/감속 한도가 소요 시간을 결정합니다. `maxSpeed`를 명시하면 양수 duration과 easing은 경로 속도에 영향을 주지 않습니다. 짧은 거리에서는 최고 속도에 도달하기 전에 감속할 수 있습니다. 정확히 정해진 시간에 이동을 끝내야 한다면 `travel: 'none'`을 쓰세요. 이전 버전의 15% 이륙·70% 이동·15% 착륙 시간 분할은 자연 비행에 적용되지 않습니다.
+
+가속도는 순간적으로 켜고 끄지 않고 60ms 시정수의 지수 응답으로 목표 힘에 접근합니다. 처음 빠르게 변하고 차츰 완만해지는 느낌이며, 수학적인 로그 함수를 위치에 적용한 것은 아닙니다. 정지 상태에서 일정한 힘을 주면 실제 가속도는 a(t)=A(1−exp(−t/0.06))입니다. 속도와 위치도 이 가속도를 정확히 적분한 값이고, 화면 이벤트의 acceleration은 실제 순간 가속도입니다. 제동 거리 계산에도 이 힘의 응답 지연을 포함합니다.
+
+새 목표를 주면 현재 속도와 가속도를 모두 이어받습니다. 더 낮은 상한이나 반대 방향을 지정해도 힘을 즉시 잘라내지 않으므로 짧은 과도 구간 동안 이전 가속도가 남습니다. acceleration/deceleration은 목표 힘의 한도이며, 서로 크게 다른 값을 쓰는 방향 전환에서는 이전 제동력이 잠시 새 방향에 남을 수 있습니다. 자동 최고 속도는 이전 정책의 1.5배지만 짧은 거리에서는 가속·제동 때문에 그 속도까지 도달하지 못합니다. 먼 거리가 같은 시간에 끝나도록 가속도를 강제로 키우지 않습니다.
 
 시선·yaw/pitch는 실제 진행 방향을, 몸의 기울기는 실제 가속과 감속을 따라갑니다. 180도 뒤집거나 카메라 설정을 바꾸지 않습니다. 떠오름은 작은 캔버스 안의 런타임 포즈이며 `position`·bounds·진행 이벤트의 좌표에는 포함하지 않습니다. 위치가 목표에 도착하고 속도가 0이 된 뒤 180ms 동안 포즈를 정리해야 `finished: true`가 됩니다.
 
@@ -1020,7 +1024,7 @@ console.log(state.phase, state.progress, state.position, state.velocity, state.a
 
 상태는 복사본이며 읽거나 변경해도 실제 이동을 제어하지 않습니다. `takeoff`에서도 DOM이 가속하며 움직이고, `landing`은 목표를 향한 감속, `braking`은 cancelMove의 제동을 나타냅니다. `settling`은 속도·가속도가 0인 상태에서 비행 포즈만 정리하는 구간입니다. 진행 이벤트는 시작·애니메이션 샘플·크기 변경·취소·완료 시 발생합니다. UI에는 필요한 값만 반영하고, 완료/취소 확정에는 Promise 또는 `sidekick-move-end`를 사용하세요. 프레임별 이벤트를 스크린 리더의 live 영역에 계속 출력하지 않는 것이 좋습니다.
 
-`cancelMove()`는 자연 비행의 현재 속도를 deceleration으로 줄입니다. 호출한 지점에서 즉시 멈추지 않으며 대략 `속력² / (2 × 감속도)`만큼 더 이동할 수 있습니다. 속도가 0이 되면 `settling`에서 180ms 동안 방향·기울기·떠오름을 정리한 뒤 원래 이동 Promise와 `sidekick-move-end`를 `finished: false`로 완료합니다. 제동 중 새 목표를 요청해도 남은 속도에서 자연스럽게 이어집니다. `cancelMove()` 자체는 Promise를 반환하지 않습니다. `travel: 'none'`은 위치 이동을 즉시 중단하고, 남은 비행 포즈가 있다면 정리합니다. 일시 정지·모션 줄이기·연결 해제는 제동과 포즈 정리를 기다리지 않고 즉시 처리합니다.
+`cancelMove()`는 자연 비행의 현재 속도를 deceleration으로 줄입니다. 호출한 지점에서 즉시 멈추지 않습니다. 일정한 속도로 비행 중이었다면 제동 거리는 대략 `속력² / (2 × 감속도) + 0.06 × 속력`이며, 가속 중이었다면 남은 가속도 때문에 더 길어질 수 있습니다. 제동력이 부드럽게 바뀌므로 처음에는 속력이 잠깐 더 증가할 수 있지만, 정지 요청으로 반대 방향에 튕겨 나가지는 않습니다. 속도가 0이 되면 `settling`에서 180ms 동안 방향·기울기·떠오름을 정리한 뒤 원래 이동 Promise와 `sidekick-move-end`를 `finished: false`로 완료합니다. 제동 중 새 목표를 요청해도 남은 속도에서 자연스럽게 이어집니다. `cancelMove()` 자체는 Promise를 반환하지 않습니다. `travel: 'none'`은 위치 이동을 즉시 중단하고, 남은 비행 포즈가 있다면 정리합니다. 일시 정지·모션 줄이기·연결 해제는 제동과 포즈 정리를 기다리지 않고 즉시 처리합니다.
 
 `movement-bounds="viewport"`에서는 전체 캔버스 박스가 뷰포트를 벗어나지 않습니다. 벽에 닿은 축의 바깥 방향 속도만 0으로 만들며 다른 축은 계속 움직일 수 있습니다. 경계에 의해 속도가 잘리는 순간은 일반적인 가속 한도 예외입니다. `inline`이나 `movement-bounds="none"`에는 이런 제한이 없으므로 컨테이너 경계·제동 거리·방향 전환 시 여유 공간은 앱에서 관리하세요. 목적지만 컨테이너 안으로 제한해도 관성 경로와 제동 위치까지 제한되지는 않습니다.
 
@@ -1030,7 +1034,7 @@ API playground는 “최고 속도 자동”이 기본으로 켜져 있으며 �
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.2/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.3/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { maxSpeed: 320, acceleration: 900, deceleration: 1200 });
@@ -1067,7 +1071,7 @@ API playground는 “최고 속도 자동”이 기본으로 켜져 있으며 �
 <button id="flight-stop" type="button">활동 중단</button>
 <p id="flight-status" aria-live="off">idle</p>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.2/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.3/dist/browser/sidekick.js';
   const stage = document.getElementById('flight-stage');
   const bot = document.getElementById('flight-avatar');
   const status = document.getElementById('flight-status');

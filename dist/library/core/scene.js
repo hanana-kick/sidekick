@@ -103,7 +103,7 @@ export function createScene(input = {}) {
         boolean(mouseTracking, 'scene.input.mouseTracking');
     return parseScene({
         sceneVersion: 2, design: createDesign(), activity: 'idle', paused: false,
-        trackingMode: mouseTracking ? 'eyes' : 'off', interaction: 'none', renderStyle: 'flat', time: 0,
+        trackingMode: mouseTracking === undefined ? 'eyes-and-body' : mouseTracking ? 'eyes' : 'off', interaction: 'none', renderStyle: 'flat', time: 0,
         motion: {}, shapeDuration: 450, shapeEasing: 'smooth', motionDuration: 400, motionEasing: 'smooth',
         ...canonical, camera: createCamera(input.camera), gaze: { x: 0, y: 0, ...input.gaze },
     });

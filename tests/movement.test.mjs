@@ -97,16 +97,16 @@ test('natural is the default and accelerates from rest rather than waiting throu
   finish(f); assert.deepEqual(await result, { finished: true, position: { x: 1000, y: 0 } });
   assert.equal(f.controller.state.phase, 'idle'); assert.equal(f.controller.state.progress, 1); assert.deepEqual(f.presentations.at(-1), neutral);
 });
-test('constant acceleration gives a linear velocity ramp, capped cruise and physical braking', async () => {
+test('exponential acceleration response integrates actual velocity and position before cruise and braking', async () => {
   const f = fixture(), result = f.controller.to({ x: 1000, y: 0 }, physics);
   for (const time of [100, 200, 300, 400]) {
     advance(f, time, 120);
-    close(f.controller.state.velocity.x, physics.acceleration * time / 1000, 3, `velocity at ${time} ms`);
-    close(f.controller.position.x, 0.5 * physics.acceleration * (time / 1000) ** 2, 1, `position at ${time} ms`);
-    close(f.controller.state.acceleration.x, physics.acceleration, 1e-6);
+    close(f.controller.state.velocity.x, physics.acceleration * (time / 1000 - .06 * (1 - Math.exp(-time / 1000 / .06))), 1e-6, `velocity at ${time} ms`);
+    close(f.controller.position.x, physics.acceleration * ((time / 1000) ** 2 / 2 - .06 * time / 1000 + .06 ** 2 * (1 - Math.exp(-time / 1000 / .06))), 1e-6, `position at ${time} ms`);
+    close(f.controller.state.acceleration.x, physics.acceleration * (1 - Math.exp(-time / 1000 / .06)), 1e-6);
     close(f.controller.state.velocity.y, 0); close(f.controller.state.acceleration.y, 0);
   }
-  advance(f, 1000, 120); close(f.controller.state.speed, physics.maxSpeed, 1e-6); close(f.controller.state.acceleration.x, 0, 1e-6);
+  advance(f, 1500, 120); close(f.controller.state.speed, physics.maxSpeed, 1e-4); close(f.controller.state.acceleration.x, 0, 1e-4);
   finish(f, { hz: 120 }); await result;
   assert.ok(f.states.some(s => s.velocity.x > 0 && s.acceleration.x < -1), 'arrival has a real deceleration interval');
   assert.ok(f.states.every(s => s.speed <= physics.maxSpeed + 1e-6));
@@ -191,7 +191,7 @@ test('natural cancel coasts through a controlled stop and settles before resolvi
   assert.equal(f.controller.state.phase, 'settling'); assert.equal(f.controller.state.speed, 0);
   const stopped = f.controller.position, settlingStarted = f.now;
   assert.ok(stopped.x > before.position.x, 'cancel must not freeze a moving avatar');
-  close(stopped.x - before.position.x, before.speed ** 2 / (2 * physics.deceleration), 2, 'stopping distance');
+  close(stopped.x - before.position.x, before.speed ** 2 / (2 * physics.deceleration) + .06 * before.speed, 2, 'stopping distance');
   advance(f, settlingStarted + 150); assert.deepEqual(f.controller.position, stopped); await Promise.resolve(); assert.equal(resolved, false);
   finish(f); assert.ok(f.now - settlingStarted >= 175);
   assert.deepEqual(await result, { finished: false, position: stopped }); assert.ok(f.controller.state.progress >= interruptedProgress && f.controller.state.progress < 1);
@@ -288,13 +288,13 @@ test('rapid retargets own one frame and settle each replaced promise exactly onc
 test('a natural progress listener can retarget without recursive samples or velocity reset', async () => {
   let next, sampled;
   const f = fixture({ progress(state) { if (state.speed >= 100 && !next) { sampled = state; next = f.controller.to({ x: 100, y: 100 }, physics); } } });
-  const old = f.controller.to({ x: 900, y: 0 }, physics); advance(f, 200);
+  const old = f.controller.to({ x: 900, y: 0 }, physics); advance(f, 300);
   assert.equal((await old).finished, false); assert.ok(sampled); assert.equal(f.callbacks.size, 1); assert.ok(f.controller.state.speed > 0);
   finish(f); assert.deepEqual(await next, { finished: true, position: { x: 100, y: 100 } }); assert.equal(f.events.length, 2);
 });
 test('a progress listener can cancel repeatedly without restarting braking or settling', async () => {
   const f = fixture({ progress(state) { if (state.speed >= 100 || state.phase === 'braking' || state.phase === 'settling') f.controller.cancel(); } });
-  const result = f.controller.to({ x: 900, y: 0 }, physics); advance(f, 200); assert.equal(f.controller.state.phase, 'braking');
+  const result = f.controller.to({ x: 900, y: 0 }, physics); advance(f, 300); assert.equal(f.controller.state.phase, 'braking');
   finish(f); assert.equal((await result).finished, false); assert.equal(f.events.length, 1);
 });
 test('a newer request from sampled progress wins over outer retarget and relative requests', async () => {
@@ -377,39 +377,39 @@ test('cancelling successful arrival during settling still resolves the active re
   assert.deepEqual(await result, { finished: false, position: { x: 100, y: 0 } }); assert.equal(f.events.length, 1);
 });
 
-test('asymmetric braking cannot spend its stronger budget accelerating through a reversal', async () => {
+test('extreme asymmetric reversal preserves acceleration and releases braking force smoothly', async () => {
   const f = fixture(), old = f.controller.to({ x: 1000, y: 0 }, physics);
-  advance(f, 1000, 240); close(f.controller.state.velocity.x, 300);
+  advance(f, 1000, 240); const before = f.controller.state;
   const next = f.controller.to({ x: 100, y: 0 }, { maxSpeed: 300, acceleration: 1, deceleration: 100000 });
   assert.equal((await old).finished, false);
+  assert.deepEqual(f.controller.state.acceleration, before.acceleration);
   f.at(f.now + 1000 / 240);
-  const reverseBudget = 1 / 240 - 300 / 100000;
-  close(f.controller.state.velocity.x, -reverseBudget, 1e-9, 'remaining tick accelerates only after braking to zero');
-  f.at(f.now + 1000 / 240);
-  assert.ok(f.controller.state.velocity.x < 0, 'acceleration resumes toward the reversed target');
-  close(f.controller.state.speed, reverseBudget + 1 / 240, 1e-9, 'reverse speed uses acceleration budget');
-  close(f.controller.state.acceleration.x, -1, 1e-9);
-  finish(f); assert.deepEqual(await next, { finished: true, position: { x: 100, y: 0 } });
+  assert.ok(f.controller.state.velocity.x > 0, 'smoothing preserves real forward momentum during virtual braking');
+  assert.ok(f.controller.state.velocity.x < before.velocity.x);
+  advance(f, 3000, 240);
+  assert.ok(f.controller.state.velocity.x < 0, 'reverse acceleration eventually follows the force release');
+  assert.ok(f.controller.state.speed < 3, 'braking impulse cannot create unbounded reverse speed');
+  close(f.controller.state.acceleration.x, -1, 1e-6);
+  finish(f, { timeout: 60000 }); assert.deepEqual(await next, { finished: true, position: { x: 100, y: 0 } });
 });
 
-test('asymmetric braking through a perpendicular turn does not stall at its minimum-speed point', async () => {
+test('asymmetric perpendicular turn retains real momentum and converges without a force or position clip', async () => {
   const f = fixture(), old = f.controller.to({ x: 1000, y: 0 }, physics);
-  advance(f, 1000, 240); const start = f.controller.position;
-  const target = { x: start.x, y: 300 };
+  advance(f, 1000, 240); const before = f.controller.state;
+  const target = { x: before.position.x, y: 300 };
   const next = f.controller.to(target, { maxSpeed: 300, acceleration: 60, deceleration: 100000 });
   assert.equal((await old).finished, false);
+  assert.deepEqual(f.controller.state.acceleration, before.acceleration);
   f.at(f.now + 1000 / 240);
-  const accelerationTime = 1 / 240 - Math.hypot(150, 150) / 100000;
-  const componentGain = 60 * accelerationTime / Math.sqrt(2);
-  close(f.controller.state.velocity.x, 150 - componentGain, 1e-8);
-  close(f.controller.state.velocity.y, 150 + componentGain, 1e-8);
+  assert.ok(f.controller.state.velocity.x > 150, 'physical direction cannot jump with the virtual steering impulse');
+  assert.ok(f.controller.state.velocity.y > 0 && f.controller.state.velocity.y < 150);
   const first = f.controller.position;
   advance(f, f.now + 100, 240);
   assert.ok(f.controller.position.y > first.y + 1, 'turn keeps advancing');
   finish(f, { hz: 240 }); assert.deepEqual(await next, { finished: true, position: target });
   f.states.forEach(finiteState);
+  assert.ok(f.states.every(s => s.speed <= 300 + 1e-6));
 });
-
 
 test('early oblique retargets converge across display rates without perpendicular orbiting', async () => {
   const options = { maxSpeed: 320, acceleration: 900, deceleration: 1200 };
@@ -432,7 +432,7 @@ test('adaptive natural speed ceilings compensate distance without changing accel
   for (const distance of [50, 200, 800, 2000]) {
     const f = fixture(); f.state.max = 10000;
     const result = f.controller.to({ x: distance, y: 0 }, { duration: 1000 });
-    advance(f, 25, 120); close(f.controller.state.speed, 45, 1e-6); close(f.controller.state.acceleration.x, 1800, 1e-6);
+    advance(f, 25, 120); close(f.controller.state.speed, 1800 * (.025 - .06 * (1 - Math.exp(-.025 / .06))), 1e-6); close(f.controller.state.acceleration.x, 1800 * (1 - Math.exp(-.025 / .06)), 1e-6);
     finish(f, { hz: 120 }); assert.equal((await result).finished, true);
     rows.push({ distance, duration: f.now, peak: Math.max(...f.states.map(s => s.speed)) });
     assert.ok(f.states.every(s => s.acceleration.x <= 1800 + 1e-6 && s.acceleration.x >= -2200 - 1e-6));
@@ -450,8 +450,9 @@ test('adaptive shorter retarget decelerates from current velocity instead of app
   const before = f.controller.state;
   const next = f.controller.to({ x: before.position.x + 50, y: 0 }, { duration: 1000 });
   assert.equal((await first).finished, false); close(f.controller.state.speed, before.speed);
-  advance(f, 525, 120); assert.ok(f.controller.state.speed > 80); assert.ok(f.controller.state.speed < before.speed);
-  close(before.speed - f.controller.state.speed, 2200 * .025, 1e-6);
+  advance(f, 525, 120); assert.ok(f.controller.state.speed > before.speed, 'inherited positive acceleration must unwind smoothly');
+  assert.ok(f.controller.state.acceleration.x < before.acceleration.x);
+  advance(f, 650, 120); assert.ok(f.controller.state.speed > 120); assert.ok(f.controller.state.speed < before.speed);
   finish(f); assert.equal((await next).finished, true);
 });
 
@@ -465,4 +466,74 @@ test('physical attitude smoothing bounds frame-to-frame bank without altering th
     boundedPresentation(p); previous = p;
   }
   assert.equal((await result).finished, true);
+});
+
+test('automatic speed policy is exactly 1.5 times prior ceilings while explicit maxSpeed remains exact', async () => {
+  for (const [distance, duration, expected] of [[20, 1000, 120], [200, 1000, 300], [800, 1000, 1200], [1e7, 100, 150000]]) {
+    const f = fixture(); f.state.max = 1e7;
+    const result = f.controller.to({ x: distance, y: 0 }, { duration });
+    assert.equal(f.controller.track.maxSpeed, expected);
+    f.controller.finish(); await result;
+  }
+  const f = fixture(), result = f.controller.to({ x: 800, y: 0 }, { maxSpeed: 217 });
+  assert.equal(f.controller.track.maxSpeed, 217);
+  finish(f); await result; assert.ok(f.states.every(s => s.speed <= 217 + 1e-6));
+});
+
+test('reported instantaneous acceleration integrates to velocity and position through exponential force ramps', async () => {
+  const f = fixture(), result = f.controller.to({ x: 900, y: 300 }, physics);
+  const dt = 1 / 240, tau = .06, decay = Math.exp(-dt / tau), integral = tau * (1 - decay);
+  let previous = f.controller.state;
+  for (let i = 1; i <= 80; i++) {
+    f.at(i * 1000 / 240); const current = f.controller.state;
+    for (const axis of ['x', 'y']) {
+      const a0 = previous.acceleration[axis], a1 = current.acceleration[axis];
+      const u = (a1 - a0 * decay) / (1 - decay);
+      close(current.velocity[axis] - previous.velocity[axis], u * dt + (a0 - u) * integral, 1e-9);
+      close(current.position[axis] - previous.position[axis], previous.velocity[axis] * dt + u * dt * dt / 2 + (a0 - u) * tau * (dt - integral), 1e-9);
+    }
+    previous = current;
+  }
+  finish(f); await result;
+});
+
+test('stop during takeoff, cruise and arrival retains a continuous force and never reverses or rebounds', async () => {
+  for (const cancelAt of [50, 200, 800, 3000]) {
+    const f = fixture(), result = f.controller.to({ x: 1000, y: 0 }, physics);
+    advance(f, cancelAt, 240); const before = f.controller.state;
+    f.controller.cancel(); assert.deepEqual(f.controller.state.acceleration, before.acceleration);
+    let last = before;
+    while (f.callbacks.size && f.now < cancelAt + 5000) {
+      f.at(f.now + 1000 / 240); const state = f.controller.state;
+      assert.ok(state.position.x >= last.position.x - 1e-9, 'braking position must never move backwards');
+      assert.ok(state.velocity.x >= -1e-9, 'stop cannot acquire reverse velocity');
+      if (last.acceleration.x < 0) assert.ok(state.speed <= last.speed + 1e-8, 'after deceleration begins speed must stay monotonic');
+      last = state;
+    }
+    assert.equal(f.callbacks.size, 0); assert.equal((await result).finished, false);
+  }
+});
+
+test('retarget preserves acceleration state as well as momentum at every display rate', async () => {
+  for (const hz of [30, 60, 120]) {
+    const f = fixture(); f.state.min = -1000;
+    const old = f.controller.to({ x: 900, y: 200 }, physics); advance(f, 200, hz);
+    const before = f.controller.state;
+    const next = f.controller.to({ x: -200, y: 500 }, physics);
+    assert.deepEqual(f.controller.state.acceleration, before.acceleration);
+    assert.deepEqual(f.controller.state.velocity, before.velocity);
+    assert.equal((await old).finished, false);
+    finish(f, { hz }); assert.equal((await next).finished, true);
+  }
+});
+
+test('same-position retarget with tiny speed still preserves residual acceleration', async () => {
+  const f = fixture(), old = f.controller.to({ x: 900, y: 0 }, { acceleration: 1, deceleration: 1 });
+  f.at(1000 / 240); const before = f.controller.state;
+  assert.ok(before.speed < .01 && before.acceleration.x > .01);
+  const next = f.controller.to(before.position, { acceleration: 1, deceleration: 1 });
+  assert.deepEqual(f.controller.state.acceleration, before.acceleration);
+  assert.deepEqual(f.controller.state.velocity, before.velocity);
+  assert.equal((await old).finished, false);
+  finish(f); assert.equal((await next).finished, true);
 });

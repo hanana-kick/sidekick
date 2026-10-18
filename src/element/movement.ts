@@ -121,7 +121,7 @@ export class AvatarMovement {
     // Superseding transfers presentation ownership to the new request instead of starting a separate landing.
     if (this.track) this.complete(this.track, false, false);
     const to = this.host.constrain(target), duration = this.host.immediate() ? 0 : timing.duration;
-    if (!duration || (to.x === this.point.x && to.y === this.point.y && Math.hypot(this.velocity.x, this.velocity.y) < 0.01)) {
+    if (!duration || (to.x === this.point.x && to.y === this.point.y && Math.hypot(this.velocity.x, this.velocity.y) < 0.01 && (timing.travel !== 'natural' || Math.hypot(this.acceleration.x, this.acceleration.y) < 0.01))) {
       this.write(to);
       if (revision !== this.revision) return this.result(false);
       this.progress = 1;
@@ -133,7 +133,7 @@ export class AvatarMovement {
       return new Promise(resolve => {
         const distance = Math.hypot(to.x - this.point.x, to.y - this.point.y);
         this.track = { kind: 'physical', to, start: now, last: now, accumulator: 0,
-          maxSpeed: timing.maxSpeed || Math.max(80, Math.min(100000, distance / Math.max(0.1, duration / 1000))),
+          maxSpeed: timing.maxSpeed || 1.5 * Math.max(80, Math.min(100000, distance / Math.max(0.1, duration / 1000))),
           acceleration: timing.acceleration, deceleration: timing.deceleration, initialDistance: Math.max(distance, 1), stopping: false, resolve };
         this.progress = 0; this.phase = Math.hypot(this.velocity.x, this.velocity.y) > 0.1 ? 'flight' : 'takeoff';
         this.report(); this.schedule();
@@ -297,20 +297,33 @@ export class AvatarMovement {
     let arrived = false;
     while (track.accumulator + 1e-10 >= dt) {
       track.accumulator = Math.max(0, track.accumulator - dt);
-      const dx = track.to.x - this.point.x, dy = track.to.y - this.point.y;
-      const distance = Math.hypot(dx, dy), speed = Math.hypot(this.velocity.x, this.velocity.y);
-      if ((!track.stopping && distance < 0.08 && speed < Math.min(4, track.deceleration * dt)) || (track.stopping && speed < 1e-7)) {
+      const response = 0.06;
+      const realDistance = Math.hypot(track.to.x - this.point.x, track.to.y - this.point.y);
+      const realSpeed = Math.hypot(this.velocity.x, this.velocity.y);
+      const residualAcceleration = Math.hypot(this.acceleration.x, this.acceleration.y);
+      const restSpeed = Math.min(0.1, track.deceleration * dt);
+      const restAcceleration = Math.min(1, track.acceleration * 0.01, track.deceleration * 0.01);
+      if ((track.stopping || realDistance < 0.08) && realSpeed < restSpeed && residualAcceleration < restAcceleration) {
         if (!track.stopping) this.point = { ...track.to };
         this.velocity = { x: 0, y: 0 }; this.acceleration = { x: 0, y: 0 }; arrived = true; break;
       }
+      // For da/dt=(u-a)/tau, q=x+tau*v and w=v+tau*a obey q'=w, w'=u.
+      // Plan in this look-ahead state to reserve the force ramp's stopping distance.
+      // Physical position, velocity and acceleration retain continuity on retarget.
+      const dx = track.to.x - (this.point.x + response * this.velocity.x);
+      const dy = track.to.y - (this.point.y + response * this.velocity.y);
+      const distance = Math.hypot(dx, dy);
+      const virtualVX = this.velocity.x + response * this.acceleration.x;
+      const virtualVY = this.velocity.y + response * this.acceleration.y;
+      const speed = Math.hypot(virtualVX, virtualVY);
       // Arrival steering uses stopping distance v²/(2b), with a small safety margin.
       const desiredSpeed = track.stopping ? 0 : Math.min(track.maxSpeed, Math.sqrt(2 * track.deceleration * distance) * 0.9, distance / (2 * dt));
       const desiredX = distance > 1e-9 ? dx / distance * desiredSpeed : 0;
       const desiredY = distance > 1e-9 ? dy / distance * desiredSpeed : 0;
-      const dvx = desiredX - this.velocity.x, dvy = desiredY - this.velocity.y, dv = Math.hypot(dvx, dvy);
-      const projection = dvx * this.velocity.x + dvy * this.velocity.y;
+      const dvx = desiredX - virtualVX, dvy = desiredY - virtualVY, dv = Math.hypot(dvx, dvy);
+      const projection = dvx * virtualVX + dvy * virtualVY;
       const braking = track.stopping || projection < -1e-8;
-      const oldX = this.velocity.x, oldY = this.velocity.y;
+      const oldX = virtualVX, oldY = virtualVY;
       // Split at minimum speed: braking may remove momentum, but cannot buy
       // reverse acceleration. Consume the remaining time under acceleration,
       // otherwise a changing perpendicular target could stall every tick.
@@ -322,13 +335,22 @@ export class AvatarMovement {
       const remainingX = desiredX - midX, remainingY = desiredY - midY;
       const remainingDelta = Math.hypot(remainingX, remainingY);
       const accelerateAmount = remainingDelta > 0 ? Math.min(1, track.acceleration * remainingTime / remainingDelta) : 0;
-      this.velocity.x = midX + remainingX * accelerateAmount;
-      this.velocity.y = midY + remainingY * accelerateAmount;
-      this.acceleration.x = (this.velocity.x - oldX) / dt; this.acceleration.y = (this.velocity.y - oldY) / dt;
-      const proposed = {
-        x: this.point.x + (oldX + midX) * brakeTime / 2 + (midX + this.velocity.x) * remainingTime / 2,
-        y: this.point.y + (oldY + midY) * brakeTime / 2 + (midY + this.velocity.y) * remainingTime / 2,
+      const endX = midX + remainingX * accelerateAmount;
+      const endY = midY + remainingY * accelerateAmount;
+      const integrate = (seconds: number, ux: number, uy: number): void => {
+        if (seconds <= 0) return;
+        const decay = Math.exp(-seconds / response), integral = response * (1 - decay);
+        const ax = this.acceleration.x, ay = this.acceleration.y;
+        this.point.x += this.velocity.x * seconds + ux * seconds ** 2 / 2 + (ax - ux) * response * (seconds - integral);
+        this.point.y += this.velocity.y * seconds + uy * seconds ** 2 / 2 + (ay - uy) * response * (seconds - integral);
+        this.velocity.x += ux * seconds + (ax - ux) * integral;
+        this.velocity.y += uy * seconds + (ay - uy) * integral;
+        this.acceleration.x = ux + (ax - ux) * decay;
+        this.acceleration.y = uy + (ay - uy) * decay;
       };
+      if (brakeTime > 0) integrate(brakeTime, (midX - oldX) / brakeTime, (midY - oldY) / brakeTime);
+      if (remainingTime > 0) integrate(remainingTime, (endX - midX) / remainingTime, (endY - midY) / remainingTime);
+      const proposed = { ...this.point };
       const constrained = this.host.constrain(proposed);
       // Bounds are inelastic walls: discard only the outward velocity component.
       if (constrained.x !== proposed.x) { this.velocity.x = 0; this.acceleration.x = 0; }
@@ -340,7 +362,7 @@ export class AvatarMovement {
     if (this.track !== track) return;
     const speed = Math.hypot(this.velocity.x, this.velocity.y);
     this.progress = Math.max(this.progress, Math.min(0.999, 1 - Math.hypot(track.to.x - this.point.x, track.to.y - this.point.y) / track.initialDistance));
-    const targetHeading = speed > 1 ? direction(this.velocity.x, this.velocity.y) : this.presentation.direction;
+    const targetHeading = speed > 1 || (!Math.hypot(...this.presentation.direction) && speed > 1e-7) ? direction(this.velocity.x, this.velocity.y) : this.presentation.direction;
     const heading = turn(this.presentation.direction, targetHeading, 1 - Math.exp(-24 * elapsed));
     // Attitude is a damped presentation layer, not a force on the trajectory.
     // A speed/acceleration step must not turn into a one-frame head nod.
