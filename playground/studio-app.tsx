@@ -166,7 +166,8 @@ export function StudioApp({ controller }: { controller: StudioController }) {
   function reset(): void { controller.reset(); setResetKey(key => key + 1); }
   async function exportPNG(): Promise<void> { try { download(await controller.snapshot(), 'sidekick.png'); controller.report('투명 PNG를 내보냈습니다.'); } catch (error) { controller.report(String(error), true); } }
   return <div className="studio-shell">
-    <header className="app-header"><a className="brand" href={ASSET_BASE} aria-label="Sidekick Studio 홈"><Sparkles aria-hidden="true" /><span>sidekick<span className="brand-studio">studio</span></span></a>
+    <header className="app-header"><a className="brand" href={ASSET_BASE} aria-label="Sidekick Studio 홈"><Sparkles aria-hidden="true" /><span>sidekick</span></a>
+      <nav className="product-nav" aria-label="Sidekick 페이지"><a href={ASSET_BASE} aria-current="page">Studio</a><a id="api-playground-link" href={`${ASSET_BASE}api-playground.html`}>API playground</a></nav>
       <div className="header-actions"><Button id="reset" variant="ghost" onClick={reset} aria-label="디자인 초기화"><RotateCcw data-icon="inline-start" /><span className="action-label">초기화</span></Button><Button id="export-png" variant="outline" onClick={() => void exportPNG()} aria-label="PNG 저장"><ImageDown data-icon="inline-start" /><span className="action-label">PNG 저장</span></Button><Button id="export-json" onClick={() => { download(new Blob([controller.exportJSON()], { type: 'application/json' }), 'sidekick.scene.json'); controller.report('장면 JSON을 내보냈습니다.'); }}><FileJson data-icon="inline-start" /><span>JSON 내보내기</span></Button></div>
     </header>
     <main className="workspace">

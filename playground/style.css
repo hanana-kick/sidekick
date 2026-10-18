@@ -123,6 +123,12 @@ body { -webkit-font-smoothing: antialiased; }
 .brand { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; font-size: 20px; line-height: 1; font-weight: 650; letter-spacing: -.7px; }
 .brand > svg { width: 22px; height: 22px; }
 .brand-studio { padding-left: 7px; font-weight: 400; color: var(--muted-foreground); }
+/* Top-level destinations stay visible in both desktop and mobile layouts. */
+.product-nav { display: flex; align-items: center; flex-shrink: 0; gap: 4px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; }
+.product-nav a { padding: 7px 12px; border-radius: 7px; color: var(--muted-foreground); font-size: 12px; line-height: 1.4; text-decoration: none; white-space: nowrap; }
+.product-nav a[aria-current="page"] { background: var(--foreground); color: var(--background); }
+.product-nav a:hover:not([aria-current="page"]) { background: var(--muted); color: var(--foreground); }
+.product-nav a:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .header-actions { display: flex; flex-shrink: 0; align-items: center; gap: 8px; }
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 440px; width: 100%; min-width: 0; min-height: 0; overflow: hidden; }
 .stage { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; padding: 32px; background: var(--stage-background); }
@@ -214,7 +220,9 @@ sidekick-avatar { display: block; width: 100%; height: 100%; min-width: 0; min-h
   .settings-scroll { padding: 20px; }
 }
 @media (max-width: 760px) {
-  .app-header { min-height: 56px; padding: 10px 14px; gap: 8px; }
+  .app-header { min-height: 56px; padding: 10px 14px; gap: 8px; flex-wrap: wrap; }
+  .product-nav { order: 3; width: 100%; justify-content: center; border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 8px 0 0; margin-top: 2px; }
+  .product-nav a { padding: 6px 18px; }
   .brand { font-size: 17px; gap: 6px; letter-spacing: -.5px; }
   .brand > svg { width: 18px; height: 18px; }
   .brand-studio { display: none; }

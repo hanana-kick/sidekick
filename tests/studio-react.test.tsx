@@ -96,6 +96,16 @@ function assertMinimal(design: AvatarDesign) {
   for (const item of design.accessories) assert.deepEqual(Object.keys(item).sort(), ['color', 'id', 'preset', 'slot']);
 }
 
+test('Studio exposes its active destination and the API playground in the top-level header', async t => {
+  const f = await fixture(t);
+  const navigation = f.container.querySelector('.app-header nav[aria-label="Sidekick 페이지"]');
+  assert.ok(navigation);
+  assert.equal(navigation.querySelector('[aria-current="page"]')?.textContent, 'Studio');
+  const api = f.node<HTMLAnchorElement>('api-playground-link');
+  assert.equal(api.textContent, 'API playground');
+  assert.equal(new URL(api.href).pathname, '/api-playground.html');
+});
+
 test('React uses genuine shadcn controls, correct tab relationships and named slider thumbs', async t => {
   const f = await fixture(t);
   assert.ok(f.container.querySelector('[data-slot="button"]')); assert.ok(f.container.querySelector('[data-slot="toggle-group"]'));
