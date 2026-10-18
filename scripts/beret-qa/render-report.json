@@ -1,0 +1,539 @@
+{
+  "schemaVersion": 1,
+  "status": "Complete finite validation; no unresolved rendered defect in the tested scope",
+  "sourceHashes": {
+    "renderer/worn-beret.ts": "fc32adf0b43955a768938adcfbc09997887d5644177b81480f5f2c7cca2a353f",
+    "renderer/webgl.ts": "ee3fbfa36b41f9de962ad8b4015449632958bab9c6773ec23d326dd07333f21f",
+    "core/motion.ts": "a6058bb1df4d10b7c4fdd8bc57a861279159066f273a0d13566bbcb2e1355256",
+    "core/shape-profiles.ts": "af403fd46d0296aa056b840b05569912bca2e59cb24955420163db2eb9fe5b61"
+  },
+  "sourceTree": {
+    "treeSha256": "a348c5e5528c5b8d92edd841be5cad2f4eee7517d1752a240615fb9456711858",
+    "files": {
+      "auto.ts": "49e3367229fb31fe6157f6c19eab6ef1053ecb854d03102d53c4ac44feb9b4ee",
+      "core.ts": "ffabf160b99e1d428950b6d63aba8b1ca2d12516fec4e6556466b37b24794c16",
+      "core/body-volume.ts": "4ce1a93dd06152c5c3ca5d6bd187ded9f18f0ec97693b0bdc442ae2d01ae9d28",
+      "core/camera.ts": "cfd92a48839bbd4d97a4402c9d5b985ce74b58f20c79529b074911d91610b550",
+      "core/contour-rectangle.ts": "6e208dd0bee14afd79dbbaa2099adcf95ddd917766bf8860f75c0786b651be04",
+      "core/contours.ts": "83487d26f7bfcb0f98a1513214b18079bedc5c74a07e37e5fe3f4a412e50f47a",
+      "core/design.ts": "3f8d2299129f6ef042b8babb248d9329b9b65137c34cf4876aee7312d3b52413",
+      "core/expressions.ts": "151ca58b7a53cdbf594d55c79c086bbb8945c73828881c5325d2cc02aa122d98",
+      "core/material-shapes.ts": "b20dada8e5ddb0675bfe23d7c85a38295dd57b541676fa5751b6842bbf7e65c6",
+      "core/math.ts": "de7991ee7ff4886707b278f77c7d23236dff314ff2af1c841260f568af6cb10e",
+      "core/morph.ts": "8a73f5ae4d7a8b6918f9dc12dd42003421ab654ef5650c9e76577b8a6152ba92",
+      "core/motion.ts": "a6058bb1df4d10b7c4fdd8bc57a861279159066f273a0d13566bbcb2e1355256",
+      "core/pixels.ts": "ec2805c0ee6044d25b77d8a617ccdf13f3370e9d27e826248f1195d6bfd637d3",
+      "core/resolved-design.ts": "60a1a2508973ea9ac265175da617cb84797c1d3d22937ed1cc9b517f14ccbe0d",
+      "core/scene.ts": "54cea8082002dc91f1435b3f8be327de1b119786c71735195dbfa2ba21434d44",
+      "core/shape-motion.ts": "60ec76022048e54e94247d85da3dc5477b90754af5931489871e1482a3aa4249",
+      "core/shape-profiles.ts": "af403fd46d0296aa056b840b05569912bca2e59cb24955420163db2eb9fe5b61",
+      "core/shapes.ts": "205ca176b7ac205d649ad9e2cc888faf6539ee2e04562662128a41f2e0d42166",
+      "core/surface.ts": "d6d3657c63f2d68e2dc55170e2cc3d89cc3f5d6a6d9108f14f6cda80afb050a8",
+      "core/tracking.ts": "18e3cb6fb8a9bb50f152d009923b5adc115a3fd0043b245272487e92ceffc28a",
+      "element/attributes.ts": "99208e4373b39817da676fd720da587eef60e6b7c72fb0b5356cd7a571996c1b",
+      "element/avatar.ts": "4bece7a7539cea96099f6a1b63ce30a3fd2e51812d45cf335e12d72a97d3c8b3",
+      "index.ts": "886cceaecaeaffae9d56d25692678738407de54b23a90e939e9e9fa5d8131201",
+      "react.ts": "873f3771145763d01b56a25ebee2b30b10db2440ca8084d3da6473f40e76c3d8",
+      "register.ts": "e3748c189879fdffabb70566f7a17bf564cc4cc69cae7a3da548646fbd489ecc",
+      "renderer/beret-geometry.ts": "61f5cd1912aa4ce76fd1a85b66926488f71e335e826318af36bf687556940997",
+      "renderer/body-geometry.ts": "8b6646b4cce06ee38c16bd3e5bac6a5f18b9fcbc37195ec5e257b2d693d7577b",
+      "renderer/catalog-accessory-geometry.ts": "0ecba354208436827de836f424ab556a28c09e354f31d0cc8b0b1ea52073f184",
+      "renderer/eye-projection.ts": "a2e5c769c2407b792639a26d96f63e8e58658bace476165d808ef021e5e83baf",
+      "renderer/geometry.ts": "2f1faf4c42cc854ee0dd37b2a76e4afec2df5138326498a385dfd36c56e9c499",
+      "renderer/glasses-geometry.ts": "eaeec2a6214d5c903d92a1d666d268c3a1cc10148528dcbc73967ef877a94830",
+      "renderer/rigid-contact.ts": "f62de4087dc67a3cae53534878dde87ea5092ed0ca784e43ae64425da77542df",
+      "renderer/scarf-geometry.ts": "ec3bca0d34610a6e63f8a9a10124dbf993a0b2df9dd252c76f6bef161e214b7e",
+      "renderer/volume-triangulation.ts": "4e95ebbecde5a086f00d970bdb8f79b9ce286b6a8720abf7c332e869cdc75cd7",
+      "renderer/webgl.ts": "ee3fbfa36b41f9de962ad8b4015449632958bab9c6773ec23d326dd07333f21f",
+      "renderer/worn-beret.ts": "fc32adf0b43955a768938adcfbc09997887d5644177b81480f5f2c7cca2a353f",
+      "runtime/create-worker.ts": "8603a0f62a06d3f33953c1026490711b11369c608cc78a458074b32c8d995a15",
+      "runtime/protocol.ts": "379b7cc5591e693f3eb62ebd763c073cf5be53f39514224cdaf312d046ae4891",
+      "runtime/render-bridge.ts": "24dcf0fc74f8c99bc64fe64ab221fdcd2a6dcacc293bc951a3fed9b7ed926a6f",
+      "runtime/render-engine.ts": "f23c63f96054ba593b8a4c01832bd9e1f6263b196004069c3caffbe3c8fec802",
+      "runtime/render-worker.ts": "5defd8a4c8d11028ddc7fa3e9c372a92dfc3201500ba5d392a02b956dcd10a84"
+    },
+    "currentRepositoryMatches": true
+  },
+  "renderer": "Actual AvatarRenderer geometry, production vertex shader and matrices replayed in Mesa llvmpipe GLES3; fragment output replaced by semantic object IDs and 16-bit depth",
+  "resolution": {
+    "static": 384,
+    "angularPhases": 384,
+    "denseTemporal": 192,
+    "morph": 384,
+    "targetedReview": 768
+  },
+  "coverage": {
+    "totalStates": 175026,
+    "nativePassesPerState": 3,
+    "totalNativePasses": 525078,
+    "runs": [
+      {
+        "dir": "smooth-static",
+        "type": "static",
+        "expected": 10920,
+        "actual": 10920,
+        "unique": 10920,
+        "shapes": 35,
+        "cullMissingStates": 0,
+        "maxCullMissing": 0,
+        "depthTieStates": 0,
+        "cullIdMismatchStates": 46,
+        "maxMeshVertexStep": 0,
+        "maxMaskXor": 0
+      },
+      {
+        "dir": "smooth-temporal",
+        "type": "temporal",
+        "expected": 76020,
+        "actual": 76020,
+        "unique": 76020,
+        "shapes": 35,
+        "cullMissingStates": 0,
+        "maxCullMissing": 0,
+        "depthTieStates": 0,
+        "cullIdMismatchStates": 59,
+        "maxMeshVertexStep": 0.01598819430720676,
+        "maxMaskXor": 0.3849056603773585
+      },
+      {
+        "dir": "smooth-phases",
+        "type": "phases",
+        "expected": 87360,
+        "actual": 87360,
+        "unique": 87360,
+        "shapes": 35,
+        "cullMissingStates": 0,
+        "maxCullMissing": 0,
+        "depthTieStates": 0,
+        "cullIdMismatchStates": 392,
+        "maxMeshVertexStep": 0,
+        "maxMaskXor": 0
+      },
+      {
+        "dir": "smooth-morph",
+        "type": "morph",
+        "expected": 726,
+        "actual": 726,
+        "unique": 726,
+        "shapes": 3,
+        "cullMissingStates": 0,
+        "maxCullMissing": 0,
+        "depthTieStates": 0,
+        "cullIdMismatchStates": 2,
+        "maxMeshVertexStep": 0.021249545094499757,
+        "maxMaskXor": 0.1461100569259962
+      }
+    ]
+  },
+  "matrix": {
+    "static": {
+      "shapes": 35,
+      "yawDegrees": {
+        "from": 0,
+        "to": 345,
+        "step": 15
+      },
+      "pitchDegrees": {
+        "from": -90,
+        "to": 90,
+        "step": 15
+      },
+      "cameraRollDegrees": 0
+    },
+    "phases": {
+      "shapes": 35,
+      "phases": [
+        {
+          "activity": "idle",
+          "field": "squash",
+          "extreme": "min",
+          "frame": 300,
+          "time": 5,
+          "value": 0.9840001566951887,
+          "score": -0.9840001566951887
+        },
+        {
+          "activity": "idle",
+          "field": "squash",
+          "extreme": "max",
+          "frame": 557,
+          "time": 9.283333333333333,
+          "value": 1.0159999289051105,
+          "score": 1.0159999289051105
+        },
+        {
+          "activity": "listening",
+          "field": "squash",
+          "extreme": "min",
+          "frame": 471,
+          "time": 7.85,
+          "value": 0.9700016125929739,
+          "score": -0.9700016125929739
+        },
+        {
+          "activity": "listening",
+          "field": "squash",
+          "extreme": "max",
+          "frame": 36,
+          "time": 0.6,
+          "value": 1.0291333084341872,
+          "score": 1.0291333084341872
+        },
+        {
+          "activity": "speaking",
+          "field": "squash",
+          "extreme": "min",
+          "frame": 306,
+          "time": 5.1,
+          "value": 0.9494664652659616,
+          "score": -0.9494664652659616
+        },
+        {
+          "activity": "speaking",
+          "field": "squash",
+          "extreme": "max",
+          "frame": 385,
+          "time": 6.416666666666667,
+          "value": 1.050979843578038,
+          "score": 1.050979843578038
+        },
+        {
+          "activity": "celebrating",
+          "field": "squash",
+          "extreme": "min",
+          "frame": 292,
+          "time": 4.866666666666666,
+          "value": 0.9296846978212184,
+          "score": -0.9296846978212184
+        },
+        {
+          "activity": "celebrating",
+          "field": "squash",
+          "extreme": "max",
+          "frame": 386,
+          "time": 6.433333333333334,
+          "value": 1.070865832408172,
+          "score": 1.070865832408172
+        }
+      ],
+      "selection": "Actual squash minima/maxima sampled at 60 fps over0–10s for idle, listening, speaking, and celebrating; renderer warmed from time zero then state frozen while 312 camera angles vary"
+    },
+    "temporal": {
+      "shapes": 35,
+      "modes": [
+        "idle",
+        "thinking",
+        "listening",
+        "speaking",
+        "celebrating",
+        "accessory-turn"
+      ],
+      "fps": 30,
+      "framesPerSequence": 181,
+      "seconds": [
+        0,
+        6
+      ],
+      "cameras": [
+        [
+          0,
+          -30
+        ],
+        [
+          45,
+          15
+        ]
+      ],
+      "turn": "Explicit bounded sinusoidal body and accessory rotations; no inferred camera interpolation"
+    },
+    "morph": {
+      "sequences": [
+        [
+          "heart",
+          "boom",
+          "pixelTriangle"
+        ],
+        [
+          "flower",
+          "triangle",
+          "square"
+        ],
+        [
+          "clover8Leaf",
+          "heart",
+          "circle"
+        ]
+      ],
+      "fps": 60,
+      "frames": 121,
+      "interruptionMs": 600,
+      "cameras": [
+        [
+          0,
+          -30
+        ],
+        [
+          45,
+          15
+        ]
+      ]
+    }
+  },
+  "findings": {
+    "cullingDisappearanceStates": 0,
+    "nearDepthTieStates": 0,
+    "maximumSemanticIdDisagreementPixels": 2,
+    "semanticIdMeaning": "At most two edge pixels change semantic material ID with face culling disabled; garment coverage is unchanged. This is recorded, not counted as disappeared mesh.",
+    "diagnosticTriage": {
+      "static": {
+        "flagged": 130,
+        "manual": 130,
+        "remaining": 0,
+        "classes": {
+          "intrinsicSilhouette": 113,
+          "bodyOcclusion": 17
+        }
+      },
+      "temporal": {
+        "flagged": 138,
+        "manual": 138,
+        "remaining": 0,
+        "meaning": "Normal body occlusion of coherent lined aperture"
+      },
+      "phases": {
+        "flagged": 1149,
+        "automatic": 1011,
+        "manual": 138,
+        "remaining": 0,
+        "automaticCriterion": "No removed cuff/crown pixels; one garment-only crown component; every cuff pixel within2px of garment silhouette; no culling,ID,or depth discrepancy. Other cases require manual review.",
+        "exactSelectedReplayMetricMismatches": 0
+      },
+      "morph": {
+        "flagged": 0
+      }
+    },
+    "maximumExplicitTurnVertexStep": {
+      "shape": "pentagon",
+      "camera": {
+        "yaw": 0,
+        "pitch": -30,
+        "roll": 0
+      },
+      "activity": "accessory-turn",
+      "time": 4.533333333333333,
+      "frame": 136,
+      "body": 1969,
+      "band": 34,
+      "crown": 155,
+      "hatOnly": 247,
+      "occluded": 49,
+      "cullMissing": 0,
+      "cullIdMismatch": 0,
+      "depthTie": 0,
+      "bandComponents": [
+        34
+      ],
+      "crownComponents": [
+        155
+      ],
+      "meshMaxVertexStep": 0.004612592378903887,
+      "meshRmsVertexStep": 0.0024584265719936904,
+      "changedPixels": 22,
+      "garmentXor": 10,
+      "garmentUnion": 207,
+      "garmentXorFraction": 0.04830917874396135
+    },
+    "maximumOrdinaryActivityVertexStep": {
+      "shape": "pixelTriangle",
+      "camera": {
+        "yaw": 0,
+        "pitch": -30,
+        "roll": 0
+      },
+      "activity": "celebrating",
+      "time": 5.666666666666667,
+      "frame": 170,
+      "body": 1487,
+      "band": 36,
+      "crown": 147,
+      "hatOnly": 323,
+      "occluded": 68,
+      "cullMissing": 0,
+      "cullIdMismatch": 0,
+      "depthTie": 0,
+      "bandComponents": [
+        36
+      ],
+      "crownComponents": [
+        147
+      ],
+      "meshMaxVertexStep": 0.01598819430720676,
+      "meshRmsVertexStep": 0.013247834658423458,
+      "changedPixels": 99,
+      "garmentXor": 33,
+      "garmentUnion": 273,
+      "garmentXorFraction": 0.12087912087912088
+    },
+    "maximumMaskMotion": {
+      "shape": "pixelTriangle",
+      "camera": {
+        "yaw": 45,
+        "pitch": 15,
+        "roll": 0
+      },
+      "activity": "celebrating",
+      "time": 5.7,
+      "frame": 171,
+      "body": 1440,
+      "band": 31,
+      "crown": 178,
+      "hatOnly": 217,
+      "occluded": 2,
+      "cullMissing": 0,
+      "cullIdMismatch": 0,
+      "depthTie": 0,
+      "bandComponents": [
+        31
+      ],
+      "crownComponents": [
+        178
+      ],
+      "meshMaxVertexStep": 0.015383310896700548,
+      "meshRmsVertexStep": 0.012753032970317761,
+      "changedPixels": 223,
+      "garmentXor": 102,
+      "garmentUnion": 265,
+      "garmentXorFraction": 0.3849056603773585
+    },
+    "motionInterpretation": "Largest ordinary mask motion accompanies whole-body celebration bob/roll. High-resolution neighborhoods preserve garment support and shell continuity; it is not treated as an independent cap jump."
+  },
+  "baselineControls": {
+    "originalCookieAndSoftBurst": {
+      "passed": true,
+      "scope": "Only the exact Cookie6Sided idle425→426 and SoftBurst idle87→88 animation regressions, not global accessory aesthetic acceptance.",
+      "thresholds": {
+        "knownCookieBaselineMaskXorMinimum": 0.5,
+        "candidateCookieMaskXorMaximum": 0.1,
+        "knownSoftBurstBaselineVertexStepMinimum": 0.09,
+        "candidateVertexStepMaximum": 0.005
+      },
+      "pairs": [
+        {
+          "shape": "cookie6Sided",
+          "frame": 426,
+          "camera": {
+            "yaw": 0,
+            "pitch": 0,
+            "roll": 0,
+            "zoom": 2
+          },
+          "baselineMaskXor": 0.7416425038376258,
+          "candidateMaskXor": 0.005736636245110821,
+          "candidateMeshStep": 0.000370602125619406
+        },
+        {
+          "shape": "cookie6Sided",
+          "frame": 426,
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0,
+            "zoom": 2
+          },
+          "baselineMaskXor": 0.7903158286431927,
+          "candidateMaskXor": 0.005969939598258182,
+          "candidateMeshStep": 0.000370602125619406
+        },
+        {
+          "shape": "cookie6Sided",
+          "frame": 426,
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0,
+            "zoom": 2
+          },
+          "baselineMaskXor": 0.6775374067725947,
+          "candidateMaskXor": 0.006887258571642461,
+          "candidateMeshStep": 0.000370602125619406
+        },
+        {
+          "shape": "softBurst",
+          "frame": 88,
+          "camera": {
+            "yaw": 0,
+            "pitch": 0,
+            "roll": 0,
+            "zoom": 2
+          },
+          "baselineMeshStep": 0.10257766184856812,
+          "candidateMeshStep": 0.0004107806346864668
+        },
+        {
+          "shape": "softBurst",
+          "frame": 88,
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0,
+            "zoom": 2
+          },
+          "baselineMeshStep": 0.10257766184856812,
+          "candidateMeshStep": 0.0004107806346864668
+        },
+        {
+          "shape": "softBurst",
+          "frame": 88,
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0,
+            "zoom": 2
+          },
+          "baselineMeshStep": 0.10257766184856812,
+          "candidateMeshStep": 0.0004107806346864668
+        }
+      ]
+    },
+    "laterDiscoveredMorphAndTurn": {
+      "scope": "Exact known motion regressions only. This gate does not replace the complete finite temporal sweep, geometry audit, or visual review of other maxima.",
+      "directories": [
+        "final-morph-v2",
+        "smooth-morph",
+        "final-boom-turn-v3-worst",
+        "smooth-temporal"
+      ],
+      "tests": [
+        {
+          "name": "Heart intermediate morph68->69",
+          "old": 0.11023129469444896,
+          "current": 0.00994032116501007,
+          "oldMinimum": 0.09,
+          "currentMaximum": 0.02,
+          "pass": true
+        },
+        {
+          "name": "Boom turn60->61",
+          "old": 0.06396139398101126,
+          "current": 0.0002510076647902055,
+          "oldMinimum": 0.05,
+          "currentMaximum": 0.01,
+          "pass": true
+        }
+      ]
+    },
+    "visual": "Released PixelTriangle unsupported tongue/inverted lining wedge reproduced and removed; old Cookie/SoftBurst anchor jumps and later retarget/support-fit jumps required new baseline-failing tests."
+  },
+  "reviewArtifacts": [
+    "visual-triage/smooth-static-130-dispositions.json",
+    "visual-triage/smooth-temporal-138-dispositions.json",
+    "visual-triage/smooth-phase-batch1-45-dispositions.json",
+    "visual-triage/smooth-phase-batch2-dispositions.json"
+  ],
+  "limitations": [
+    "Finite 15-degree angular grid, eight selected runtime extrema, and dense 30 fps sampling at two cameras; not a proof over continuous angles and time.",
+    "Diagnostic native raster replay complements browser integration and independent geometry tests; it is not a claim of identical antialiasing on every physical GPU.",
+    "Flags were classified with garment-only masks and manual review; screenshot counts and visible lining area were never automatic aesthetic pass criteria.",
+    "Small finite solver/Float32 quantization remains; exact historical nonconverging jumps were eliminated rather than hidden by relaxed thresholds."
+  ]
+}

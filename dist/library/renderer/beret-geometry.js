@@ -232,7 +232,7 @@ export function beretGeometry(body, accessory, squash = 1, contourOverride, prof
     const profile = profileOverride ?? resolveShapeProfile(body.shape);
     if (accessory.preset === "beret") {
         const stretch = 1 / Math.sqrt(squash);
-        return wornBeret(contour, [BODY_SIZE[0] * .5 * stretch, BODY_SIZE[1] * .5 * squash, profile.depth * .5 * stretch], body.shape, rotation);
+        return wornBeret(contour, [BODY_SIZE[0] * .5 * stretch, BODY_SIZE[1] * .5 * squash, profile.depth * .5 * stretch], body.shape, rotation, profile.beretFitTilt, profile.beretFitCenter);
     }
     const preset = accessory.preset === 'crown' ? 'crown' : 'beret', shell = shells[preset];
     const mount = profile.accessories[preset];

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createDesign as publicDesign, patchDesign, serializeDesign } from '../dist/src/core/design.js';
 import { createResolvedFixture as createDesign, createResolvedAccessory as createAccessory } from './internal-fixtures.mjs';
 import { MATERIAL_SHAPE_NAMES } from '../dist/src/core/shapes.js';
-import { DEFAULT_SHAPE_PROFILES, BODY_DEPTH_RANGE, MOUNT_UV_RANGE, MOUNT_OFFSET_RANGE, parseShapeProfiles, resolveShapeProfile, interpolateShapeProfile, accessoryMountAnchor } from '../dist/src/core/shape-profiles.js';
+import { DEFAULT_SHAPE_PROFILES, BODY_DEPTH_RANGE, MOUNT_UV_RANGE, MOUNT_OFFSET_RANGE, parseShapeProfiles, resolveShapeProfile, interpolateShapeProfile, sameShapeProfile, accessoryMountAnchor } from '../dist/src/core/shape-profiles.js';
 import { ShapeTimeline } from '../dist/src/core/shape-motion.js';
 import { buildMorph } from '../dist/src/core/morph.js';
 import { bodyPoint, bodyNormal, contourSurfacePoint, deformBodyPoint, sampleSurface, sampleSurfaceAtXY, sampleAccessorySurface, accessoryChartDiagnostics } from '../dist/src/core/surface.js';
@@ -31,6 +31,36 @@ test('all 35 catalog shapes have isolated, immutable, bounded and varied profile
     for (const slot of ['head', 'face']) { assert.ok(Object.isFrozen(p.mounts[slot])); assert.ok(Object.isFrozen(p.mounts[slot].uv)); }
     assert.throws(() => { p.depth = .5; }); assert.throws(() => { p.mounts.head.uv[0] = .2; });
   }
+});
+
+test('beret wearing tilt and center are immutable internal profile data with interpolation and equality semantics', () => {
+  for (const shape of MATERIAL_SHAPE_NAMES) {
+    const current = resolveShapeProfile(shape);
+    assert.ok(Number.isFinite(current.beretFitTilt));
+    assert.ok(current.beretFitTilt > -Math.PI / 2 && current.beretFitTilt < 0);
+    assert.equal(current.beretFitCenter.length, 2); assert.ok(current.beretFitCenter.every(Number.isFinite));
+    assert.ok(Object.isFrozen(current.beretFitCenter));
+    assert.deepEqual(parseShapeProfiles({ [shape]: legacy(current) })[shape].beretFitCenter, current.beretFitCenter);
+    assert.throws(() => { current.beretFitCenter[0] = 0; });
+    assert.throws(() => parseShapeProfiles({ [shape]: { ...legacy(current), beretFitCenter: [0, 0] } }), 'wearing center is not a legacy customization field');
+    near(parseShapeProfiles({ [shape]: legacy(current) })[shape].beretFitTilt, current.beretFitTilt);
+    assert.throws(() => { current.beretFitTilt = 0; });
+    assert.throws(() => parseShapeProfiles({ [shape]: { ...legacy(current), beretFitTilt: 0 } }), 'wearing tilt is not a legacy customization field');
+  }
+  const from = resolveShapeProfile('square'), to = resolveShapeProfile('triangle'), amount = .413;
+  const displayed = interpolateShapeProfile(from, to, amount);
+  near(displayed.beretFitTilt, from.beretFitTilt + (to.beretFitTilt - from.beretFitTilt) * amount);
+  for (let i = 0; i < 2; i++) near(displayed.beretFitCenter[i], from.beretFitCenter[i] + (to.beretFitCenter[i] - from.beretFitCenter[i]) * amount);
+  assert.ok(Object.isFrozen(displayed.beretFitCenter));
+  assert.strictEqual(interpolateShapeProfile(from, to, 0), from);
+  assert.strictEqual(interpolateShapeProfile(from, to, 1), to);
+  assert.ok(sameShapeProfile(displayed, copy(displayed)));
+  const changed = copy(displayed); changed.beretFitTilt += .001;
+  assert.equal(sameShapeProfile(displayed, changed), false, 'wearing tilt participates in profile equality');
+  for (let i = 0; i < 2; i++) { const shifted = copy(displayed); shifted.beretFitCenter[i] += .001; assert.equal(sameShapeProfile(displayed, shifted), false, 'every wearing center component participates in profile equality'); }
+  assert.throws(() => publicDesign({ body: { beretFitTilt: 0 } }), 'wearing tilt is not a public body control');
+  assert.throws(() => publicDesign({ body: { beretFitCenter: [0, 0] } }), 'wearing center is not a public body control');
+  assert.doesNotMatch(serializeDesign(publicDesign()), /beretFitTilt|beretFitCenter/);
 });
 
 test('profile parser strictly rejects malformed maps, ranges, regions and nonfinite numbers', () => {

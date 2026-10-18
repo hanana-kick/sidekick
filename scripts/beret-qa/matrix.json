@@ -1,0 +1,195 @@
+{
+  "static": {
+    "shapes": "all 35 catalog names",
+    "yaw": {
+      "min": 0,
+      "max": 345,
+      "step": 15
+    },
+    "pitch": {
+      "min": -90,
+      "max": 90,
+      "step": 15
+    },
+    "roll": 0,
+    "size": 384,
+    "zoom": 1.5,
+    "states": 10920
+  },
+  "temporal": {
+    "shapes": "all 35",
+    "activities": [
+      "idle",
+      "thinking",
+      "listening",
+      "speaking",
+      "celebrating",
+      "accessory-turn"
+    ],
+    "fps": 30,
+    "framesPerSequence": 181,
+    "cameras": [
+      [
+        0,
+        -30
+      ],
+      [
+        45,
+        15
+      ]
+    ],
+    "size": 192,
+    "states": 76020
+  },
+  "morph": {
+    "sequences": [
+      [
+        "heart",
+        "boom",
+        "pixelTriangle"
+      ],
+      [
+        "flower",
+        "triangle",
+        "square"
+      ],
+      [
+        "clover8Leaf",
+        "heart",
+        "circle"
+      ]
+    ],
+    "retargetMs": 600,
+    "fps": 60,
+    "frames": 121,
+    "cameras": [
+      [
+        0,
+        -30
+      ],
+      [
+        45,
+        15
+      ]
+    ],
+    "states": 726
+  },
+  "exactRegressions": [
+    {
+      "shape": "cookie6Sided",
+      "activity": "idle",
+      "fps": 60,
+      "frames": [
+        424,
+        425,
+        426,
+        427,
+        428
+      ]
+    },
+    {
+      "shape": "softBurst",
+      "activity": "idle",
+      "fps": 60,
+      "frames": [
+        86,
+        87,
+        88,
+        89,
+        90
+      ]
+    }
+  ],
+  "angularPhases": {
+    "states": 87360,
+    "shapes": 35,
+    "yaw": {
+      "min": 0,
+      "max": 345,
+      "step": 15
+    },
+    "pitch": {
+      "min": -90,
+      "max": 90,
+      "step": 15
+    },
+    "size": 384,
+    "zoom": 1.5,
+    "selectionFps": 60,
+    "selectionDurationSeconds": 10,
+    "phases": [
+      {
+        "activity": "idle",
+        "field": "squash",
+        "extreme": "min",
+        "frame": 300,
+        "time": 5,
+        "value": 0.9840001566951887,
+        "score": -0.9840001566951887
+      },
+      {
+        "activity": "idle",
+        "field": "squash",
+        "extreme": "max",
+        "frame": 557,
+        "time": 9.283333333333333,
+        "value": 1.0159999289051105,
+        "score": 1.0159999289051105
+      },
+      {
+        "activity": "listening",
+        "field": "squash",
+        "extreme": "min",
+        "frame": 471,
+        "time": 7.85,
+        "value": 0.9700016125929739,
+        "score": -0.9700016125929739
+      },
+      {
+        "activity": "listening",
+        "field": "squash",
+        "extreme": "max",
+        "frame": 36,
+        "time": 0.6,
+        "value": 1.0291333084341872,
+        "score": 1.0291333084341872
+      },
+      {
+        "activity": "speaking",
+        "field": "squash",
+        "extreme": "min",
+        "frame": 306,
+        "time": 5.1,
+        "value": 0.9494664652659616,
+        "score": -0.9494664652659616
+      },
+      {
+        "activity": "speaking",
+        "field": "squash",
+        "extreme": "max",
+        "frame": 385,
+        "time": 6.416666666666667,
+        "value": 1.050979843578038,
+        "score": 1.050979843578038
+      },
+      {
+        "activity": "celebrating",
+        "field": "squash",
+        "extreme": "min",
+        "frame": 292,
+        "time": 4.866666666666666,
+        "value": 0.9296846978212184,
+        "score": -0.9296846978212184
+      },
+      {
+        "activity": "celebrating",
+        "field": "squash",
+        "extreme": "max",
+        "frame": 386,
+        "time": 6.433333333333334,
+        "value": 1.070865832408172,
+        "score": 1.070865832408172
+      }
+    ]
+  }
+}

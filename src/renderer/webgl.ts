@@ -315,7 +315,7 @@ export class AvatarRenderer {
       this.lag.set(accessory.id, lag);
       const extra = pose.accessories[accessory.id] ?? [0, 0, 0];
       const rotation = accessory.rotation.map((v, i) => v + extra[i]!) as Vec3;
-      if (accessory.anchor.region === 'crown') rotation[1] -= (lag[0] - roll) * accessory.follow;
+      if (accessory.anchor.region === 'crown') { if (accessory.preset !== 'beret') rotation[1] -= (lag[0] - roll) * accessory.follow; }
       else rotation[2] += (lag[0] - roll) * accessory.follow;
       if (accessory.preset === 'glasses' || accessory.preset === 'sunglasses') {
         // Equipment follows the fitted neutral eye layout and face motion. Gaze
@@ -366,7 +366,7 @@ export class AvatarRenderer {
       const mounted = multiply(multiply(root, frame.matrix), transform([0, 0, 0], rotation));
       const parent = multiply(mounted, transform([0, 0, 0], [0, 0, 0], Array(3).fill(accessory.scale * accessoryMountProfile(accessory, profile).scale) as Vec3));
       if (accessory.preset === 'beret' || accessory.preset === 'crown') {
-        const key = JSON.stringify([accessory.preset, activity.squash, profile.depth, accessoryMountProfile(accessory, profile), accessory.scale, rotation]);
+        const key = JSON.stringify([accessory.preset, activity.squash, profile.depth, profile.beretFitTilt, profile.beretFitCenter, accessoryMountProfile(accessory, profile), accessory.scale, rotation]);
         const mesh = this.meshes.beret;
         if (this.beretContour !== contour || this.beretKey !== key) {
           const data: BeretGeometry = beretGeometry(design.body, accessory, activity.squash, contour, profile, rotation);

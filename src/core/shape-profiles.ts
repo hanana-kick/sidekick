@@ -24,15 +24,15 @@ export type CuratedAccessoryKey = Exclude<AccessoryPreset, 'earring' | 'starEarr
 const CURATED_ACCESSORY_KEYS: readonly CuratedAccessoryKey[] = ['beret', 'halo', 'crown', 'glasses', 'sunglasses', 'moustache', 'goatee', 'bowTie', 'scarf', 'necklace', 'leftEarring', 'rightEarring', 'leftStarEarring', 'rightStarEarring'];
 /** Legacy calibration is validated on import, never used as a public slot map. */
 export type ScarfSupportFit = readonly [angle: number, level: number, left: number, right: number];
-export interface ShapeProfile { scarfFit: ScarfSupportFit; depth: number; mounts: Record<'head' | 'face', ShapeMount>; eyes: ShapeEyeProfile; accessories: Record<CuratedAccessoryKey, CuratedAccessoryMount> }
+export interface ShapeProfile { beretFitTilt: number; beretFitCenter: Vec2; scarfFit: ScarfSupportFit; depth: number; mounts: Record<'head' | 'face', ShapeMount>; eyes: ShapeEyeProfile; accessories: Record<CuratedAccessoryKey, CuratedAccessoryMount> }
 /** Older saved depth/mount overrides may omit eyes; resolution fills shape defaults. */
-export type ShapeProfileInput = Omit<ShapeProfile, 'eyes' | 'accessories' | 'scarfFit'> & { eyes?: ShapeEyeProfile };
+export type ShapeProfileInput = Omit<ShapeProfile, 'eyes' | 'accessories' | 'scarfFit' | 'beretFitTilt' | 'beretFitCenter'> & { eyes?: ShapeEyeProfile };
 export type ShapeProfiles = Partial<Record<MaterialShapeName, ShapeProfileInput>>;
 export type ResolvedShapeProfiles = Partial<Record<MaterialShapeName, ShapeProfile>>;
 export type ShapeEyeGeometry = Pick<ResolvedEyeDesign, 'width' | 'height' | 'spacing' | 'anchor'>;
 
 function immutable(profile: ShapeProfile): ShapeProfile {
-  Object.freeze(profile.eyes); Object.freeze(profile.scarfFit);
+  Object.freeze(profile.eyes); Object.freeze(profile.scarfFit); Object.freeze(profile.beretFitCenter);
   for (const mount of Object.values(profile.accessories)) {
     Object.freeze(mount.anchor.uv); Object.freeze(mount.anchor); Object.freeze(mount.rotation); Object.freeze(mount);
   }
@@ -115,6 +115,45 @@ const BOW_TIE_FITS: Partial<Record<MaterialShapeName, readonly [number, number, 
   ghostish: [-.53, .92, .80], clover4Leaf: [-.52, .84, .60], clover8Leaf: [-.55, .92, .50],
   boom: [-.38, .48, 1.00], puffy: [-.48, .80, .80],
 };
+/** Stable local wearing centers from the approved catalog poses. Interpolate the
+ * selected support, never reselect a distant highest lobe during motion. */
+const BERET_SUPPORT_CENTERS: Record<MaterialShapeName, Vec2> = {
+  circle: [0.003202529778314901, -3.408608748279169e-19],
+  square: [0.01698021042221885, 9.03718438524266e-20],
+  slanted: [0.15131850032469543, 0],
+  arch: [-0.0006363198558349243, -3.2798878618709565e-19],
+  fan: [-0.13691568770238066, -7.869729787895053e-19],
+  arrow: [-0.16759627229074692, 8.479900073282299e-19],
+  semiCircle: [0.11204471670398031, 7.939232344393971e-19],
+  oval: [0.10196462791259484, 0],
+  pill: [0.03092929908453868, -3.2006515187642577e-19],
+  triangle: [-0.08168667311281547, 2.217964919140647e-19],
+  diamond: [-0.2044561623254606, 4.035150652910108e-19],
+  clamShell: [0.13212157836080554, -6.593341704956034e-20],
+  pentagon: [-0.1486249841882227, 1.7960405363770694e-18],
+  gem: [-0.15716927568393765, -9.107437206215163e-19],
+  verySunny: [0.12239394240649157, -5.571137503122266e-20],
+  sunny: [0.1286347947880976, -2.55821629257413e-19],
+  cookie4Sided: [0.0880737026036468, -2.527842009648267e-19],
+  cookie6Sided: [0.09810189892676709, 0],
+  cookie7Sided: [0.12295294063978661, 3.2980421308812113e-19],
+  cookie9Sided: [0.0628533293487154, 9.786378438514157e-20],
+  cookie12Sided: [-0.0038804988258414282, 0],
+  ghostish: [-0.015860021663018888, -3.213071536617154e-19],
+  clover4Leaf: [0.0834524132552072, 5.905549700049544e-19],
+  clover8Leaf: [-0.054168759097783216, -3.166000527301816e-19],
+  burst: [0.0004603794263204446, 3.7307929238811236e-19],
+  softBurst: [0.05220442273490473, 9.344051706624409e-20],
+  boom: [-0.0774359305907004, -1.70229848100482e-19],
+  softBoom: [-0.0708967251958692, 1.5886921443561396e-19],
+  flower: [0.13474869990695207, -1.342607280417208e-19],
+  puffy: [0.1877238140890791, 4.749466135876582e-19],
+  puffyDiamond: [-0.21016602516730368, -2.272240719380594e-20],
+  pixelCircle: [0.09263332113088871, 0],
+  pixelTriangle: [-0.3947222549749523, -1.512080572535778e-19],
+  bun: [0.006347941750584402, 1.2575182321572059e-19],
+  heart: [0.23740449499228056, 5.073613683801476e-19],
+};
 /** A complete fit record is built independently for each accessory and shape. */
 function defaults(shape: MaterialShapeName, depth: number, eyes: readonly [number, number, number, number], beretU: number, beretTilt: number, beretScale = 1, haloHeight = 0.22, glassesScale = 1): ShapeProfile {
   const [width, height, spacing, offsetY] = eyes;
@@ -122,7 +161,8 @@ function defaults(shape: MaterialShapeName, depth: number, eyes: readonly [numbe
   const tie = BOW_TIE_FITS[shape];
   const front = (y: number, scale: number, tilt = 0): CuratedAccessoryMount => ({ anchor: { region: 'face', uv: [0, Math.atan(y) / 0.9], offset: 0 }, rotation: [tilt, 0, 0], scale });
   return immutable({
-    scarfFit: SCARF_SUPPORT_FITS[shape], depth, eyes: { width, height, spacing, offsetY },
+    beretFitTilt: (shape === 'cookie6Sided' ? -40 : shape === 'heart' ? -18 : shape === 'triangle' || shape === 'pixelTriangle' ? -14 : shape === 'boom' ? -32 : shape === 'square' || shape === 'bun' ? -42 : -30) * Math.PI / 180,
+    beretFitCenter: BERET_SUPPORT_CENTERS[shape], scarfFit: SCARF_SUPPORT_FITS[shape], depth, eyes: { width, height, spacing, offsetY },
     // Historical calibration fields exist only for validating legacy imports.
     mounts: { head: { uv: [0, 0], offset: 0 }, face: { uv: [0, 0], offset: 0 } },
     accessories: {
@@ -225,7 +265,7 @@ function parseProfile(value: unknown, shape: MaterialShapeName, path: string): S
   const profile = record(value, path, ['depth', 'mounts', 'eyes']);
   const mounts = record(profile.mounts, `${path}.mounts`, ['head', 'face']);
   const eyes = Object.hasOwn(profile, 'eyes') ? parseEyes(profile.eyes, `${path}.eyes`) : { ...DEFAULT_SHAPE_PROFILES[shape].eyes };
-  return { scarfFit: DEFAULT_SHAPE_PROFILES[shape].scarfFit, depth: bounded(profile.depth, BODY_DEPTH_RANGE, `${path}.depth`), eyes, accessories: DEFAULT_SHAPE_PROFILES[shape].accessories, mounts: { head: parseMount(mounts.head, `${path}.mounts.head`), face: parseMount(mounts.face, `${path}.mounts.face`) } };
+  return { beretFitCenter: DEFAULT_SHAPE_PROFILES[shape].beretFitCenter, beretFitTilt: DEFAULT_SHAPE_PROFILES[shape].beretFitTilt, scarfFit: DEFAULT_SHAPE_PROFILES[shape].scarfFit, depth: bounded(profile.depth, BODY_DEPTH_RANGE, `${path}.depth`), eyes, accessories: DEFAULT_SHAPE_PROFILES[shape].accessories, mounts: { head: parseMount(mounts.head, `${path}.mounts.head`), face: parseMount(mounts.face, `${path}.mounts.face`) } };
 }
 /** Validate isolated overrides, filling only omitted legacy eyes from the registry. */
 export function parseShapeProfiles(value: unknown, path = 'body.profiles'): ResolvedShapeProfiles {
@@ -241,7 +281,7 @@ export function resolveShapeProfile(shape: MaterialShapeName, profiles?: ShapePr
   return Object.hasOwn(map, shape) ? immutable(parseProfile(map[shape], shape, `body.profiles.${shape}`)) : DEFAULT_SHAPE_PROFILES[shape];
 }
 export function sameShapeProfile(a: ShapeProfile, b: ShapeProfile): boolean {
-  return a.scarfFit.every((value, i) => value === b.scarfFit[i]) && CURATED_ACCESSORY_KEYS.every(preset => { const x = a.accessories[preset], y = b.accessories[preset]; return x.scale === y.scale && x.anchor.region === y.anchor.region && x.anchor.offset === y.anchor.offset && x.anchor.uv.every((value, i) => value === y.anchor.uv[i]) && x.rotation.every((value, i) => value === y.rotation[i]); }) && a.depth === b.depth && (['width', 'height', 'spacing', 'offsetY'] as const).every(key => a.eyes[key] === b.eyes[key]) && (['head', 'face'] as const).every(slot => a.mounts[slot].offset === b.mounts[slot].offset && a.mounts[slot].uv.every((v, i) => v === b.mounts[slot].uv[i]));
+  return a.beretFitCenter.every((v, i) => v === b.beretFitCenter[i]) && a.beretFitTilt === b.beretFitTilt && a.scarfFit.every((value, i) => value === b.scarfFit[i]) && CURATED_ACCESSORY_KEYS.every(preset => { const x = a.accessories[preset], y = b.accessories[preset]; return x.scale === y.scale && x.anchor.region === y.anchor.region && x.anchor.offset === y.anchor.offset && x.anchor.uv.every((value, i) => value === y.anchor.uv[i]) && x.rotation.every((value, i) => value === y.rotation[i]); }) && a.depth === b.depth && (['width', 'height', 'spacing', 'offsetY'] as const).every(key => a.eyes[key] === b.eyes[key]) && (['head', 'face'] as const).every(slot => a.mounts[slot].offset === b.mounts[slot].offset && a.mounts[slot].uv.every((v, i) => v === b.mounts[slot].uv[i]));
 }
 /** Body volume, eye calibration and equipment use the same transition progress. */
 export function interpolateShapeProfile(from: ShapeProfile, to: ShapeProfile, progress: number): ShapeProfile {
@@ -256,7 +296,7 @@ export function interpolateShapeProfile(from: ShapeProfile, to: ShapeProfile, pr
     // avoids quaternion sign ambiguity and preserves exact interruption values.
     return { anchor: { region: a.anchor.region, uv: [mix(a.anchor.uv[0], b.anchor.uv[0]), mix(a.anchor.uv[1], b.anchor.uv[1])], offset: mix(a.anchor.offset, b.anchor.offset) }, rotation: a.rotation.map((value, i) => mix(value, b.rotation[i]!)) as Vec3, scale: mix(a.scale, b.scale) };
   };
-  return immutable({ scarfFit: from.scarfFit.map((v, i) => mix(v, to.scarfFit[i]!)) as unknown as ScarfSupportFit, depth: mix(from.depth, to.depth), eyes, mounts: { head: mount('head'), face: mount('face') }, accessories: Object.fromEntries(CURATED_ACCESSORY_KEYS.map(key => [key, equipment(key)])) as Record<CuratedAccessoryKey, CuratedAccessoryMount> });
+  return immutable({ beretFitCenter: from.beretFitCenter.map((v, i) => mix(v, to.beretFitCenter[i]!)) as Vec2, beretFitTilt: mix(from.beretFitTilt, to.beretFitTilt), scarfFit: from.scarfFit.map((v, i) => mix(v, to.scarfFit[i]!)) as unknown as ScarfSupportFit, depth: mix(from.depth, to.depth), eyes, mounts: { head: mount('head'), face: mount('face') }, accessories: Object.fromEntries(CURATED_ACCESSORY_KEYS.map(key => [key, equipment(key)])) as Record<CuratedAccessoryKey, CuratedAccessoryMount> });
 }
 /**
  * Apply the displayed shape profile once to the global neutral eye baseline.

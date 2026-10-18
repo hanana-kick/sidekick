@@ -1,0 +1,280 @@
+{
+  "created": "2026-10-18T03:29:30.951Z",
+  "provenance": {
+    "created": "2026-10-18T03:25:13.714Z",
+    "files": {
+      "src/renderer/worn-beret.ts": "fc32adf0b43955a768938adcfbc09997887d5644177b81480f5f2c7cca2a353f",
+      "src/renderer/beret-geometry.ts": "61f5cd1912aa4ce76fd1a85b66926488f71e335e826318af36bf687556940997",
+      "src/renderer/webgl.ts": "ee3fbfa36b41f9de962ad8b4015449632958bab9c6773ec23d326dd07333f21f",
+      "src/core/shape-profiles.ts": "af403fd46d0296aa056b840b05569912bca2e59cb24955420163db2eb9fe5b61",
+      "src/core/shape-motion.ts": "60ec76022048e54e94247d85da3dc5477b90754af5931489871e1482a3aa4249"
+    },
+    "bundleSha256": "af59b7115c76b96df6f9d57d7e70679e3fc337d6b522b63bcca4fff13b7d5ebd"
+  },
+  "baseline": {
+    "states": 35,
+    "shapes": 35,
+    "selfCrossingStates": 35,
+    "maxSelfCrossings": 1176,
+    "maxNormalOpposed": 195,
+    "bodyCrossingStates": 29,
+    "maxBodyCrossings": 295,
+    "maxDegenerate": 0
+  },
+  "current": {
+    "smooth-rotations": {
+      "states": 245,
+      "shapes": 35,
+      "failed": 0,
+      "selfCrossings": 0,
+      "bodyCrossings": 0
+    },
+    "smooth-combined-rotations": {
+      "states": 210,
+      "shapes": 35,
+      "failed": 0,
+      "selfCrossings": 0,
+      "bodyCrossings": 0
+    },
+    "denseMorph": {
+      "states": 363,
+      "failed": 0
+    },
+    "sampledMorph": {
+      "states": 132,
+      "failed": 0
+    }
+  },
+  "activityAffine": {
+    "method": "Sample181 runtime activity frames per mode; evaluate all vertices at both squash extrema for35 shapes. This validates common affine map; camera and body rotations are rigid root transforms. Not a dense all-frame geometric proof.",
+    "rows": [
+      {
+        "activity": "still",
+        "sampledFrames": 181,
+        "timeRangeSeconds": [
+          0,
+          6
+        ],
+        "sampledSquashRange": [
+          1,
+          1
+        ],
+        "shapes": 35,
+        "maxAffineResidual": 0,
+        "worstShape": ""
+      },
+      {
+        "activity": "idle",
+        "sampledFrames": 181,
+        "timeRangeSeconds": [
+          0,
+          6
+        ],
+        "sampledSquashRange": [
+          0.9840001566951887,
+          1.015999571931935
+        ],
+        "shapes": 35,
+        "maxAffineResidual": 3.028619699474433e-8,
+        "worstShape": "verySunny"
+      },
+      {
+        "activity": "thinking",
+        "sampledFrames": 181,
+        "timeRangeSeconds": [
+          0,
+          6
+        ],
+        "sampledSquashRange": [
+          0.9840001566951887,
+          1.015999571931935
+        ],
+        "shapes": 35,
+        "maxAffineResidual": 3.028619699474433e-8,
+        "worstShape": "verySunny"
+      },
+      {
+        "activity": "listening",
+        "sampledFrames": 181,
+        "timeRangeSeconds": [
+          0,
+          6
+        ],
+        "sampledSquashRange": [
+          0.977499836373407,
+          1.0291333084341872
+        ],
+        "shapes": 35,
+        "maxAffineResidual": 3.048720731424481e-8,
+        "worstShape": "square"
+      },
+      {
+        "activity": "speaking",
+        "sampledFrames": 181,
+        "timeRangeSeconds": [
+          0,
+          6
+        ],
+        "sampledSquashRange": [
+          0.9494664652659616,
+          1.0505408730947794
+        ],
+        "shapes": 35,
+        "maxAffineResidual": 3.138830773075085e-8,
+        "worstShape": "ghostish"
+      },
+      {
+        "activity": "celebrating",
+        "sampledFrames": 181,
+        "timeRangeSeconds": [
+          0,
+          6
+        ],
+        "sampledSquashRange": [
+          0.9296846978212184,
+          1.0701291726384878
+        ],
+        "shapes": 35,
+        "maxAffineResidual": 3.205195830968677e-8,
+        "worstShape": "clamShell"
+      }
+    ]
+  },
+  "continuity": [
+    {
+      "shape": "boom",
+      "start": 2,
+      "end": 2.033333333333333,
+      "steps": 1,
+      "max": 0.0026350362376199683,
+      "worst": 2.033333333333333
+    },
+    {
+      "shape": "boom",
+      "start": 2,
+      "end": 2.033333333333333,
+      "steps": 10,
+      "max": 0.00028030871178936123,
+      "worst": 2.0033333333333334
+    },
+    {
+      "shape": "boom",
+      "start": 2,
+      "end": 2.033333333333333,
+      "steps": 100,
+      "max": 0.00015385478446299435,
+      "worst": 2.001
+    },
+    {
+      "shape": "boom",
+      "start": 2,
+      "end": 2.033333333333333,
+      "steps": 1000,
+      "max": 0.00014192159376517213,
+      "worst": 2.0007
+    },
+    {
+      "shape": "boom",
+      "start": 4.8,
+      "end": 4.833333333333333,
+      "steps": 1,
+      "max": 0.0035187744525594076,
+      "worst": 4.833333333333333
+    },
+    {
+      "shape": "boom",
+      "start": 4.8,
+      "end": 4.833333333333333,
+      "steps": 10,
+      "max": 0.000417844115728605,
+      "worst": 4.83
+    },
+    {
+      "shape": "boom",
+      "start": 4.8,
+      "end": 4.833333333333333,
+      "steps": 100,
+      "max": 0.0001531786440250718,
+      "worst": 4.83
+    },
+    {
+      "shape": "boom",
+      "start": 4.8,
+      "end": 4.833333333333333,
+      "steps": 1000,
+      "max": 0.00014172276321089175,
+      "worst": 4.8322666666666665
+    },
+    {
+      "shape": "boom",
+      "start": 4.833333333333333,
+      "end": 4.866666666666666,
+      "steps": 1,
+      "max": 0.003166866122223345,
+      "worst": 4.866666666666666
+    },
+    {
+      "shape": "boom",
+      "start": 4.833333333333333,
+      "end": 4.866666666666666,
+      "steps": 10,
+      "max": 0.00041916637113656376,
+      "worst": 4.846666666666667
+    },
+    {
+      "shape": "boom",
+      "start": 4.833333333333333,
+      "end": 4.866666666666666,
+      "steps": 100,
+      "max": 0.00015335832200297027,
+      "worst": 4.864999999999999
+    },
+    {
+      "shape": "boom",
+      "start": 4.833333333333333,
+      "end": 4.866666666666666,
+      "steps": 1000,
+      "max": 0.00014171644043696604,
+      "worst": 4.834499999999999
+    },
+    {
+      "shape": "pentagon",
+      "start": 1.6333333333333333,
+      "end": 1.6666666666666667,
+      "steps": 1,
+      "max": 0.0026893725746056467,
+      "worst": 1.6666666666666667
+    },
+    {
+      "shape": "pentagon",
+      "start": 1.6333333333333333,
+      "end": 1.6666666666666667,
+      "steps": 10,
+      "max": 0.0003361267373705774,
+      "worst": 1.64
+    },
+    {
+      "shape": "pentagon",
+      "start": 1.6333333333333333,
+      "end": 1.6666666666666667,
+      "steps": 100,
+      "max": 0.00020702471067731785,
+      "worst": 1.6386666666666667
+    },
+    {
+      "shape": "pentagon",
+      "start": 1.6333333333333333,
+      "end": 1.6666666666666667,
+      "steps": 1000,
+      "max": 0.00021520022605460773,
+      "worst": 1.6618000000000002
+    }
+  ],
+  "limitations": [
+    "Finite sampled geometry matrix, not a proof over every real-valued pose.",
+    "Fine-time position floor includes 10-step binary insertion quantization.",
+    "Visual shape, culling and visibility require separate actual-renderer tests.",
+    "All geometry changed versus centerfix; previous render grids are not byte-identical evidence."
+  ],
+  "runner": "scripts/beret-qa/geometry-audit.mjs"
+}

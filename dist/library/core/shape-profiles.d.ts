@@ -34,6 +34,8 @@ export type CuratedAccessoryKey = Exclude<AccessoryPreset, 'earring' | 'starEarr
 /** Legacy calibration is validated on import, never used as a public slot map. */
 export type ScarfSupportFit = readonly [angle: number, level: number, left: number, right: number];
 export interface ShapeProfile {
+    beretFitTilt: number;
+    beretFitCenter: Vec2;
     scarfFit: ScarfSupportFit;
     depth: number;
     mounts: Record<'head' | 'face', ShapeMount>;
@@ -41,7 +43,7 @@ export interface ShapeProfile {
     accessories: Record<CuratedAccessoryKey, CuratedAccessoryMount>;
 }
 /** Older saved depth/mount overrides may omit eyes; resolution fills shape defaults. */
-export type ShapeProfileInput = Omit<ShapeProfile, 'eyes' | 'accessories' | 'scarfFit'> & {
+export type ShapeProfileInput = Omit<ShapeProfile, 'eyes' | 'accessories' | 'scarfFit' | 'beretFitTilt' | 'beretFitCenter'> & {
     eyes?: ShapeEyeProfile;
 };
 export type ShapeProfiles = Partial<Record<MaterialShapeName, ShapeProfileInput>>;
