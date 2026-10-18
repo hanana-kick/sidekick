@@ -496,3 +496,33 @@ test('paced bank is smooth without alternating acceleration impulses during stra
   }
   assert.equal(signChanges, 1, 'one smooth change from accelerating lean to braking lean');
 });
+
+test('paced stop never reverses or backs up when cancelled late in deceleration', async () => {
+  for (const stopAt of [200, 250, 300, 350, 370, 380, 390, 395, 399]) {
+    const f = fixture(), result = f.controller.to({ x: 1000, y: 0 }, { duration: 400 });
+    advance(f, stopAt, 120); let previous = f.controller.position.x; f.controller.cancel();
+    for (let time = stopAt + 1; f.callbacks.size && time < stopAt + 500; time++) {
+      f.at(time); assert.ok(f.controller.state.velocity.x >= -1e-7); assert.ok(f.controller.position.x >= previous - 1e-7, `backs up after stop at ${stopAt}ms`); previous = f.controller.position.x;
+    }
+    assert.equal((await result).finished, false); assert.equal(f.callbacks.size, 0);
+  }
+});
+
+test('paced wall collision discards latent momentum instead of sticking then popping inward', async () => {
+  const f = fixture(), first = f.controller.to({ x: 1000, y: 0 }, { duration: 400 });
+  advance(f, 200, 120); const next = f.controller.to({ x: 990, y: 0 }, { duration: 400 }); await first;
+  let hit = false, beforeSpeed = 0;
+  for (let time = 205; time <= 600; time += 5) {
+    f.at(time); const state = f.controller.state;
+    if (state.position.x === 1000) hit = true;
+    if (hit) { assert.ok(Math.abs(state.velocity.x - beforeSpeed) < 20, `latent velocity pop at ${time}`); beforeSpeed = state.velocity.x; }
+  }
+  assert.equal(hit, true); finish(f); assert.deepEqual(await next, { finished: true, position: { x: 990, y: 0 } });
+});
+
+test('paced progress stays monotonic after resize and retains original completion deadline', async () => {
+  const f = fixture(), result = f.controller.to({ x: 800, y: 0 }, { duration: 1000 });
+  advance(f, 500); let previous = f.controller.state.progress; f.state.max = 650; f.controller.resize();
+  for (let t = 510; t <= 1000; t += 10) { f.at(t); assert.ok(f.controller.state.progress >= previous); previous = f.controller.state.progress; }
+  finish(f); assert.deepEqual(await result, { finished: true, position: { x: 650, y: 0 } });
+});

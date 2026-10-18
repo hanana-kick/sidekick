@@ -170,7 +170,12 @@ export class AvatarMovement {
         if (track.kind === 'paced') {
             if (!track.stopping) {
                 // A finite braking interval, retaining momentum rather than freezing the element.
-                const seconds = Math.min(0.24, Math.max(0.12, track.duration / 1000 * 0.3));
+                const speed = Math.hypot(this.velocity.x, this.velocity.y);
+                const alongAcceleration = speed > 1e-9 ? (this.acceleration.x * this.velocity.x + this.acceleration.y * this.velocity.y) / speed : 0;
+                // A late arrival already brakes sharply: a fixed stop duration could reverse
+                // the velocity polynomial. Shorten it so 3v + aT remains nonnegative.
+                const monotoneLimit = alongAcceleration < 0 ? 2.9 * speed / -alongAcceleration : Infinity;
+                const seconds = Math.max(0.000001, Math.min(0.24, Math.max(0.12, track.duration / 1000 * 0.3), monotoneLimit));
                 const target = this.host.constrain({ x: this.point.x + this.velocity.x * seconds / 2 + this.acceleration.x * seconds * seconds / 12, y: this.point.y + this.velocity.y * seconds / 2 + this.acceleration.y * seconds * seconds / 12 });
                 this.track = this.paced(target, this.host.now(), seconds * 1000, true, track.resolve);
             }
@@ -222,7 +227,7 @@ export class AvatarMovement {
         const track = this.track;
         if (track?.kind === 'paced') {
             const duration = Math.max(1, track.start + track.duration - now);
-            this.track = this.paced(this.host.constrain(track.to), now, duration, track.stopping, track.resolve);
+            this.track = this.paced(this.host.constrain(track.to), now, duration, track.stopping, track.resolve, this.progress);
             this.report();
             return;
         }
@@ -396,9 +401,9 @@ export class AvatarMovement {
         if (this.track === track)
             this.report();
     }
-    paced(to, now, duration, stopping, resolve) {
+    paced(to, now, duration, stopping, resolve, progressBase = 0) {
         const seconds = duration / 1000, distance = Math.hypot(to.x - this.point.x, to.y - this.point.y);
-        return { kind: 'paced', to, start: now, last: now, duration, stopping, resolve,
+        return { kind: 'paced', to, start: now, last: now, duration, stopping, resolve, progressBase,
             x: trajectory(this.point.x, to.x, this.velocity.x, this.acceleration.x, seconds),
             y: trajectory(this.point.y, to.y, this.velocity.y, this.acceleration.y, seconds),
             referenceSpeed: Math.max(1, 1.875 * distance / seconds, Math.hypot(this.velocity.x, this.velocity.y)),
@@ -417,11 +422,18 @@ export class AvatarMovement {
         this.velocity = { x: point.x === x[0] ? x[1] : 0, y: point.y === y[0] ? y[1] : 0 };
         this.acceleration = { x: point.x === x[0] ? x[2] : 0, y: point.y === y[0] ? y[2] : 0 };
         if (!track.stopping)
-            this.progress = raw;
+            this.progress = track.progressBase + (1 - track.progressBase) * raw;
         this.phase = track.stopping ? 'braking' : raw < 0.25 ? 'takeoff' : raw < 0.65 ? 'flight' : 'landing';
         this.write(point);
         if (this.track !== track)
             return;
+        if (raw < 1 && (point.x !== x[0] || point.y !== y[0])) {
+            // A wall discards outward momentum; also discard it from the polynomial,
+            // otherwise the hidden path can stick outside then re-enter at full speed.
+            this.track = this.paced(track.to, now, Math.max(0.001, track.duration * (1 - raw)), track.stopping, track.resolve, this.progress);
+            this.report();
+            return;
+        }
         const speed = Math.hypot(this.velocity.x, this.velocity.y);
         const heading = turn(this.presentation.direction, speed > 0.5 ? direction(this.velocity.x, this.velocity.y) : this.presentation.direction, 1 - Math.exp(-18 * Math.min(0.1, elapsedMs / 1000)));
         const blend = smooth(clamp((now - track.start) / Math.min(140, track.duration * 0.35)));
