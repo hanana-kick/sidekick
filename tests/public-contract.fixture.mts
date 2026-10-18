@@ -71,3 +71,17 @@ const freshPixels: Promise<import("@hanana-kick/sidekick").PixelBuffer> = avatar
 const presentedPixels: import("@hanana-kick/sidekick").PixelBuffer = avatar.capturePixels();
 const backend: "worker" | "main" | "none" = avatar.diagnostics.backend;
 void freshPixels; void presentedPixels; void backend;
+
+// Public natural movement uses CSS-pixel physical quantities and signed telemetry.
+import type { MoveOptions, MovementState } from '@hanana-kick/sidekick';
+const physicalMovement: MoveOptions = { travel: 'natural', duration: 1000, maxSpeed: 320, acceleration: 900, deceleration: 1200 };
+void avatar.moveTo({ x: 200, y: 100 }, physicalMovement);
+void avatar.moveBy({ x: -50, y: 20 }, { travel: 'none', duration: 400, easing: 'linear' });
+const movementState: MovementState = avatar.movementState;
+const accelerationX: number = movementState.acceleration.x;
+const movementSpeed: number = movementState.speed;
+const braking: MovementState['phase'] = 'braking';
+const movementAttributes: SidekickAttributes = { 'move-max-speed': 320, 'move-acceleration': 900, 'move-deceleration': 1200 };
+void accelerationX; void movementSpeed; void braking; void movementAttributes;
+// @ts-expect-error Physical movement options are scalar numeric CSS quantities.
+void avatar.moveTo({ x: 0, y: 0 }, { acceleration: { x: 1, y: 2 } });

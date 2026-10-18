@@ -270,3 +270,22 @@ test('movement bounds reuse resize-cached box dimensions instead of per-frame la
   await a.moveTo({ x: 30, y: 40 }, { duration: 0 });
   assert.equal(reads, 0);
 });
+
+test('physical movement HTML attributes resolve strictly and preserve omitted maximum-speed hints', () => {
+  const options = resolve({ 'move-duration': '1200', 'move-travel': 'natural', 'move-max-speed': '320', 'move-acceleration': '900', 'move-deceleration': '1200' }).moveOptions;
+  assert.deepEqual(options, { duration: 1200, easing: 'smooth', travel: 'natural', maxSpeed: 320, acceleration: 900, deceleration: 1200 });
+  assert.equal(resolve({}).moveOptions.maxSpeed, undefined);
+  for (const attribute of ['move-max-speed', 'move-acceleration', 'move-deceleration']) {
+    assert.ok(SIDEKICK_ATTRIBUTES.includes(attribute));
+    for (const value of ['', 'NaN', 'Infinity', '0', '0.5', '-1', '100001', '10px']) assert.throws(() => resolve({ [attribute]: value }), `${attribute}=${value}`);
+    for (const value of ['1', '100000']) assert.equal(resolve({ [attribute]: value }).moveOptions[{ 'move-max-speed': 'maxSpeed', 'move-acceleration': 'acceleration', 'move-deceleration': 'deceleration' }[attribute]], Number(value));
+  }
+});
+
+test('invalid physical attributes keep a batched position change atomic until repaired', async t => {
+  const a = avatar(t); const errors = []; a.addEventListener('sidekick-error', e => errors.push(e.detail));
+  await a.moveTo({ x: 20, y: 30 }, { duration: 0 });
+  a.setAttribute('position-x', '100'); a.setAttribute('move-acceleration', '-1'); await flush();
+  assert.deepEqual(a.position, { x: 20, y: 30 }); assert.equal(errors.length, 1);
+  a.setAttribute('move-acceleration', '900'); await flush(); assert.deepEqual(a.position, { x: 100, y: 30 });
+});

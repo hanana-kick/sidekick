@@ -238,3 +238,14 @@ test('React forwards placement coordinates and custom completion events without 
   await f.render(props); assert.equal(f.avatar.getAttribute('body-color'), null);
   await f.unmount(); assert.equal(ref.current, null);
 });
+
+test('React maps physical movement props and forwards live acceleration telemetry', async t => {
+  const received = [];
+  const f = await fixture(t, { moveMaxSpeed: 320, moveAcceleration: 900, moveDeceleration: 1200, moveTravel: 'natural', onMoveProgress: e => received.push(e.detail) });
+  assert.equal(f.avatar.getAttribute('move-max-speed'), '320'); assert.equal(f.avatar.getAttribute('move-acceleration'), '900'); assert.equal(f.avatar.getAttribute('move-deceleration'), '1200');
+  assert.equal(f.avatar.hasAttribute('moveMaxSpeed'), false);
+  const detail = { phase: 'braking', progress: .4, position: { x: 10, y: 20 }, velocity: { x: 30, y: 40 }, acceleration: { x: -60, y: -80 }, speed: 50 };
+  f.avatar.dispatchEvent(new CustomEvent('sidekick-move-progress', { detail })); assert.deepEqual(received, [detail]);
+  await f.render({ moveMaxSpeed: 180, moveTravel: 'none' });
+  assert.equal(f.avatar.getAttribute('move-max-speed'), '180'); assert.equal(f.avatar.hasAttribute('move-acceleration'), false); assert.equal(f.avatar.hasAttribute('move-deceleration'), false);
+});

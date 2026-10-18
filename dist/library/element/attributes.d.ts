@@ -16,6 +16,9 @@ export interface SidekickAttributes {
     'move-duration'?: NumericAttribute;
     'move-easing'?: 'linear' | 'smooth';
     'move-travel'?: 'natural' | 'none';
+    'move-max-speed'?: number | string;
+    'move-acceleration'?: number | string;
+    'move-deceleration'?: number | string;
     design?: string;
     shape?: MaterialShapeName;
     'body-color'?: string;
@@ -71,7 +74,7 @@ export declare const ACCESSORY_ATTRIBUTE_SLOTS: Readonly<{
     readonly 'left-ear': "leftEar";
     readonly 'right-ear': "rightEar";
 }>;
-export declare const SIDEKICK_ATTRIBUTES: readonly ["placement", "position-x", "position-y", "movement-bounds", "move-duration", "move-easing", "move-travel", "design", "shape", "body-color", "eye-color", "expression", "left-expression", "right-expression", "smile", "blink", "left-smile", "right-smile", "left-blink", "right-blink", "accessories", "head-accessory", "head-color", "eyes-accessory", "eyes-color", "mouth-accessory", "mouth-color", "neck-accessory", "neck-color", "left-ear-accessory", "left-ear-color", "right-ear-accessory", "right-ear-color", "camera", "camera-yaw", "camera-pitch", "camera-roll", "camera-zoom", "gaze-x", "gaze-y", "activity", "paused", "interaction", "mouse-tracking", "tracking-mode", "render-style", "shape-duration", "shape-easing", "motion-duration", "motion-easing", "motion", "time"];
+export declare const SIDEKICK_ATTRIBUTES: readonly ["placement", "position-x", "position-y", "movement-bounds", "move-duration", "move-easing", "move-travel", "move-max-speed", "move-acceleration", "move-deceleration", "design", "shape", "body-color", "eye-color", "expression", "left-expression", "right-expression", "smile", "blink", "left-smile", "right-smile", "left-blink", "right-blink", "accessories", "head-accessory", "head-color", "eyes-accessory", "eyes-color", "mouth-accessory", "mouth-color", "neck-accessory", "neck-color", "left-ear-accessory", "left-ear-color", "right-ear-accessory", "right-ear-color", "camera", "camera-yaw", "camera-pitch", "camera-roll", "camera-zoom", "gaze-x", "gaze-y", "activity", "paused", "interaction", "mouse-tracking", "tracking-mode", "render-style", "shape-duration", "shape-easing", "motion-duration", "motion-easing", "motion", "time"];
 export interface SidekickErrorDetail {
     message: string;
     attribute?: string;
@@ -102,7 +105,7 @@ export interface ResolvedAttributes {
     placement: AvatarPlacement;
     position: AvatarPosition;
     movementBounds: MovementBounds;
-    moveOptions: Required<MoveOptions>;
+    moveOptions: MoveOptions;
     design: AvatarDesign;
     camera: CameraState;
     gaze: Vec2;

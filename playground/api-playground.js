@@ -4,9 +4,11 @@ const $ = id => document.getElementById(id);
 const bot = $('bot'), stage = $('movement-stage');
 const method = $('move-method'), xInput = $('target-x'), yInput = $('target-y');
 const durationInput = $('duration'), easingInput = $('easing'), travelInput = $('travel');
+const maxSpeedInput = $('max-speed'), accelerationInput = $('acceleration'), decelerationInput = $('deceleration');
 const invocation = $('invocation'), log = $('result-log');
 let alternate = false, initialized = false, gesture = null, resizeFrame = 0;
 let code = '';
+const samples = [];
 const number = value => Math.round(value * 100) / 100;
 const pointCode = point => `{ x: ${number(point.x)}, y: ${number(point.y)} }`;
 const setCode = value => { code = value; invocation.textContent = value; $('copy-status').textContent = ''; };
@@ -34,9 +36,14 @@ function marker(point) {
 }
 function readOptions() {
   if (!durationInput.checkValidity() || durationInput.value === '') throw new RangeError('이동 시간은 0–10000ms로 입력하세요.');
-  return { duration: Number(durationInput.value), easing: easingInput.value, travel: travelInput.value };
+  const duration = Number(durationInput.value), travel = travelInput.value;
+  if (travel === 'none') return { duration, easing: easingInput.value, travel };
+  for (const input of [maxSpeedInput, accelerationInput, decelerationInput]) {
+    if ((input !== maxSpeedInput && input.value === '') || !input.checkValidity()) throw new RangeError('최고 속도·가속도·감속도는 1–100000 사이 숫자로 입력하세요. 최고 속도만 비워 둘 수 있습니다.');
+  }
+  return { duration, travel, ...(maxSpeedInput.value === '' ? {} : { maxSpeed: Number(maxSpeedInput.value) }), acceleration: Number(accelerationInput.value), deceleration: Number(decelerationInput.value) };
 }
-function optionsCode(options) { return `{ duration: ${options.duration}, easing: '${options.easing}', travel: '${options.travel}' }`; }
+function optionsCode(options) { return `{ ${Object.entries(options).map(([key, value]) => `${key}: ${typeof value === 'string' ? `'${value}'` : value}`).join(', ')} }`; }
 function movementCommand() {
   if (![xInput, yInput].every(input => input.value !== '' && input.checkValidity())) throw new RangeError('X와 Y에 유효한 숫자를 입력하세요.');
   const input = { x: Number(xInput.value), y: Number(yInput.value) }, from = bot.position;
@@ -48,18 +55,47 @@ function movementCommand() {
 function previewCommand() {
   $('x-label').textContent = method.value === 'moveBy' ? 'ΔX · CSS px' : 'X · viewport px';
   $('y-label').textContent = method.value === 'moveBy' ? 'ΔY · CSS px' : 'Y · viewport px';
+  const natural = travelInput.value === 'natural';
+  $('physical-options').hidden = !natural;
+  $('cancel').textContent = natural ? '감속해서 멈추기' : '이동 중지';
+  $('duration-label').textContent = natural ? '기준 시간 · ms' : '이동 시간 · ms';
+  $('timing-help').textContent = natural
+    ? '실제 위치에 가속·감속을 적용합니다. 최고 속도를 비우면 기준 시간으로 속도를 정하고, 입력하면 양수 기준 시간은 무시합니다. 0ms는 즉시 이동입니다. Easing은 none에서만 적용됩니다.'
+    : 'none은 정확한 시간과 Easing으로 위치를 보간합니다. 가속·감속 옵션과 비행 자세는 사용하지 않습니다.';
   try { setCode(movementCommand().code); }
-  catch { setCode('// X, Y, 이동 시간을 입력하면 호출 코드가 표시됩니다.'); }
+  catch { setCode('// 유효한 좌표와 이동 옵션을 입력하면 호출 코드가 표시됩니다.'); }
+}
+function graph(movement, speed, acceleration) {
+  const now = performance.now(), last = samples.at(-1);
+  // Sample actual public state at up to 30 Hz; retargets and braking retain history.
+  if (last && now - last.time < 1000 / 30) samples[samples.length - 1] = { time: last.time, speed, acceleration };
+  else samples.push({ time: now, speed, acceleration });
+  while (samples.length > 240 || (samples.length > 1 && samples[1].time < now - 6000)) samples.shift();
+  for (const [key, fallback, top] of [['speed', 320, 12], ['acceleration', 1200, 78]]) {
+    const maximum = Math.max(fallback, ...samples.map(sample => sample[key]));
+    const scale = Math.ceil(maximum / 100) * 100;
+    const points = samples.map(sample => `${number(Math.max(0, (sample.time - now + 6000) / 6000) * 300 + 8)},${number(top + 40 - sample[key] / scale * 40)}`).join(' ');
+    $(`${key}-plot`).setAttribute('points', points);
+    $(`${key}-scale`).textContent = `${scale}`;
+  }
+  $('motion-graph').dataset.phase = movement.phase;
 }
 function telemetry(detail = bot.movementState) {
   const movement = detail ?? { phase: 'idle', progress: 0, position: bot.position };
   const position = bot.position;
+  const velocity = movement.velocity ?? { x: 0, y: 0 }, acceleration = movement.acceleration ?? { x: 0, y: 0 };
+  const speed = movement.speed ?? Math.hypot(velocity.x, velocity.y), accelerationMagnitude = Math.hypot(acceleration.x, acceleration.y);
   if ($('phase').textContent !== movement.phase) $('phase').textContent = movement.phase;
   const progress = Math.max(0, Math.min(1, movement.progress));
   $('progress').value = progress;
   $('progress-value').textContent = `${Math.round(progress * 100)}%`;
   $('position').textContent = `x ${number(position.x)} · y ${number(position.y)}`;
   $('activity-state').textContent = bot.activity;
+  $('speed').textContent = `${number(speed)} px/s`;
+  $('velocity').textContent = `x ${number(velocity.x)} · y ${number(velocity.y)}`;
+  $('acceleration-value').textContent = `${number(accelerationMagnitude)} px/s²`;
+  $('acceleration-vector').textContent = `x ${number(acceleration.x)} · y ${number(acceleration.y)}`;
+  graph(movement, speed, accelerationMagnitude);
 }
 function report(kind, result) {
   const entry = document.createElement('li'), title = document.createElement('span'), value = document.createElement('pre');
@@ -86,16 +122,19 @@ function move() {
 }
 function moveTo(point) { method.value = 'moveTo'; xInput.value = String(point.x); yInput.value = String(point.y); previewCommand(); move(); }
 function moveBy(point) { method.value = 'moveBy'; xInput.value = String(point.x); yInput.value = String(point.y); previewCommand(); move(); }
-for (const input of [method, xInput, yInput, durationInput, easingInput, travelInput]) input.addEventListener('input', previewCommand);
+for (const input of [method, xInput, yInput, durationInput, easingInput, travelInput, maxSpeedInput, accelerationInput, decelerationInput]) input.addEventListener('input', previewCommand);
 $('move').onclick = move;
-for (const input of [xInput, yInput, durationInput]) input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); move(); } });
+for (const input of [xInput, yInput, durationInput, maxSpeedInput, accelerationInput, decelerationInput]) input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); move(); } });
 for (const button of document.querySelectorAll('[data-dx]')) button.onclick = () => moveBy({ x: Number(button.dataset.dx), y: Number(button.dataset.dy) });
 const cancelMove = () => void run('cancelMove', avatarCode('avatar.cancelMove();'), () => bot.cancelMove());
 $('cancel').onclick = cancelMove;
 $('cancel-preview').onclick = cancelMove;
 $('play').onclick = () => {
-  const activity = $('activity').value;
-  void run('play', avatarCode(`const result = await avatar.play('${activity}', { duration: 1000 });`), () => { const result = bot.play(activity, { duration: 1000 }); telemetry(); return result; });
+  const activity = $('activity').value, input = $('activity-duration');
+  if (!input.checkValidity() || input.value === '') { report('error', '활동 재생 구간은 0–60000ms로 입력하세요.'); return; }
+  const duration = Number(input.value), options = duration ? { duration } : undefined;
+  const source = duration ? `const result = await avatar.play('${activity}', { duration: ${duration} });` : `const playback = avatar.play('${activity}');\n// 활동 재생 중에도 moveTo() / moveBy()를 호출할 수 있습니다.\n// avatar.stop()으로 활동만 중지합니다.`;
+  void run('play', avatarCode(source), () => { const result = bot.play(activity, options); telemetry(); return result; });
 };
 $('stop').onclick = () => void run('stop', avatarCode('avatar.stop();'), () => bot.stop());
 $('transition').onclick = () => {

@@ -114,11 +114,11 @@ test('README describes every movement state field and separate move/activity sto
   for (const api of ['MoveOptions', 'MovementState', 'move-travel', 'moveTravel', 'sidekick-move-progress', 'onMoveProgress']) {
     assert.ok(movement.includes(api), `Missing movement API documentation: ${api}`);
   }
-  for (const phase of ['idle', 'takeoff', 'flight', 'landing', 'settling']) {
+  for (const phase of ['idle', 'takeoff', 'flight', 'landing', 'braking', 'settling']) {
     assert.ok(movement.includes('`' + phase + '`'), `Missing movement phase: ${phase}`);
   }
-  assert.match(movement, /15% \(150ms\)/);
-  assert.match(movement, /70% \(700ms\)/);
+  for (const option of ['maxSpeed', 'acceleration', 'deceleration']) assert.ok(movement.includes(option), `Missing physical movement option: ${option}`);
+  assert.doesNotMatch(movement, /15% \(150ms\)|70% \(700ms\)/);
   assert.match(movement, /180ms/);
   assert.match(movement, /`cancelMove\(\)`는 이동만 중단하고 `stop\(\)`은 활동 재생만 중단/);
   assert.match(movement, /비행 도중 끝난 유한 재생을 다시 시작하거나/);
@@ -165,7 +165,7 @@ test('README HTML stage handles mouse/touch coordinates and independent stop con
   }
   pointer(300, 220, 'mouse');
   assert.deepEqual(JSON.parse(JSON.stringify(moves[0])), {
-    position: { x: 188, y: 128 }, options: { duration: 1000, travel: 'natural' },
+    position: { x: 188, y: 128 }, options: { duration: 1000, travel: 'natural', maxSpeed: 320, acceleration: 900, deceleration: 1200 },
   });
   pointer(45, 25, 'touch');
   assert.deepEqual(JSON.parse(JSON.stringify(moves[1].position)), { x: 0, y: 0 });

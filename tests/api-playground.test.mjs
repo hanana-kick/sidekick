@@ -145,3 +145,35 @@ test('copy, asset transition, options and result log controls stay wired', async
   assert.equal(f.bot.paused, true);
   f.$('clear-log').click(); assert.equal(f.$('result-log').children.length, 0);
 });
+
+test('natural playground controls generate physical options and validate their full ranges', async t => {
+  const f = fixture(t);
+  f.input('travel', 'natural'); f.input('duration', 1500); f.input('max-speed', 240); f.input('acceleration', 700); f.input('deceleration', 1100);
+  f.$('move').click(); await flush();
+  assert.deepEqual(JSON.parse(JSON.stringify(f.bot.calls.at(-1).options)), { duration: 1500, travel: 'natural', maxSpeed: 240, acceleration: 700, deceleration: 1100 });
+  assert.match(f.$('invocation').textContent, /maxSpeed: 240, acceleration: 700, deceleration: 1100/); assert.equal(f.$('physical-options').hidden, false);
+  f.input('max-speed', ''); f.$('move').click(); await flush();
+  assert.equal(Object.hasOwn(f.bot.calls.at(-1).options, 'maxSpeed'), false); assert.equal(f.bot.calls.at(-1).options.duration, 1500);
+  for (const id of ['max-speed', 'acceleration', 'deceleration']) {
+    for (const value of [0, 100001]) {
+      const count = f.bot.calls.length; f.input(id, value); f.$('move').click(); await flush();
+      assert.equal(f.bot.calls.length, count); assert.match(f.$('status').textContent, /1–100000/);
+    }
+    f.input(id, 100);
+  }
+  f.input('travel', 'none'); assert.equal(f.$('physical-options').hidden, true); f.input('max-speed', -1); f.$('move').click(); await flush();
+  assert.deepEqual(JSON.parse(JSON.stringify(f.bot.calls.at(-1).options)), { duration: 1500, easing: 'smooth', travel: 'none' });
+});
+
+test('physical telemetry displays signed vectors, magnitudes and state-backed traces', async t => {
+  const f = fixture(t);
+  f.bot.movementState = { phase: 'braking', progress: .6, position: f.bot.position, velocity: { x: -30, y: 40 }, acceleration: { x: 120, y: -160 }, speed: 50 };
+  f.bot.emit('move-progress', f.bot.movementState);
+  assert.equal(f.$('speed').textContent, '50 px/s'); assert.equal(f.$('velocity').textContent, 'x -30 · y 40');
+  assert.equal(f.$('acceleration-value').textContent, '200 px/s²'); assert.equal(f.$('acceleration-vector').textContent, 'x 120 · y -160');
+  assert.equal(f.$('motion-graph').dataset.phase, 'braking');
+  for (const id of ['speed-plot', 'acceleration-plot']) {
+    const points = f.$(id).getAttribute('points'); assert.ok(points.length); assert.doesNotMatch(points, /NaN|Infinity/);
+  }
+  await flush();
+});

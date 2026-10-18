@@ -39,6 +39,17 @@
     .field { min-width: 0; display: grid; gap: 5px; margin-bottom: 12px; }
     .field > span { font-size: 12px; font-weight: 550; }
     .field input, .field select { width: 100%; min-width: 0; padding: 8px 10px; }
+    [hidden] { display: none !important; }
+    .motion-readings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 12px; }
+    .motion-readings .caption, .motion-readings .vector { display: block; color: var(--muted); }
+    .motion-readings .magnitude { display: block; margin: 3px 0; font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .motion-readings .vector { font-size: 11px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+    #motion-graph { width: 100%; height: auto; display: block; margin-top: 14px; overflow: visible; }
+    #motion-graph text { font: 9px system-ui, sans-serif; fill: var(--muted); }
+    #motion-graph .grid { fill: none; stroke: var(--line); stroke-width: 1; }
+    #motion-graph polyline { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    #speed-plot { stroke: #a16a08; }
+    #acceleration-plot { stroke: #386dba; stroke-dasharray: 5 3; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; }
     .actions > button { flex: 1; white-space: nowrap; }
     .directions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin: 12px 0; }
@@ -116,19 +127,40 @@
   </header>
   <main class="playground-layout">
     <section class="controls-panel" aria-labelledby="page-title">
-      <div class="intro"><div class="step">Movement · Activity · Assets</div><h1 id="page-title">움직임을 직접 만들어 보세요.</h1><p class="muted">미리보기를 클릭하거나 탭하면 그 지점으로 날아갑니다. 이동 중에 새 목적지를 골라도 현재 위치에서 이어져요.</p></div>
+      <div class="intro"><div class="step">Movement · Activity · Assets</div><h1 id="page-title">움직임을 직접 만들어 보세요.</h1><p class="muted">미리보기를 클릭하거나 탭하면 가속해서 날아가고, 도착 전에 감속합니다. 새 목적지를 고르면 현재 속도를 이어받아 방향을 바꿔요.</p></div>
       <section class="card" aria-labelledby="movement-heading">
         <div class="card-heading"><h2 id="movement-heading">이동</h2><span class="step">moveTo / moveBy</span></div>
         <label class="field"><span>호출할 메서드</span><select id="move-method"><option value="moveTo">moveTo · 절대 좌표로</option><option value="moveBy">moveBy · 현재 위치에서</option></select></label>
         <div class="fields"><label class="field"><span id="x-label">X · viewport px</span><input id="target-x" type="number" step="any" value="0" aria-labelledby="x-label"></label><label class="field"><span id="y-label">Y · viewport px</span><input id="target-y" type="number" step="any" value="0" aria-labelledby="y-label"></label></div>
-        <div class="fields"><label class="field"><span>이동 시간 · ms</span><input id="duration" type="number" min="0" max="10000" step="50" value="1200"></label><label class="field"><span>Easing</span><select id="easing"><option value="smooth">smooth · 부드럽게</option><option value="linear">linear · 일정하게</option></select></label></div>
-        <label class="field"><span>Travel · 이동 자세</span><select id="travel"><option value="natural">natural · 이륙 → 비행 → 착지</option><option value="none">none · 위치만 이동</option></select></label>
-        <div class="actions"><button class="primary" id="move">이동 실행</button><button id="cancel">이동 중지</button></div>
+        <label class="field"><span>Travel · 이동 방식</span><select id="travel"><option value="natural">natural · 가속 → 비행 → 감속</option><option value="none">none · 시간 기반 보간</option></select></label>
+        <div id="physical-options">
+          <label class="field"><span>최고 속도 · CSS px/s</span><input id="max-speed" type="number" min="1" max="100000" step="any" value="320" placeholder="비우면 기준 시간으로 계산" aria-describedby="timing-help"></label>
+          <div class="fields"><label class="field"><span>가속도 · CSS px/s²</span><input id="acceleration" type="number" min="1" max="100000" step="any" value="900"></label><label class="field"><span>감속도 · CSS px/s²</span><input id="deceleration" type="number" min="1" max="100000" step="any" value="1200"></label></div>
+        </div>
+        <div class="fields"><label class="field"><span id="duration-label">기준 시간 · ms</span><input id="duration" type="number" min="0" max="10000" step="50" value="1200" aria-describedby="timing-help"></label><label class="field"><span>Easing · none 전용</span><select id="easing" aria-describedby="timing-help"><option value="smooth">smooth · 부드럽게</option><option value="linear">linear · 일정하게</option></select></label></div>
+        <p class="help" id="timing-help">실제 위치에 가속·감속을 적용합니다. 최고 속도를 비우면 기준 시간으로 속도를 정합니다.</p>
+        <div class="actions" style="margin-top:12px"><button class="primary" id="move">이동 실행</button><button id="cancel">감속해서 멈추기</button></div>
         <div class="directions" aria-label="방향별 이동"><button data-dx="-120" data-dy="0" aria-label="왼쪽으로 120픽셀 이동">← 왼쪽</button><button data-dx="0" data-dy="-120" aria-label="위로 120픽셀 이동">↑ 위</button><button data-dx="0" data-dy="120" aria-label="아래로 120픽셀 이동">↓ 아래</button><button data-dx="120" data-dy="0" aria-label="오른쪽으로 120픽셀 이동">→ 오른쪽</button></div>
-        <p class="help">좌표는 캐릭터 박스의 왼쪽 위 기준입니다. 이 체험에서는 목적지를 미리보기 안으로 제한합니다. 이동 중지는 현재 위치에서 멈춘 뒤 자세를 정리합니다.</p>
+        <p class="help">좌표는 캐릭터 박스의 왼쪽 위 기준입니다. 이 체험에서는 목적지만 미리보기 안으로 제한합니다. 관성 경로와 제동 위치는 미리보기 밖으로 나갈 수 있으며 화면 경계에서 멈춥니다. 자연 비행의 중지는 현재 진행 방향으로 감속한 뒤 자세를 정리합니다. 낮은 감속도에서는 더 멀리 이동할 수 있습니다.</p>
+      </section>
+      <section class="card" aria-labelledby="physics-heading">
+        <div class="card-heading"><h2 id="physics-heading">실제 이동 측정</h2><span class="step">movementState</span></div>
+        <div class="motion-readings">
+          <div><span class="caption">속력 · |velocity|</span><output class="magnitude" id="speed" aria-live="off">0 px/s</output><output class="vector" id="velocity" aria-live="off" aria-label="속도 벡터 · CSS px/s">x 0 · y 0</output></div>
+          <div><span class="caption">가속도 · |acceleration|</span><output class="magnitude" id="acceleration-value" aria-live="off">0 px/s²</output><output class="vector" id="acceleration-vector" aria-live="off" aria-label="가속도 벡터 · CSS px/s²">x 0 · y 0</output></div>
+        </div>
+        <svg id="motion-graph" viewBox="0 0 316 140" role="img" aria-labelledby="motion-graph-title motion-graph-desc">
+          <title id="motion-graph-title">마지막 측정까지 6초의 실제 속력과 가속도</title><desc id="motion-graph-desc">위 실선은 속력, 아래 점선은 가속도의 크기입니다. 각 그래프는 0부터 표시된 최댓값까지 독립적으로 표시합니다. 현재 숫자는 그래프 위에 있습니다.</desc>
+          <path class="grid" d="M8 12H308M8 52H308M8 78H308M8 118H308" />
+          <text x="8" y="9">속력 · px/s</text><text id="speed-scale" x="308" y="9" text-anchor="end">320</text><text x="8" y="64">0</text>
+          <polyline id="speed-plot" points="8,52 308,52" />
+          <text x="8" y="75">가속도 · px/s²</text><text id="acceleration-scale" x="308" y="75" text-anchor="end">1200</text><text x="8" y="130">0 · 6초 전</text><text x="308" y="130" text-anchor="end">마지막 측정</text>
+          <polyline id="acceleration-plot" points="8,118 308,118" />
+        </svg>
+        <p class="help">장식적인 기울기가 아닌 DOM 이동의 속도·가속도입니다. 오른쪽·아래 방향이 양수입니다. 새 목적지와 중지 버튼을 번갈아 눌러 관성·제동을 비교하세요.</p>
       </section>
       <section class="card" aria-labelledby="invocation-heading"><div class="card-heading"><h2 id="invocation-heading">실행 코드</h2><button id="copy">코드 복사</button></div><pre id="invocation" tabindex="0"></pre><p id="copy-status" class="help" role="status"></p><p class="help">등록된 &lt;sidekick-avatar id="bot"&gt;에 호출하세요. 컨트롤을 바꾸면 다음 호출, 실행 후에는 실제 호출한 코드가 표시됩니다.</p></section>
-      <section class="card" aria-labelledby="activity-heading"><div class="card-heading"><h2 id="activity-heading">활동</h2><span class="step">play / stop</span></div><label class="field"><span>Activity</span><select id="activity"><option value="celebrating">celebrating · 축하</option><option value="speaking">speaking · 말하기</option><option value="thinking">thinking · 생각하기</option><option value="listening">listening · 듣기</option></select></label><div class="actions"><button id="play">1초 재생</button><button id="stop">활동 중지</button></div><p class="help">활동과 이동은 별개입니다. play() 중에도 이동할 수 있고, stop()은 활동만 중지합니다.</p></section>
+      <section class="card" aria-labelledby="activity-heading"><div class="card-heading"><h2 id="activity-heading">활동</h2><span class="step">play / stop</span></div><label class="field"><span>Activity</span><select id="activity"><option value="celebrating">celebrating · 축하</option><option value="speaking">speaking · 말하기</option><option value="thinking">thinking · 생각하기</option><option value="listening">listening · 듣기</option></select></label><label class="field"><span>재생 구간 · ms (0 = 계속 반복)</span><input id="activity-duration" type="number" min="0" max="60000" step="100" value="0"></label><div class="actions"><button id="play">활동 재생</button><button id="stop">활동 중지</button></div><p class="help">활동을 재생한 뒤 미리보기를 눌러 보세요. 활동·표정은 비행과 동시에 이어집니다. 이동 중지는 활동을 유지하고, stop()은 활동만 중지합니다. 0은 이 체험의 반복 재생 옵션이며 API에는 duration을 생략합니다.</p></section>
       <section class="card" aria-labelledby="assets-heading"><div class="card-heading"><h2 id="assets-heading">외형 전환</h2><span class="step">transitionTo</span></div><div class="actions"><button id="transition">도형·표정·장식 전환</button><button id="cancel-transition">전환 중지</button></div></section>
       <section class="card" aria-labelledby="options-heading"><h2 id="options-heading">미리보기 옵션</h2><label class="check"><input id="interactive" type="checkbox">캐릭터 박스에서 드래그 / 줌 허용</label><label class="check"><input id="reduce" type="checkbox">일시 정지 · 이동 / 외형 전환 즉시 적용</label><p class="help" id="motion-preference"></p><p class="help">미리보기는 스크롤해도 고정됩니다. 키보드로 미리보기에 포커스한 뒤 방향키로 이동하거나 Home으로 중앙에 놓을 수 있습니다.</p></section>
       <section class="card" aria-labelledby="results-heading"><div class="card-heading"><h2 id="results-heading">결과 · 이벤트</h2><button id="clear-log">비우기</button></div><ol id="result-log" aria-label="최근 API 결과" role="log" aria-live="polite" aria-relevant="additions"></ol><p id="status" role="status">초기화 중…</p></section>
@@ -136,7 +168,7 @@
     <section class="preview-panel" aria-label="고정 캐릭터 미리보기">
       <div class="preview-heading"><h2>Live preview</h2><p id="stage-help">클릭 / 탭해서 이동 · 방향키도 사용 가능</p></div>
       <div id="movement-stage" tabindex="0" role="group" aria-label="이동 미리보기" aria-describedby="stage-help"><span id="target-marker" hidden aria-hidden="true"></span></div>
-      <div class="telemetry"><div><span class="caption">Movement phase</span><div class="phase-line"><output id="phase" aria-label="Movement phase" aria-live="polite">idle</output><button id="cancel-preview" type="button" aria-label="미리보기 이동 멈추기">이동 멈추기</button></div></div><div><span class="caption">Position · viewport px</span><output id="position" aria-label="Position · viewport px">x 0 · y 0</output></div><div><label for="progress">Progress</label><div class="progress-line"><progress id="progress" max="1" value="0"></progress><output id="progress-value">0%</output></div></div><div><span class="caption">Activity</span><output id="activity-state" aria-label="Activity">idle</output></div></div>
+      <div class="telemetry"><div><span class="caption">Movement phase</span><div class="phase-line"><output id="phase" aria-label="Movement phase" aria-live="polite">idle</output><button id="cancel-preview" type="button" aria-label="미리보기 이동 멈추기">이동 멈추기</button></div></div><div><span class="caption">Position · viewport px</span><output id="position" aria-live="off" aria-label="Position · viewport px">x 0 · y 0</output></div><div><label for="progress">Progress</label><div class="progress-line"><progress id="progress" max="1" value="0"></progress><output id="progress-value" aria-live="off">0%</output></div></div><div><span class="caption">Activity</span><output id="activity-state" aria-label="Activity">idle</output></div></div>
     </section>
   </main>
   <sidekick-avatar id="bot" placement="viewport" body-color="#FFCC37" shape="ghostish" head-accessory="beret" eyes-accessory="glasses" tracking-mode="eyes" aria-label="Sidekick 미리보기 캐릭터"></sidekick-avatar>

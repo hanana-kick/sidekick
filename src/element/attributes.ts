@@ -23,6 +23,9 @@ export interface SidekickAttributes {
   'move-duration'?: NumericAttribute;
   'move-easing'?: 'linear' | 'smooth';
   'move-travel'?: 'natural' | 'none';
+  'move-max-speed'?: number | string;
+  'move-acceleration'?: number | string;
+  'move-deceleration'?: number | string;
   design?: string;
   shape?: MaterialShapeName;
   'body-color'?: string;
@@ -72,7 +75,7 @@ export interface SidekickAttributes {
 export type SidekickAttributeName = keyof SidekickAttributes;
 export const ACCESSORY_ATTRIBUTE_SLOTS = Object.freeze({ head: 'head', eyes: 'eyes', mouth: 'mouth', neck: 'neck', 'left-ear': 'leftEar', 'right-ear': 'rightEar' } as const);
 export const SIDEKICK_ATTRIBUTES = Object.freeze([
-  'placement', 'position-x', 'position-y', 'movement-bounds', 'move-duration', 'move-easing', 'move-travel',
+  'placement', 'position-x', 'position-y', 'movement-bounds', 'move-duration', 'move-easing', 'move-travel', 'move-max-speed', 'move-acceleration', 'move-deceleration',
   'design', 'shape', 'body-color', 'eye-color', 'expression', 'left-expression', 'right-expression',
   'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'accessories',
   'head-accessory', 'head-color', 'eyes-accessory', 'eyes-color', 'mouth-accessory', 'mouth-color',
@@ -103,7 +106,7 @@ export interface ResolvedAttributes {
   placement: AvatarPlacement;
   position: AvatarPosition;
   movementBounds: MovementBounds;
-  moveOptions: Required<MoveOptions>;
+  moveOptions: MoveOptions;
   design: AvatarDesign;
   camera: CameraState;
   gaze: Vec2;
@@ -207,7 +210,7 @@ export function resolveSidekickAttributes(attributes: AttributeValues): Resolved
     placement: read('placement', value => choice(value, ['inline', 'viewport']), 'inline'),
     position: { x: read('position-x', value => number(value, -1e7, 1e7, 'position-x'), 0), y: read('position-y', value => number(value, -1e7, 1e7, 'position-y'), 0) },
     movementBounds: read('movement-bounds', value => choice(value, ['viewport', 'none']), 'viewport'),
-    moveOptions: { travel: read('move-travel', value => choice(value, ['natural', 'none']), 'natural'), duration: read('move-duration', value => number(value, 0, 60000, 'move-duration'), 0), easing: read('move-easing', value => choice(value, ['linear', 'smooth']), 'smooth') },
+    moveOptions: { maxSpeed: read('move-max-speed', value => number(value, 1, 100000, 'move-max-speed'), undefined), acceleration: read('move-acceleration', value => number(value, 1, 100000, 'move-acceleration'), 1800), deceleration: read('move-deceleration', value => number(value, 1, 100000, 'move-deceleration'), 2200), travel: read('move-travel', value => choice(value, ['natural', 'none'] as const), 'natural'), duration: read('move-duration', value => number(value, 0, 60000, 'move-duration'), 0), easing: read('move-easing', value => choice(value, ['linear', 'smooth'] as const), 'smooth') },
     design: parseDesign(design), camera,
     gaze: [read('gaze-x', value => number(value, -1, 1, 'gaze-x'), 0), read('gaze-y', value => number(value, -1, 1, 'gaze-y'), 0)],
     activity: read('activity', value => choice(value, ACTIVITIES), 'idle'),

@@ -185,3 +185,40 @@ test('short portrait and landscape viewports retain a complete canvas and scroll
     assert.ok(result.stage.bottom <= height && result.pageWidth <= width && result.controlHeight >= 90 && result.overflow, `${width}×${height}: controls and stage fit`);
   }
 });
+
+test('natural controls drive physical telemetry and keep a trace through controlled braking', async t => {
+  const page = await pageFor(t);
+  await recordMoves(page);
+  await page.locator('#max-speed').fill('240'); await page.locator('#acceleration').fill('600'); await page.locator('#deceleration').fill('900');
+  await page.evaluate(() => {
+    window.physicalTrace = [];
+    document.getElementById('bot').addEventListener('sidekick-move-progress', event => physicalTrace.push({ time: performance.now(), ...event.detail }));
+  });
+  const stage = await page.locator('#movement-stage').boundingBox();
+  await page.mouse.click(stage.x + stage.width - 100, stage.y + 100);
+  await page.waitForFunction(() => document.getElementById('bot').movementState.speed >= 150);
+  const live = await page.evaluate(() => ({
+    state: document.getElementById('bot').movementState,
+    speed: document.getElementById('speed').textContent,
+    velocity: document.getElementById('velocity').textContent,
+    acceleration: document.getElementById('acceleration-vector').textContent,
+    speedPlot: document.getElementById('speed-plot').getAttribute('points'),
+    accelerationPlot: document.getElementById('acceleration-plot').getAttribute('points'),
+    call: moveCalls.at(-1), code: document.getElementById('invocation').textContent,
+  }));
+  assert.deepEqual({ maxSpeed: live.call.options.maxSpeed, acceleration: live.call.options.acceleration, deceleration: live.call.options.deceleration }, { maxSpeed: 240, acceleration: 600, deceleration: 900 });
+  assert.equal(live.call.options.travel, 'natural'); assert.match(live.code, /maxSpeed: 240, acceleration: 600, deceleration: 900/);
+  assert.ok(live.state.speed <= 240 + 1e-6); assert.ok(Math.abs(parseFloat(live.speed) - live.state.speed) < .02);
+  assert.match(live.velocity, /x .+ · y /); assert.match(live.acceleration, /x .+ · y /);
+  for (const points of [live.speedPlot, live.accelerationPlot]) { assert.ok(points.split(' ').length >= 2); assert.doesNotMatch(points, /NaN|Infinity/); }
+  await page.locator('#cancel').click(); await settle(page);
+  const trace = await page.evaluate(() => physicalTrace);
+  assert.ok(trace.some(s => s.phase === 'braking')); assert.ok(trace.some(s => s.phase === 'settling'));
+  assert.equal(trace.at(-1).speed, 0); assert.deepEqual(trace.at(-1).acceleration, { x: 0, y: 0 });
+  assert.match(await page.locator('#result-log').textContent(), /"finished": false/);
+  if (process.env.SIDEKICK_SCREENSHOTS) {
+    const { writeFile } = await import('node:fs/promises'); await mkdir(process.env.SIDEKICK_SCREENSHOTS, { recursive: true });
+    await page.screenshot({ path: `${process.env.SIDEKICK_SCREENSHOTS}/api-inertial-telemetry.png` });
+    await writeFile(`${process.env.SIDEKICK_SCREENSHOTS}/api-inertial-telemetry-trace.json`, JSON.stringify(trace, null, 2));
+  }
+});

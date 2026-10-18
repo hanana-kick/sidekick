@@ -7,18 +7,24 @@ export interface AvatarPosition {
 }
 export interface MoveOptions extends MotionOptions {
     travel?: 'natural' | 'none';
+    maxSpeed?: number;
+    acceleration?: number;
+    deceleration?: number;
 }
 export interface MoveResult {
     finished: boolean;
     position: AvatarPosition;
 }
 export interface MovementState {
-    phase: 'idle' | 'takeoff' | 'flight' | 'landing' | 'settling';
-    /** Elapsed fraction of the requested duration; held at the interruption point while settling. */
+    phase: 'idle' | 'takeoff' | 'flight' | 'landing' | 'braking' | 'settling';
+    /** Monotonic distance progress in natural mode; elapsed duration fraction for plain tweens. */
     progress: number;
     position: AvatarPosition;
     /** Velocity of the constrained CSS position, in CSS pixels per second. */
     velocity: AvatarPosition;
+    /** Actual integrated CSS-pixel acceleration, per second squared. */
+    acceleration: AvatarPosition;
+    speed: number;
 }
 export interface MovementPresentation {
     /** Unit screen-space heading (positive y is down), or [0, 0] while idle. */
@@ -48,6 +54,7 @@ export declare class AvatarMovement {
     private readonly host;
     private point;
     private velocity;
+    private acceleration;
     private phase;
     private progress;
     private presentation;
@@ -61,7 +68,7 @@ export declare class AvatarMovement {
     get state(): MovementState;
     to(point: AvatarPosition, options?: MoveOptions): Promise<MoveResult>;
     by(delta: AvatarPosition, options?: MoveOptions): Promise<MoveResult>;
-    /** Freeze travel, then lower the presentation gently. Lifecycle callers may request an immediate reset. */
+    /** Brake natural travel with inertia, then settle. Plain tweens freeze; lifecycle teardown resets immediately. */
     cancel(immediate?: boolean): void;
     /** Disconnect must not leave a detached element scheduling a presentation-only landing. */
     disconnect(): void;
@@ -83,5 +90,6 @@ export declare class AvatarMovement {
     private travelFraction;
     private sample;
     private sampleTrack;
+    private samplePhysical;
     private tick;
 }

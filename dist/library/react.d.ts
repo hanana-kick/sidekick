@@ -17,6 +17,9 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
     positionY?: number;
     movementBounds?: SidekickAttributes['movement-bounds'];
     moveDuration?: number;
+    moveMaxSpeed?: number;
+    moveAcceleration?: number;
+    moveDeceleration?: number;
     moveEasing?: MotionOptions['easing'];
     moveTravel?: SidekickAttributes['move-travel'];
     onMoveProgress?: SidekickEventHandler<'sidekick-move-progress'>;
