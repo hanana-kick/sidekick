@@ -315,3 +315,43 @@ test('element-relative action displays executable matching code without losing i
  await fill(page,'target-selector','#missing-element');assert.equal(await page.locator('#execute').isDisabled(),true);
  assert.match(await page.locator('#invocation').textContent(),/엘리먼트가 없습니다/);
 });
+
+test('element anchor option and copied code bind scrolling targets; detach preserves the configured draft', async t => {
+  const page = await pageFor(t);
+  await page.evaluate(() => {
+    const target = document.createElement('div'); target.id = 'anchor-test-target';
+    target.style.cssText = 'position:absolute;left:30px;top:400px;width:240px;height:160px;pointer-events:none';
+    document.body.append(target); document.getElementById('bot').movementBounds = 'none';
+  });
+  await select(page, 'move-method', 'moveToElement'); await fill(page, 'target-selector', '#anchor-test-target');
+  await fill(page, 'target-x', 12); await fill(page, 'target-y', 16); await fill(page, 'duration', 0);
+  assert.equal(await page.locator('#element-anchor').isChecked(), false);
+  await page.locator('#execute').click();
+  assert.equal(await page.locator('#bot').evaluate(bot => bot.elementAnchor), null);
+  await page.locator('#element-anchor').check();
+  const draft = await page.locator('#invocation').textContent(); assert.match(draft, /anchor: true/);
+  await page.locator('#execute').click();
+  await page.waitForFunction(() => document.getElementById('bot').elementAnchor?.target.id === 'anchor-test-target');
+  // Exercise the displayed command itself on the live element, not a recorder.
+  await page.evaluate(async source => {
+    document.getElementById('bot').detachAnchor();
+    await new (Object.getPrototypeOf(async function () {}).constructor)('document', source)(document);
+  }, draft);
+  await page.evaluate(() => { window.scrollTo(0, 180); });
+  await page.waitForFunction(() => {
+    const bot = document.getElementById('bot'), rect = document.getElementById('anchor-test-target').getBoundingClientRect();
+    return Math.abs(bot.position.x - rect.left - 12) < .5 && Math.abs(bot.position.y - rect.top - 16) < .5;
+  });
+  const before = await page.locator('#action-panel input,#action-panel select').evaluateAll(elements => elements.map(e => [e.id,e.value,e.checked]));
+  await page.locator('#detach-anchor').click();
+  assert.equal(await page.locator('#bot').evaluate(bot => bot.elementAnchor), null);
+  assert.equal(await page.locator('#invocation').textContent(), draft);
+  assert.deepEqual(await page.locator('#action-panel input,#action-panel select').evaluateAll(elements => elements.map(e => [e.id,e.value,e.checked])), before);
+  assert.match(await page.locator('#last-invocation').textContent(), /avatar.detachAnchor\(\);/);
+  const detached = await page.locator('#bot').evaluate(bot => bot.position);
+  await page.evaluate(() => { document.getElementById('anchor-test-target').style.top = '600px'; });
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  assert.deepEqual(await page.locator('#bot').evaluate(bot => bot.position), detached);
+  await select(page, 'action-kind', 'anchor');
+  assert.match(await page.locator('#invocation').textContent(), /avatar.detachAnchor\(\);/);
+});

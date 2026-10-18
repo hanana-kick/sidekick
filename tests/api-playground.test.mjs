@@ -10,6 +10,7 @@ const actions = [
   { method: 'moveBy', args: [{ x: -40, y: 60 }, { duration: 1200, travel: 'natural', acceleration: 1800, deceleration: 2200 }] },
   { method: 'moveTo', args: [{ x: 400, y: 100 }, { travel: 'natural', maxSpeed: 240, acceleration: 700, deceleration: 1100 }] },
   { method: 'cancelMove', args: [] },
+  { method: 'detachAnchor', args: [] },
   { method: 'setActivity', args: ['thinking'] },
   { method: 'play', args: ['celebrating', { duration: 1400 }] },
   { method: 'play', args: ['speaking'] },
@@ -138,7 +139,7 @@ async function controllerFixture(t) {
     moveTo(...args) { this.calls.push({ method: 'moveTo', args }); this.point = args[0]; return Promise.resolve({ finished: true }); }
     moveBy(...args) { this.calls.push({ method: 'moveBy', args }); this.point = { x: this.point.x + args[0].x, y: this.point.y + args[0].y }; return Promise.resolve({ finished: true }); }
   }
-  for (const method of ['setExpression', 'setActivity', 'play', 'stop', 'setBodyOrientation', 'transitionTo', 'cancelMove', 'cancelTransition', 'enter', 'exit']) Avatar.prototype[method] = function (...args) { this.calls.push({ method, args }); return Promise.resolve({ finished: true }); };
+  for (const method of ['setExpression', 'setActivity', 'play', 'stop', 'setBodyOrientation', 'transitionTo', 'cancelMove', 'cancelTransition', 'enter', 'exit', 'detachAnchor', 'moveToElement']) Avatar.prototype[method] = function (...args) { this.calls.push({ method, args }); return Promise.resolve({ finished: true }); };
   w.customElements.define('sidekick-avatar', Avatar);
   w.eval(source); await new Promise(resolve => setImmediate(resolve)); const bot = $('bot'); bot.calls.length = 0;
   const input = (id, value) => { $(id).value = String(value); $(id).dispatchEvent(new w.Event('input', { bubbles: true })); };
@@ -151,6 +152,7 @@ test('controller updates code before execution and dispatches every selected act
   const f = await controllerFixture(t);
   for (const [kind, values, method] of [
     ['movement', [['target-x', 400], ['target-y', 200], ['duration', 0]], 'moveTo'],
+    ['anchor', [], 'detachAnchor'],
     ['activity', [['activity-operation', 'setActivity'], ['activity', 'thinking']], 'setActivity'],
     ['activity', [['activity-operation', 'play'], ['activity-duration', 700]], 'play'],
     ['activity', [['activity-operation', 'stop']], 'stop'],
@@ -242,4 +244,51 @@ test('shadow controls are excluded and invalid background movement has a visible
   f.pointer('pointerdown', 700, 500); f.pointer('pointerup', 700, 500);
   assert.equal(f.bot.calls.length, 0); assert.equal(f.$('invocation').textContent, draft);
   assert.match(f.$('status').textContent, /유효한 범위/);
+});
+
+for (const anchor of [false, true]) {
+  test(`element anchor ${anchor}: JavaScript and React copied calls exactly match execution`, async t => {
+    const f = await controllerFixture(t);
+    f.input('move-method', 'moveToElement'); f.input('target-selector', '#action-panel');
+    f.input('align-x', 'right'); f.input('align-y', 'bottom');
+    f.input('target-x', -17); f.input('target-y', 23);
+    f.$('element-anchor').checked = anchor;
+    f.$('element-anchor').dispatchEvent(new f.w.Event('input', { bubbles: true }));
+    const target = f.$('action-panel');
+    const originalCode = f.$('invocation').textContent;
+    assert.match(originalCode, new RegExp(`anchor: ${anchor}`));
+    f.$('execute').click();
+    const direct = f.bot.calls.at(-1);
+    assert.equal(direct.method, 'moveToElement'); assert.equal(direct.args[0], target);
+    assert.deepEqual(plain(direct.args[1]), { x: -17, y: 23, alignX: 'right', alignY: 'bottom', anchor, duration: 1200, travel: 'natural', acceleration: 1800, deceleration: 2200 });
+    for (const format of ['javascript', 'react']) {
+      f.$('code-format').value = format; f.$('code-format').dispatchEvent(new f.w.Event('change'));
+      const displayed = f.$('invocation').textContent;
+      const copied = recorder();
+      const document = { querySelector: selector => selector === '#bot' ? copied.avatar : f.w.document.querySelector(selector) };
+      const source = format === 'react' ? displayed.match(/async function run\(\) \{([\s\S]*?)\n  \}/)[1] : stripImports(displayed);
+      await new AsyncFunction('document', 'ref', source)(document, { current: copied.avatar });
+      assert.equal(copied.calls[0].args[0], target);
+      assert.deepEqual(copied.calls[0].args[1], plain(direct.args[1]));
+      if (format === 'react') assert.match(displayed, /design=\{scene.design\}/, 'Studio scene remains in setup');
+    }
+    assert.equal(f.$('element-anchor').checked, anchor);
+  });
+}
+
+test('anchor defaults to one-time and detach button leaves draft, options and selected task untouched', async t => {
+  const f = await controllerFixture(t);
+  assert.equal(f.$('element-anchor').checked, false);
+  f.input('move-method', 'moveToElement');
+  f.$('element-anchor').checked = true; f.$('element-anchor').dispatchEvent(new f.w.Event('input', { bubbles: true }));
+  const snapshot = () => [...f.w.document.querySelectorAll('#action-panel input,#action-panel select')].map(e => [e.id,e.value,e.checked]);
+  const before = snapshot(), draft = f.$('invocation').textContent;
+  f.$('detach-anchor').click();
+  assert.equal(f.bot.calls.at(-1).method, 'detachAnchor');
+  assert.deepEqual(snapshot(), before); assert.equal(f.$('invocation').textContent, draft);
+  assert.match(f.$('last-invocation').textContent, /avatar.detachAnchor\(\);/);
+  f.pointer('pointerdown', 700, 500); f.pointer('pointerup', 700, 500);
+  assert.deepEqual(snapshot(), before); assert.equal(f.$('invocation').textContent, draft);
+  f.input('action-kind', 'anchor'); assert.match(f.$('invocation').textContent, /avatar.detachAnchor\(\);/);
+  f.$('execute').click(); assert.equal(f.bot.calls.at(-1).method, 'detachAnchor');
 });

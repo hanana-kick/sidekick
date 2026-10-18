@@ -33,8 +33,9 @@ function readAction() {
     case 'movement': if ($('move-method').value === 'moveToElement') {
       const selector = $('target-selector').value.trim();
       if (!selector || !document.querySelector(selector)) throw new TypeError('대상 CSS 선택자에 해당하는 엘리먼트가 없습니다.');
-      return { method: 'moveToElement', args: [selector, { x: numeric('target-x'), y: numeric('target-y'), alignX: $('align-x').value, alignY: $('align-y').value, ...movementOptions() }] };
+      return { method: 'moveToElement', args: [selector, { x: numeric('target-x'), y: numeric('target-y'), alignX: $('align-x').value, alignY: $('align-y').value, anchor: $('element-anchor').checked, ...movementOptions() }] };
     } return { method: $('move-method').value, args: [{ x: numeric('target-x'), y: numeric('target-y') }, movementOptions()] };
+    case 'anchor': return { method: 'detachAnchor', args: [] };
     case 'activity': {
       const method = $('activity-operation').value;
       if (method === 'stop') return { method, args: [] };
@@ -125,6 +126,7 @@ async function run(action) {
 $('execute').onclick = () => { try { void run(readAction()); } catch (error) { $('status').textContent = error.message; } };
 const cancelMove = () => void run({ method: 'cancelMove', args: [] });
 $('cancel').onclick = cancelMove; $('cancel-preview').onclick = cancelMove;
+$('detach-anchor').onclick = () => void run({ method: 'detachAnchor', args: [] });
 $('cancel-transition').onclick = () => void run({ method: 'cancelTransition', args: [] });
 for (const input of document.querySelectorAll('#action-panel input, #action-panel select')) input.addEventListener('input', refresh);
 $('code-format').onchange = () => { if (selectedAction) renderCode(selectedAction); if (lastAction) renderLastCode(lastAction); };
