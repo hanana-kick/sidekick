@@ -1,5 +1,6 @@
 import type { MaterialShapeName, Vec2, Vec3 } from '../core/design.js';
-import type { ShapeContour } from '../core/contours.js';
+import { shapeContour, type ShapeContour } from '../core/contours.js';
+import { resolveShapeProfile } from '../core/shape-profiles.js';
 import { transform } from '../core/math.js';
 import { bodyGeometry } from './body-geometry.js';
 import type { BeretGeometry } from './beret-geometry.js';
@@ -149,30 +150,104 @@ function makeWornBeret(contour: ShapeContour, scales: Vec3, shape: MaterialShape
   return { mesh: { vertices: output, indices: new Uint16Array(indices), bandIndexCount, crownIndexCount: indices.length - bandIndexCount, seating: cut - top }, pivot: [co * cx - si * cut, si * cx + co * cut, 0] };
 }
 
-// Shape morphs own short-lived contours; WeakMap entries disappear with them.
-// Breathing/squash and explicitly animated cap poses reuse the fitted garment.
-const fitted = new WeakMap<ShapeContour, { key: string; mesh: BeretGeometry; pivot: Vec3 }>();
-export function wornBeret(contour: ShapeContour, scales: Vec3, shape: MaterialShapeName, rotation: Vec3 = [0, 0, 0]): BeretGeometry {
-  const squash = scales[1] / .59, stretch = 1 / Math.sqrt(squash), depth = scales[2] / stretch;
-  const key = shape + ':' + depth.toFixed(10);
-  let cached = fitted.get(contour);
-  if (!cached || cached.key !== key) { cached = { key, ...makeWornBeret(contour, [.59, .59, depth], shape) }; fitted.set(contour, cached); }
-  if (squash === 1 && rotation.every(value => value === 0)) return cached.mesh;
-  const output = new Float32Array(cached.mesh.vertices), matrix = transform([0, 0, 0], rotation);
-  const cx = cached.pivot[0] * stretch, cut = cached.pivot[1] * squash;
-  for (let i = 0; i < output.length; i += 6) {
-    output[i]! *= stretch; output[i + 1]! *= squash; output[i + 2]! *= stretch;
-    output[i + 3]! /= stretch; output[i + 4]! /= squash; output[i + 5]! /= stretch;
-    const norm = Math.hypot(output[i + 3]!, output[i + 4]!, output[i + 5]!);
-    for (let k = 3; k < 6; k++) output[i + k]! /= norm || 1;
-    for (const normal of [false, true]) {
-      const offset = i + (normal ? 3 : 0);
-      const x = output[offset]! - (normal ? 0 : cx), y = -output[offset + 2]!, z = output[offset + 1]! - (normal ? 0 : cut);
-      const rx = matrix[0]! * x + matrix[4]! * y + matrix[8]! * z;
-      const ry = matrix[1]! * x + matrix[5]! * y + matrix[9]! * z;
-      const rz = matrix[2]! * x + matrix[6]! * y + matrix[10]! * z;
-      output[offset] = rx + (normal ? 0 : cx); output[offset + 1] = rz + (normal ? 0 : cut); output[offset + 2] = -ry;
+// Heart supplies the visual proportions. Local felt deformation adapts the
+// opening to each support without growing a full-body envelope.
+const REFERENCE_TILT = -18 * Math.PI / 180;
+let canonical: { mesh: BeretGeometry; pivot: Vec3; support: Vec3 } | undefined;
+function referenceHat() {
+  if (canonical) return canonical;
+  const contour = shapeContour({ kind: 'material', name: 'heart' });
+  const depth = resolveShapeProfile('heart').depth * .5;
+  const { mesh, pivot } = makeWornBeret(contour, [.59, .59, depth], 'heart');
+  const co = Math.cos(REFERENCE_TILT), si = Math.sin(REFERENCE_TILT);
+  const vertices = new Float32Array(mesh.vertices);
+  for (let i=0;i<vertices.length;i+=6) for (const offset of [0,3]) {
+    const x=vertices[i+offset]!-(offset===0?pivot[0]:0), y=vertices[i+offset+1]!-(offset===0?pivot[1]:0);
+    vertices[i+offset]=co*x+si*y; vertices[i+offset+1]=-si*x+co*y;
+  }
+  let top: Vec3 = [0,-Infinity,0];
+  for (const p of contour.points) { const x=p[0]*.59, y=p[1]*.59; if(-si*x+co*y>top[1])top=[co*x+si*y,-si*x+co*y,0]; }
+  const localPivot:Vec3=[co*pivot[0]+si*pivot[1],-si*pivot[0]+co*pivot[1],0];
+  canonical={mesh:{...mesh,vertices},pivot,support:[top[0]-localPivot[0],top[1]-localPivot[1],0]};
+  return canonical;
+}
+
+const DRAPED_FAMILIES: readonly MaterialShapeName[] = ['flower','cookie12Sided','puffy','slanted','softBurst','sunny','verySunny','clover8Leaf','softBoom'];
+const flexibleCache = new WeakMap<ShapeContour, Map<string, Float32Array>>();
+/** Bounded contact shaping in the wearing frame, not global body scaling. */
+function flexibleFelt(contour: ShapeContour, scales: Vec3, shape: MaterialShapeName, co: number, si: number, px: number, py: number): Float32Array {
+  const ref=referenceHat().mesh, draped=DRAPED_FAMILIES.includes(shape);
+  if(shape==='heart') return ref.vertices;
+  let cache=flexibleCache.get(contour);if(!cache){cache=new Map();flexibleCache.set(contour,cache);}
+  const key=[shape,...scales,px,py].join(':');const cached=cache.get(key);if(cached)return cached;
+  const body=bodyGeometry(contour), points:Vec3[]=[];
+  for(let i=0;i<body.vertices.length;i+=6){const x=body.vertices[i]!*scales[0],y=body.vertices[i+1]!*scales[1];points.push([co*x+si*y-px,-si*x+co*y-py,body.vertices[i+2]!*scales[2]]);}
+  const edges:{a:Vec3;b:Vec3;low:number;high:number}[]=[];
+  const seen=new Set<number>(),count=points.length;
+  for(let i=0;i<body.indices.length;i+=3)for(let j=0;j<3;j++){
+    const ai=body.indices[i+j]!,bi=body.indices[i+(j+1)%3]!,key=Math.min(ai,bi)*count+Math.max(ai,bi);
+    if(seen.has(key))continue;seen.add(key);
+    const a=points[ai]!,b=points[bi]!,low=Math.min(a[1],b[1]),high=Math.max(a[1],b[1]);
+    if(high>=-.12&&low<=.40&&high-low>1e-9)edges.push({a,b,low,high});
+  }
+  const vertices=new Float32Array(ref.vertices);
+  const clamp=(v:number,limit:number)=>Math.max(-limit,Math.min(limit,v));
+  for(let ring=0;ring<16;ring++){
+    const start=ring*SEGMENTS;let cy=0,cx=0,minY=Infinity,maxY=-Infinity;
+    for(let j=0;j<SEGMENTS;j++){cx+=vertices[(start+j)*6]!/SEGMENTS;cy+=vertices[(start+j)*6+1]!/SEGMENTS;minY=Math.min(minY,vertices[(start+j)*6+1]!);maxY=Math.max(maxY,vertices[(start+j)*6+1]!);}
+    const section:Vec2[]=[];
+    for(const level of(shape==='softBoom'?[minY,cy,maxY]:[cy]))for(const {a,b,low,high} of edges){
+      if(level>=low&&level<high){const t=(level-a[1])/(b[1]-a[1]);section.push([a[0]+(b[0]-a[0])*t,a[2]+(b[2]-a[2])*t]);}
+    }
+    const boundary=hull(section),deltas:number[]=[];
+    for(let j=0;j<SEGMENTS;j++){
+      const i=(start+j)*6,x=vertices[i]!-cx,z=vertices[i+2]!,r=Math.hypot(x,z),angle=Math.atan2(z,x);
+      const support=radial(boundary,cx,angle),falloff=Math.max(0,1-(Math.max(0,ring-3)/12)**2);
+      // The cuff can compress to meet the body. The crown retains its volume,
+      // yielding only locally where the supported body would press into felt.
+      const softness=shape==='boom'?.055:draped?.070:.035;
+      const lowerFlex=ring<4?1:draped?Math.max(0,1-(ring-3)/5):0;
+      const change=ring<4?Math.max(-softness,Math.min(.035,support+.018-r)):
+        Math.max(0,clamp(support+.018-r,.030))*falloff+Math.min(0,clamp(support+.018-r,softness))*lowerFlex;
+      deltas.push(change);
+    }
+    for(let j=0;j<SEGMENTS;j++){
+      const i=(start+j)*6,x=vertices[i]!-cx,z=vertices[i+2]!,r=Math.hypot(x,z);
+      const delta=(deltas[(j+63)%64]!+deltas[j]!*2+deltas[(j+1)%64]!)/4;
+      if(r>1e-7){vertices[i]=cx+x*(1+delta/r);vertices[i+2]=z*(1+delta/r);}
+      if(shape==='boom'){const free=Math.max(0,-x/(r||1));vertices[i+1]!-=.038*free*free*Math.max(0,1-ring/13);}
     }
   }
-  return { ...cached.mesh, vertices: output, seating: cached.mesh.seating * squash };
+  // Recompute smooth normals after the local felt deformation.
+  for(let i=0;i<vertices.length;i+=6)vertices.fill(0,i+3,i+6);
+  for(let i=0;i<ref.indices.length;i+=3){const a=ref.indices[i]!*6,b=ref.indices[i+1]!*6,c=ref.indices[i+2]!*6;
+    const ux=vertices[b]!-vertices[a]!,uy=vertices[b+1]!-vertices[a+1]!,uz=vertices[b+2]!-vertices[a+2]!;
+    const vx=vertices[c]!-vertices[a]!,vy=vertices[c+1]!-vertices[a+1]!,vz=vertices[c+2]!-vertices[a+2]!;
+    for(const p of[a,b,c]){vertices[p+3]!+=uy*vz-uz*vy;vertices[p+4]!+=uz*vx-ux*vz;vertices[p+5]!+=ux*vy-uy*vx;}
+  }
+  for(let i=0;i<vertices.length;i+=6){const n=Math.hypot(vertices[i+3]!,vertices[i+4]!,vertices[i+5]!)||1;for(let k=3;k<6;k++)vertices[i+k]!/=n;}
+  if(cache.size>=8)cache.delete(cache.keys().next().value!);cache.set(key,vertices);return vertices;
+}
+
+export function wornBeret(contour: ShapeContour, scales: Vec3, shape: MaterialShapeName, rotation: Vec3 = [0,0,0]): BeretGeometry {
+  const ref=referenceHat();
+  const tilt=(shape==='heart'?-18:shape==='triangle'||shape==='pixelTriangle'?-14:shape==='boom'?-32:shape==='square'||shape==='bun'?-42:-30)*Math.PI/180;
+  const co=Math.cos(tilt),si=Math.sin(tilt);
+  let sx=0,sy=-Infinity;
+  for(const p of contour.points){const x=p[0]*scales[0],y=p[1]*scales[1],py=-si*x+co*y;if(py>sy){sx=co*x+si*y;sy=py;}}
+  const deeplySeated=DRAPED_FAMILIES.includes(shape);
+  const insertion=shape==='heart'?ref.support[1]:shape==='triangle'||shape==='pixelTriangle'?.13:shape==='boom'?.11:shape==='square'||shape==='bun'?.115:shape==='softBoom'?.075:deeplySeated?.100:.055;
+  const px=sx-ref.support[0],py=sy-insertion;
+  const pivot:Vec3=[co*px-si*py,si*px+co*py,0];
+  const vertices=new Float32Array(flexibleFelt(contour,scales,shape,co,si,px,py)),matrix=transform([0,0,0],rotation);
+  for(let i=0;i<vertices.length;i+=6)for(const offset of [0,3]){
+    const x=vertices[i+offset]!,y=-vertices[i+offset+2]!,z=vertices[i+offset+1]!;
+    const rx=matrix[0]!*x+matrix[4]!*y+matrix[8]!*z;
+    const ry=matrix[1]!*x+matrix[5]!*y+matrix[9]!*z;
+    const rz=matrix[2]!*x+matrix[6]!*y+matrix[10]!*z;
+    vertices[i+offset]=co*rx-si*rz+(offset===0?pivot[0]:0);
+    vertices[i+offset+1]=si*rx+co*rz+(offset===0?pivot[1]:0);
+    vertices[i+offset+2]=-ry;
+  }
+  return {...ref.mesh,vertices,seating:-insertion};
 }

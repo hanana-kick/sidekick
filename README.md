@@ -17,22 +17,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 버전을 고정하려면 릴리스 태그를 지정합니다.
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.2.3
+npm install https://github.com/hanana-kick/sidekick.git#v0.2.4
 ```
 
-빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.2.3`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.2.4`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
 
 npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. ESM과 일반 `<script>`용 JS, 전용 렌더링 worker를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
 
 ### GitHub Release에서 다운로드
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases)를 엽니다.
-2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.2.3.zip` 또는 `hanana-kick-sidekick-0.2.3.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
+2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.2.4.zip` 또는 `hanana-kick-sidekick-0.2.4.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
 3. 일반 HTML 사이트에서는 브라우저 ZIP을 풀고 아래 파일을 사이트의 정적 파일 디렉터리에 복사합니다. 동봉된 `START-HERE.txt`를 읽고 `esm.html`, `classic.html`, `react.html` 중 원하는 예제를 열면 됩니다. 예제의 `/vendor/sidekick/`은 **사용자 사이트의 경로**입니다. 배포 경로에 맞게 바꾸세요.
 
 | 빌드된 파일 | 용도 | 필요한 파일·의존성 |
 | --- | --- | --- |
-| `sidekick-browser-0.2.3.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
+| `sidekick-browser-0.2.4.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
 | `sidekick.js` | 브라우저 ESM. `import`와 `<script type="module">` 사용 | `sidekick.worker.js`를 같은 디렉터리에 유지 |
 | `sidekick.iife.js` | 일반 classic `<script>`. API는 `window.Sidekick` | `sidekick.worker.js`를 같은 디렉터리에 유지. `type="module"` 사용 안 함 |
 | `sidekick-react.js` | React 19용 ESM 컴포넌트 | `sidekick-element.js`·`sidekick-fallback.js`·`sidekick.worker.js`를 같은 디렉터리에 유지하고 `react` peer를 제공 |
@@ -40,7 +40,7 @@ npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.co
 | `sidekick-fallback.js` | worker를 사용할 수 없을 때 React 요소가 불러오는 렌더러 | 직접 import하지 않음. 나머지 파일과 같은 버전 사용 |
 | `sidekick.worker.js` | OffscreenCanvas 전용 worker | 브라우저 진입 파일 옆에 배치. 별도 script 태그로 불러오지 않음 |
 | `vendor/react.js`, `vendor/react-dom-client.js` | 브라우저 ZIP의 선택적 React 19/ReactDOM ESM | 아래 빌드 없는 React 예제용. import map으로 연결하며 React를 이미 제공하는 앱에는 불필요 |
-| `hanana-kick-sidekick-0.2.3.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
+| `hanana-kick-sidekick-0.2.4.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
 | `SHA256SUMS` | ZIP과 tarball의 다운로드 무결성 확인 | 같은 Release의 체크섬 파일 |
 
 ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보관하세요. **GitHub Release 자산은 다운로드한 뒤 본인 사이트에서 제공하세요.** 다운로드 URL은 브라우저 JS 호스팅용 URL이 아니며 자산 응답의 MIME·CORS 동작이 정적 호스팅과 다릅니다. 아래 예제의 `src`/`import`는 내려받은 파일을 제공하는 사이트 경로를 사용합니다.
@@ -52,7 +52,7 @@ ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보�
 Release에서 받은 tarball을 사용할 프로젝트에서 설치합니다. 이 명령은 Sidekick 소스를 컴파일하거나 Studio를 빌드하지 않습니다.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.2.3.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.2.4.tgz
 ```
 
 React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 마운트하는 `react-dom`도 사용자가 같은 버전으로 준비합니다. 코어만 쓰는 프로젝트에는 React가 필요 없습니다.
@@ -804,4 +804,4 @@ SIDEKICK_HEADED=1 xvfb-run -a npm run test:browser
 
 0.2.2는 앞·옆·뒤로 이어지는 목도리 둘레와 자유롭게 처지는 끝을 추가합니다. 몸체 메시 계산의 중복 할당·질의를 줄였으며, 322개 메시와 12개 네이티브 렌더에서 기존 결과와 바이트가 같음을 확인했습니다. 분리된 CPU ABBA 검사에서는 총 몸체 계산 시간이 약7.9% 줄었지만 지연 시간의 꼬리 구간은 일관되게 개선되지 않았습니다. 브라우저 FPS나 모든 기기의 성능 보장은 아닙니다. OffscreenCanvas, 시선 추적 모드, 비율 보정, 휠·핀치 확대/축소와 기본 색 `#FFCC37`은 유지합니다.
 
-0.2.3은 도형별로 작고 비스듬한 베레모 착용 위치를 사용합니다. 하트는 한쪽 봉우리에, 뾰족한 몸체는 안쪽 지지점에 걸쳐 비대칭으로 처지도록 구성합니다. 접힌 테두리와 크라운은 연속적으로 연결하며, 목도리는 몸체 높이별 단면을 감싸는 넓은 천과 비틀려 흘러내리는 여분으로 구성합니다. 도형 전환 중에도 착용 상태를 유지합니다. 베레모의 초기 피팅 결과는 캐시하고 몸체의 부풀기·회전 모션에 재사용합니다. 이 캐시는 임의 도형 전환의 계산 비용이나 저사양 GPU의 FPS를 보장하지 않습니다.
+0.2.4은 도형별로 작고 비스듬한 베레모 착용 위치를 사용합니다. 하트는 한쪽 봉우리에, 뾰족한 몸체는 안쪽 지지점에 걸쳐 비대칭으로 처지도록 구성합니다. 접힌 테두리와 크라운은 연속적으로 연결하며, 목도리는 몸체 높이별 단면을 감싸는 넓은 천과 비틀려 흘러내리는 여분으로 구성합니다. 도형 전환 중에도 액세서리를 숨기지 않습니다. 복잡한 돌출부가 바뀌는 일부 중간 프레임에서는 몸체가 목도리 띠 일부를 가릴 수 있습니다. 베레모는 하트의 적절한 크기를 기준으로 테두리와 크라운을 국소적으로 변형합니다. 몸 전체를 덮도록 크게 늘리지 않으며, 목도리는 도형에 맞는 아래쪽 지지 부위를 감싸고 여분이 내려오도록 배치합니다. 피팅 결과는 캐시하며 도형과 몸체 상태가 바뀌면 갱신합니다. 이 캐시는 임의 도형 전환의 계산 비용이나 저사양 GPU의 FPS를 보장하지 않습니다.

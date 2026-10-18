@@ -10,6 +10,7 @@ export const EYE_PROFILE_OFFSET_Y_RANGE = Object.freeze([-0.35, 0.35]);
 const CURATED_ACCESSORY_KEYS = ['beret', 'halo', 'crown', 'glasses', 'sunglasses', 'moustache', 'goatee', 'bowTie', 'scarf', 'necklace', 'leftEarring', 'rightEarring', 'leftStarEarring', 'rightStarEarring'];
 function immutable(profile) {
     Object.freeze(profile.eyes);
+    Object.freeze(profile.scarfFit);
     for (const mount of Object.values(profile.accessories)) {
         Object.freeze(mount.anchor.uv);
         Object.freeze(mount.anchor);
@@ -32,6 +33,46 @@ function immutable(profile) {
  * Earring phase chooses the side shoulder, while its independent upright plane
  * keeps both hoops readable from the front instead of copying the radial tilt.
  */
+// Authored local scarf supports in canonical body coordinates. These preserve
+// the reviewed static wearing poses; morphs interpolate the support itself,
+// never reselect a different lobe or mirrored corner at runtime.
+const SCARF_SUPPORT_FITS = {
+    circle: [0, -0.7043028677966102, -0.6903857993674681, 0.7065683087210856],
+    square: [-0.65, -0.9146402343230225, -0.5608723238291164, 0.44926972606263565],
+    slanted: [0.65, -0.8776301303284545, -0.37035504573926076, 0.4487135928452314],
+    arch: [0.65, -0.9278094740403311, -0.4319463690631626, 0.5508609443062376],
+    fan: [-0.65, -0.9037515535527462, -0.5680077864386106, 0.4635930850040692],
+    arrow: [-0.65, -0.8072930503931397, -0.4972642182290799, 0.1596685923689511],
+    semiCircle: [0.65, -0.8200923866922157, 0.04600265142827109, 0.626387862511066],
+    oval: [0, -0.6606667148635399, -0.9215281747767934, 0.3681018018427239],
+    pill: [0, -0.6774695444915254, -0.8081195367069213, 0.5381359550072768],
+    triangle: [-0.65, -0.7892793479151976, -0.45626727854430976, 0.3570214054414213],
+    diamond: [0, -0.7243776483050847, -0.36010181311868933, 0.36010170816838877],
+    clamShell: [0, -0.5353573754237289, -0.7274880259914442, 0.7289982321274535],
+    pentagon: [0, -0.649423403898305, -0.7262296374824084, 0.7262293689852015],
+    gem: [0, -0.7195795791525422, -0.7171965450773221, 0.7222448715315412],
+    verySunny: [0.65, -0.7437119591137938, -0.6359442413868442, 0.3099706887674314],
+    sunny: [0, -0.7122632788135592, -0.6762323972390384, 0.6886114985706523],
+    cookie4Sided: [0.65, -0.8277928733600068, -0.30444970644089814, 0.46794655374309446],
+    cookie6Sided: [0, -0.6743059644067796, -0.6122682536054963, 0.6106680547433238],
+    cookie7Sided: [0, -0.7048879493583535, -0.5890649568703806, 0.5890649920600484],
+    cookie9Sided: [0, -0.6591156130894573, -0.602682861332208, 0.60268297038875],
+    cookie12Sided: [0, -0.6626009940677966, -0.5996312705291823, 0.5996311995555335],
+    ghostish: [0.65, -0.9021933096097198, -0.22138737397170477, 0.5116246310086562],
+    clover4Leaf: [-0.65, -0.8490915339534914, -0.5393894335135024, 0.3961241176099506],
+    clover8Leaf: [0, -0.7052212829056651, -0.5737213020823895, 0.5719377134167324],
+    burst: [0.65, -0.560371519908502, -0.5769907138630938, 0.7830872687639728],
+    softBurst: [0, -0.6259003721186441, -0.6143318667117458, 0.6151981866889252],
+    boom: [0.65, -0.43, -0.28796896398198396, 0.253132093188177],
+    softBoom: [0.65, -0.70, -0.02800255261752488, 0.21636828997603008],
+    flower: [0, -0.6136574957627119, -0.7432241344487527, 0.7443211114716622],
+    puffy: [-.65, -.84, -.4093640809550523, -.07184240043707998],
+    puffyDiamond: [0, -0.6158633474576272, -0.4757797573073582, 0.47577957253228886],
+    pixelCircle: [-0.65, -0.8770834061912458, -0.40351306170000234, 0.49867325337264384],
+    pixelTriangle: [0, -0.55, -0.7746996983519764, 0.1219997463149052],
+    bun: [-0.65, -0.8695092438017838, -0.5362067950222944, 0.5086366414343984],
+    heart: [0, -0.6577334288135593, -0.19849493208295776, 0.1984949628724318],
+};
 const LOWER_ACCESSORY_FITS = {
     circle: [-.30, -.69, 1, -0.2, -0.2, 1, 0.26, 0.76], square: [-.30, -.72, 1, -0.3, -0.3, 1, 0.23, 0.73],
     slanted: [-.30, -.65, .95, -0.5, -0.2, .95, 0.24, 0.7], arch: [-.34, -.72, 1, 0.2, 0.2, 1, 0.27, 0.73],
@@ -65,7 +106,7 @@ function defaults(shape, depth, eyes, beretU, beretTilt, beretScale = 1, haloHei
     const tie = BOW_TIE_FITS[shape];
     const front = (y, scale, tilt = 0) => ({ anchor: { region: 'face', uv: [0, Math.atan(y) / 0.9], offset: 0 }, rotation: [tilt, 0, 0], scale });
     return immutable({
-        depth, eyes: { width, height, spacing, offsetY },
+        scarfFit: SCARF_SUPPORT_FITS[shape], depth, eyes: { width, height, spacing, offsetY },
         // Historical calibration fields exist only for validating legacy imports.
         mounts: { head: { uv: [0, 0], offset: 0 }, face: { uv: [0, 0], offset: 0 } },
         accessories: {
@@ -177,7 +218,7 @@ function parseProfile(value, shape, path) {
     const profile = record(value, path, ['depth', 'mounts', 'eyes']);
     const mounts = record(profile.mounts, `${path}.mounts`, ['head', 'face']);
     const eyes = Object.hasOwn(profile, 'eyes') ? parseEyes(profile.eyes, `${path}.eyes`) : { ...DEFAULT_SHAPE_PROFILES[shape].eyes };
-    return { depth: bounded(profile.depth, BODY_DEPTH_RANGE, `${path}.depth`), eyes, accessories: DEFAULT_SHAPE_PROFILES[shape].accessories, mounts: { head: parseMount(mounts.head, `${path}.mounts.head`), face: parseMount(mounts.face, `${path}.mounts.face`) } };
+    return { scarfFit: DEFAULT_SHAPE_PROFILES[shape].scarfFit, depth: bounded(profile.depth, BODY_DEPTH_RANGE, `${path}.depth`), eyes, accessories: DEFAULT_SHAPE_PROFILES[shape].accessories, mounts: { head: parseMount(mounts.head, `${path}.mounts.head`), face: parseMount(mounts.face, `${path}.mounts.face`) } };
 }
 /** Validate isolated overrides, filling only omitted legacy eyes from the registry. */
 export function parseShapeProfiles(value, path = 'body.profiles') {
@@ -196,7 +237,7 @@ export function resolveShapeProfile(shape, profiles) {
     return Object.hasOwn(map, shape) ? immutable(parseProfile(map[shape], shape, `body.profiles.${shape}`)) : DEFAULT_SHAPE_PROFILES[shape];
 }
 export function sameShapeProfile(a, b) {
-    return CURATED_ACCESSORY_KEYS.every(preset => { const x = a.accessories[preset], y = b.accessories[preset]; return x.scale === y.scale && x.anchor.region === y.anchor.region && x.anchor.offset === y.anchor.offset && x.anchor.uv.every((value, i) => value === y.anchor.uv[i]) && x.rotation.every((value, i) => value === y.rotation[i]); }) && a.depth === b.depth && ['width', 'height', 'spacing', 'offsetY'].every(key => a.eyes[key] === b.eyes[key]) && ['head', 'face'].every(slot => a.mounts[slot].offset === b.mounts[slot].offset && a.mounts[slot].uv.every((v, i) => v === b.mounts[slot].uv[i]));
+    return a.scarfFit.every((value, i) => value === b.scarfFit[i]) && CURATED_ACCESSORY_KEYS.every(preset => { const x = a.accessories[preset], y = b.accessories[preset]; return x.scale === y.scale && x.anchor.region === y.anchor.region && x.anchor.offset === y.anchor.offset && x.anchor.uv.every((value, i) => value === y.anchor.uv[i]) && x.rotation.every((value, i) => value === y.rotation[i]); }) && a.depth === b.depth && ['width', 'height', 'spacing', 'offsetY'].every(key => a.eyes[key] === b.eyes[key]) && ['head', 'face'].every(slot => a.mounts[slot].offset === b.mounts[slot].offset && a.mounts[slot].uv.every((v, i) => v === b.mounts[slot].uv[i]));
 }
 /** Body volume, eye calibration and equipment use the same transition progress. */
 export function interpolateShapeProfile(from, to, progress) {
@@ -213,7 +254,7 @@ export function interpolateShapeProfile(from, to, progress) {
         // avoids quaternion sign ambiguity and preserves exact interruption values.
         return { anchor: { region: a.anchor.region, uv: [mix(a.anchor.uv[0], b.anchor.uv[0]), mix(a.anchor.uv[1], b.anchor.uv[1])], offset: mix(a.anchor.offset, b.anchor.offset) }, rotation: a.rotation.map((value, i) => mix(value, b.rotation[i])), scale: mix(a.scale, b.scale) };
     };
-    return immutable({ depth: mix(from.depth, to.depth), eyes, mounts: { head: mount('head'), face: mount('face') }, accessories: Object.fromEntries(CURATED_ACCESSORY_KEYS.map(key => [key, equipment(key)])) });
+    return immutable({ scarfFit: from.scarfFit.map((v, i) => mix(v, to.scarfFit[i])), depth: mix(from.depth, to.depth), eyes, mounts: { head: mount('head'), face: mount('face') }, accessories: Object.fromEntries(CURATED_ACCESSORY_KEYS.map(key => [key, equipment(key)])) });
 }
 /**
  * Apply the displayed shape profile once to the global neutral eye baseline.

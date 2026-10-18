@@ -1,13 +1,10 @@
 import { contourSignedDistanceExact } from '../core/contours.js';
 import { VOLUME_CURVATURE } from '../core/body-volume.js';
-import { transform } from '../core/math.js';
-import { viewPoint } from './eye-projection.js';
 const SIDES = 8;
 const WRAP_RINGS = 40;
-const CLEARANCE = .002;
 const empty = () => ({ points: [], indices: [], mainIndexCount: 0 });
 /** A rounded, closed cloth cross-section; its thickness does not depend on the body. */
-function ribbon(mesh, rings, vertical = false) {
+function ribbon(mesh, rings, vertical = false, surface) {
     const start = mesh.points.length;
     for (let i = 0; i < rings.length; i++) {
         const ring = rings[i], before = rings[Math.max(0, i - 1)].center, after = rings[Math.min(rings.length - 1, i + 1)].center;
@@ -16,8 +13,9 @@ function ribbon(mesh, rings, vertical = false) {
         for (let j = 0; j < SIDES; j++) {
             const angle = j / SIDES * Math.PI * 2, u = Math.cos(angle), v = Math.sin(angle);
             const twist = ring.twist ?? 0, c = Math.cos(twist), s = Math.sin(twist);
-            mesh.points.push([ring.center[0] + across[0] * ring.width * u * c - ring.thickness * v * s, ring.center[1] + across[1] * ring.width * u,
-                ring.center[2] + ring.width * u * s + ring.thickness * v * c + ring.fold * (u * u - .5)]);
+            const x = ring.center[0] + across[0] * ring.width * u * c, y = ring.center[1] + across[1] * ring.width * u;
+            const z = Math.max(ring.center[2] + ring.width * u * s + ring.fold * (u * u - .5), (surface?.(x, y) ?? -Infinity) + ring.thickness + .003);
+            mesh.points.push([x - ring.thickness * v * s, y, z + ring.thickness * v * c]);
         }
     }
     for (let i = 0; i < rings.length - 1; i++)
@@ -25,221 +23,124 @@ function ribbon(mesh, rings, vertical = false) {
             const a = start + i * SIDES + j, b = a + SIDES, c = start + i * SIDES + (j + 1) % SIDES, d = c + SIDES;
             mesh.indices.push(a, c, b, c, d, b);
         }
-    const first = mesh.points.push([...rings[0].center]) - 1, last = mesh.points.push([...rings[rings.length - 1].center]) - 1;
+    const cap = (offset) => [0, 1, 2].map(k => mesh.points.slice(offset, offset + SIDES).reduce((sum, p) => sum + p[k], 0) / SIDES);
+    const first = mesh.points.push(cap(start)) - 1, last = mesh.points.push(cap(start + (rings.length - 1) * SIDES)) - 1;
     for (let j = 0; j < SIDES; j++)
         mesh.indices.push(first, start + (j + 1) % SIDES, start + j, last, start + (rings.length - 1) * SIDES + j, start + (rings.length - 1) * SIDES + (j + 1) % SIDES);
 }
-function append(mesh, part) {
-    const offset = mesh.points.length;
-    mesh.points.push(...part.points);
-    mesh.indices.push(...part.indices.map(index => index + offset));
-}
-/** Height-local support envelopes of the actual inflated contour. Their smooth
- * vertical footprint bridges notches like tensioned cloth and remains continuous
- * through morphs. Analytic raw-equator extrema retain even sub-grid-width lobes. */
-function perimeterSection(contour, scales, pivot, pose, size, y, precise) {
-    const footprint = precise ? .005 : .065;
-    const flat = Math.abs(pose[8]) + Math.abs(pose[9]) < 1e-12;
-    const count = flat ? 2 : WRAP_RINGS, delta = Math.PI * 2 / count;
-    const lower = y - footprint * size, upper = y + footprint * size, strength = (precise ? 100 : 18) / size;
-    // The unrotated equator is a line in each XZ section. Solve its two signed
-    // X supports once, rather than repeating the same extrema in 40 directions.
-    const normals = flat ? [[1, 0], [-1, 0]] : Array.from({ length: count }, (_, i) => [Math.sin((i + .5) * delta), Math.cos((i + .5) * delta)]);
-    const supports = Array(count).fill(-Infinity);
-    const projected = contour.points.map(([px, py]) => {
-        const x = px * scales[0] - pivot[0], y = py * scales[1] - pivot[1];
-        return [x * pose[0] + y * pose[1], x * pose[4] + y * pose[5], x * pose[8] + y * pose[9]];
+const CLOTH_LENGTH = 2.05;
+const CLOTH_WIDTH = .15;
+const CLOTH_THICKNESS = .012;
+const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+const lengthOf = (points, closed = false) => points.reduce((sum, p, i) => sum + (i || closed ? distance(p, points[(i + points.length - 1) % points.length]) : 0), 0);
+/** An actual body section; only its placement changes to accommodate the same
+ * finite scarf. No section perimeter is used as an accessory scale. */
+function bodySection(contour, scales, angle, level, garmentScale, bounds, samples = 64) {
+    const c = Math.cos(angle), s = Math.sin(angle), delta = Math.PI * 2 / WRAP_RINGS;
+    const points = [];
+    const [left, right] = bounds;
+    points.push([left, 0], [right, 0]);
+    for (let i = 0; i <= samples; i++) {
+        const x = left + (right - left) * i / samples, wx = c * x - s * level, wy = s * x + c * level;
+        const px = wx / scales[0], py = wy / scales[1], d = contourSignedDistanceExact(contour, px, py);
+        if (d < 0)
+            continue;
+        const z = d > 0 ? Math.sqrt(d / (d + VOLUME_CURVATURE * (px * px + py * py))) * scales[2] : 0;
+        points.push([x, z], [x, -z]);
+    }
+    const supports = Array.from({ length: WRAP_RINGS }, (_, i) => {
+        const angle = (i + .5) * delta, nx = Math.sin(angle), nz = Math.cos(angle);
+        return Math.max(...points.map(p => p[0] * nx + p[1] * nz)) + (CLOTH_THICKNESS / 2 + .001) * garmentScale;
     });
-    for (let i = 0; i < projected.length; i++) {
-        const a = projected[i], b = projected[(i + 1) % projected.length], dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
-        const cuts = [0, 1];
-        if (Math.abs(dy) > 1e-12)
-            for (const edge of [lower, upper]) {
-                const t = (edge - a[1]) / dy;
-                if (t > 0 && t < 1)
-                    cuts.push(t);
-            }
-        cuts.sort((a, b) => a - b);
-        for (let interval = 0; interval < cuts.length - 1; interval++) {
-            const from = cuts[interval], to = cuts[interval + 1], middleY = a[1] + dy * (from + to) / 2;
-            const rate = middleY < lower ? strength * dy : middleY > upper ? -strength * dy : 0;
-            const weight = (t) => Math.exp(-strength * Math.max(0, lower - a[1] - dy * t, a[1] + dy * t - upper));
-            const fromWeight = weight(from), toWeight = weight(to);
-            for (let j = 0; j < count; j++) {
-                const [nx, nz] = normals[j], origin = a[0] * nx + a[2] * nz, slope = dx * nx + dz * nz;
-                let maximum = Math.max((origin + slope * from) * fromWeight, (origin + slope * to) * toWeight);
-                if (Math.abs(rate * slope) > 1e-14) {
-                    const t = -(slope + rate * origin) / (rate * slope);
-                    if (t > from && t < to)
-                        maximum = Math.max(maximum, (origin + slope * t) * weight(t));
-                }
-                supports[j] = Math.max(supports[j], maximum);
-            }
-        }
-    }
-    if (flat)
-        return Array.from({ length: WRAP_RINGS }, (_, i) => {
-            const nx = Math.sin((i + .5) / WRAP_RINGS * Math.PI * 2);
-            return Math.abs(nx) * supports[nx >= 0 ? 0 : 1];
-        });
-    return supports;
-}
-function wrapSupports(chart, boundary, y, size, precise) {
-    const footprint = precise ? .005 : .065;
-    const supports = [...boundary], lower = y - footprint * size, upper = y + footprint * size;
-    const normals = Array.from({ length: WRAP_RINGS }, (_, i) => {
-        const angle = (i + .5) / WRAP_RINGS * Math.PI * 2;
-        return [Math.sin(angle), Math.cos(angle)];
+    const polygon = Array.from({ length: WRAP_RINGS }, (_, i) => {
+        const before = (i - .5) * delta, after = (i + .5) * delta, a = supports[(i + WRAP_RINGS - 1) % WRAP_RINGS], b = supports[i];
+        const determinant = Math.sin(before - after);
+        const x = (a * Math.cos(after) - b * Math.cos(before)) / determinant;
+        const z = (Math.sin(before) * b - Math.sin(after) * a) / determinant;
+        return [c * x - s * level, s * x + c * level, z];
     });
-    for (const p of chart) {
-        const weight = Math.exp(-(precise ? 100 : 18) * Math.max(0, lower - p[1], p[1] - upper) / size);
-        for (let i = 0; i < WRAP_RINGS; i++)
-            supports[i] = Math.max(supports[i], weight * (p[0] * normals[i][0] + p[2] * normals[i][1]));
-    }
-    return supports;
+    const center = [c * (left + right) / 2 - s * level, s * (left + right) / 2 + c * level, 0];
+    return { points: polygon, length: lengthOf(polygon, true), center };
 }
-/** One continuous rigid offset for both free ends and their knot. */
-function hangingLift(points, chart) {
-    const minX = Math.min(...points.map(p => p[0])), maxX = Math.max(...points.map(p => p[0]));
-    const minY = Math.min(...points.map(p => p[1])), maxY = Math.max(...points.map(p => p[1]));
-    const minZ = Math.min(...points.map(p => p[2]));
-    let front = -Infinity;
-    for (const p of chart) {
-        const distance = Math.max(0, minX - p[0], p[0] - maxX) + Math.max(0, minY - p[1], p[1] - maxY);
-        front = Math.max(front, p[2] - 3 * distance);
+/** Push a cloth sample out along the actual implicit surface normal. This
+ * preserves side contact at the vertical equator instead of lifting in Z. */
+function exterior(point, contour, scales, clearance) {
+    const p = [...point], h = .008;
+    let direction;
+    for (let iteration = 0; iteration < 4; iteration++) {
+        const x = p[0] / scales[0], y = p[1] / scales[1], z = p[2] / scales[2];
+        const d = contourSignedDistanceExact(contour, x, y);
+        if (d <= 0)
+            break;
+        const square = z * z, f = square * (d + VOLUME_CURVATURE * (x * x + y * y)) - d;
+        const dx = (contourSignedDistanceExact(contour, x + h, y) - contourSignedDistanceExact(contour, x - h, y)) / (2 * h);
+        const dy = (contourSignedDistanceExact(contour, x, y + h) - contourSignedDistanceExact(contour, x, y - h)) / (2 * h);
+        const g = [(dx * (square - 1) + 2 * VOLUME_CURVATURE * x * square) / scales[0], (dy * (square - 1) + 2 * VOLUME_CURVATURE * y * square) / scales[1], 2 * z * (d + VOLUME_CURVATURE * (x * x + y * y)) / scales[2]];
+        const magnitude = Math.hypot(...g);
+        const target = clearance * Math.min(1, d / .015);
+        if (magnitude < .00001 || f / magnitude >= target)
+            break;
+        direction ??= g.map(v => v / Math.max(.1, magnitude));
+        const step = Math.min(.06, target - f / magnitude);
+        for (let k = 0; k < 3; k++)
+            p[k] += step * direction[k];
     }
-    return Math.max(0, front + .014 - minZ) + CLEARANCE;
+    return p;
 }
-/** Broad, thin cloth with a fitted section at every height, and a closed rear. */
-function wrap(mesh, sections, size, precise) {
-    const centers = [], delta = Math.PI * 2 / WRAP_RINGS;
-    const heights = [1, .9, 0, -.9, -1, -.9, 0, .9];
-    const thickness = [0, 1, 1, 1, 0, -1, -1, -1];
+/** A consistent visual cloth width and finite hanging surplus, with bounded
+ * local wrap adaptation. Camera and frame history never affect placement. */
+export function drapedScarf(_center, scale, contour, scales, rotation = [0, 0, 0], fit = [0, -.65, -.35, .35]) {
+    const [canonicalAngle, canonicalLevel, left, right] = fit;
+    const nc = Math.cos(canonicalAngle), ns = Math.sin(canonicalAngle);
+    const normalLength = Math.hypot(ns / scales[0], nc / scales[1]);
+    const angle = Math.atan2(ns / scales[0], nc / scales[1]), level = canonicalLevel / normalLength;
+    const localX = (x) => Math.cos(angle) * (nc * x - ns * canonicalLevel) * scales[0] + Math.sin(angle) * (ns * x + nc * canonicalLevel) * scales[1];
+    const section = bodySection(contour, scales, angle, level, scale, [localX(left), localX(right)]), mesh = empty();
+    const middle = section.points;
+    const radialAt = (phase) => [Math.cos(angle) * Math.sin(phase), Math.sin(angle) * Math.sin(phase), Math.cos(phase)];
+    // A worn loop stays seated. Internal pose rotation flexes the free cloth
+    // around its sewn root, rather than spinning a fitted loop through the body.
+    const bendX = .12 * Math.sin(rotation[2]), bendZ = .10 * Math.sin(rotation[1]);
+    const twistPose = .35 * Math.sin(rotation[0]) + .25 * Math.sin(rotation[2]);
+    const heights = [1, .5, 0, -.5, -1, -.5, 0, .5], thickness = [0, 1, 1, 1, 0, -1, -1, -1];
+    const norm = (v) => { const d = Math.hypot(...v) || 1; return v.map(x => x / d); };
+    const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
     for (let i = 0; i < WRAP_RINGS; i++) {
-        const angle = i * delta;
+        const p = middle[i], previous = middle[(i + WRAP_RINGS - 1) % WRAP_RINGS], next = middle[(i + 1) % WRAP_RINGS];
+        const tangent = norm(next.map((v, k) => v - previous[k]));
+        const x = p[0] / scales[0], y = p[1] / scales[1], z = p[2] / scales[2], h = .008;
+        const d = Math.max(0, contourSignedDistanceExact(contour, x, y));
+        const dx = (contourSignedDistanceExact(contour, x + h, y) - contourSignedDistanceExact(contour, x - h, y)) / (2 * h);
+        const dy = (contourSignedDistanceExact(contour, x, y + h) - contourSignedDistanceExact(contour, x, y - h)) / (2 * h);
+        const gradient = [(dx * (z * z - 1) + 2 * VOLUME_CURVATURE * x * z * z) / scales[0], (dy * (z * z - 1) + 2 * VOLUME_CURVATURE * y * z * z) / scales[1], 2 * z * (d + VOLUME_CURVATURE * (x * x + y * y)) / scales[2]];
+        const phase = i / WRAP_RINGS * Math.PI * 2;
+        const radial = radialAt(phase);
+        const radialGradient = gradient.reduce((sum, v, k) => sum + v * radial[k], 0);
+        const bias = Math.max(.02, .2 * Math.hypot(...gradient) - radialGradient);
+        const outward = norm(gradient.map((v, k) => v + bias * radial[k]));
+        const across = norm(cross(outward, tangent));
         for (let j = 0; j < SIDES; j++) {
-            const fittedHeight = heights[j] - 1.06 * Math.pow(Math.max(0, Math.cos(angle)), 4);
-            const section = (height, k) => {
-                const index = Math.max(0, Math.min(sections.length - 1.000001, (height + 2.75) * 4));
-                const lo = Math.floor(index), t = index - lo;
-                return sections[lo][k] * (1 - t) + sections[lo + 1][k] * t;
-            };
-            const padding = precise ? .004 + .004 * size : .019 + .008 * size;
-            let radius = Infinity;
-            for (let k = 0; k < WRAP_RINGS; k++) {
-                const cosine = Math.cos((k + .5) * delta - angle);
-                if (cosine > 1e-6) {
-                    let support = section(fittedHeight, k);
-                    if (thickness[j] !== 0)
-                        support = Math.max(support, section(fittedHeight - .42, k), section(fittedHeight + .42, k));
-                    radius = Math.min(radius, (support + padding) / cosine);
-                }
-            }
-            radius += thickness[j] > 0 ? (.014 + .014 * Math.pow(Math.abs(Math.sin(angle)), 8)) * size + .003 : thickness[j] < 0 ? -.004 * size : j === 4 ? .004 * size * Math.pow(Math.abs(Math.sin(angle)), 8) : 0;
-            const x = radius * Math.sin(angle), z = radius * Math.cos(angle);
-            mesh.points.push([x, size * (.095 * fittedHeight - .015), z]);
+            const q = exterior(p.map((v, k) => v + across[k] * CLOTH_WIDTH / 2 * scale * heights[j]), contour, scales, .009 * scale);
+            mesh.points.push(q.map((v, k) => v + outward[k] * CLOTH_THICKNESS / 2 * scale * thickness[j]));
         }
-        const outer = mesh.points[i * SIDES + 2], inner = mesh.points[i * SIDES + 6];
-        centers.push([(outer[0] + inner[0]) / 2, outer[1], (outer[2] + inner[2]) / 2]);
     }
     for (let i = 0; i < WRAP_RINGS; i++)
         for (let j = 0; j < SIDES; j++) {
-            const a = i * SIDES + j, b = ((i + 1) % WRAP_RINGS) * SIDES + j;
-            const c = i * SIDES + (j + 1) % SIDES, d = ((i + 1) % WRAP_RINGS) * SIDES + (j + 1) % SIDES;
+            const a = i * SIDES + j, b = ((i + 1) % WRAP_RINGS) * SIDES + j, c = i * SIDES + (j + 1) % SIDES, d = ((i + 1) % WRAP_RINGS) * SIDES + (j + 1) % SIDES;
             mesh.indices.push(a, c, b, c, d, b);
         }
-    return centers;
-}
-/**
- * One cloth loop actually encircles the lower body, including both sides and
- * rear. Its convex support envelope bridges concave notches like tensioned
- * fabric. Two free tails retain their authored gravity drape and volume;
- * their clearance is one shared rigid translation, never vertex body-hugging.
- */
-export function drapedScarf(center, size, contour, scales, rotation = [0, 0, 0]) {
-    const pivot = [center[0], center[1] + .025 * size, 0], pose = transform(pivot, rotation);
-    const chart = [];
-    const local = (px, py, z) => {
-        const x = px * scales[0] - pivot[0], y = py * scales[1] - pivot[1];
-        return [x * pose[0] + y * pose[1] + z * pose[2], x * pose[4] + y * pose[5] + z * pose[6], x * pose[8] + y * pose[9] + z * pose[10]];
+    const surface = (wx, wy) => {
+        const x = wx / scales[0], y = wy / scales[1], d = contourSignedDistanceExact(contour, x, y);
+        return d > 0 ? Math.sqrt(d / (d + VOLUME_CURVATURE * (x * x + y * y))) * scales[2] : -Infinity;
     };
-    for (let row = 0; row <= 48; row++)
-        for (let col = 0; col <= 48; col++) {
-            const px = (col / 48 * 2 - 1) * 1.02, py = (row / 48 * 2 - 1) * 1.02, distance = contourSignedDistanceExact(contour, px, py);
-            const d = Math.max(0, distance), height = d > 0 ? Math.sqrt(d / (d + VOLUME_CURVATURE * (px * px + py * py))) * scales[2] : 0;
-            const weight = Math.exp(-24 * Math.max(0, -distance));
-            for (const z of [height, -height]) {
-                const p = local(px, py, z);
-                chart.push([p[0] * weight, p[1], p[2] * weight]);
-            }
-        }
-    const precise = rotation.every(value => Math.abs(value) < 1e-10);
-    const sections = Array.from({ length: 18 }, (_, index) => {
-        const y = size * (.095 * (index / 4 - 2.75) - .015);
-        let sectionChart = chart;
-        if (precise) {
-            sectionChart = [];
-            const py = (y + pivot[1]) / scales[1];
-            for (let i = 0; i <= 96; i++) {
-                const px = i / 48 - 1, d = contourSignedDistanceExact(contour, px, py);
-                if (d < 0)
-                    continue;
-                const z = d > 0 ? Math.sqrt(d / (d + VOLUME_CURVATURE * (px * px + py * py))) * scales[2] : 0;
-                sectionChart.push(local(px, py, z), local(px, py, -z));
-            }
-        }
-        return wrapSupports(sectionChart, perimeterSection(contour, scales, pivot, pose, size, y, precise), y, size, precise);
-    });
-    const initial = empty(), centers = wrap(initial, sections, size, precise);
-    // The upper seam touches the inflated body instead of inheriting the convex
-    // envelope's clearance. The cloth below remains broad and softly tensioned.
-    if (precise)
-        for (let ring = 0; ring < WRAP_RINGS; ring++) {
-            const point = initial.points[ring * SIDES];
-            const px = (point[0] + pivot[0]) / scales[0], py = (point[1] + pivot[1]) / scales[1];
-            const d = contourSignedDistanceExact(contour, px, py);
-            if (d > 0) {
-                const z = Math.sqrt(d / (d + VOLUME_CURVATURE * (px * px + py * py))) * scales[2];
-                const t = Math.min(1, d / .015), contact = t * t * (3 - 2 * t);
-                point[2] += (Math.sign(point[2]) * Math.max(0, z - .001) - point[2]) * contact;
-            }
-        }
-    const [joinX, joinY, joinZ] = centers[2];
-    const tails = empty();
-    for (const [offset, length, drift, phase] of [[-.058, .32, -.035, 0], [.060, .38, .020, 1]]) {
-        ribbon(tails, Array.from({ length: 13 }, (_, i) => {
-            const v = i / 12;
-            return { center: [joinX + size * (offset + drift * v + .008 * Math.sin(Math.PI * v)), joinY + size * (.015 - length * v),
-                    joinZ + size * (.018 + .008 * phase + .030 * v + .014 * Math.sin(Math.PI * v))],
-                twist: (phase ? -.42 : .38) * Math.sin(Math.PI * v / 2),
-                width: size * (.067 - .009 * v + .003 * Math.sin(Math.PI * v)), thickness: .010 * size, fold: size * (.010 + .008 * Math.sin(Math.PI * v + phase)) };
-        }), true);
+    const join = middle[1], free = Math.max(.68 * scale, Math.min(.85 * scale, CLOTH_LENGTH * scale - lengthOf(middle, true)));
+    for (const [offset, fraction, phase] of [[-.028, .44, 0], [.028, .56, 1]]) {
+        const path = Array.from({ length: 13 }, (_, i) => { const v = i / 12; return [(phase ? .13 : -.10) * v + .025 * Math.sin(Math.PI * v) + bendX * v * v, -v, .12 * v + .04 * Math.sin(Math.PI * v) + bendZ * v * v]; });
+        const unit = lengthOf(path), length = free * fraction;
+        ribbon(mesh, path.map((p, i) => ({ center: [join[0] + offset * scale + p[0] * length / unit, join[1] + .006 * scale + p[1] * length / unit, join[2] + .013 * scale + p[2] * length / unit],
+            width: CLOTH_WIDTH / 2 * scale * (1 - .08 * i / 12), thickness: CLOTH_THICKNESS / 2 * scale, fold: .006 * scale, twist: ((phase ? -.36 : .32) + twistPose) * Math.sin(i / 12 * Math.PI / 2) })), true, surface);
     }
-    const knot = empty();
-    ribbon(knot, Array.from({ length: 7 }, (_, i) => {
-        const v = i / 6, bulge = Math.sin(Math.PI * v);
-        return { center: [joinX, joinY + size * (.045 - .097 * v), joinZ + size * (.017 + .010 * bulge)],
-            width: size * (.075 + .012 * bulge), thickness: size * (.014 + .006 * bulge), fold: .006 * size };
-    }), true);
-    const hanging = empty();
-    append(hanging, tails);
-    append(hanging, knot);
-    const lift = hangingLift(hanging.points, chart);
-    const mesh = initial;
-    // The cloth gathers locally into the knot. Unlike a front-wide envelope
-    // extension this leaves the rest of the band seated against the actual body.
-    for (let ring = 0; ring < WRAP_RINGS; ring++) {
-        const distance = Math.min(Math.abs(ring - 2), WRAP_RINGS - Math.abs(ring - 2));
-        const gather = Math.exp(-distance * distance / 8);
-        for (let j = 0; j < SIDES; j++)
-            mesh.points[ring * SIDES + j][2] += lift * gather;
-    }
-    for (const part of [tails, knot])
-        for (const point of part.points)
-            point[2] += lift;
-    append(mesh, tails);
     mesh.mainIndexCount = mesh.indices.length;
-    append(mesh, knot);
-    mesh.points = mesh.points.map(point => viewPoint(pose, point));
+    ribbon(mesh, Array.from({ length: 7 }, (_, i) => { const v = i / 6; return { center: [join[0], join[1] + (.035 - .07 * v) * scale, join[2] + .012 * scale], width: (.048 + .009 * Math.sin(Math.PI * v)) * scale, thickness: .016 * scale, fold: .003 * scale }; }), true, surface);
     return mesh;
 }

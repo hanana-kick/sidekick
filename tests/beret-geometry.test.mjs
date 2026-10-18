@@ -83,6 +83,24 @@ test('all 35 berets keep a compact inclined wearing region and connected cuff', 
   }
 });
 
+test('felt deformation stays near heart proportions while flexing to local support', () => {
+  const reference=beretGeometry(createDesign({body:{shape:'heart'}}).body,createAccessory('beret'));
+  const pairs=[];
+  const count=reference.vertices.length/6;
+  for(let i=0;i<count;i+=11) for(const offset of [1,17,64,197]) pairs.push([i,(i+offset)%count]);
+  const distance=(mesh,a,b)=>Math.hypot(...[0,1,2].map(k=>mesh.vertices[a*6+k]-mesh.vertices[b*6+k]));
+  const expected=pairs.map(([a,b])=>distance(reference,a,b));
+  for(const shape of MATERIAL_SHAPE_NAMES)for(const squash of [.88,1,1.12]){
+    const mesh=beretGeometry(createDesign({body:{shape}}).body,createAccessory('beret'),squash);
+    assert.deepEqual(mesh.indices,reference.indices);
+    for(let i=0;i<pairs.length;i++){
+      const delta=distance(mesh,...pairs[i])-expected[i];
+      assert.ok(delta>=-.141&&delta<=(shape==='boom'?.135:.071),shape+' bounded local felt deformation '+i+': '+delta);
+    }
+    if(shape==='circle'&&squash===1)assert.ok(pairs.some(([a,b],i)=>Math.abs(distance(mesh,a,b)-expected[i])>.005),'cuff actually flexes; rigid pose alone is insufficient');
+  }
+});
+
 test('heart beret embraces the right lobe and preserves the opposite lobe', () => {
   const mesh=beretGeometry(createDesign({body:{shape:'heart'}}).body,createAccessory('beret'));
   const cuff=Array.from({length:64},(_,i)=>point(mesh,64+i));

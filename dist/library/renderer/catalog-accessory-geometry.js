@@ -186,7 +186,7 @@ export function catalogAccessoryGeometry(body, accessory, squash = 1, contourOve
     const height = (x, y) => contourVolumeHeight(contour, x / scales[0], y / scales[1]) * scales[2];
     let mesh;
     if (accessory.preset === 'scarf') {
-        mesh = drapedScarf(frame.position, size, contour, scales, rotation);
+        mesh = drapedScarf(frame.position, accessory.scale, contour, scales, rotation, profile.scarfFit);
     }
     else if (accessory.preset === 'necklace') {
         mesh = necklacePattern(frame.position, size, height);
