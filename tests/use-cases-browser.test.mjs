@@ -87,6 +87,8 @@ for (const viewport of [{width:1280,height:900},{width:390,height:844},{width:32
   await page.selectOption('#task-result','error');await page.locator('#task-submit').click();await page.waitForFunction(()=>document.querySelector('#event-status').textContent.includes('작업 실패'));await shot('08-task-error');
   await page.locator('#case-events summary').click();await page.locator('#code-events').scrollIntoViewIfNeeded();await shot('09-code');
   assert.match(await page.locator('#code-events').textContent(),/function connectTaskEvents/);
+  await page.locator('#case-events [data-close-code]').click();await shot('10-back-to-task');
+  assert.ok(await page.locator('#task-submit').isVisible());assert.equal(await page.locator('#task-name').inputValue(),'파일 정리');
   assert.ok(await page.locator('[data-start="viewport"]').isVisible());
  });
 }

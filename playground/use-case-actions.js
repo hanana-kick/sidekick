@@ -1,7 +1,7 @@
 /** Self-contained examples: these exact functions execute live and appear in copyable snippets. */
 export function dockInViewport(bot) {
   bot.placement = 'viewport';
-  return bot.moveTo({ x: Math.max(0, innerWidth - bot.offsetWidth - 20), y: Math.max(0, innerHeight - bot.offsetHeight - 78) });
+  return bot.moveTo({ x: Math.max(0, innerWidth - bot.offsetWidth - 20), y: Math.max(0, innerHeight - bot.offsetHeight - 20) });
 }
 export function sectionDestination(bot, section, point) {
   const maxX = Math.max(0, section.clientWidth - bot.offsetWidth);

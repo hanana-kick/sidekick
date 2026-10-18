@@ -67,7 +67,7 @@ async function activate(kind) {
   bot.interaction = 'none';
   const signal = controller.signal;
   if (kind === 'viewport') {
-    await bot.moveTo({ x: Math.max(0, innerWidth - bot.offsetWidth - 20), y: Math.max(0, innerHeight - bot.offsetHeight - 78) }, { duration: 0 });
+    await bot.moveTo({ x: Math.max(0, innerWidth - bot.offsetWidth - 20), y: Math.max(0, innerHeight - bot.offsetHeight - 20) }, { duration: 0 });
     window.addEventListener('resize', () => { if (bot.presenceState !== 'hidden') void dockInViewport(bot); }, { signal });
   } else if (kind === 'section') {
     const section = $('section-area');
@@ -133,6 +133,13 @@ $('anchor-move').addEventListener('click', () => {
 $('event-success').addEventListener('click', () => { if (active?.kind === 'events') $('event-target').dispatchEvent(new CustomEvent('demo-task', { detail: { state: 'success' } })); });
 // Inactive form never navigates away, even when Enter is pressed in a field.
 $('demo-form').addEventListener('submit', event => event.preventDefault());
+for (const details of document.querySelectorAll('.case details')) {
+  const tools = document.createElement('div'); tools.className = 'code-tools';
+  const back = document.createElement('button'); back.type = 'button'; back.textContent = '예제로 돌아가기 ↑'; back.dataset.closeCode = '';
+  back.addEventListener('click', () => { details.open = false; details.closest('.case').scrollIntoView({ block: 'start', behavior: 'instant' }); });
+  tools.append(details.querySelector('[data-copy]'), back);
+  details.insertBefore(tools, details.querySelector('pre'));
+}
 for (const button of document.querySelectorAll('[data-copy]')) button.addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(codes[button.dataset.copy]); button.textContent = '복사됨'; }
   catch { button.textContent = '복사 권한이 없습니다 · 위 코드를 선택하세요'; }
