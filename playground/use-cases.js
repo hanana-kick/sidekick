@@ -5,6 +5,9 @@ import { loadStudioSession, applyStudioSession } from './studio-session.ts';
 import { dockInViewport, sectionDestination, alignWithElement, connectTaskEvents } from './use-case-actions.js';
 const $ = id => document.getElementById(id);
 mountSiteHeader($('site-header-brand'), 'usecases');
+const header = document.querySelector('.app-header');
+const headerObserver = new ResizeObserver(() => document.documentElement.style.setProperty('--header-height', `${header.getBoundingClientRect().height}px`));
+headerObserver.observe(header);
 let storage; try { storage = localStorage; } catch {}
 const session = loadStudioSession(storage);
 $('session-status').textContent = session.message;
@@ -134,7 +137,7 @@ for (const button of document.querySelectorAll('[data-copy]')) button.addEventLi
   try { await navigator.clipboard.writeText(codes[button.dataset.copy]); button.textContent = '복사됨'; }
   catch { button.textContent = '복사 권한이 없습니다 · 위 코드를 선택하세요'; }
 });
-window.addEventListener('pagehide', stop);
+window.addEventListener('pagehide', () => { stop(); headerObserver.disconnect(); });
 document.addEventListener('visibilitychange', () => { if (active) active.bot.paused = document.hidden || active.visible === false || session.scene.paused; });
 
 $('anchor-detach').addEventListener('click', () => { if (active?.kind !== 'anchor') return; active.bot.detachAnchor(); $('anchor-status').textContent = '연결 해제 · 현재 화면 위치에 머뭅니다.'; });
