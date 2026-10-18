@@ -380,9 +380,13 @@ export class AvatarMovement {
             const desiredX = distance > 1e-9 ? dx / distance * desiredSpeed : 0;
             const desiredY = distance > 1e-9 ? dy / distance * desiredSpeed : 0;
             const dvx = desiredX - this.velocity.x, dvy = desiredY - this.velocity.y, dv = Math.hypot(dvx, dvy);
-            const braking = track.stopping || dvx * this.velocity.x + dvy * this.velocity.y < 0;
+            const projection = dvx * this.velocity.x + dvy * this.velocity.y;
+            const braking = track.stopping || projection < -1e-8;
             const limit = braking ? track.deceleration : track.acceleration;
-            const amount = dv > 0 ? Math.min(1, limit * dt / dv) : 0;
+            // A braking tick must not cross its minimum-speed point and spend the
+            // stronger braking budget accelerating in the opposite direction.
+            const brakeFraction = braking && dv > 0 ? Math.max(0, -projection / (dv * dv)) : 1;
+            const amount = dv > 0 ? Math.min(1, limit * dt / dv, brakeFraction) : 0;
             const oldX = this.velocity.x, oldY = this.velocity.y;
             this.velocity.x += dvx * amount;
             this.velocity.y += dvy * amount;

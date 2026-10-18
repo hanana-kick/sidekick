@@ -376,3 +376,33 @@ test('cancelling successful arrival during settling still resolves the active re
   assert.equal(f.controller.state.phase, 'settling'); f.controller.cancel(); f.controller.cancel(); finish(f);
   assert.deepEqual(await result, { finished: false, position: { x: 100, y: 0 } }); assert.equal(f.events.length, 1);
 });
+
+test('asymmetric braking cannot spend its stronger budget accelerating through a reversal', async () => {
+  const f = fixture(), old = f.controller.to({ x: 1000, y: 0 }, physics);
+  advance(f, 1000, 240); close(f.controller.state.velocity.x, 300);
+  const next = f.controller.to({ x: 100, y: 0 }, { maxSpeed: 300, acceleration: 1, deceleration: 100000 });
+  assert.equal((await old).finished, false);
+  f.at(f.now + 1000 / 240);
+  close(f.controller.state.velocity.x, 0, 1e-9, 'braking ends at zero instead of gaining reverse speed');
+  f.at(f.now + 1000 / 240);
+  assert.ok(f.controller.state.velocity.x < 0, 'acceleration resumes toward the reversed target');
+  close(f.controller.state.speed, 1 / 240, 1e-9, 'reverse speed uses acceleration budget');
+  close(f.controller.state.acceleration.x, -1, 1e-9);
+  finish(f); assert.deepEqual(await next, { finished: true, position: { x: 100, y: 0 } });
+});
+
+test('asymmetric braking through a perpendicular turn does not stall at its minimum-speed point', async () => {
+  const f = fixture(), old = f.controller.to({ x: 1000, y: 0 }, physics);
+  advance(f, 1000, 240); const start = f.controller.position;
+  const target = { x: start.x, y: 300 };
+  const next = f.controller.to(target, { maxSpeed: 300, acceleration: 60, deceleration: 100000 });
+  assert.equal((await old).finished, false);
+  f.at(f.now + 1000 / 240);
+  close(f.controller.state.velocity.x, 150, 1e-8);
+  close(f.controller.state.velocity.y, 150, 1e-8);
+  const first = f.controller.position;
+  advance(f, f.now + 100, 240);
+  assert.ok(f.controller.position.y > first.y + 1, 'turn keeps advancing');
+  finish(f, { hz: 240 }); assert.deepEqual(await next, { finished: true, position: target });
+  f.states.forEach(finiteState);
+});
