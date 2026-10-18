@@ -63,6 +63,9 @@ export declare class AvatarMovement {
     private sampling;
     private reporting;
     private track?;
+    private suspended;
+    private suspendedAt;
+    private followTiming;
     constructor(host: MovementHost);
     get position(): AvatarPosition;
     get state(): MovementState;
@@ -72,9 +75,12 @@ export declare class AvatarMovement {
     cancel(immediate?: boolean): void;
     /** Internal presence staging: hidden relocation, no synthetic successful movement event. */
     relocate(point: AvatarPosition): void;
-    /** Update a bound destination without replacing its promise or resetting inertia.
-     * Once idle, follow layout exactly without synthetic movement events. */
+    /** Retarget the existing request; subsequent follow journeys are silent and inertial. */
     followTarget(point: AvatarPosition): void;
+    /** Freeze clocks while out of view; retain momentum without wall-clock catch-up. */
+    suspend(value: boolean): void;
+    /** Detaching keeps the initial request, but brakes any later silent pursuit. */
+    stopFollowing(): void;
     /** Disconnect must not leave a detached element scheduling a presentation-only landing. */
     disconnect(): void;
     /** Clamp both current point and remaining target after viewport/element resizing, without restarting the clock. */

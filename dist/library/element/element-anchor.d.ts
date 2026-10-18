@@ -8,6 +8,8 @@ export interface ElementAnchorState {
 }
 interface Binding {
     read(): (() => void) | undefined;
+    idle(): boolean;
+    nextRead: number;
 }
-export declare function observeElementAnchor(document: Document, read: Binding['read']): () => void;
+export declare function observeElementAnchor(document: Document, read: Binding['read'], idle?: Binding['idle']): () => void;
 export {};

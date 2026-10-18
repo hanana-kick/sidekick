@@ -82,11 +82,14 @@ export class SidekickAvatar extends HTMLElementBase {
     anchorRevision = 0;
     anchorState = null;
     anchorCleanup;
+    anchorSleeping = false;
     /** Logical binding only: no reparenting, CSS positioning, or canvas changes. */
     get elementAnchor() { return this.anchorState ? { ...this.anchorState } : null; }
-    detachAnchor() { this.anchorRevision++; this.anchorCleanup?.(); this.anchorCleanup = undefined; this.anchorState = null; }
+    detachAnchor() { this.releaseAnchor(true); }
+    releaseAnchor(brake) { this.anchorRevision++; this.anchorCleanup?.(); this.anchorCleanup = undefined; this.anchorState = null; this.anchorSleeping = false; this.movement.suspend(false); if (brake)
+        this.movement.stopFollowing(); }
     attachAnchor(state) {
-        this.detachAnchor();
+        this.releaseAnchor(false);
         this.anchorState = state;
         this.anchorCleanup = observeElementAnchor(this.ownerDocument, () => {
             if (this.anchorState !== state)
@@ -104,8 +107,12 @@ export class SidekickAvatar extends HTMLElementBase {
             }
             // display:none has no layout origin: its zero rectangle must not be added
             // to the current translation repeatedly. Keep the binding for restoration.
-            if (!this.getClientRects().length || !state.target.getClientRects().length)
-                return;
+            if (!this.getClientRects().length || !state.target.getClientRects().length) {
+                return () => { this.anchorSleeping = true; this.movement.suspend(true); };
+            }
+            const view = this.ownerDocument.defaultView;
+            const inView = (rect) => rect.width > 0 && rect.height > 0 && rect.left + rect.width > 0 && rect.top + rect.height > 0 && rect.left < view.innerWidth && rect.top < view.innerHeight;
+            const rect = this.getBoundingClientRect();
             let point;
             try {
                 point = resolveElementTarget(this, this.position, state.target, { anchor: true, x: state.x, y: state.y, alignX: state.alignX, alignY: state.alignY }).position;
@@ -114,14 +121,22 @@ export class SidekickAvatar extends HTMLElementBase {
                 this.detachAnchor();
                 return;
             }
-            return () => { if (this.anchorState === state)
-                this.movement.followTarget(this.constrainPosition(point, true)); };
-        });
+            point = this.constrainPosition(point, true);
+            const goal = { left: rect.left + point.x - this.position.x, top: rect.top + point.y - this.position.y, width: rect.width, height: rect.height };
+            const sleeping = !inView(rect) && !inView(goal);
+            return () => {
+                if (this.anchorState !== state)
+                    return;
+                this.anchorSleeping = sleeping;
+                this.movement.suspend(sleeping || this.ownerDocument.hidden);
+                this.movement.followTarget(this.constrainPosition(point, true));
+            };
+        }, () => this.anchorSleeping);
     }
     presenceHidden = false;
     presence = new AvatarPresence({
         assertViewport: () => { if (this.placement !== 'viewport' || !this.connected)
-            throw new Error('enter/exit require a connected avatar with placement="viewport"'); this.detachAnchor(); },
+            throw new Error('enter/exit require a connected avatar with placement="viewport"'); this.releaseAnchor(false); },
         position: () => this.position,
         geometry: () => { const rect = this.getBoundingClientRect(), view = this.ownerDocument.defaultView; return { width: rect.width, height: rect.height, viewportWidth: view.innerWidth, viewportHeight: view.innerHeight, offsetX: rect.left - this.position.x, offsetY: rect.top - this.position.y }; },
         constrain: point => this.constrainPosition(point, true),
@@ -142,7 +157,7 @@ export class SidekickAvatar extends HTMLElementBase {
     /** Inline: offset from normal layout. Viewport: layout viewport top-left, CSS pixels. */
     get position() { return this.movement.position; }
     get movementState() { return this.movement.state; }
-    moveTo(position, options = {}) { const target = this.constrainPosition(validatePosition(position), true); validateMoveOptions(options); this.detachAnchor(); const revision = this.presence.reveal(); if (!this.presence.owns(revision))
+    moveTo(position, options = {}) { const target = this.constrainPosition(validatePosition(position), true); validateMoveOptions(options); this.releaseAnchor(false); const revision = this.presence.reveal(); if (!this.presence.owns(revision))
         return Promise.resolve({ finished: false, position: this.position }); return this.movement.to(target, options).then(result => { if (result.finished)
         this.presence.recovered(revision); return result; }); }
     /** Sample the target's viewport border-box and align matching anchors, then move with inertia. */
@@ -155,10 +170,10 @@ export class SidekickAvatar extends HTMLElementBase {
             this.attachAnchor(state);
         return result;
     }
-    moveBy(delta, options = {}) { validatePosition(delta); validateMoveOptions(options); this.detachAnchor(); const revision = this.presence.reveal(); if (!this.presence.owns(revision))
+    moveBy(delta, options = {}) { validatePosition(delta); validateMoveOptions(options); this.releaseAnchor(false); const revision = this.presence.reveal(); if (!this.presence.owns(revision))
         return Promise.resolve({ finished: false, position: this.position }); return this.movement.by(delta, options, point => this.constrainPosition(point, true)).then(result => { if (result.finished)
         this.presence.recovered(revision); return result; }); }
-    cancelMove() { this.detachAnchor(); const revision = this.presence.interrupt(); if (this.presence.owns(revision))
+    cancelMove() { this.releaseAnchor(false); const revision = this.presence.interrupt(); if (this.presence.owns(revision))
         this.movement.cancel(); }
     constrainPosition(point, presenceTarget = false) {
         if (!presenceTarget && this.presence?.bypassBounds)
@@ -526,16 +541,17 @@ export class SidekickAvatar extends HTMLElementBase {
         this.sizeObserver = new ResizeObserver(this.resize);
         this.sizeObserver.observe(this);
         this.visibilityObserver = new IntersectionObserver(entries => {
-            this.visible = entries[0]?.isIntersecting ?? false;
+            const entry = entries.at(-1);
+            this.visible = Boolean(entry?.isIntersecting && entry.intersectionRect.width > 0 && entry.intersectionRect.height > 0);
             this.updateMouseTracking();
             this.syncState();
-        });
+        }, { threshold: [0, Number.EPSILON] });
         this.visibilityObserver.observe(this);
         this.initializeRenderer();
     }
     disconnectedCallback() {
         this.connected = false;
-        this.detachAnchor();
+        this.releaseAnchor(false);
         this.presence.cancel();
         this.playback.disconnect();
         this.movement.disconnect();
@@ -968,7 +984,8 @@ export class SidekickAvatar extends HTMLElementBase {
     resetEyes() { this.validator.pose = structuredClone(this.currentPose); this.validator.setEyes({ left: this.configuration.eyes.left, right: this.configuration.eyes.right }); this.currentPose = structuredClone(this.validator.pose); }
     onMotionPreference = () => { this.reduced = this.media?.matches ?? false; if (this.reduced)
         this.movement.finish(); this.playback.policyChanged(); this.syncState(); };
-    onVisibility = () => { this.updateMouseTracking(); this.syncState(); };
+    onVisibility = () => { if (this.anchorState)
+        this.movement.suspend(this.ownerDocument.hidden || this.anchorSleeping); this.updateMouseTracking(); this.syncState(); };
     setGazeTarget(target) { this.gazeTarget = [...target]; this.syncState(); }
     updateMouseTracking() {
         const enabled = this.mouseTracking && !this.presenceHidden && this.isConnected && this.ready && this.visible && !this.ownerDocument.hidden;

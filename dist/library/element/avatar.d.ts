@@ -39,9 +39,11 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private anchorRevision;
     private anchorState;
     private anchorCleanup?;
+    private anchorSleeping;
     /** Logical binding only: no reparenting, CSS positioning, or canvas changes. */
     get elementAnchor(): ElementAnchorState | null;
     detachAnchor(): void;
+    private releaseAnchor;
     private attachAnchor;
     private presenceHidden;
     private presence;

@@ -55,6 +55,7 @@ export class RenderEngine {
     idleDrawElapsed = 0;
     rendererDelta = 0;
     dirty = true;
+    resizePending = false;
     disposed = false;
     frames = 0;
     revision = 0;
@@ -216,7 +217,9 @@ export class RenderEngine {
                     return;
                 }
                 Object.assign(this.state, { width, height, dpr });
-                this.renderer.resize(width, height, dpr);
+                // Hidden layout changes do not need GPU framebuffer reallocations. Keep
+                // only the latest size; the next visible draw or explicit capture applies it.
+                this.resizePending = true;
                 break;
             }
             case 'reset-tracking':
@@ -328,6 +331,10 @@ export class RenderEngine {
     render(force = false) {
         if (this.disposed || (!force && !this.dirty && !this.animated()))
             return;
+        if (this.resizePending) {
+            this.renderer.resize(this.state.width, this.state.height, this.state.dpr);
+            this.resizePending = false;
+        }
         const shape = this.shape.snapshot;
         const travel = this.state.reduced ? undefined : this.state.travel;
         const tracked = this.tracking.compose(this.timeline.pose);

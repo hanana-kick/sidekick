@@ -17,22 +17,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 버전을 고정하려면 릴리스 태그를 지정합니다.
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.8.0
+npm install https://github.com/hanana-kick/sidekick.git#v0.9.0
 ```
 
-빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.8.0`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.9.0`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
 
 npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. ESM과 일반 `<script>`용 JS, 전용 렌더링 worker를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
 
 ### GitHub Release에서 다운로드
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases)를 엽니다.
-2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.8.0.zip` 또는 `hanana-kick-sidekick-0.8.0.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
+2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.9.0.zip` 또는 `hanana-kick-sidekick-0.9.0.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
 3. 일반 HTML 사이트에서는 브라우저 ZIP을 풀고 아래 파일을 사이트의 정적 파일 디렉터리에 복사합니다. 동봉된 `START-HERE.txt`를 읽고 `esm.html`, `classic.html`, `react.html` 중 원하는 예제를 열면 됩니다. 예제의 `/vendor/sidekick/`은 **사용자 사이트의 경로**입니다. 배포 경로에 맞게 바꾸세요.
 
 | 빌드된 파일 | 용도 | 필요한 파일·의존성 |
 | --- | --- | --- |
-| `sidekick-browser-0.8.0.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
+| `sidekick-browser-0.9.0.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
 | `sidekick.js` | 브라우저 ESM. `import`와 `<script type="module">` 사용 | `sidekick.worker.js`를 같은 디렉터리에 유지 |
 | `sidekick.iife.js` | 일반 classic `<script>`. API는 `window.Sidekick` | `sidekick.worker.js`를 같은 디렉터리에 유지. `type="module"` 사용 안 함 |
 | `sidekick-react.js` | React 19용 ESM 컴포넌트 | `sidekick-element.js`·`sidekick-fallback.js`·`sidekick.worker.js`를 같은 디렉터리에 유지하고 `react` peer를 제공 |
@@ -40,7 +40,7 @@ npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.co
 | `sidekick-fallback.js` | worker를 사용할 수 없을 때 React 요소가 불러오는 렌더러 | 직접 import하지 않음. 나머지 파일과 같은 버전 사용 |
 | `sidekick.worker.js` | OffscreenCanvas 전용 worker | 브라우저 진입 파일 옆에 배치. 별도 script 태그로 불러오지 않음 |
 | `vendor/react.js`, `vendor/react-dom-client.js` | 브라우저 ZIP의 선택적 React 19/ReactDOM ESM | 아래 빌드 없는 React 예제용. import map으로 연결하며 React를 이미 제공하는 앱에는 불필요 |
-| `hanana-kick-sidekick-0.8.0.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
+| `hanana-kick-sidekick-0.9.0.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
 | `SHA256SUMS` | ZIP과 tarball의 다운로드 무결성 확인 | 같은 Release의 체크섬 파일 |
 
 ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보관하세요. **GitHub Release 자산은 다운로드한 뒤 본인 사이트에서 제공하세요.** 다운로드 URL은 브라우저 JS 호스팅용 URL이 아니며 자산 응답의 MIME·CORS 동작이 정적 호스팅과 다릅니다. 아래 예제의 `src`/`import`는 내려받은 파일을 제공하는 사이트 경로를 사용합니다.
@@ -52,7 +52,7 @@ ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보�
 Release에서 받은 tarball을 사용할 프로젝트에서 설치합니다. 이 명령은 Sidekick 소스를 컴파일하거나 Studio를 빌드하지 않습니다.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.8.0.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.9.0.tgz
 ```
 
 React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 마운트하는 `react-dom`도 사용자가 같은 버전으로 준비합니다. 코어만 쓰는 프로젝트에는 React가 필요 없습니다.
@@ -71,12 +71,12 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 
 ## CDN으로 빌드 없이 사용하기
 
-현재 CDN 권장 버전은 **0.8.0**입니다. 아래 URL은 GitHub 태그에 커밋된 **빌드 완료 JS**를 jsDelivr가 제공하므로 소스 빌드, npm 설치, npm 계정이 필요 없습니다. `main`, `latest`, 버전 범위 대신 **정확한 태그**를 고정하세요. 이전 `v0.2.7` 파일은 변경하지 않았습니다. 0.2.7도 같은 CDN 경로로 다운로드할 수 있지만, 다른 출처의 페이지에서는 worker 생성이 막혀 메인 스레드로 폴백하므로 신규 CDN 사용에는 위에 고정한 현재 버전을 사용하세요.
+현재 CDN 권장 버전은 **0.9.0**입니다. 아래 URL은 GitHub 태그에 커밋된 **빌드 완료 JS**를 jsDelivr가 제공하므로 소스 빌드, npm 설치, npm 계정이 필요 없습니다. `main`, `latest`, 버전 범위 대신 **정확한 태그**를 고정하세요. 이전 `v0.2.7` 파일은 변경하지 않았습니다. 0.2.7도 같은 CDN 경로로 다운로드할 수 있지만, 다른 출처의 페이지에서는 worker 생성이 막혀 메인 스레드로 폴백하므로 신규 CDN 사용에는 위에 고정한 현재 버전을 사용하세요.
 
 ### 일반 HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.8.0/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.9.0/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
@@ -88,7 +88,7 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.8.0/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.9.0/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -104,15 +104,15 @@ React와 ReactDOM은 동일한 19.3.1의 미리 빌드된 ESM을 제공합니다
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.8.0/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.8.0/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.9.0/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.9.0/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.8.0/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.9.0/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
@@ -1042,7 +1042,7 @@ API playground는 “기본 최고 속도 · 1350 CSS px/s”이 기본으로 �
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.8.0/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.9.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { maxSpeed: 320, acceleration: 900, deceleration: 1200 });
@@ -1079,7 +1079,7 @@ API playground는 “기본 최고 속도 · 1350 CSS px/s”이 기본으로 �
 <button id="flight-stop" type="button">활동 중단</button>
 <p id="flight-status" aria-live="off">idle</p>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.8.0/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.9.0/dist/browser/sidekick.js';
   const stage = document.getElementById('flight-stage');
   const bot = document.getElementById('flight-avatar');
   const status = document.getElementById('flight-status');
@@ -1226,8 +1226,10 @@ export function Example() {
 ```
 
 - `anchor: false`(기본값)는 호출 시점의 위치로 한 번 이동합니다. 이후 스크롤·레이아웃 변화는 따라가지 않습니다.
-- `anchor: true`는 선택한 정렬점과 오프셋을 계속 유지합니다. 최초 이동 중에는 같은 이동 요청의 목적지만 갱신하여 속도·가속도·Promise를 보존합니다. 도착 후에는 관성 없이 DOM 위치 변화에 바로 맞춥니다. 중첩 스크롤, 리사이즈, 레이아웃 변화, CSS/WAAPI transform을 반영합니다. 대상이 계속 움직이면 최초 이동 완료가 늦어질 수 있습니다. 봇 또는 대상이 `display: none`으로 레이아웃에서 빠지면 연결을 유지한 채 추적을 일시 중지하고, 다시 표시될 때 정렬합니다.
-- 봇의 부모 DOM이나 CSS positioning은 바꾸지 않습니다. absolute/fixed/inline 배치는 그대로 두고 봇 자신의 이동 오프셋만 갱신합니다. `detachAnchor()`는 연결만 해제하고 진행 중인 최초 이동은 마지막 목적지까지 계속합니다. 이동까지 멈추려면 `cancelMove()`를 사용하세요.
+- `anchor: true`는 선택한 정렬점과 오프셋을 계속 유지합니다. 최초 이동 중에는 같은 이동 요청의 목적지만 갱신하여 속도·가속도·Promise를 보존합니다. 도착 후에도 같은 최대 속도·가속·감속 설정으로 목표를 자연스럽게 추격합니다. 목표가 갑자기 움직여도 봇 좌표를 순간적으로 맞추지 않습니다. 최초 도착 Promise와 이동 완료 이벤트는 한 번만 발생하며 이후 추격은 완료 이벤트를 반복하지 않습니다. 정지 상태에서는 0.5 CSS px 이하의 오차를 무시합니다. 중첩 스크롤, 리사이즈, 레이아웃 변화, CSS/WAAPI transform을 반영합니다. 대상이 계속 움직이면 최초 이동 완료가 늦어질 수 있습니다. 봇 또는 대상이 `display: none`으로 레이아웃에서 빠지면 연결을 유지한 채 추적을 일시 중지하고, 다시 표시될 때 정렬합니다.
+- 봇이 완전히 화면 밖으로 나가고 정렬된 목적지도 화면 밖이면 물리 이동과 렌더링을 유휴 상태로 둡니다. 현재 위치나 목적지가 다시 화면과 겹치면 관성을 유지하며 추격을 재개하고, 숨겨진 동안의 시간을 한꺼번에 적분하지 않습니다. 렌더링은 봇 자체가 화면과 겹칠 때만 재개됩니다. 앵커 위치 확인은 활성 상태에서 문서당 하나의 RAF로 묶고, 모든 연결이 유휴이면 250ms 간격으로 낮춥니다. 스크롤·리사이즈는 즉시 다음 프레임에서 확인하고 CSS transform만으로 복귀하는 경우도 최대 약 250ms 뒤 감지합니다. 숨겨진 탭에서는 위치 확인도 중지합니다. 따라서 완전히 화면 밖일 때 GPU 프레임은 멈추지만 복귀 감지를 위한 소량의 DOM 측정은 남습니다.
+- 렌더링은 지원 환경에서 OffscreenCanvas를 전송한 전용 worker의 WebGL2에서 수행합니다. 숨겨진 동안의 리사이즈는 모아서 다음 실제 렌더 시 적용합니다. 미지원·CSP 제한 환경은 메인 스레드 WebGL2 폴백을 사용합니다. DOM 위치 측정과 이동 좌표 갱신은 DOM 접근이 가능한 메인 스레드에 남습니다.
+- 봇의 부모 DOM이나 CSS positioning은 바꾸지 않습니다. absolute/fixed/inline 배치는 그대로 두고 봇 자신의 이동 오프셋만 갱신합니다. `detachAnchor()`는 연결을 해제하고 진행 중인 최초 이동은 마지막 목적지까지 계속합니다. 최초 도착 이후의 추격은 현재 관성으로 감속해 멈춥니다. 이동까지 멈추려면 `cancelMove()`를 사용하세요.
 - 다른 `moveTo / moveBy / moveToElement`, `cancelMove / enter / exit`, 봇 연결 해제 시 기존 앵커를 해제합니다. 대상 제거·다른 문서로 이동·지원하지 않는 조상 transform 변경 시 연결을 해제하며, 진행 중인 최초 이동은 마지막 유효 목적지까지 계속합니다. 봇 자신과 자손을 지속 앵커 대상으로 삼는 순환 배치는 거부합니다.
 - 활성 앵커들은 문서당 하나의 RAF에서 레이아웃을 읽고 그 다음 위치를 씁니다. 정지한 위치에는 다시 쓰지 않지만, observer가 감지하지 못하는 transform-only 애니메이션까지 추적하기 위해 연결 중에는 프레임별 측정 비용이 있습니다. 문서가 숨겨지면 중지하고 마지막 연결 해제 시 루프를 제거합니다. 필요한 동안만 연결하세요.
 - `inline`과 `viewport` 모두 현재 봇의 화면 위치를 기준으로 좌표를 변환합니다. 봇 자체의 CSS transform은 측정된 크기에 반영됩니다. 봇 자체의 CSS zoom은 지원하지 않으며 transform: scale()을 사용하세요. 봇 조상에 transform/rotate/scale/perspective/CSS zoom이 있으면 좌표 단위가 달라지므로 명시적으로 오류를 냅니다. 이 경우 봇을 변환 없는 body 바로 아래에 배치하세요.

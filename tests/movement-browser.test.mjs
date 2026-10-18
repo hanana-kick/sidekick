@@ -162,3 +162,32 @@ test('moving anchored target preserves one natural-flight completion', async t=>
   bot.detachAnchor();target.remove();return {result,completions,error:Math.hypot(b.left-a.left,b.top-a.top)};
  });assert.equal(result.result.finished,true);assert.equal(result.completions.length,1);assert.ok(result.error<.1,JSON.stringify(result));
 });
+
+for (const fallback of [false, true]) test(`settled anchor pursues moving targets with inertia and idles offscreen (${fallback ? 'fallback' : 'worker'})`, async t => {
+ const page=await browser.newPage({viewport:{width:900,height:800},reducedMotion:'no-preference'});
+ t.after(()=>page.close());
+ if(fallback) await page.addInitScript(()=>{window.Worker=class{constructor(){throw new Error('test fallback');}};});
+ await page.goto(`${base}/api-playground.html`);await page.waitForFunction(()=>document.getElementById('bot')?.ready);
+ const result=await page.evaluate(async()=>{
+  const bot=document.getElementById('bot');bot.placement='viewport';bot.movementBounds='none';bot.trackingMode='off';
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const target=document.createElement('div');target.style.cssText='position:fixed;left:200px;top:300px;width:100px;height:100px';document.body.append(target);
+  await bot.moveToElement(target,{anchor:true,duration:0});
+  const events=[];bot.addEventListener('sidekick-move-end',e=>events.push(e.detail));
+  const origin=bot.position;target.style.left='600px';await wait(100);const chasing=bot.position;
+  await wait(2300);const settled=bot.position;
+  target.style.left='1400px';await wait(2300);const sleeping=bot.position;
+  await wait(500);const still=bot.position;
+  // CSS-transform-only target reentry must wake the 4Hz observer without a scroll event.
+  target.style.transform='translateX(-1000px)';await wait(350);const waking=bot.position;
+  await wait(2500);const returned=bot.position;
+  const mode=bot.diagnostics.mode;bot.detachAnchor();target.remove();
+  return {origin,chasing,settled,sleeping,still,waking,returned,events,mode};
+ });
+ assert.ok(result.chasing.x>result.origin.x && result.chasing.x<400,JSON.stringify(result));
+ assert.ok(Math.abs(result.settled.x-600)<.6,JSON.stringify(result));
+ assert.ok(result.sleeping.x>=900 && result.sleeping.x<1400,JSON.stringify(result));
+ assert.deepEqual(result.still,result.sleeping);
+ assert.ok(result.waking.x>400,JSON.stringify(result));
+ assert.ok(Math.abs(result.returned.x-400)<.6,JSON.stringify(result));assert.equal(result.events.length,0);
+});

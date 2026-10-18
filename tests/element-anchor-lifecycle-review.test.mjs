@@ -31,6 +31,7 @@ function fixture(t) {
   const target = dom.window.document.createElement('div');
   const layout = { x: 100, y: 150, originX: 30, originY: 40, displayed: true };
   dom.window.document.body.append(avatar, target);
+  avatar.paused = true; // These geometry/lifecycle cases intentionally opt out of animation.
   avatar.getBoundingClientRect = () => !layout.displayed ? ({ left: 0, top: 0, width: 0, height: 0 }) : ({ left: layout.originX + avatar.position.x, top: layout.originY + avatar.position.y, width: 20, height: 20 });
   avatar.getClientRects = () => layout.displayed ? [avatar.getBoundingClientRect()] : [];
   target.getClientRects = () => [target.getBoundingClientRect()];
@@ -107,14 +108,14 @@ test('display:none avatar retains its binding without accumulating positional dr
   const before = avatar.position; layout.displayed = false;
   for (let i = 0; i < 5; i++) frame();
   assert.deepEqual(avatar.position, before); assert.equal(avatar.elementAnchor.target, target);
-  layout.displayed = true; layout.x += 100; frame();
+  layout.displayed = true; layout.x += 100; dom.window.dispatchEvent(new dom.window.Event('resize')); frame();
   assert.deepEqual(avatar.position, { x: 170, y: 110 });
 });
 
 test('anchor destination keeps viewport bounds while recovering from an exit', async t => {
   const { avatar, target, layout } = fixture(t);
   Object.defineProperty(dom.window, 'innerWidth', { value: 900, configurable: true });
-  avatar.placementState = 'viewport'; avatar.movementBox = { width: 200, height: 200 };
+  avatar.paused = false; avatar.placementState = 'viewport'; avatar.movementBox = { width: 200, height: 200 };
   layout.originX = 0; layout.originY = 0; layout.x = 1500;
   await avatar.exit({ duration: 0 });
   const pending = avatar.moveToElement(target, { anchor: true });

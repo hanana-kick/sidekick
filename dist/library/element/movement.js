@@ -67,6 +67,9 @@ export class AvatarMovement {
     sampling = false;
     reporting = false;
     track;
+    suspended = false;
+    suspendedAt = 0;
+    followTiming = validateMoveOptions();
     constructor(host) {
         this.host = host;
     }
@@ -74,6 +77,7 @@ export class AvatarMovement {
     get state() { return { phase: this.phase, progress: this.progress, position: this.position, velocity: { ...this.velocity }, acceleration: { ...this.acceleration }, speed: Math.hypot(this.velocity.x, this.velocity.y) }; }
     to(point, options = {}) {
         const target = validatePosition(point), timing = validateMoveOptions(options);
+        this.followTiming = timing;
         const revision = ++this.revision, now = this.host.now();
         this.sample(now);
         if (revision !== this.revision)
@@ -160,7 +164,7 @@ export class AvatarMovement {
             return;
         }
         this.stopFrame();
-        this.track = { kind: 'settling', start: this.host.now(), duration: 180, presentation: copyPresentation(this.presentation), resolve: track.resolve };
+        this.track = { kind: 'settling', start: this.host.now(), duration: 180, presentation: copyPresentation(this.presentation), resolve: track.resolve, silent: track.silent };
         this.velocity = { x: 0, y: 0 };
         this.phase = 'settling';
         this.report();
@@ -179,8 +183,7 @@ export class AvatarMovement {
             return;
         this.reset();
     }
-    /** Update a bound destination without replacing its promise or resetting inertia.
-     * Once idle, follow layout exactly without synthetic movement events. */
+    /** Retarget the existing request; subsequent follow journeys are silent and inertial. */
     followTarget(point) {
         const to = this.host.constrain(validatePosition(point)), track = this.track;
         if (track?.kind === 'physical' && !track.stopping) {
@@ -193,14 +196,51 @@ export class AvatarMovement {
         }
         if (track && !(track.kind === 'settling' && track.finished))
             return;
-        if (Math.abs(to.x - this.point.x) > 0.001 || Math.abs(to.y - this.point.y) > 0.001)
-            this.write(to);
+        const distance = Math.hypot(to.x - this.point.x, to.y - this.point.y);
+        // Ignore subpixel layout noise at rest; active pursuit still converges accurately.
+        if (distance <= 0.5)
+            return;
+        if (this.host.immediate()) {
+            if (!this.suspended)
+                this.write(to);
+            return;
+        }
+        const now = this.host.now();
+        this.track = { kind: 'physical', to, start: now, last: now, accumulator: 0,
+            maxSpeed: this.followTiming.maxSpeed, acceleration: this.followTiming.acceleration,
+            deceleration: this.followTiming.deceleration, initialDistance: Math.max(distance, 1),
+            stopping: false, resolve: track?.resolve ?? (() => { }), silent: track?.silent ?? !track };
+        this.progress = 0;
+        this.phase = 'takeoff';
+        this.schedule();
     }
+    /** Freeze clocks while out of view; retain momentum without wall-clock catch-up. */
+    suspend(value) {
+        if (this.suspended === value)
+            return;
+        const now = this.host.now();
+        this.suspended = value;
+        if (value) {
+            this.suspendedAt = now;
+            this.stopFrame();
+            return;
+        }
+        if (this.track?.kind === 'physical') {
+            this.track.last = now;
+            this.track.accumulator = 0;
+        }
+        else if (this.track)
+            this.track.start += Math.max(0, now - Math.max(this.suspendedAt, this.track.start));
+        this.schedule();
+    }
+    /** Detaching keeps the initial request, but brakes any later silent pursuit. */
+    stopFollowing() { if (this.track?.silent)
+        this.cancel(); }
     /** Disconnect must not leave a detached element scheduling a presentation-only landing. */
     disconnect() { this.cancel(true); }
     /** Clamp both current point and remaining target after viewport/element resizing, without restarting the clock. */
     resize() {
-        const revision = ++this.revision, now = this.host.now();
+        const revision = ++this.revision, now = this.suspended ? Math.max(this.suspendedAt, this.track?.start ?? this.suspendedAt) : this.host.now();
         this.sample(now);
         if (revision !== this.revision)
             return;
@@ -273,7 +313,7 @@ export class AvatarMovement {
     reset() { this.phase = 'idle'; this.velocity = { x: 0, y: 0 }; this.acceleration = { x: 0, y: 0 }; this.present(neutral()); }
     stopFrame() { if (this.frame)
         this.host.cancelFrame(this.frame); this.frame = 0; }
-    schedule() { if (this.track && !this.frame)
+    schedule() { if (this.track && !this.frame && !this.suspended)
         this.frame = this.host.requestFrame(this.tick); }
     complete(track, finished, reset = true) {
         if (this.track !== track)
@@ -285,7 +325,10 @@ export class AvatarMovement {
             this.reset();
             this.report();
         }
-        this.notify(result, track.resolve);
+        if (track.silent)
+            track.resolve(result);
+        else
+            this.notify(result, track.resolve);
     }
     result(finished) {
         const result = { finished, position: this.position };
@@ -312,7 +355,7 @@ export class AvatarMovement {
     }
     sample(now) {
         // Public progress callbacks may synchronously retarget, cancel, or resize the movement.
-        if (this.sampling)
+        if (this.sampling || this.suspended)
             return;
         this.sampling = true;
         try {
@@ -491,7 +534,7 @@ export class AvatarMovement {
             if (!track.stopping)
                 this.progress = 1;
             // Keep cancellation completion ordered after presentation settles, as before.
-            this.track = { kind: 'settling', start: now, duration: 180, presentation: copyPresentation(this.presentation), finished: !track.stopping, resolve: track.resolve };
+            this.track = { kind: 'settling', start: now, duration: 180, presentation: copyPresentation(this.presentation), finished: !track.stopping, resolve: track.resolve, silent: track.silent };
             this.phase = 'settling';
             this.report();
         }

@@ -26,7 +26,7 @@ renderCode('viewport', common + `// Small transparent canvas; DOM is fixed to th
 renderCode('section', common + `const section = document.querySelector('#section-area');\nsection.style.position = 'relative'; section.style.overflow = 'hidden';\nbot.placement = 'inline';\nbot.style.position = 'absolute'; bot.style.left = '0'; bot.style.top = '0';\n// Put the bot inside section BEFORE initialization. Its DOM origin is the anchor.\n${exampleSource('sectionDestination')}\n// Queue destinations until the preceding flight is finished to avoid\n// outward inertia on abrupt reversal near a container boundary.\nawait bot.moveTo(sectionDestination(bot, section, { x: 200, y: 100 }));\n// A resize requires re-clamping the current position to the new section size.\n// The container scrolls with the document; no scroll listener is needed.`);
 function refreshAnchorCode() {
   const options = { alignX: $('align-x').value, alignY: $('align-y').value, x: Number($('offset-x').value), y: Number($('offset-y').value), anchor: $('anchor-follow').checked };
-  renderCode('anchor', common + `bot.movementBounds = 'none'; // Follow a DOM target even when it scrolls offscreen.\nconst target = document.querySelector('#anchor-target');\nawait bot.moveToElement(target, ${JSON.stringify(options, null, 2)});\n// anchor: true keeps following the target DOM through scroll/layout changes.\n// anchor: false samples its position once.\n// bot.detachAnchor(); // release at the current position`);
+  renderCode('anchor', common + `bot.movementBounds = 'none'; // Follow a DOM target even when it scrolls offscreen.\nconst target = document.querySelector('#anchor-target');\nawait bot.moveToElement(target, ${JSON.stringify(options, null, 2)});\n// anchor: true pursues the target DOM with inertia through scroll/layout changes.\n// anchor: false samples its position once.\n// bot.detachAnchor(); // release; ongoing follow brakes naturally`);
   return options;
 }
 refreshAnchorCode();
@@ -45,7 +45,7 @@ async function activate(kind) {
   for (const panel of document.querySelectorAll('section.case')) panel.hidden = panel.id !== `case-${kind}`;
   for (const button of document.querySelectorAll('[data-start]')) button.setAttribute('aria-pressed', String(button.dataset.start === kind));
   $('demo-status').removeAttribute('data-error');
-  $('scroll-description').textContent = kind === 'viewport' ? '화면 오른쪽 아래의 봇은 같은 자리에 남습니다. 상단 메뉴로 다른 예제를 바로 선택할 수 있습니다.' : kind === 'section' ? '섹션 안의 봇은 섹션과 함께 위로 올라갑니다. 화면에 고정된 봇과의 차이입니다.' : kind === 'anchor' ? 'DOM 연결을 유지한 봇은 기준 카드와 함께 스크롤됩니다. 연결을 해제하면 현재 화면 위치에 남습니다.' : '이벤트 반응 예제의 봇은 작업 카드에 연결되어 있습니다. 예제로 돌아가 결과를 바꿔 보세요.';
+  $('scroll-description').textContent = kind === 'viewport' ? '화면 오른쪽 아래의 봇은 같은 자리에 남습니다. 상단 메뉴로 다른 예제를 바로 선택할 수 있습니다.' : kind === 'section' ? '섹션 안의 봇은 섹션과 함께 위로 올라갑니다. 화면에 고정된 봇과의 차이입니다.' : kind === 'anchor' ? 'DOM 연결을 유지한 봇은 스크롤되는 기준 카드를 관성으로 따라갑니다. 연결을 해제하면 추격을 멈춥니다.' : '이벤트 반응 예제의 봇은 작업 카드에 연결되어 있습니다. 예제로 돌아가 결과를 바꿔 보세요.';
   const controller = new AbortController();
   const bot = document.createElement('sidekick-avatar'); bot.id = 'demo-bot'; bot.className = 'demo-bot';
   bot.setAttribute('placement', kind === 'section' ? 'inline' : 'viewport');
@@ -128,7 +128,7 @@ for (const id of ['align-x', 'align-y', 'offset-x', 'offset-y', 'anchor-follow']
 $('anchor-move').addEventListener('click', () => {
   if (active?.kind !== 'anchor') return;
   if (!$('offset-x').checkValidity() || !$('offset-y').checkValidity() || $('offset-x').value === '' || $('offset-y').value === '') { $('demo-status').textContent = '오프셋은 -500 ~ 500 사이 숫자를 입력하세요.'; return; }
-  void alignWithElement(active.bot, $('anchor-target'), refreshAnchorCode()).then(() => { $('anchor-status').textContent = active?.bot.elementAnchor ? '연결 중 · DOM 위치를 계속 따라갑니다.' : '한 번 이동 완료 · DOM 연결 없음'; }).catch(handleError);
+  void alignWithElement(active.bot, $('anchor-target'), refreshAnchorCode()).then(() => { $('anchor-status').textContent = active?.bot.elementAnchor ? '연결 중 · DOM 위치를 관성으로 따라갑니다.' : '한 번 이동 완료 · DOM 연결 없음'; }).catch(handleError);
 });
 $('event-success').addEventListener('click', () => { if (active?.kind === 'events') $('event-target').dispatchEvent(new CustomEvent('demo-task', { detail: { state: 'success' } })); });
 // Inactive form never navigates away, even when Enter is pressed in a field.

@@ -574,7 +574,38 @@ test('bound destination updates retain flight promise, inertia and completion co
  assert.deepEqual(f.controller.state.acceleration,before.acceleration);
  finish(f);const result=await pending;
  assert.equal(result.finished,true);assert.deepEqual(result.position,{x:900,y:300});assert.equal(f.events.length,1);
- f.controller.followTarget({x:500,y:400});assert.deepEqual(f.controller.position,{x:500,y:400});
- assert.equal(f.events.length,1);assert.equal(f.callbacks.size,0);
+ const arrival=f.controller.position;
+ f.controller.followTarget({x:500,y:400});assert.deepEqual(f.controller.position,arrival);
+ assert.equal(f.events.length,1);assert.equal(f.callbacks.size,1);
+ advance(f,f.now+100);assert.ok(f.controller.position.x < arrival.x && f.controller.position.x > 500);
+ finish(f);await Promise.resolve();assert.equal(f.events.length,1);assert.deepEqual(f.controller.position,{x:500,y:400});
  const count=f.points.length;f.controller.followTarget({x:500,y:400});assert.equal(f.points.length,count);
+});
+
+
+test('anchor pursuit pauses without losing inertia or integrating hidden elapsed time', async () => {
+ const f=fixture();const pending=f.controller.to({x:900,y:300},physics);
+ advance(f,200);const before=f.controller.state;
+ f.controller.suspend(true);assert.equal(f.callbacks.size,0);
+ f.at(20000);f.controller.followTarget({x:700,y:300});assert.deepEqual(f.controller.state,before);
+ f.controller.suspend(false);assert.equal(f.callbacks.size,1);f.at(20000);
+ assert.deepEqual(f.controller.position,before.position);
+ f.at(20000+1000/60);assert.ok(Math.hypot(f.controller.position.x-before.position.x,f.controller.position.y-before.position.y)<10);
+ finish(f);assert.equal((await pending).finished,true);assert.equal(f.events.length,1);
+});
+test('continuous follow retains velocity and acceleration and does not repeat arrival events', async () => {
+ const f=fixture();const initial=f.controller.to({x:100,y:100},physics);finish(f);await initial;
+ for(let i=0;i<180;i++) {
+  const before=f.controller.state;
+  f.controller.followTarget({x:200+i*2,y:100});
+  assert.deepEqual(f.controller.state.velocity,before.velocity);assert.deepEqual(f.controller.state.acceleration,before.acceleration);
+  f.at(f.now+1000/60);
+ }
+ finish(f);await Promise.resolve();assert.equal(f.events.length,1);assert.deepEqual(f.controller.position,{x:558,y:100});
+ const point=f.controller.position;f.controller.followTarget({x:point.x+0.2,y:point.y});assert.equal(f.callbacks.size,0);
+});
+test('detaching silent pursuit brakes rather than snapping and emits no extra completion', async () => {
+ const f=fixture();const initial=f.controller.to({x:100,y:100},physics);finish(f);await initial;
+ f.controller.followTarget({x:900,y:100});advance(f,f.now+300);const before=f.controller.position;
+ f.controller.stopFollowing();assert.ok(f.controller.position.x>=before.x);finish(f);await Promise.resolve();assert.equal(f.events.length,1);assert.ok(f.controller.position.x<900);
 });

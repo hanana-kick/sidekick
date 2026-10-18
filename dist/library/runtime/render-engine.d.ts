@@ -33,6 +33,7 @@ export declare class RenderEngine {
     private idleDrawElapsed;
     private rendererDelta;
     private dirty;
+    private resizePending;
     private disposed;
     private frames;
     private revision;
