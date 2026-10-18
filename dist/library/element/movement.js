@@ -449,6 +449,8 @@ export class AvatarMovement {
             return;
         if (raw === 1) {
             this.write(track.to);
+            if (this.track !== track)
+                return;
             this.velocity = { x: 0, y: 0 };
             this.acceleration = { x: 0, y: 0 };
             this.complete(track, !track.stopping);
