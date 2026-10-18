@@ -22,7 +22,7 @@ export function connectTaskEvents(bot, target, form, output, signal) {
     output.textContent = state === 'pending' ? '처리 중…' : state === 'success' ? '작업 완료' : '작업 실패 · 다시 시도하세요';
     bot.setActivity(state === 'pending' ? 'thinking' : state === 'success' ? 'idle' : 'still');
     void bot.setExpression('both', state === 'success' ? 'smile' : 'neutral', { duration: 200 });
-    void bot.moveToElement(target, { alignX: 'right', alignY: 'center', x: 0, y: 0 }).then(() => {
+    void bot.moveToElement(target, { alignX: 'right', alignY: 'center', x: 0, y: 0, anchor: true }).then(() => {
       if (signal.aborted || current !== revision) return;
       if (state === 'success') bot.play('celebrating', { duration: 1600 });
     });
