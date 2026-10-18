@@ -1,5 +1,5 @@
 import type { Activity, AvatarDesign, RenderStyle, Vec2 } from '../core/design.js';
-import type { Pose } from '../core/motion.js';
+import type { ActivityFrame, Pose } from '../core/motion.js';
 import type { CameraAngles, CameraState } from '../core/camera.js';
 import type { ShapeProfile } from '../core/shape-profiles.js';
 import type { ShapeContour } from '../core/contours.js';
@@ -10,6 +10,8 @@ export interface RenderState {
     delta: number;
     reduced: boolean;
     style: RenderStyle;
+    /** Optional runtime activity crossfade; direct renderer clients keep the standard loop. */
+    activityFrame?: ActivityFrame;
     camera?: CameraAngles & Partial<Pick<CameraState, 'zoom'>>;
     /** Active explicit eye tracks postpone a newly starting idle blink per eye. */
     eyeMotion?: Record<'left' | 'right', boolean>;

@@ -6,6 +6,7 @@ import { validateShapeMotionOptions } from '../core/shape-motion.js';
 import { parseTrackingMode } from '../core/tracking.js';
 export const ACCESSORY_ATTRIBUTE_SLOTS = Object.freeze({ head: 'head', eyes: 'eyes', mouth: 'mouth', neck: 'neck', 'left-ear': 'leftEar', 'right-ear': 'rightEar' });
 export const SIDEKICK_ATTRIBUTES = Object.freeze([
+    'placement', 'position-x', 'position-y', 'movement-bounds', 'move-duration', 'move-easing',
     'design', 'shape', 'body-color', 'eye-color', 'expression', 'left-expression', 'right-expression',
     'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'accessories',
     'head-accessory', 'head-color', 'eyes-accessory', 'eyes-color', 'mouth-accessory', 'mouth-color',
@@ -120,6 +121,10 @@ export function resolveSidekickAttributes(attributes) {
     const trackingMode = read('tracking-mode', parseTrackingMode, legacyTracking ? 'eyes' : 'off');
     read('render-style', value => choice(value, ['flat', '3d']), 'flat');
     return {
+        placement: read('placement', value => choice(value, ['inline', 'viewport']), 'inline'),
+        position: { x: read('position-x', value => number(value, -1e7, 1e7, 'position-x'), 0), y: read('position-y', value => number(value, -1e7, 1e7, 'position-y'), 0) },
+        movementBounds: read('movement-bounds', value => choice(value, ['viewport', 'none']), 'viewport'),
+        moveOptions: { duration: read('move-duration', value => number(value, 0, 60000, 'move-duration'), 0), easing: read('move-easing', value => choice(value, ['linear', 'smooth']), 'smooth') },
         design: parseDesign(design), camera,
         gaze: [read('gaze-x', value => number(value, -1, 1, 'gaze-x'), 0), read('gaze-y', value => number(value, -1, 1, 'gaze-y'), 0)],
         activity: read('activity', value => choice(value, ACTIVITIES), 'idle'),

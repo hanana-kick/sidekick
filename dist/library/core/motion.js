@@ -189,6 +189,8 @@ export class MotionTimeline {
             }
         }
     }
+    cancelEyes() { for (const channel of ['left', 'right', 'openness'])
+        this.stopChannel(channel); }
     cancel() { for (const channel of this.tracks.keys())
         this.stopChannel(channel); }
 }

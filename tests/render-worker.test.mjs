@@ -313,6 +313,8 @@ test('idle pacing resets across activity, visibility and recreated engine lifecy
   const f = fixture({ activity: 'idle' }); f.step(); f.step(20);
   f.engine.command({ kind: 'state', state: { activity: 'thinking' } }); f.step(10); near(f.draws.at(-1).delta, .01);
   f.engine.command({ kind: 'state', state: { activity: 'idle' } }); f.step(10); near(f.draws.at(-1).delta, .01);
+  // Activity switches now crossfade at RAF rate; test idle pacing after settling.
+  f.step(200);
   f.step(20); const time = f.engine.snapshot.time, frames = f.draws.length;
   f.engine.command({ kind: 'state', state: { active: false } }); f.step(10000);
   assert.equal(f.callbacks.size, 0); assert.equal(f.draws.length, frames); near(f.engine.snapshot.time, time);

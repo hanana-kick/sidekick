@@ -2,6 +2,7 @@
 import { createElement, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 const tagName = 'sidekick-avatar';
 const attributeProps = {
+    placement: 'placement', positionX: 'position-x', positionY: 'position-y', movementBounds: 'movement-bounds', moveDuration: 'move-duration', moveEasing: 'move-easing',
     shape: 'shape', bodyColor: 'body-color', eyeColor: 'eye-color',
     expression: 'expression', leftExpression: 'left-expression', rightExpression: 'right-expression',
     smile: 'smile', blink: 'blink', leftSmile: 'left-smile', rightSmile: 'right-smile', leftBlink: 'left-blink', rightBlink: 'right-blink',
@@ -13,6 +14,7 @@ const attributeProps = {
     shapeDuration: 'shape-duration', shapeEasing: 'shape-easing', motionDuration: 'motion-duration', motionEasing: 'motion-easing', time: 'time',
 };
 const eventProps = {
+    onMoveEnd: 'sidekick-move-end', onPlayEnd: 'sidekick-play-end', onTransitionEnd: 'sidekick-transition-end',
     onReady: 'sidekick-ready', onDesignChange: 'sidekick-design-change', onMotionEnd: 'sidekick-motion-end',
     onShapeEnd: 'sidekick-shape-end', onCameraChange: 'sidekick-camera-change', onActivate: 'sidekick-activate', onError: 'sidekick-error',
 };

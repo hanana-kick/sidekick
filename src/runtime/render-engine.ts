@@ -1,4 +1,5 @@
 import { clamp, spring } from '../core/math.js';
+import { ActivityBlend } from '../core/activity-blend.js';
 import { MotionTimeline } from '../core/motion.js';
 import type { MotionResult } from '../core/motion.js';
 import { ShapeTimeline } from '../core/shape-motion.js';
@@ -47,6 +48,7 @@ export class RenderEngine {
   private state: RuntimeState;
   private timeline: MotionTimeline;
   private shape: ShapeTimeline;
+  private activityBlend: ActivityBlend;
   private tracking = new TrackingBodyLayer();
   private velocity: Vec2 = [0, 0];
   private scheduled = 0;
@@ -70,6 +72,7 @@ export class RenderEngine {
     this.timeline = new MotionTimeline({ left: initial.design.eyes.left, right: initial.design.eyes.right });
     this.timeline.pose = structuredClone(initial.pose);
     if (initial.paused || initial.reduced) this.timeline.pose.gaze = [...initial.gaze];
+    this.activityBlend = new ActivityBlend(initial.activity, initial.time, initial.reduced);
     this.shape = new ShapeTimeline(initial.design.body.shape);
     this.renderer = renderer ?? new AvatarRenderer(canvas);
     try {
@@ -125,6 +128,7 @@ export class RenderEngine {
       case 'motion': this.complete(command.request, this.timeline.to(command.target, command.options)); break;
       case 'shape': this.complete(command.request, this.shape.to(command.shape, command.options)); this.state.design = { ...this.state.design, body: { ...this.state.design.body, shape: command.shape } }; break;
       case 'persist-design': this.state.design = command.design; break;
+      case 'cancel-assets': if (command.shape) this.shape.cancel(); if (command.expression) this.timeline.cancelEyes(); break;
       case 'cancel': this.timeline.cancel(); break;
       case 'state': {
         const changed = Object.entries(command.state).some(([key, value]) => {
@@ -139,10 +143,11 @@ export class RenderEngine {
           || (command.state.paused !== undefined && command.state.paused !== this.state.paused)
           || (command.state.reduced !== undefined && command.state.reduced !== this.state.reduced)
           || (command.state.time !== undefined && command.state.time !== this.state.time)) this.resetPacing();
+        if (command.state.activity !== undefined) this.activityBlend.set(command.state.activity, (command.state.paused ?? this.state.paused) || (command.state.reduced ?? this.state.reduced));
         Object.assign(this.state, command.state);
         if (!this.state.active || wasActive !== this.state.active) this.stop();
         if (this.state.paused || this.state.reduced) {
-          this.timeline.advance(60000); this.shape.finish();
+          this.timeline.advance(60000); this.shape.finish(); this.activityBlend.finish();
           this.timeline.pose.gaze = [...this.state.gaze]; this.velocity = [0, 0];
         }
         this.updateTracking();
@@ -154,6 +159,7 @@ export class RenderEngine {
         Object.assign(this.state, { width, height, dpr }); this.renderer.resize(width, height, dpr); break;
       }
       case 'reset-tracking': this.tracking.reset(); this.velocity = [0, 0]; this.timeline.pose.gaze = [...this.state.gaze]; break;
+      case 'flush': this.render(true); this.notify({ kind: 'complete', request: command.request, result: { finished: true }, snapshot: this.snapshot }); return;
       case 'capture': this.notify({ kind: 'pixels', request: command.request, image: this.capture(), snapshot: this.snapshot }); return;
       case 'snapshot': {
         const image = this.capture(), snapshot = this.snapshot, revision = this.revision;
@@ -176,10 +182,10 @@ export class RenderEngine {
   private gazeMoving(): boolean { return this.state.gaze.some((target, i) => Math.abs(target - this.timeline.pose.gaze[i]!) > .0001 || Math.abs(this.velocity[i]!) > .0001); }
   private animated(): boolean {
     if (this.state.paused) return this.tracking.settling;
-    return this.timeline.active || this.shape.active || this.gazeMoving() || this.tracking.active || (!this.state.reduced && this.state.activity !== 'still');
+    return this.activityBlend.active || this.timeline.active || this.shape.active || this.gazeMoving() || this.tracking.active || (!this.state.reduced && this.state.activity !== 'still');
   }
   private paceIdle(): boolean {
-    return !this.dirty && this.state.activity === 'idle' && !this.state.paused && !this.state.reduced && !this.timeline.active && !this.shape.active && !this.gazeMoving() && !this.tracking.active;
+    return !this.dirty && this.state.activity === 'idle' && !this.state.paused && !this.state.reduced && !this.activityBlend.active && !this.timeline.active && !this.shape.active && !this.gazeMoving() && !this.tracking.active;
   }
   private resetPacing(): void { this.idleDrawElapsed = 0; this.rendererDelta = 0; }
   private wake(): void {
@@ -199,7 +205,7 @@ export class RenderEngine {
     const idle = this.paceIdle();
     this.idleDrawElapsed += delta; this.rendererDelta += delta;
     if (!this.state.paused) {
-      this.state.time += delta; this.timeline.advance(elapsed); this.shape.advance(elapsed);
+      this.state.time += delta; this.activityBlend.advance(elapsed); this.timeline.advance(elapsed); this.shape.advance(elapsed);
       for (const i of [0, 1] as const) {
         const [position, velocity] = spring(this.timeline.pose.gaze[i], this.velocity[i], this.state.gaze[i], delta, 16);
         this.timeline.pose.gaze[i] = position; this.velocity[i] = velocity;
@@ -224,7 +230,7 @@ export class RenderEngine {
     const shape = this.shape.snapshot;
     const pose = this.tracking.compose(this.timeline.pose); this.renderedRotation = [...pose.rotation];
     const started = performance.now();
-    this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', camera: this.state.camera });
+    this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, activityFrame: this.activityBlend.sample(this.state.time, this.state.reduced), time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', camera: this.state.camera });
     const duration = performance.now() - started;
     this.renderCpu.lastMs = duration; this.renderCpu.totalMs += duration; this.renderCpu.maxMs = Math.max(this.renderCpu.maxMs, duration);
     this.dirty = false; this.frames++; this.resetPacing();

@@ -224,3 +224,17 @@ test('React cameraZoom overrides object zoom and removal restores object/default
   await f.render({ camera: { yaw: 12 } }); assert.equal(f.avatar.hasAttribute('camera-zoom'), false);
   assert.equal(f.avatar.getAttribute('camera-yaw'), '12');
 });
+
+test('React forwards placement coordinates and custom completion events without resetting an unchanged command', async t => {
+  const moves = [], transitions = [], ref = React.createRef();
+  const props = { ref, placement: 'viewport', positionX: 12, positionY: 30, moveDuration: 200, moveEasing: 'linear', movementBounds: 'none', onMoveEnd: e => moves.push(e.detail), onTransitionEnd: e => transitions.push(e.detail) };
+  const f = await fixture(t, props);
+  assert.equal(f.avatar.getAttribute('placement'), 'viewport'); assert.equal(f.avatar.getAttribute('position-x'), '12'); assert.equal(f.avatar.getAttribute('move-duration'), '200');
+  assert.equal(f.avatar.getAttribute('body-color'), null, 'wrapper preserves canonical element default');
+  f.avatar.dispatchEvent(new CustomEvent('sidekick-move-end', { detail: { finished: true, position: { x: 12, y: 30 } } }));
+  f.avatar.dispatchEvent(new CustomEvent('sidekick-transition-end', { detail: { finished: false } }));
+  assert.equal(moves.length, 1); assert.deepEqual(transitions, [{ finished: false }]);
+  await f.render({ ...props, bodyColor: '#123456' }); assert.equal(f.avatar.getAttribute('body-color'), '#123456');
+  await f.render(props); assert.equal(f.avatar.getAttribute('body-color'), null);
+  await f.unmount(); assert.equal(ref.current, null);
+});

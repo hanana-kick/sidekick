@@ -17,7 +17,7 @@ npm install https://github.com/hanana-kick/sidekick.git
 버전을 고정하려면 릴리스 태그를 지정합니다.
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.2.8
+npm install https://github.com/hanana-kick/sidekick.git#v0.3.0
 ```
 
 빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.2.8`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
@@ -76,7 +76,7 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 ### 일반 HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.2.8/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.0/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowtie"
   left-smile="1" right-smile="1"
@@ -88,7 +88,7 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.2.8/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.0/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -104,15 +104,15 @@ React와 ReactDOM은 동일한 19.3.1의 미리 빌드된 ESM을 제공합니다
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.2.8/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.2.8/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.0/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.0/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.2.8/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.0/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowtie', leftSmile: 1, rightSmile: 1,
@@ -891,3 +891,100 @@ The **장면 (Scene)** tab composes the native character and editable text onto 
 - Scene PNG export creates a temporary independent 2048 × 2048 native renderer, captures the configured character at its saved scene time, and disposes it afterwards. It does not enlarge the low-resolution preview or resize the active character canvas. The normal renderer's 2048-pixel ceiling remains; extremely large compositions may still enlarge the resulting crop. Live pointer reaction is excluded from deterministic exports. The published OG asset is generated separately at higher native resolution.
 
 Both HTML entry pages include static Open Graph and Twitter card tags with the canonical URL `https://sidekick.hananakick.cc/` and a versioned absolute social image URL. `public/og-sidekick.png` (1200 × 630) is the exact owner-selected image, preserved independently of later character geometry changes. Builds and `node scripts/generate-og-image.mjs` do not overwrite it. That development-only script updates `public/og-avatar.png` using the native production renderer; it requires a C compiler, EGL/GLES, and Pillow/fontTools. An optional `SIDEKICK_RENDERER_ROOT` selects a source worktree. Studio's editable scene preset remains a separate starting point and is not a reconstruction of the selected static social image.
+
+## 렌더링·이동 표준 (v0.3)
+
+기본은 **캐릭터 크기의 투명 캔버스 + DOM 엘리먼트 이동**입니다. 전체 화면을 덮는 WebGL 캔버스는 만들지 않습니다. OffscreenCanvas 워커가 작은 표면을 렌더링하고, 메인 스레드는 CSS `translate`로 엘리먼트를 이동합니다. 이동 때문에 WebGL 해상도나 카메라, 몸체 메시를 바꾸지 않습니다. 화면 크기·DPR 변화에는 기존 ResizeObserver/해상도 제한을 그대로 적용합니다.
+
+[이동·애니메이션 API 체험](https://sidekick.hananakick.cc/api-playground.html)에서 이동/중단/재생/에셋 전환을 직접 시험할 수 있습니다.
+
+- `placement="inline"` 기본: 문서 흐름을 유지합니다. x/y는 원래 배치 위치에서의 상대 이동량입니다. 다른 콘텐츠의 레이아웃은 밀지 않습니다. viewport bounds는 이 모드에서 적용하지 않습니다.
+- `placement="viewport"`: `position: fixed`, x/y는 레이아웃 뷰포트 좌상단 기준 CSS 픽셀입니다. 앵커는 **캔버스 박스의 좌상단**이며 캐릭터의 발이나 중심이 아닙니다. 스크롤해도 같은 화면 위치를 유지합니다.
+- 기본 `movement-bounds="viewport"`: 전체 엘리먼트 박스를 화면 안에 제한합니다. 박스가 화면보다 크면 좌상단 0에 고정됩니다. `none`으로 화면 밖 이동을 허용합니다. 카메라 확대 때문에 캔버스 자체에서 잘린 장식은 이동 bounds가 복원하지 않습니다.
+- viewport/엘리먼트 크기가 바뀌면 현재 위치와 남은 목표를 다시 제한합니다. `position`은 실제 제한된 좌표를 반환하며 입력 attribute는 요청 좌표를 유지합니다.
+- viewport 엘리먼트는 `body` 바로 아래 또는 변형 없는 overlay 컨테이너에 두세요. CSS `transform`, `filter`, `perspective`, 특정 `contain`을 가진 조상은 fixed 기준을 바꿀 수 있습니다. 라이브러리는 React 소유 DOM을 몰래 다른 부모로 옮기지 않습니다.
+- API가 CSS 개별 속성 `translate`를 소유합니다. 사용자 `style.transform`은 덮어쓰지 않지만, 회전/확대/사용자 translate를 함께 적용하면 bounds는 그 시각적 변형까지 계산하지 않습니다. 사용자 변형이 필요하면 별도 래퍼에서 관리하세요.
+- `interaction="none"` 기본은 클릭/스크롤/터치 통과입니다. 글로벌 시선 추적은 계속 사용할 수 있습니다. `box`를 선택하면 **작은 캔버스 박스 안에서만** 드래그·줌을 받습니다. 투명 픽셀만 골라 클릭 통과시키는 알파 히트 테스트는 제공하지 않습니다.
+- 캐릭터 장면 JSON에는 호스트 페이지의 배치/이동 좌표를 넣지 않습니다. `position`을 앱의 레이아웃 상태로 별도 보관하세요. 명시적인 저장 색상은 보존되며 새 캐릭터의 기본 몸체 색상은 `#FFCC37`입니다.
+
+### 선언형 HTML / React 배치
+
+| HTML attribute | React prop | 의미 / 기본값 |
+| --- | --- | --- |
+| `placement` | `placement` | `inline` 기본 / `viewport` 고정 오버레이 |
+| `position-x` | `positionX` | CSS px x 좌표, 기본 `0` |
+| `position-y` | `positionY` | CSS px y 좌표, 기본 `0` |
+| `movement-bounds` | `movementBounds` | `viewport` 기본 / `none`; inline에서는 미적용 |
+| `move-duration` | `moveDuration` | 선언형 좌표 변경 시간 0–60000ms, 기본 `0` |
+| `move-easing` | `moveEasing` | `smooth` 기본 / `linear` |
+| 이벤트 `sidekick-move-end` | `onMoveEnd` | `{ finished, position: { x, y } }` |
+| 이벤트 `sidekick-play-end` | `onPlayEnd` | `{ finished }` 재생 구간 완료/취소 |
+| 이벤트 `sidekick-transition-end` | `onTransitionEnd` | `{ finished }` 도형·표정·장식 묶음 전환 완료/취소 |
+
+`position-x/y`를 함께 변경하면 한 attribute transaction으로 처리합니다. 직접 메서드 호출의 옵션 기본 시간은 400ms이며 `move-duration` attribute는 선언형 변경에만 적용됩니다. 초기 배치를 즉시 하려면 move-duration을 생략하세요.
+
+### 메서드와 실제 완료의 의미
+
+| 메서드 | 의미 |
+| --- | --- |
+| `moveTo({ x, y }, { duration?, easing? })` | 현재 화면 좌표부터 이동. `Promise<MoveResult>` |
+| `moveBy({ x, y }, options?)` | 현재 진행 중인 좌표 기준 상대 이동 |
+| `cancelMove()` | 현재 좌표에서 멈춤. 이전 이동 결과 `finished: false` |
+| `play(activity, { duration? })` | 활동 루프 재생. duration은 루프 한 주기가 아닌 **재생 구간의 벽시계 ms** |
+| `stop()` | 재생 구간 취소 후 idle로 200ms 부드럽게 전환 |
+| `transitionTo({ shape?, expression?, accessories? }, options?)` | 도형/양쪽 눈 표정/전체 장식 목록을 함께 전환 |
+| `cancelTransition()` | 진행 중인 묶음 전환 중지. 완료 결과 `finished: false` |
+
+모든 timing easing은 `linear` 또는 `smooth`, duration은 0–60000ms입니다. `play`는 timing easing을 받지 않습니다. activity 값은 `idle`, `thinking`, `listening`, `speaking`, `celebrating`, `still`입니다.
+
+이동을 다시 요청하면 현재 보이는 좌표에서 새 목표로 이어지고, 이전 Promise와 이벤트는 한 번만 `finished: false`로 종료합니다. 연결 해제 시 RAF·타이머·fade를 정리하고 대기 중인 이동/재생/묶음 전환을 취소합니다. 이동은 카메라/몸체/눈의 모션과 독립적입니다.
+
+`play(activity)`처럼 duration을 생략하면 `stop`, 다음 play/setActivity 또는 연결 해제 때까지 루프를 유지하며 Promise는 그때 `finished: false`로 종료합니다. 유한 duration이 끝나면 `finished: true`로 재생 구간을 완료하고, 이어서 idle로 200ms 블렌드합니다. 이 Promise는 idle 블렌드 종료까지 기다리는 신호가 아닙니다. 활동 변경도 마지막 표시된 활동 포즈에서 200ms 블렌드하며, 시작 시 자동 활동에는 새 효과를 추가하지 않습니다.
+
+도형은 기존 윤곽 모프, 표정은 기존 shape-key 전환을 사용하며 `transitionTo`는 워커의 실제 완료 응답을 기다립니다. `accessories`는 **전체 장식 목록**이므로 유지할 장식도 포함하세요. 같은 슬롯 중복은 변경 전에 거부합니다. 서로 다른 장식의 메시를 억지로 보간하지 않고 **캐릭터 캔버스를 fade-out → 장식 교체 → 새 프레임 렌더 확인 → fade-in**합니다. 두 fade의 합이 duration이며 다른 도형/표정 채널과 동시에 진행합니다. 페이지·형제 DOM·텍스트는 사라지지 않습니다. snapshot PNG는 이 CSS fade를 포함하지 않고 실제 캐릭터 픽셀을 저장합니다.
+
+취소가 장식 교체 중간 이전이면 이전 장식을 유지하고, 교체 이후면 새 장식을 유지합니다. 취소한 fade는 제거하여 캐릭터가 투명한 채 남지 않습니다. 취소된 도형은 현재 윤곽에서 멈추지만 design에는 요청했던 목표가 남습니다. 최신 shape/expression/equipment setter나 attribute 변경은 해당 묶음 전환을 취소합니다. 색상만 바꿀 때는 `updateDesign`을 사용하세요(진행 중인 묶음 전환은 취소됩니다).
+
+`paused` 또는 OS 모션 줄이기는 이동/윤곽/표정/fade를 즉시 적용합니다. 활동 재생 구간은 벽시계 시간이므로 일시 정지해도 경과합니다. 백그라운드 탭은 브라우저가 RAF/타이머를 지연시킬 수 있습니다. 화면 밖에서 렌더가 중지된 윤곽 모프의 Promise는 실제 재개/완료 또는 취소를 기다립니다. 미연결 상태의 move/transition은 설정을 즉시 적용하고, play는 `finished: false`를 반환합니다.
+
+### CDN HTML에서 명령 API 사용
+
+```html
+<script type="module">
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.0/dist/browser/sidekick.js';
+  const bot = document.querySelector('#companion');
+  // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
+  await bot.moveTo({ x: 80, y: 240 }, { duration: 600, easing: 'smooth' });
+  await bot.play('celebrating', { duration: 1500 });
+  await bot.transitionTo({
+    shape: 'heart', expression: 'smile',
+    accessories: [createAccessory('beret'), createAccessory('glasses')],
+  }, { duration: 700 });
+</script>
+<sidekick-avatar id="companion" placement="viewport" position-x="24" position-y="200"
+  body-color="#FFCC37" style="width:180px;height:180px;z-index:1000"></sidekick-avatar>
+```
+
+첫 전환을 실제 애니메이션으로 보려면 `sidekick-ready` 이후 실행하세요. 준비 전 shape/expression 명령은 기존 API처럼 즉시 적용됩니다. 위 스크립트는 module이므로 HTML 파싱 후 실행됩니다. 동일한 메서드는 classic 번들로 등록한 엘리먼트에서도 사용할 수 있습니다.
+
+### React: 같은 엘리먼트 API를 ref로 사용
+
+```tsx
+import { useRef } from 'react';
+import { SidekickAvatar, type SidekickAvatarRef } from '@hanana-kick/sidekick/react';
+import { createAccessory } from '@hanana-kick/sidekick';
+
+export function Companion() {
+  const bot = useRef<SidekickAvatarRef>(null);
+  return <>
+    <button onClick={() => void bot.current?.moveTo({ x: 200, y: 180 }, { duration: 500 })}>이동</button>
+    <button onClick={() => void bot.current?.transitionTo({ shape: 'heart', expression: 'smile', accessories: [createAccessory('beret')] }, { duration: 600 })}>전환</button>
+    <button onClick={() => void bot.current?.play('speaking', { duration: 1200 })}>말하기</button>
+    <SidekickAvatar ref={bot} placement="viewport" positionX={24} positionY={200}
+      bodyColor="#FFCC37" style={{ width: 180, height: 180, zIndex: 1000 }}
+      onMoveEnd={event => console.log(event.detail.finished, event.detail.position)} />
+  </>;
+}
+```
+
+React SSR은 기존처럼 안전하며 ref는 클라이언트 등록 후 게시됩니다. 선언형 position props는 값이 바뀔 때만 반영되므로 일반적인 부모 rerender가 명령형 이동을 되돌리지 않습니다. React의 `onTransitionEnd` prop은 여기서는 Sidekick 묶음 전환 이벤트이며 네이티브 CSS transition 이벤트가 아닙니다. 공개 타입 `AvatarPlacement`, `AvatarPosition`, `MovementBounds`, `MoveResult`, `PlayOptions`, `AssetTransitionTarget`은 메인/`register` 엔트리에서 가져올 수 있습니다.

@@ -10,8 +10,17 @@ import type { SidekickAttributes, SidekickEventMap } from './element/attributes.
 export type SidekickAvatarRef = SidekickElement;
 export type SidekickEventHandler<K extends keyof SidekickEventMap> = (event: SidekickEventMap[K]) => void;
 /** React 19 wrapper. The ref is published after the custom element has upgraded. */
-export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement>, 'onError' | 'children' | 'dangerouslySetInnerHTML'> {
+export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement>, 'onError' | 'onTransitionEnd' | 'children' | 'dangerouslySetInnerHTML'> {
     ref?: Ref<SidekickElement>;
+    placement?: SidekickAttributes['placement'];
+    positionX?: number;
+    positionY?: number;
+    movementBounds?: SidekickAttributes['movement-bounds'];
+    moveDuration?: number;
+    moveEasing?: MotionOptions['easing'];
+    onMoveEnd?: SidekickEventHandler<'sidekick-move-end'>;
+    onPlayEnd?: SidekickEventHandler<'sidekick-play-end'>;
+    onTransitionEnd?: SidekickEventHandler<'sidekick-transition-end'>;
     design?: AvatarDesign;
     shape?: MaterialShapeName;
     bodyColor?: string;

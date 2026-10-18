@@ -257,7 +257,7 @@ export class AvatarRenderer {
             this.inputSignature = signature;
         }
         const design = this.resolvedInput;
-        const gl = this.gl, { pose } = state, activity = activityFrame(state.activity, state.time, state.reduced);
+        const gl = this.gl, { pose } = state, activity = state.activityFrame ?? activityFrame(state.activity, state.time, state.reduced);
         const roll = pose.rotation[2] + activity.roll;
         const camera = createCamera(state.camera ?? { yaw: (state.view?.[0] ?? 0) * 180 / Math.PI, pitch: (state.view?.[1] ?? 0) * 180 / Math.PI, roll: 0 });
         // View orientation is independent of the body's animated local pose. Matrix

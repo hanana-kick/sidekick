@@ -22,9 +22,11 @@ export type RuntimeCommand =
   | { kind: 'shape'; shape: MaterialShapeName; options: ShapeMotionOptions; request: number }
   | { kind: 'persist-design'; design: AvatarDesign }
   | { kind: 'cancel' }
+  | { kind: 'cancel-assets'; shape: boolean; expression: boolean }
   | { kind: 'state'; state: Partial<Omit<RuntimeState, 'design' | 'pose' | 'width' | 'height' | 'dpr'>> }
   | { kind: 'resize'; width: number; height: number; dpr: number }
   | { kind: 'reset-tracking' }
+  | { kind: 'flush'; request: number }
   | { kind: 'capture'; request: number }
   | { kind: 'snapshot'; request: number; options: SnapshotOptions }
   | { kind: 'dispose' };

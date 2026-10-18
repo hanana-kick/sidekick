@@ -25,6 +25,7 @@ export declare class RenderEngine {
     private state;
     private timeline;
     private shape;
+    private activityBlend;
     private tracking;
     private velocity;
     private scheduled;

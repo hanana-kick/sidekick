@@ -53,6 +53,10 @@ export type RuntimeCommand = {
 } | {
     kind: 'cancel';
 } | {
+    kind: 'cancel-assets';
+    shape: boolean;
+    expression: boolean;
+} | {
     kind: 'state';
     state: Partial<Omit<RuntimeState, 'design' | 'pose' | 'width' | 'height' | 'dpr'>>;
 } | {
@@ -62,6 +66,9 @@ export type RuntimeCommand = {
     dpr: number;
 } | {
     kind: 'reset-tracking';
+} | {
+    kind: 'flush';
+    request: number;
 } | {
     kind: 'capture';
     request: number;

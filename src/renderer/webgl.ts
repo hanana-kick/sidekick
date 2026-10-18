@@ -1,6 +1,6 @@
 import type { AccessorySlot, Activity, AvatarDesign, RenderStyle, Vec2, Vec3 } from '../core/design.js';
 import { resolveDesign } from '../core/resolved-design.js';
-import type { Pose } from '../core/motion.js';
+import type { ActivityFrame, Pose } from '../core/motion.js';
 import type { CameraAngles, CameraState } from '../core/camera.js';
 import { cameraViewMatrix, createCamera } from '../core/camera.js';
 import { activityFrame } from '../core/motion.js';
@@ -25,6 +25,8 @@ import type { Geometry } from './geometry.js';
 interface Mesh { vao: WebGLVertexArrayObject; buffer: WebGLBuffer; index: WebGLBuffer; count: number; data: Geometry }
 export interface RenderState {
   pose: Pose; activity: Activity; time: number; delta: number; reduced: boolean; style: RenderStyle;
+  /** Optional runtime activity crossfade; direct renderer clients keep the standard loop. */
+  activityFrame?: ActivityFrame;
   camera?: CameraAngles & Partial<Pick<CameraState, 'zoom'>>;
   /** Active explicit eye tracks postpone a newly starting idle blink per eye. */
   eyeMotion?: Record<'left' | 'right', boolean>;
@@ -233,7 +235,7 @@ export class AvatarRenderer {
     const signature = JSON.stringify(input);
     if (signature !== this.inputSignature) { this.resolvedInput = resolveDesign(input); this.inputSignature = signature; }
     const design = this.resolvedInput!;
-    const gl = this.gl, { pose } = state, activity = activityFrame(state.activity, state.time, state.reduced);
+    const gl = this.gl, { pose } = state, activity = state.activityFrame ?? activityFrame(state.activity, state.time, state.reduced);
     const roll = pose.rotation[2] + activity.roll;
     const camera = createCamera(state.camera ?? { yaw: (state.view?.[0] ?? 0) * 180 / Math.PI, pitch: (state.view?.[1] ?? 0) * 180 / Math.PI, roll: 0 });
     // View orientation is independent of the body's animated local pose. Matrix

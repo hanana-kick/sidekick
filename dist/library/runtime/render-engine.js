@@ -1,4 +1,5 @@
 import { clamp, spring } from '../core/math.js';
+import { ActivityBlend } from '../core/activity-blend.js';
 import { MotionTimeline } from '../core/motion.js';
 import { ShapeTimeline } from '../core/shape-motion.js';
 import { TrackingBodyLayer } from '../core/tracking.js';
@@ -45,6 +46,7 @@ export class RenderEngine {
     state;
     timeline;
     shape;
+    activityBlend;
     tracking = new TrackingBodyLayer();
     velocity = [0, 0];
     scheduled = 0;
@@ -72,6 +74,7 @@ export class RenderEngine {
         this.timeline.pose = structuredClone(initial.pose);
         if (initial.paused || initial.reduced)
             this.timeline.pose.gaze = [...initial.gaze];
+        this.activityBlend = new ActivityBlend(initial.activity, initial.time, initial.reduced);
         this.shape = new ShapeTimeline(initial.design.body.shape);
         this.renderer = renderer ?? new AvatarRenderer(canvas);
         try {
@@ -160,6 +163,12 @@ export class RenderEngine {
             case 'persist-design':
                 this.state.design = command.design;
                 break;
+            case 'cancel-assets':
+                if (command.shape)
+                    this.shape.cancel();
+                if (command.expression)
+                    this.timeline.cancelEyes();
+                break;
             case 'cancel':
                 this.timeline.cancel();
                 break;
@@ -184,12 +193,15 @@ export class RenderEngine {
                     || (command.state.reduced !== undefined && command.state.reduced !== this.state.reduced)
                     || (command.state.time !== undefined && command.state.time !== this.state.time))
                     this.resetPacing();
+                if (command.state.activity !== undefined)
+                    this.activityBlend.set(command.state.activity, (command.state.paused ?? this.state.paused) || (command.state.reduced ?? this.state.reduced));
                 Object.assign(this.state, command.state);
                 if (!this.state.active || wasActive !== this.state.active)
                     this.stop();
                 if (this.state.paused || this.state.reduced) {
                     this.timeline.advance(60000);
                     this.shape.finish();
+                    this.activityBlend.finish();
                     this.timeline.pose.gaze = [...this.state.gaze];
                     this.velocity = [0, 0];
                 }
@@ -211,6 +223,10 @@ export class RenderEngine {
                 this.velocity = [0, 0];
                 this.timeline.pose.gaze = [...this.state.gaze];
                 break;
+            case 'flush':
+                this.render(true);
+                this.notify({ kind: 'complete', request: command.request, result: { finished: true }, snapshot: this.snapshot });
+                return;
             case 'capture':
                 this.notify({ kind: 'pixels', request: command.request, image: this.capture(), snapshot: this.snapshot });
                 return;
@@ -243,10 +259,10 @@ export class RenderEngine {
     animated() {
         if (this.state.paused)
             return this.tracking.settling;
-        return this.timeline.active || this.shape.active || this.gazeMoving() || this.tracking.active || (!this.state.reduced && this.state.activity !== 'still');
+        return this.activityBlend.active || this.timeline.active || this.shape.active || this.gazeMoving() || this.tracking.active || (!this.state.reduced && this.state.activity !== 'still');
     }
     paceIdle() {
-        return !this.dirty && this.state.activity === 'idle' && !this.state.paused && !this.state.reduced && !this.timeline.active && !this.shape.active && !this.gazeMoving() && !this.tracking.active;
+        return !this.dirty && this.state.activity === 'idle' && !this.state.paused && !this.state.reduced && !this.activityBlend.active && !this.timeline.active && !this.shape.active && !this.gazeMoving() && !this.tracking.active;
     }
     resetPacing() { this.idleDrawElapsed = 0; this.rendererDelta = 0; }
     wake() {
@@ -278,6 +294,7 @@ export class RenderEngine {
         this.rendererDelta += delta;
         if (!this.state.paused) {
             this.state.time += delta;
+            this.activityBlend.advance(elapsed);
             this.timeline.advance(elapsed);
             this.shape.advance(elapsed);
             for (const i of [0, 1]) {
@@ -314,7 +331,7 @@ export class RenderEngine {
         const pose = this.tracking.compose(this.timeline.pose);
         this.renderedRotation = [...pose.rotation];
         const started = performance.now();
-        this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', camera: this.state.camera });
+        this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, activityFrame: this.activityBlend.sample(this.state.time, this.state.reduced), time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', camera: this.state.camera });
         const duration = performance.now() - started;
         this.renderCpu.lastMs = duration;
         this.renderCpu.totalMs += duration;

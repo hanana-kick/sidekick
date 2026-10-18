@@ -47,3 +47,10 @@ test('scene zoom round-trips and legacy scene versions default missing zoom to 1
   assert.equal(parseScene(legacy).camera.zoom, 1);
   for (const zoom of [0, 4, NaN, null, undefined, '2']) assert.throws(() => parseScene({ ...scene, camera: { ...scene.camera, zoom } }));
 });
+
+test('new and partially specified scenes use FFCC37 and explicit saved colors survive roundtrip', () => {
+  assert.equal(createScene().design.body.color, '#ffcc37');
+  assert.equal(createDesign({ body: { shape: 'heart' } }).body.color, '#ffcc37');
+  const scene = createScene({ design: createDesign({ body: { color: '#123456' } }) });
+  assert.equal(parseScene(serializeScene(scene)).design.body.color, '#123456');
+});

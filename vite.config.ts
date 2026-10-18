@@ -12,6 +12,6 @@ export default defineConfig({
   server: { host: process.env.HOST ?? '127.0.0.1', port: Number(process.env.PORT ?? 5173) },
   build: {
     outDir: 'dist', emptyOutDir: false,
-    rolldownOptions: { input: { main: 'index.html', playground: 'playground/index.html' } },
+    rolldownOptions: { input: { main: 'index.html', playground: 'playground/index.html', api: 'api-playground.html' } },
   },
 });

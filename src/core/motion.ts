@@ -166,6 +166,7 @@ export class MotionTimeline {
       }
     }
   }
+  cancelEyes(): void { for (const channel of ['left', 'right', 'openness'] as const) this.stopChannel(channel); }
   cancel(): void { for (const channel of this.tracks.keys()) this.stopChannel(channel); }
 }
 export interface ActivityFrame { bob: number; roll: number; squash: number; gaze: Vec2; blink: number }

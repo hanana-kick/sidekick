@@ -208,3 +208,39 @@ test('camera zoom precedence, removal, range validation and rejected batches are
   a.removeAttribute('camera'); a.removeAttribute('camera-zoom'); a.removeAttribute('camera-yaw'); await flush();
   assert.deepEqual(a.camera, { yaw: 0, pitch: 0, roll: 0, zoom: 1 });
 });
+
+test('movement attributes are transactional and independent of renderer pose', async t => {
+  const a = avatar(t), before = a.camera;
+  a.setAttribute('placement', 'viewport'); a.setAttribute('position-x', '25'); a.setAttribute('position-y', '35');
+  await flush();
+  assert.equal(a.placement, 'viewport'); assert.deepEqual(a.position, { x: 25, y: 35 }); assert.deepEqual(a.camera, before);
+  assert.equal(a.style.getPropertyValue('--sidekick-position'), 'fixed');
+  a.setAttribute('position-x', 'bad'); a.setAttribute('position-y', '60'); await flush();
+  assert.deepEqual(a.position, { x: 25, y: 35 });
+  a.setAttribute('position-x', '50'); await flush(); assert.deepEqual(a.position, { x: 50, y: 60 });
+  a.placement = 'inline'; await a.moveTo({ x: -40, y: 2000 }, { duration: 0 }); assert.deepEqual(a.position, { x: -40, y: 2000 });
+});
+
+test('viewport movement clamps the full element box without changing canvas resolution', async t => {
+  const a = avatar(t); Object.defineProperty(a, 'offsetWidth', { value: 200 }); Object.defineProperty(a, 'offsetHeight', { value: 200 });
+  a.placement = 'viewport'; const canvas = a.shadowRoot.querySelector('canvas'); const size = [canvas.width, canvas.height];
+  const result = await a.moveTo({ x: 2000, y: 2000 }, { duration: 0 });
+  assert.deepEqual(result.position, { x: window.innerWidth - 200, y: window.innerHeight - 200 });
+  assert.deepEqual([canvas.width, canvas.height], size);
+  a.movementBounds = 'none'; await a.moveTo({ x: -10, y: -30 }, { duration: 0 }); assert.deepEqual(a.position, { x: -10, y: -30 });
+});
+
+test('default body color remains FFCC37 across core attributes and fresh elements', t => {
+  assert.equal(createDesign().body.color, '#ffcc37'); assert.equal(resolve({}).design.body.color, '#ffcc37');
+  const a = avatar(t); assert.equal(a.design.body.color, '#ffcc37');
+  a.setAttribute('body-color', '#123456'); a.flushAttributes(); assert.equal(a.design.body.color, '#123456');
+  a.removeAttribute('body-color'); a.flushAttributes(); assert.equal(a.design.body.color, '#ffcc37');
+});
+
+test('play and transition methods settle on disconnect without changing camera', async t => {
+  const a = avatar(t), camera = a.camera;
+  const playing = a.play('speaking'); assert.equal(a.activity, 'speaking');
+  a.stop(); assert.deepEqual(await playing, { finished: false }); assert.equal(a.activity, 'idle');
+  const transition = a.transitionTo({ shape: 'heart', expression: 'smile' }, { duration: 200 });
+  a.remove(); assert.deepEqual(await transition, { finished: false }); assert.deepEqual(a.camera, camera);
+});
