@@ -130,7 +130,9 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
       // Follow the actual visible navigation and verify the newly published runtime.
       await page.locator('#api-playground-link').click();
       assert.equal(page.url(), new URL('api-playground.html', canonical).href);
-      await page.waitForFunction(() => document.getElementById('bot')?.ready === true);
+      // Renderer readiness precedes asynchronous Studio session restoration.
+      // Wait until the page has applied its initial position before testing flight.
+      await page.waitForFunction(() => document.getElementById('bot')?.ready === true && document.getElementById('bot').hasAttribute('data-configured'));
       await page.emulateMedia({ reducedMotion: 'no-preference' });
       const flight = await page.evaluate(async () => {
         const bot = document.getElementById('bot');

@@ -6,7 +6,12 @@ import { chromium } from 'playwright-core';
 import { createAppServer } from '../scripts/serve.mjs';
 let browser, server, base;
 before(async () => {
-  server = createAppServer(); await new Promise(resolve => server.listen(0,'127.0.0.1',resolve)); base=`http://127.0.0.1:${server.address().port}`;
+  if (process.env.SIDEKICK_USECASES_LIVE_URL) {
+    assert.equal(process.env.SIDEKICK_USECASES_LIVE_URL, 'https://sidekick.hananakick.cc');
+    base = process.env.SIDEKICK_USECASES_LIVE_URL;
+  } else {
+    server = createAppServer(); await new Promise(resolve => server.listen(0,'127.0.0.1',resolve)); base=`http://127.0.0.1:${server.address().port}`;
+  }
   browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined), headless: process.env.SIDEKICK_HEADED !== '1',args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage'] });
 });
 after(async()=>{await browser?.close();if(server)await new Promise(resolve=>server.close(resolve));});

@@ -5,6 +5,16 @@ import { JSDOM } from 'jsdom';
 import ts from 'typescript';
 import { actionSource, executeAction, codeForAction } from '../playground/playground-actions.js';
 
+test('Playground install and accessory snippets use the current released package version', async () => {
+  const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  for (const file of ['api-playground.js', 'playground-actions.js']) {
+    const source = await readFile(new URL(`../playground/${file}`, import.meta.url), 'utf8');
+    const pins = [...source.matchAll(/(?:sidekick@|sidekick#)v(\d+\.\d+\.\d+)/g)].map(match => match[1]);
+    assert.ok(pins.length > 0, `${file} includes an install or CDN pin`);
+    assert.ok(pins.every(pin => pin === version), `${file} pins must match ${version}`);
+  }
+});
+
 const actions = [
   { method: 'moveTo', args: [{ x: 300, y: 240 }, { duration: 850, travel: 'none', easing: 'linear' }] },
   { method: 'moveBy', args: [{ x: -40, y: 60 }, { duration: 1200, travel: 'natural', acceleration: 1800, deceleration: 2200 }] },
