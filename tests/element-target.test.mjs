@@ -49,7 +49,7 @@ test('anchor is validated separately from movement options', () => {
 test('shared anchor scheduler reads before writes, suspends hidden, removes final loop', async () => {
  const {observeElementAnchor}=await import('../dist/src/element/element-anchor.js');
  const callbacks=new Map(),listeners=new Map(),order=[];let id=0;
- const document={hidden:false,defaultView:{requestAnimationFrame:callback=>{callbacks.set(++id,callback);return id;},cancelAnimationFrame:id=>callbacks.delete(id)},addEventListener:(name,callback)=>listeners.set(name,callback),removeEventListener:name=>listeners.delete(name)};
+ const document={hidden:false,defaultView:{performance:{now:()=>0},addEventListener:(name,callback)=>listeners.set(name,callback),removeEventListener:name=>listeners.delete(name),requestAnimationFrame:callback=>{callbacks.set(++id,callback);return id;},cancelAnimationFrame:id=>callbacks.delete(id)},addEventListener:(name,callback)=>listeners.set(name,callback),removeEventListener:name=>listeners.delete(name)};
  const a=observeElementAnchor(document,()=>{order.push('read-a');return()=>order.push('write-a');});
  const b=observeElementAnchor(document,()=>{order.push('read-b');return()=>order.push('write-b');});
  assert.equal(callbacks.size,1);const [key,tick]=[...callbacks][0];callbacks.delete(key);tick();
