@@ -30,3 +30,5 @@ These are finite angle/time grids, not all continuous angles and times. The acti
 The final source differs from the frozen candidate-5 rendering source only in one explanatory comment. All 47 TypeScript files have identical transpiled output after comment removal; the equivalence manifest is retained with the QA artifacts.
 
 Raw provenance, compressed metrics, images and logs are retained in the task's crown-fit-qa evidence directory. The adjacent harness README documents reproduction; no new runtime dependency is introduced.
+
+A subsequent 768px review also covered every flagged activity case. No missing crown pixels remained. Residuals were individual band/shell ID assignments at identical encoded depth, plus one Heart pixel whose encoded depth differs by 3/65,535. This is retained as a small rasterization discrepancy rather than described as zero numerical error.
