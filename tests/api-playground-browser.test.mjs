@@ -129,6 +129,13 @@ test('mobile touch taps move, swipes do not, controls scroll without moving the 
   await page.locator('.controls-panel').evaluate(panel => { panel.scrollTop = panel.scrollHeight; });
   assert.deepEqual(await page.locator('#movement-stage').boundingBox(), stage);
   assert.deepEqual(await position(page), tapped);
+  const stop = page.locator('#cancel-preview'), stopBox = await stop.boundingBox();
+  assert.ok(stopBox && stopBox.y >= 0 && stopBox.y + stopBox.height <= 844, 'Fixed preview stop remains on screen after controls scroll');
+  assert.equal(await stop.evaluate(button => { const rect = button.getBoundingClientRect(); return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) === button; }), true, 'Fixed preview stop remains directly clickable');
+  await page.locator('#bot').evaluate(bot => { const original = bot.cancelMove.bind(bot); window.cancelCalls = 0; bot.cancelMove = () => { window.cancelCalls++; original(); }; });
+  await stop.click();
+  assert.equal(await page.evaluate(() => window.cancelCalls), 1);
+  assert.match(await page.locator('#invocation').textContent(), /avatar.cancelMove\(\)/);
   const geometry = await page.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth, panel: document.querySelector('.controls-panel').getBoundingClientRect().bottom, nav: [...document.querySelectorAll('.product-nav a')].map(a => ({ text: a.textContent, width: a.getBoundingClientRect().width })) }));
   assert.equal(geometry.scrollWidth, geometry.width);
   assert.ok(geometry.panel <= 844);

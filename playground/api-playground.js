@@ -90,7 +90,9 @@ for (const input of [method, xInput, yInput, durationInput, easingInput, travelI
 $('move').onclick = move;
 for (const input of [xInput, yInput, durationInput]) input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); move(); } });
 for (const button of document.querySelectorAll('[data-dx]')) button.onclick = () => moveBy({ x: Number(button.dataset.dx), y: Number(button.dataset.dy) });
-$('cancel').onclick = () => void run('cancelMove', avatarCode('avatar.cancelMove();'), () => bot.cancelMove());
+const cancelMove = () => void run('cancelMove', avatarCode('avatar.cancelMove();'), () => bot.cancelMove());
+$('cancel').onclick = cancelMove;
+$('cancel-preview').onclick = cancelMove;
 $('play').onclick = () => {
   const activity = $('activity').value;
   void run('play', avatarCode(`const result = await avatar.play('${activity}', { duration: 1000 });`), () => { const result = bot.play(activity, { duration: 1000 }); telemetry(); return result; });

@@ -102,6 +102,9 @@ test('keyboard targets and independent stop controls call only their respective 
   f.$('cancel').click();
   assert.equal(f.bot.calls.at(-1).method, 'cancelMove');
   assert.match(f.$('invocation').textContent, /avatar.cancelMove\(\)/);
+  f.$('cancel-preview').click();
+  assert.equal(f.bot.calls.at(-1).method, 'cancelMove');
+  assert.equal(f.bot.calls.filter(call => call.method === 'cancelMove').length, 2);
   f.$('play').click(); await flush();
   assert.equal(f.bot.calls.at(-1).method, 'play');
   assert.equal(f.$('activity-state').textContent, 'celebrating');
