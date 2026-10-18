@@ -110,3 +110,24 @@ test('display:none avatar retains its binding without accumulating positional dr
   layout.displayed = true; layout.x += 100; frame();
   assert.deepEqual(avatar.position, { x: 170, y: 110 });
 });
+
+test('anchor destination keeps viewport bounds while recovering from an exit', async t => {
+  const { avatar, target, layout } = fixture(t);
+  Object.defineProperty(dom.window, 'innerWidth', { value: 900, configurable: true });
+  avatar.placementState = 'viewport'; avatar.movementBox = { width: 200, height: 200 };
+  layout.originX = 0; layout.originY = 0; layout.x = 1500;
+  await avatar.exit({ duration: 0 });
+  const pending = avatar.moveToElement(target, { anchor: true });
+  assert.equal(avatar.movement.track.to.x, 700, 'initial destination is constrained');
+  frame();
+  assert.equal(avatar.movement.track.to.x, 700, 'persistent refresh must not bypass bounds during presence recovery');
+  avatar.remove(); assert.equal((await pending).finished, false);
+});
+
+test('hidden target reparented into the avatar detaches before geometry becomes available', async t => {
+  const { avatar, target } = fixture(t);
+  await avatar.moveToElement(target, { anchor: true, duration: 0 });
+  target.getClientRects = () => [];
+  avatar.attachShadow({ mode: 'open' }).append(target);
+  frame(); assert.equal(avatar.elementAnchor, null); assert.equal(frames.size, 0);
+});
