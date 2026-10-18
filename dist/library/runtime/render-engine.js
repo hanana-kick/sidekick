@@ -1,3 +1,4 @@
+import { travelPose, travelActivity } from '../core/travel.js';
 import { clamp, spring } from '../core/math.js';
 import { ActivityBlend } from '../core/activity-blend.js';
 import { MotionTimeline } from '../core/motion.js';
@@ -92,7 +93,7 @@ export class RenderEngine {
         }
     }
     get snapshot() {
-        return { renderCpu: { ...this.renderCpu }, pose: structuredClone(this.timeline.pose), time: this.state.time, renderedRotation: [...this.renderedRotation], frames: this.frames, running: this.scheduled !== 0, ...this.renderer.stats, width: this.renderer.canvas.width, height: this.renderer.canvas.height };
+        return { travel: this.state.travel ? structuredClone(this.state.travel) : undefined, renderCpu: { ...this.renderCpu }, pose: structuredClone(this.timeline.pose), time: this.state.time, renderedRotation: [...this.renderedRotation], frames: this.frames, running: this.scheduled !== 0, ...this.renderer.stats, width: this.renderer.canvas.width, height: this.renderer.canvas.height };
     }
     notify(event, revision = this.revision) {
         if (this.batchDepth && event.kind === 'frame')
@@ -328,10 +329,14 @@ export class RenderEngine {
         if (this.disposed || (!force && !this.dirty && !this.animated()))
             return;
         const shape = this.shape.snapshot;
-        const pose = this.tracking.compose(this.timeline.pose);
+        const travel = this.state.reduced ? undefined : this.state.travel;
+        const tracked = this.tracking.compose(this.timeline.pose);
+        if (travel?.strength)
+            tracked.rotation = tracked.rotation.map((value, index) => value + (this.timeline.pose.rotation[index] - value) * travel.strength);
+        const pose = travelPose(tracked, travel);
         this.renderedRotation = [...pose.rotation];
         const started = performance.now();
-        this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, activityFrame: this.activityBlend.sample(this.state.time, this.state.reduced), time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', camera: this.state.camera });
+        this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, activityFrame: travelActivity(this.activityBlend.sample(this.state.time, this.state.reduced), travel), travel, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', camera: this.state.camera });
         const duration = performance.now() - started;
         this.renderCpu.lastMs = duration;
         this.renderCpu.totalMs += duration;

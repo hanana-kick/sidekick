@@ -2,5 +2,5 @@
 export * from './core.js';
 export { SidekickAvatar, defineSidekick } from './element/avatar.js';
 export * from './element/attributes.js';
-export type { AvatarPlacement, AvatarPosition, MovementBounds, MoveResult } from './element/movement.js';
+export type { AvatarPlacement, AvatarPosition, MovementBounds, MoveResult, MoveOptions, MovementState } from './element/movement.js';
 export type { PlayOptions, AssetTransitionTarget } from './element/playback.js';

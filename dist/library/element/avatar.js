@@ -50,6 +50,7 @@ export class SidekickAvatar extends HTMLElementBase {
     cancelTransition() { this.playback.cancelTransition(); }
     placementState = 'inline';
     boundsState = 'viewport';
+    travelPresentation;
     movement = new AvatarMovement({
         now: () => performance.now(), immediate: () => this.paused || this.reduced || !this.connected,
         constrain: point => this.constrainPosition(point),
@@ -57,7 +58,19 @@ export class SidekickAvatar extends HTMLElementBase {
             this.pendingPointer = { ...this.lastTrackedPointer };
             this.queueInput();
         } },
-        complete: result => this.emit('sidekick-move-end', result),
+        complete: async (result) => {
+            if (this.bridge && this.connected) {
+                const barrier = this.request('barrier');
+                this.send({ kind: 'flush', request: barrier.id });
+                try {
+                    await barrier.promise;
+                }
+                catch { /* Teardown still settles the caller's movement. */ }
+            }
+            this.emit('sidekick-move-end', result);
+        },
+        progress: state => this.emit('sidekick-move-progress', state),
+        presentation: travel => { this.travelPresentation = travel; this.send({ kind: 'state', state: { travel } }); },
         requestFrame: callback => requestAnimationFrame(callback), cancelFrame: id => cancelAnimationFrame(id),
     });
     get placement() { return this.placementState; }
@@ -68,6 +81,7 @@ export class SidekickAvatar extends HTMLElementBase {
         throw new TypeError('movementBounds must be viewport or none'); this.reflectAttribute('movement-bounds', value); }
     /** Inline: offset from normal layout. Viewport: layout viewport top-left, CSS pixels. */
     get position() { return this.movement.position; }
+    get movementState() { return this.movement.state; }
     moveTo(position, options = {}) { return this.movement.to(position, options); }
     moveBy(delta, options = {}) { return this.movement.by(delta, options); }
     cancelMove() { this.movement.cancel(); }
@@ -300,7 +314,7 @@ export class SidekickAvatar extends HTMLElementBase {
     /** Last acknowledged worker pose; configuration and camera getters are immediate. */
     get pose() { return structuredClone(this.currentPose); }
     get diagnostics() {
-        return { ready: this.ready, running: this.ready && (this.snapshotState?.running ?? false), frames: this.snapshotState?.frames ?? 0, drawCalls: this.snapshotState?.drawCalls ?? 0, buffers: this.ready ? this.snapshotState?.buffers ?? 0 : 0, backend: this.bridge?.backend ?? 'none', generation: this.generation, revision: this.bridge?.revision ?? 0, acknowledgedRevision: this.acknowledgedRevision, time: this.snapshotState?.time ?? this.elapsed, renderCpu: { ...(this.snapshotState?.renderCpu ?? { lastMs: 0, totalMs: 0, maxMs: 0 }) }, renderedRotation: [...(this.snapshotState?.renderedRotation ?? [0, 0, 0])] };
+        return { travel: this.snapshotState?.travel ? structuredClone(this.snapshotState.travel) : undefined, ready: this.ready, running: this.ready && (this.snapshotState?.running ?? false), frames: this.snapshotState?.frames ?? 0, drawCalls: this.snapshotState?.drawCalls ?? 0, buffers: this.ready ? this.snapshotState?.buffers ?? 0 : 0, backend: this.bridge?.backend ?? 'none', generation: this.generation, revision: this.bridge?.revision ?? 0, acknowledgedRevision: this.acknowledgedRevision, time: this.snapshotState?.time ?? this.elapsed, renderCpu: { ...(this.snapshotState?.renderCpu ?? { lastMs: 0, totalMs: 0, maxMs: 0 }) }, renderedRotation: [...(this.snapshotState?.renderedRotation ?? [0, 0, 0])] };
     }
     /** Viewing angles in degrees and centered zoom. Reads return an independent snapshot. */
     get camera() { return { ...this.cameraAngles }; }
@@ -429,7 +443,7 @@ export class SidekickAvatar extends HTMLElementBase {
     disconnectedCallback() {
         this.connected = false;
         this.playback.disconnect();
-        this.movement.cancel();
+        this.movement.disconnect();
         this.ownerDocument.defaultView?.removeEventListener('resize', this.onViewportResize);
         this.connected = false;
         this.readyState = false;
@@ -758,7 +772,7 @@ export class SidekickAvatar extends HTMLElementBase {
     }
     runtimeState() {
         const rect = this.getBoundingClientRect();
-        return { design: this.design, camera: this.camera, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
+        return { travel: this.travelPresentation, design: this.design, camera: this.camera, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
     }
     syncState() {
         this.send({ kind: 'state', state: { activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze } });

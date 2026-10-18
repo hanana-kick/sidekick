@@ -1,5 +1,6 @@
 import type { PlayOptions, AssetTransitionTarget } from './playback.js';
-import type { AvatarPlacement, AvatarPosition, MovementBounds, MoveResult } from './movement.js';
+import type { TravelPresentation } from '../core/travel.js';
+import type { AvatarPlacement, AvatarPosition, MovementBounds, MoveResult, MoveOptions, MovementState } from './movement.js';
 import type { AccessoryDesign, Activity, AvatarDesign, DesignPatch, RenderStyle } from '../core/design.js';
 import type { TrackingMode } from '../core/tracking.js';
 import type { ShapeMotionOptions, ShapeMotionResult } from '../core/shape-motion.js';
@@ -12,7 +13,7 @@ import type { PixelBuffer } from '../core/pixels.js';
 import type { SidekickEventMap } from './attributes.js';
 declare const HTMLElementBase: typeof HTMLElement;
 export declare class SidekickAvatar extends HTMLElementBase {
-    static observedAttributes: ("shape" | "smile" | "blink" | "expression" | "accessories" | "design" | "motion" | "camera" | "activity" | "paused" | "interaction" | "time" | "placement" | "position-x" | "position-y" | "movement-bounds" | "move-duration" | "move-easing" | "body-color" | "eye-color" | "left-expression" | "right-expression" | "left-smile" | "right-smile" | "left-blink" | "right-blink" | "head-accessory" | "head-color" | "eyes-accessory" | "eyes-color" | "mouth-accessory" | "mouth-color" | "neck-accessory" | "neck-color" | "left-ear-accessory" | "left-ear-color" | "right-ear-accessory" | "right-ear-color" | "camera-yaw" | "camera-pitch" | "camera-roll" | "camera-zoom" | "gaze-x" | "gaze-y" | "mouse-tracking" | "tracking-mode" | "render-style" | "shape-duration" | "shape-easing" | "motion-duration" | "motion-easing")[];
+    static observedAttributes: ("shape" | "smile" | "blink" | "expression" | "accessories" | "design" | "motion" | "camera" | "activity" | "paused" | "interaction" | "time" | "placement" | "position-x" | "position-y" | "movement-bounds" | "move-duration" | "move-easing" | "move-travel" | "body-color" | "eye-color" | "left-expression" | "right-expression" | "left-smile" | "right-smile" | "left-blink" | "right-blink" | "head-accessory" | "head-color" | "eyes-accessory" | "eyes-color" | "mouth-accessory" | "mouth-color" | "neck-accessory" | "neck-color" | "left-ear-accessory" | "left-ear-color" | "right-ear-accessory" | "right-ear-color" | "camera-yaw" | "camera-pitch" | "camera-roll" | "camera-zoom" | "gaze-x" | "gaze-y" | "mouse-tracking" | "tracking-mode" | "render-style" | "shape-duration" | "shape-easing" | "motion-duration" | "motion-easing")[];
     addEventListener<K extends keyof SidekickEventMap>(type: K, listener: (this: SidekickAvatar, event: SidekickEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
     addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
     addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions): void;
@@ -28,6 +29,7 @@ export declare class SidekickAvatar extends HTMLElementBase {
     cancelTransition(): void;
     private placementState;
     private boundsState;
+    private travelPresentation?;
     private movement;
     get placement(): AvatarPlacement;
     set placement(value: AvatarPlacement);
@@ -35,8 +37,9 @@ export declare class SidekickAvatar extends HTMLElementBase {
     set movementBounds(value: MovementBounds);
     /** Inline: offset from normal layout. Viewport: layout viewport top-left, CSS pixels. */
     get position(): AvatarPosition;
-    moveTo(position: AvatarPosition, options?: MotionOptions): Promise<MoveResult>;
-    moveBy(delta: AvatarPosition, options?: MotionOptions): Promise<MoveResult>;
+    get movementState(): MovementState;
+    moveTo(position: AvatarPosition, options?: MoveOptions): Promise<MoveResult>;
+    moveBy(delta: AvatarPosition, options?: MoveOptions): Promise<MoveResult>;
     cancelMove(): void;
     private constrainPosition;
     private updatePlacement;
@@ -129,6 +132,7 @@ export declare class SidekickAvatar extends HTMLElementBase {
     /** Last acknowledged worker pose; configuration and camera getters are immediate. */
     get pose(): Pose;
     get diagnostics(): {
+        travel?: TravelPresentation;
         ready: boolean;
         running: boolean;
         frames: number;

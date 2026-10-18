@@ -1,3 +1,4 @@
+import { travelMatrix } from '../core/travel.js';
 import { resolveDesign } from '../core/resolved-design.js';
 import { cameraViewMatrix, createCamera } from '../core/camera.js';
 import { activityFrame } from '../core/motion.js';
@@ -263,7 +264,7 @@ export class AvatarRenderer {
         // View orientation is independent of the body's animated local pose. Matrix
         // composition preserves combined yaw/pitch/roll, unlike adding Euler angles.
         const model = transform([0, activity.bob, 0], [pose.rotation[0], pose.rotation[1], roll]);
-        const root = multiply(cameraViewMatrix(camera), model);
+        const root = travelMatrix(multiply(cameraViewMatrix(camera), model), state.reduced ? undefined : state.travel);
         const aspect = this.displayAspect ?? this.canvas.width / this.canvas.height;
         const contour = state.contour ?? shapeContour({ kind: 'material', name: design.body.shape });
         const profile = state.profile ?? resolveShapeProfile(design.body.shape);
