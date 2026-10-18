@@ -46,6 +46,9 @@ async function pageFor(t, backend = 'worker', instances = 1, options = {}) {
   await page.evaluate(count => {
     window.avatars = Array.from({ length: count }, (_, index) => {
       const element = document.createElement('sidekick-avatar'); element.id = `avatar-${index}`; element.setActivity('still');
+      // Static/performance probes explicitly opt out; individual input tests
+      // enable only their subject, not every companion in this fixture.
+      element.trackingMode = 'off';
       const accessories = ['beret', 'glasses', 'moustache', 'scarf'].map(preset => window.api.createAccessory(preset));
       accessories.push(window.api.createAccessory('earring', { slot: 'leftEar', id: 'left-earring' }), window.api.createAccessory('starEarring', { slot: 'rightEar', id: 'right-earring' }));
       element.design = window.api.createDesign({ body: { shape: 'softBoom' }, accessories });
@@ -283,5 +286,30 @@ test('wide and tall capped surfaces preserve a circle in display pixels at DPR 1
     assert.deepEqual(measurements.results, [{ finished: true }, { finished: true }]); assert.equal(measurements.final.shape, 'heart'); assert.equal(measurements.final.pose.eyes.left.openness, 0); assert.equal(measurements.final.diagnostics.backend, backend);
     reports.push({ name: 'display-aspect', backend, throttleRate: 6, ...measurements }); t.diagnostic(JSON.stringify({ backend, dpr, ...measurements }));
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 }); await cdp.detach(); await page.close();
+  }
+});
+
+for (const backend of ['worker', 'main']) test(`multiple default body-and-eye trackers coalesce input independently (${backend})`, { timeout: 60000 }, async t => {
+  const count = 4, page = await pageFor(t, backend, count);
+  const burst = await page.evaluate(async () => {
+    for (const avatar of window.avatars) avatar.removeAttribute('tracking-mode');
+    await Promise.resolve();
+    await Promise.all(window.avatars.map(avatar => avatar.capturePixelsAsync()));
+    const before = structuredClone(window.performanceAudit);
+    for (let i = 0; i < 2000; i++) document.dispatchEvent(new PointerEvent('pointermove', { clientX: 1240, clientY: 80, pointerType: 'mouse' }));
+    const synchronousPosts = window.performanceAudit.posted - before.posted;
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return { synchronousPosts, stateMessages: (window.performanceAudit.commands.state ?? 0) - (before.commands.state ?? 0) };
+  });
+  assert.equal(burst.synchronousPosts, 0, 'default trackers must coalesce synchronous pointer bursts');
+  if (backend === 'worker') assert.ok(burst.stateMessages >= count && burst.stateMessages <= count * 2, `Expected at most two coalesced messages per avatar, received ${burst.stateMessages}`);
+  await page.waitForFunction(() => window.avatars.every(avatar => avatar.diagnostics.renderedRotation[1] > .1));
+  const states = await page.evaluate(async () => {
+    await Promise.all(window.avatars.map(avatar => avatar.capturePixelsAsync()));
+    return window.avatars.map(avatar => ({ mode: avatar.trackingMode, gaze: avatar.pose.gaze, rotation: avatar.diagnostics.renderedRotation, backend: avatar.diagnostics.backend }));
+  });
+  for (const state of states) {
+    assert.equal(state.mode, 'eyes-and-body'); assert.equal(state.backend, backend);
+    assert.ok(state.gaze[0] > .5); assert.ok(state.rotation[1] > .1 && state.rotation[1] <= .22);
   }
 });
