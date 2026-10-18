@@ -133,10 +133,11 @@ export class SidekickAvatar extends HTMLElementBase {
     /** Sample the target's viewport border-box and align matching anchors, then move with inertia. */
     moveToElement(target, options = {}) {
         const resolved = resolveElementTarget(this, this.position, target, options);
+        const state = options.anchor ? { target, x: options.x ?? 0, y: options.y ?? 0, alignX: options.alignX ?? 'left', alignY: options.alignY ?? 'top' } : null;
         const expectedRevision = this.anchorRevision + 1;
         const result = this.moveTo(resolved.position, resolved.options);
-        if (options.anchor && this.anchorRevision === expectedRevision)
-            this.attachAnchor({ target, x: options.x ?? 0, y: options.y ?? 0, alignX: options.alignX ?? 'left', alignY: options.alignY ?? 'top' });
+        if (state && this.anchorRevision === expectedRevision)
+            this.attachAnchor(state);
         return result;
     }
     moveBy(delta, options = {}) { validatePosition(delta); validateMoveOptions(options); this.detachAnchor(); const revision = this.presence.reveal(); if (!this.presence.owns(revision))
