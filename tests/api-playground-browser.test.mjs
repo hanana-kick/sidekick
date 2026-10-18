@@ -38,8 +38,8 @@ test('stage targets the avatar center, bounds edge taps and shows copyable exact
   const page = await pageFor(t, { reducedMotion: 'reduce' });
   await recordMoves(page);
   await page.locator('#duration').fill('850');
-  await page.locator('#easing').selectOption('linear');
   await page.locator('#travel').selectOption('none');
+  await page.locator('#easing').selectOption('linear');
   const stage = await page.locator('#movement-stage').boundingBox();
   const target = { x: stage.x + stage.width * .7, y: stage.y + stage.height * .35 };
   await page.mouse.click(target.x, target.y);
@@ -189,6 +189,7 @@ test('short portrait and landscape viewports retain a complete canvas and scroll
 test('natural controls drive physical telemetry and keep a trace through controlled braking', async t => {
   const page = await pageFor(t);
   await recordMoves(page);
+  await page.locator('#auto-speed').uncheck();
   await page.locator('#max-speed').fill('240'); await page.locator('#acceleration').fill('600'); await page.locator('#deceleration').fill('900');
   await page.evaluate(() => {
     window.physicalTrace = [];
@@ -222,4 +223,21 @@ test('natural controls drive physical telemetry and keep a trace through control
     await page.screenshot({ path: `${process.env.SIDEKICK_SCREENSHOTS}/api-inertial-telemetry.png` });
     await writeFile(`${process.env.SIDEKICK_SCREENSHOTS}/api-inertial-telemetry-trace.json`, JSON.stringify(trace, null, 2));
   }
+});
+
+test('automatic speed mode omits maxSpeed without changing physical acceleration limits', async t => {
+  const page = await pageFor(t, { reducedMotion: 'reduce' });
+  await recordMoves(page);
+  assert.equal(await page.locator('#auto-speed').isChecked(), true);
+  assert.equal(await page.locator('#max-speed').isDisabled(), true);
+  await page.locator('#duration').fill('1000');
+  await page.locator('[data-dx="120"]').click();
+  const call = await page.evaluate(() => window.moveCalls.at(-1));
+  assert.deepEqual(call.options, { duration: 1000, travel: 'natural', acceleration: 1800, deceleration: 2200 });
+  assert.doesNotMatch(await page.locator('#invocation').textContent(), /maxSpeed/);
+  await page.locator('#auto-speed').uncheck();
+  assert.equal(await page.locator('#max-speed').isEnabled(), true);
+  assert.match(await page.locator('#invocation').textContent(), /maxSpeed: 320/);
+  await page.locator('#auto-speed').check();
+  assert.doesNotMatch(await page.locator('#invocation').textContent(), /maxSpeed/);
 });

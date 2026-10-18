@@ -148,12 +148,14 @@ test('copy, asset transition, options and result log controls stay wired', async
 
 test('natural playground controls generate physical options and validate their full ranges', async t => {
   const f = fixture(t);
+  f.$('auto-speed').checked = false; f.$('auto-speed').dispatchEvent(new f.w.Event('input'));
   f.input('travel', 'natural'); f.input('duration', 1500); f.input('max-speed', 240); f.input('acceleration', 700); f.input('deceleration', 1100);
   f.$('move').click(); await flush();
   assert.deepEqual(JSON.parse(JSON.stringify(f.bot.calls.at(-1).options)), { duration: 1500, travel: 'natural', maxSpeed: 240, acceleration: 700, deceleration: 1100 });
   assert.match(f.$('invocation').textContent, /maxSpeed: 240, acceleration: 700, deceleration: 1100/); assert.equal(f.$('physical-options').hidden, false);
-  f.input('max-speed', ''); f.$('move').click(); await flush();
+  f.$('auto-speed').checked = true; f.$('auto-speed').dispatchEvent(new f.w.Event('input')); f.$('move').click(); await flush();
   assert.equal(Object.hasOwn(f.bot.calls.at(-1).options, 'maxSpeed'), false); assert.equal(f.bot.calls.at(-1).options.duration, 1500);
+  f.$('auto-speed').checked = false; f.$('auto-speed').dispatchEvent(new f.w.Event('input'));
   for (const id of ['max-speed', 'acceleration', 'deceleration']) {
     for (const value of [0, 100001]) {
       const count = f.bot.calls.length; f.input(id, value); f.$('move').click(); await flush();
@@ -176,4 +178,14 @@ test('physical telemetry displays signed vectors, magnitudes and state-backed tr
     const points = f.$(id).getAttribute('points'); assert.ok(points.length); assert.doesNotMatch(points, /NaN|Infinity/);
   }
   await flush();
+});
+
+
+test('automatic speed defaults omit only the speed cap and retain fixed acceleration values', async t => {
+  const f = fixture(t);
+  assert.equal(f.$('auto-speed').checked, true); assert.equal(f.$('max-speed').disabled, true);
+  f.input('duration', 1200); f.input('max-speed', -1); f.$('move').click(); await flush();
+  assert.deepEqual(JSON.parse(JSON.stringify(f.bot.calls.at(-1).options)), { duration: 1200, travel: 'natural', acceleration: 1800, deceleration: 2200 });
+  assert.doesNotMatch(f.$('invocation').textContent, /maxSpeed/);
+  assert.match(f.$('timing-help').textContent, /먼 곳은 더 오래/);
 });

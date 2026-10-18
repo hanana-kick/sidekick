@@ -930,7 +930,7 @@ Both HTML entry pages include static Open Graph and Twitter card tags with the c
 | 이벤트 `sidekick-play-end` | `onPlayEnd` | `{ finished }` 재생 구간 완료/취소 |
 | 이벤트 `sidekick-transition-end` | `onAssetTransitionEnd` | `{ finished }` 도형·표정·장식 묶음 전환 완료/취소 |
 
-`position-x/y`를 함께 변경하면 한 attribute transaction으로 처리합니다. 직접 메서드 호출은 `MoveOptions`를 사용하며 기본 duration은 400ms, travel은 natural입니다. `move-*` attribute/React prop은 선언형 좌표 변경에만 적용됩니다. 초기 배치를 즉시 하려면 move-duration을 생략하세요. 선언형 자연 비행에는 `move-duration="1000" move-max-speed="320" move-acceleration="900" move-deceleration="1200"`처럼 양수 duration과 물리 옵션을 함께 지정할 수 있습니다. 최고 속도가 있어도 duration이 0이면 즉시 적용됩니다.
+`position-x/y`를 함께 변경하면 한 attribute transaction으로 처리합니다. 직접 메서드 호출은 `MoveOptions`를 사용하며 기본 duration은 400ms, travel은 natural입니다. `move-*` attribute/React prop은 선언형 좌표 변경에만 적용됩니다. 초기 배치를 즉시 하려면 move-duration을 생략하세요. 자동 최고 속도의 선언형 자연 비행은 `move-duration="1000" move-travel="natural"`을 사용합니다. React는 `moveDuration={1000} moveTravel="natural"`입니다. move-max-speed/moveMaxSpeed를 생략하면 거리와 duration 힌트로 상한을 계산하고, 지정하면 그 상한을 사용합니다. 가속도·감속도 기본값은 거리에 따라 바뀌지 않습니다. 최고 속도가 있어도 duration이 0이면 즉시 적용됩니다.
 
 ### 메서드와 실제 완료의 의미
 
@@ -962,12 +962,12 @@ Both HTML entry pages include static Open Graph and Twitter card tags with the c
 
 ### 자연스러운 방향성 비행과 실제 가속도
 
-`moveTo()`·`moveBy()`는 기본적으로 `travel: 'natural'`을 사용합니다. DOM 좌표가 실제 속도·가속도 적분으로 움직이며, 몸의 기울기만으로 가속을 흉내 내지 않습니다. 정지 상태에서 가속하고, 목표까지 남은 거리와 감속 한도로 제동 거리를 계산해 도착 전에 감속합니다. 방향 전환도 기존 속도에서 이어지므로 관성에 따라 곡선 경로나 잠깐의 역방향 이동이 생길 수 있습니다. 최고 속도는 목표 속력의 상한이며, 더 낮은 최고 속도로 재지정해도 현재 속도를 즉시 잘라내지 않고 감속합니다.
+`moveTo()`·`moveBy()`는 기본적으로 `travel: 'natural'`을 사용합니다. DOM 좌표가 실제 속도·가속도 적분으로 움직이며, 몸의 기울기만으로 가속을 흉내 내지 않습니다. 정지 상태에서 가속하고, 목표까지 남은 거리와 감속 한도로 제동 거리를 계산해 도착 전에 감속합니다. 자동 최고 속도 상한은 거리와 duration 힌트로 계산하므로 먼 목적지일수록 커집니다. 가속도·감속도는 거리에 맞춰 증가하지 않으며 기본 1800·2200 CSS px/s²를 유지합니다. 따라서 먼 목적지까지는 더 오래 걸립니다. 방향 전환도 기존 속도에서 이어지므로 관성에 따라 곡선 경로나 잠깐의 역방향 이동이 생길 수 있습니다. 최고 속도는 목표 속력의 상한이며, 더 낮은 최고 속도로 재지정해도 현재 속도를 즉시 잘라내지 않고 감속합니다.
 
 | `MoveOptions` 필드 | 의미 / 기본값 |
 | --- | --- |
 | `travel` | `'natural'` 기본 / `'none'` |
-| `maxSpeed` | 자연 비행의 최고 속도, CSS px/s. 1–100000. 생략 시 `거리 / max(0.1, duration / 1000)`을 80–900 px/s로 제한 |
+| `maxSpeed` | 자연 비행의 최고 속도, CSS px/s. 1–100000. 생략 시 `거리 / max(0.1, duration / 1000)`을 80–100000 px/s로 제한 |
 | `acceleration` | 자연 비행의 가속 한도, CSS px/s². 1–100000, 기본 `1800` |
 | `deceleration` | 자연 비행의 감속 한도, CSS px/s². 1–100000, 기본 `2200`; 도착·반전·cancelMove 제동에 사용 |
 | `duration` | 0–60000ms, 직접 메서드 기본 `400`. natural에서 maxSpeed 생략 시 속도 힌트이며 실제 완료 시간은 보장하지 않음. `0`은 두 모드 모두 즉시 적용 |
@@ -985,7 +985,8 @@ import type { MoveOptions, MovementState } from '@hanana-kick/sidekick';
 
 const bot = document.querySelector('sidekick-avatar')!;
 const options: MoveOptions = {
-  travel: 'natural', maxSpeed: 320, acceleration: 900, deceleration: 1200,
+  duration: 1000, travel: 'natural', acceleration: 1800, deceleration: 2200,
+  // maxSpeed 생략: 거리와 duration 힌트로 상한을 자동 계산
 };
 // 활동은 비행과 동시에 계속 재생됩니다. stop()으로 활동만 중단합니다.
 const playback = bot.play('speaking');
@@ -1021,7 +1022,7 @@ console.log(state.phase, state.progress, state.position, state.velocity, state.a
 
 `movement-bounds="viewport"`에서는 전체 캔버스 박스가 뷰포트를 벗어나지 않습니다. 벽에 닿은 축의 바깥 방향 속도만 0으로 만들며 다른 축은 계속 움직일 수 있습니다. 경계에 의해 속도가 잘리는 순간은 일반적인 가속 한도 예외입니다. `inline`이나 `movement-bounds="none"`에는 이런 제한이 없으므로 컨테이너 경계·제동 거리·방향 전환 시 여유 공간은 앱에서 관리하세요. 목적지만 컨테이너 안으로 제한해도 관성 경로와 제동 위치까지 제한되지는 않습니다.
 
-API playground에서는 최고 속도·가속도·감속도와 실제 velocity/acceleration을 비교할 수 있습니다. 최근 6초 그래프는 속력과 가속도의 크기를 각각 독립 축으로 표시합니다. 무대 클릭/터치는 드래그·스크롤·길게 누르기와 구분되며, 모바일에서도 고정 미리보기의 이동 중지 버튼을 사용할 수 있습니다. 활동 재생 구간의 `0`은 playground에서만 계속 반복을 뜻하며, 실제 API 호출에서는 duration을 생략합니다.
+API playground는 “최고 속도 자동”이 기본으로 켜져 있으며 호출 코드에서 maxSpeed만 생략합니다. acceleration=1800, deceleration=2200은 거리에 따라 바뀌지 않는 기본값입니다. 자동을 끄면 직접 입력한 maxSpeed 상한을 사용합니다. 세 물리 제한값은 수동으로 조정할 수 있으며 실제 velocity/acceleration과 비교할 수 있습니다. natural은 항상 물리 적분이며 시간 기반 비행으로 전환되지 않습니다. 최근 6초 그래프는 속력과 가속도의 크기를 각각 독립 축으로 표시합니다. 무대 클릭/터치는 드래그·스크롤·길게 누르기와 구분되며, 모바일에서도 고정 미리보기의 이동 중지 버튼을 사용할 수 있습니다. 활동 재생 구간의 `0`은 playground에서만 계속 반복을 뜻하며, 실제 API 호출에서는 duration을 생략합니다.
 
 ### CDN HTML에서 명령 API 사용
 
@@ -1071,7 +1072,7 @@ API playground에서는 최고 속도·가속도·감속도와 실제 velocity/a
   function flyTo(localX, localY) {
     const x = Math.max(0, Math.min(stage.clientWidth - bot.offsetWidth, localX - bot.offsetWidth / 2));
     const y = Math.max(0, Math.min(stage.clientHeight - bot.offsetHeight, localY - bot.offsetHeight / 2));
-    void bot.moveTo({ x, y }, { duration: 1000, travel: 'natural', maxSpeed: 320, acceleration: 900, deceleration: 1200 });
+    void bot.moveTo({ x, y }, { duration: 1000, travel: 'natural', acceleration: 1800, deceleration: 2200 });
   }
   stage.addEventListener('pointerup', event => {
     if (!event.isPrimary || event.button !== 0) return;
@@ -1108,7 +1109,7 @@ export function Companion() {
     if (!avatar || !area) return;
     const x = Math.max(0, Math.min(area.clientWidth - avatar.offsetWidth, localX - avatar.offsetWidth / 2));
     const y = Math.max(0, Math.min(area.clientHeight - avatar.offsetHeight, localY - avatar.offsetHeight / 2));
-    void avatar.moveTo({ x, y }, { duration: 1000, travel: 'natural', maxSpeed: 320, acceleration: 900, deceleration: 1200 });
+    void avatar.moveTo({ x, y }, { duration: 1000, travel: 'natural', acceleration: 1800, deceleration: 2200 });
   }
   return <>
     <div ref={stage} role="group" aria-label="누른 곳으로 이동하는 무대"
