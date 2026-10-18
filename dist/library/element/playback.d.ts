@@ -34,18 +34,23 @@ export declare class PlaybackController {
     private readonly host;
     private playing?;
     private transition?;
+    private playbackRevision;
+    private transitionRevision;
     constructor(host: PlaybackHost);
     play(activity: Activity, options?: PlayOptions): Promise<MotionResult>;
     /** Cancel playback and return to idle, including when setActivity started the loop. */
     stop(): void;
     /** Called before an external setActivity takes ownership of the activity. */
     cancelPlayback(): void;
+    private cancelPlaying;
     private finishPlayback;
     transitionTo(target: AssetTransitionTarget, options?: MotionOptions): Promise<MotionResult>;
     private runTransition;
     private swapAccessories;
     private fade;
     cancelTransition(): void;
+    private cancelCurrentTransition;
+    private currentOpacity;
     private clearAnimation;
     /** Paused/reduced motion snaps fades; renderer policy snaps shape/eye motion.
      * Playback intervals remain wall-clock intervals, even while visually paused.

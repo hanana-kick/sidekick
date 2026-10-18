@@ -34,6 +34,7 @@ interface Transition {
   reject: (reason: unknown) => void;
   channels: AssetMotionChannels;
   animation?: Animation;
+  initialOpacity: number;
 }
 function plainObject(value: unknown, name: string, keys: readonly string[]): void {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be a plain object`);
@@ -49,13 +50,18 @@ function plainObject(value: unknown, name: string, keys: readonly string[]): voi
 export class PlaybackController {
   private playing?: Playing;
   private transition?: Transition;
+  private playbackRevision = 0;
+  private transitionRevision = 0;
   constructor(private readonly host: PlaybackHost) {}
 
   play(activity: Activity, options: PlayOptions = {}): Promise<MotionResult> {
     if (!ACTIVITIES.includes(activity)) throw new TypeError('Unsupported activity');
     plainObject(options, 'play options', ['duration']);
     const duration = options.duration === undefined ? undefined : finite(options.duration, 0, 60000, 'duration');
-    this.cancelPlayback();
+    const revision = ++this.playbackRevision;
+    this.cancelPlaying();
+    // Completion listeners may synchronously start a newer request. Newest call wins.
+    if (revision !== this.playbackRevision) return Promise.resolve({ finished: false });
     if (!this.host.isConnected()) { const result = { finished: false }; this.host.onPlaybackEnd?.(result); return Promise.resolve(result); }
     let playing!: Playing;
     const result = new Promise<MotionResult>(resolve => { playing = { resolve }; });
@@ -69,10 +75,16 @@ export class PlaybackController {
   }
 
   /** Cancel playback and return to idle, including when setActivity started the loop. */
-  stop(): void { this.cancelPlayback(); this.host.setActivity('idle'); }
+  stop(): void {
+    const revision = ++this.playbackRevision;
+    this.cancelPlaying();
+    if (revision === this.playbackRevision) this.host.setActivity('idle');
+  }
 
   /** Called before an external setActivity takes ownership of the activity. */
-  cancelPlayback(): void {
+  cancelPlayback(): void { ++this.playbackRevision; this.cancelPlaying(); }
+
+  private cancelPlaying(): void {
     const playing = this.playing;
     if (!playing) return;
     this.playing = undefined;
@@ -105,9 +117,12 @@ export class PlaybackController {
     const expression = target.expression;
     if (expression !== undefined) eyeExpressionWeights(expression);
     const accessories = target.accessories === undefined ? undefined : validated.accessories;
-    this.cancelTransition();
+    const initialOpacity = this.currentOpacity();
+    const revision = ++this.transitionRevision;
+    this.cancelCurrentTransition();
+    if (revision !== this.transitionRevision) return Promise.resolve({ finished: false });
     let transition!: Transition;
-    const result = new Promise<MotionResult>((resolve, reject) => { transition = { resolve, reject, channels: { shape: false, expression: false } }; });
+    const result = new Promise<MotionResult>((resolve, reject) => { transition = { resolve, reject, initialOpacity, channels: { shape: false, expression: false } }; });
     this.transition = transition;
     // Unmounted setters still persist their targets, matching setShape/setExpression.
     const duration = this.host.immediateMotion() ? 0 : timing.duration;
@@ -120,12 +135,14 @@ export class PlaybackController {
       const tasks: Promise<MotionResult>[] = [];
       if (target.shape !== undefined) {
         transition.channels.shape = true;
-        tasks.push(this.host.setShape(target.shape, options));
+        const task = this.host.setShape(target.shape, options);
+        tasks.push(task); void task.catch(() => {});
       }
       if (this.transition !== transition) return;
       if (target.expression !== undefined) {
         transition.channels.expression = true;
-        tasks.push(this.host.setExpression('both', target.expression, options));
+        const task = this.host.setExpression('both', target.expression, options);
+        tasks.push(task); void task.catch(() => {});
       }
       if (this.transition !== transition) return;
       // Attach promise handlers before waiting for the fade, including worker errors.
@@ -148,8 +165,13 @@ export class PlaybackController {
   }
 
   private async swapAccessories(transition: Transition, accessories: readonly AccessoryDesign[] | undefined, options: Required<MotionOptions>): Promise<void> {
-    if (accessories === undefined) return;
-    await this.fade(transition, 1, 0, options.duration / 2, options.easing);
+    if (accessories === undefined) {
+      // A shape-only replacement can also interrupt an equipment fade. Restore its
+      // visibility smoothly instead of snapping the surviving canvas to full opacity.
+      if (transition.initialOpacity < 1) await this.fade(transition, transition.initialOpacity, 1, options.duration, options.easing);
+      return;
+    }
+    await this.fade(transition, transition.initialOpacity, 0, options.duration / 2, options.easing);
     if (this.transition !== transition) return;
     // Patch only equipment: never restore a captured design over a newer shape/eye target.
     await this.host.updateDesign({ accessories: [...accessories] });
@@ -169,7 +191,9 @@ export class PlaybackController {
     catch (error) { if (this.transition === transition && transition.animation === animation) throw error; }
   }
 
-  cancelTransition(): void {
+  cancelTransition(): void { ++this.transitionRevision; this.cancelCurrentTransition(); }
+
+  private cancelCurrentTransition(): void {
     const transition = this.transition;
     if (!transition) return;
     // Relinquish ownership before callbacks; old async work cannot mutate a new request.
@@ -178,6 +202,15 @@ export class PlaybackController {
     this.host.cancelAssetMotion(transition.channels);
     transition.resolve({ finished: false });
     this.host.onTransitionEnd?.({ finished: false });
+  }
+
+  private currentOpacity(): number {
+    if (!this.transition?.animation) return 1;
+    const canvas = this.host.getCanvas();
+    const view = canvas?.ownerDocument?.defaultView;
+    if (!canvas || !view) return 1;
+    const opacity = Number.parseFloat(view.getComputedStyle(canvas).opacity);
+    return Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : 1;
   }
 
   private clearAnimation(transition: Transition): void {

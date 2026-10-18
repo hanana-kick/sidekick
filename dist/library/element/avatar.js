@@ -422,6 +422,7 @@ export class SidekickAvatar extends HTMLElementBase {
         this.initializeRenderer();
     }
     disconnectedCallback() {
+        this.connected = false;
         this.playback.disconnect();
         this.movement.cancel();
         this.ownerDocument.defaultView?.removeEventListener('resize', this.onViewportResize);

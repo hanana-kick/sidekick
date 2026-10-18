@@ -8,20 +8,20 @@ import type { MotionResult } from '../src/core/motion.js';
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; }
 function fixture() {
   const calls: string[] = [], shapes: ReturnType<typeof deferred<MotionResult>>[] = [];
-  let design = createDesign(), immediate = false, connected = true;
-  const animations: { resolve: () => void; cancelled: boolean }[] = [];
+  let design = createDesign(), immediate = false, connected = true, opacity = 1;
+  const animations: { resolve: () => void; cancelled: boolean; keyframes: Keyframe[] }[] = [];
   const host: PlaybackHost = {
     setActivity: activity => { calls.push(activity); },
     setShape: (shape, options) => { calls.push(`shape:${shape}:${options.duration}`); const task = deferred<MotionResult>(); shapes.push(task); design = patchDesign(design, { body: { shape } }); return task.promise; },
     setExpression: () => Promise.resolve({ finished: true }),
     updateDesign: async patch => { calls.push('equipment'); design = patchDesign(design, patch); },
     getDesign: () => design,
-    getCanvas: () => ({ animate: () => { const task = deferred<void>(); const record = { resolve: () => task.resolve(), cancelled: false }; animations.push(record); return { finished: task.promise, cancel: () => { record.cancelled = true; task.resolve(); }, finish: () => task.resolve() }; } }) as unknown as HTMLCanvasElement,
+    getCanvas: () => ({ ownerDocument: { defaultView: { getComputedStyle: () => ({ opacity: String(opacity) }) } }, animate: (keyframes: Keyframe[]) => { const task = deferred<void>(); const record = { resolve: () => task.resolve(), cancelled: false, keyframes }; animations.push(record); return { finished: task.promise, cancel: () => { record.cancelled = true; task.resolve(); }, finish: () => task.resolve() }; } }) as unknown as HTMLCanvasElement,
     immediateMotion: () => immediate,
     isConnected: () => connected,
     cancelAssetMotion: channels => { calls.push(`cancel:${channels.shape}:${channels.expression}`); },
   };
-  return { controller: new PlaybackController(host), calls, shapes, animations, design: () => design, immediate: () => { immediate = true; }, disconnect: () => { connected = false; } };
+  return { controller: new PlaybackController(host), host, calls, shapes, animations, opacity: (value: number) => { opacity = value; }, design: () => design, immediate: () => { immediate = true; }, disconnect: () => { connected = false; } };
 }
 const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
 
@@ -113,4 +113,64 @@ test('invalid options leave current playback untouched and detached playback can
   assert.deepEqual(f.calls, ['thinking']);
   f.controller.stop(); assert.deepEqual(await playing, { finished: false });
   f.disconnect(); assert.deepEqual(await f.controller.play('speaking'), { finished: false });
+});
+
+test('replacement accessory fade starts at current computed opacity without lingering animation', async () => {
+  const f = fixture();
+  const first = f.controller.transitionTo({ accessories: [createAccessory('beret')] });
+  f.opacity(.2);
+  const replacement = f.controller.transitionTo({ accessories: [createAccessory('crown')] });
+  assert.deepEqual(await first, { finished: false });
+  assert.equal(f.animations[0]!.cancelled, true);
+  assert.deepEqual(f.animations[1]!.keyframes, [{ opacity: .2 }, { opacity: 0 }]);
+  f.animations[1]!.resolve(); await flush();
+  assert.equal(f.design().accessories[0]!.preset, 'crown');
+  f.animations[2]!.resolve(); assert.deepEqual(await replacement, { finished: true });
+  assert.equal(f.animations.every(animation => animation.cancelled), true);
+});
+
+test('shape-only replacement smoothly restores current canvas opacity', async () => {
+  const f = fixture();
+  const first = f.controller.transitionTo({ accessories: [createAccessory('beret')] });
+  f.opacity(.3);
+  const replacement = f.controller.transitionTo({ shape: 'circle' });
+  assert.deepEqual(await first, { finished: false });
+  assert.deepEqual(f.animations[1]!.keyframes, [{ opacity: .3 }, { opacity: 1 }]);
+  f.shapes[0]!.resolve({ finished: true }); f.animations[1]!.resolve();
+  assert.deepEqual(await replacement, { finished: true });
+  assert.equal(f.design().accessories.length, 0);
+  assert.equal(f.animations.every(animation => animation.cancelled), true);
+});
+
+test('reentrant playback completion listeners cannot orphan a newer play request', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const f = fixture(); const first = f.controller.play('thinking');
+  let nested: Promise<MotionResult> | undefined;
+  f.host.onPlaybackEnd = () => { f.host.onPlaybackEnd = undefined; nested = f.controller.play('listening', { duration: 10 }); };
+  const outer = f.controller.play('speaking');
+  assert.deepEqual(await first, { finished: false }); assert.deepEqual(await outer, { finished: false });
+  assert.deepEqual(f.calls, ['thinking', 'listening']);
+  t.mock.timers.tick(10); assert.deepEqual(await nested, { finished: true });
+});
+
+test('reentrant transition completion listeners cannot orphan a newer transition', async () => {
+  const f = fixture(); const first = f.controller.transitionTo({ shape: 'circle' });
+  let nested: Promise<MotionResult> | undefined;
+  f.host.onTransitionEnd = () => { f.host.onTransitionEnd = undefined; nested = f.controller.transitionTo({ shape: 'square' }); };
+  const outer = f.controller.transitionTo({ accessories: [createAccessory('beret')] });
+  assert.deepEqual(await first, { finished: false }); assert.deepEqual(await outer, { finished: false });
+  assert.equal(f.shapes.length, 2); assert.equal(f.animations.length, 0);
+  f.shapes[1]!.resolve({ finished: true }); assert.deepEqual(await nested, { finished: true });
+  f.shapes[0]!.resolve({ finished: false }); await flush();
+  assert.equal(f.design().body.shape, 'square'); assert.equal(f.design().accessories.length, 0);
+});
+
+test('stop does not overwrite playback started by its cancellation listener', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const f = fixture(); const first = f.controller.play('thinking');
+  let nested: Promise<MotionResult> | undefined;
+  f.host.onPlaybackEnd = () => { f.host.onPlaybackEnd = undefined; nested = f.controller.play('listening', { duration: 10 }); };
+  f.controller.stop();
+  assert.deepEqual(await first, { finished: false }); assert.equal(f.calls.at(-1), 'listening');
+  t.mock.timers.tick(10); assert.deepEqual(await nested, { finished: true });
 });

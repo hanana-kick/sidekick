@@ -244,3 +244,10 @@ test('play and transition methods settle on disconnect without changing camera',
   const transition = a.transitionTo({ shape: 'heart', expression: 'smile' }, { duration: 200 });
   a.remove(); assert.deepEqual(await transition, { finished: false }); assert.deepEqual(a.camera, camera);
 });
+
+test('disconnect marks the host inactive before cancellation listeners can restart playback', async t => {
+  const a = avatar(t), playing = a.play('speaking'); let restarted;
+  a.addEventListener('sidekick-play-end', () => { restarted = a.play('celebrating'); }, { once: true });
+  a.remove();
+  assert.deepEqual(await playing, { finished: false }); assert.deepEqual(await restarted, { finished: false });
+});

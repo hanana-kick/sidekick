@@ -18,6 +18,8 @@ export class PlaybackController {
     host;
     playing;
     transition;
+    playbackRevision = 0;
+    transitionRevision = 0;
     constructor(host) {
         this.host = host;
     }
@@ -26,7 +28,11 @@ export class PlaybackController {
             throw new TypeError('Unsupported activity');
         plainObject(options, 'play options', ['duration']);
         const duration = options.duration === undefined ? undefined : finite(options.duration, 0, 60000, 'duration');
-        this.cancelPlayback();
+        const revision = ++this.playbackRevision;
+        this.cancelPlaying();
+        // Completion listeners may synchronously start a newer request. Newest call wins.
+        if (revision !== this.playbackRevision)
+            return Promise.resolve({ finished: false });
         if (!this.host.isConnected()) {
             const result = { finished: false };
             this.host.onPlaybackEnd?.(result);
@@ -46,9 +52,15 @@ export class PlaybackController {
         return result;
     }
     /** Cancel playback and return to idle, including when setActivity started the loop. */
-    stop() { this.cancelPlayback(); this.host.setActivity('idle'); }
+    stop() {
+        const revision = ++this.playbackRevision;
+        this.cancelPlaying();
+        if (revision === this.playbackRevision)
+            this.host.setActivity('idle');
+    }
     /** Called before an external setActivity takes ownership of the activity. */
-    cancelPlayback() {
+    cancelPlayback() { ++this.playbackRevision; this.cancelPlaying(); }
+    cancelPlaying() {
         const playing = this.playing;
         if (!playing)
             return;
@@ -84,9 +96,13 @@ export class PlaybackController {
         if (expression !== undefined)
             eyeExpressionWeights(expression);
         const accessories = target.accessories === undefined ? undefined : validated.accessories;
-        this.cancelTransition();
+        const initialOpacity = this.currentOpacity();
+        const revision = ++this.transitionRevision;
+        this.cancelCurrentTransition();
+        if (revision !== this.transitionRevision)
+            return Promise.resolve({ finished: false });
         let transition;
-        const result = new Promise((resolve, reject) => { transition = { resolve, reject, channels: { shape: false, expression: false } }; });
+        const result = new Promise((resolve, reject) => { transition = { resolve, reject, initialOpacity, channels: { shape: false, expression: false } }; });
         this.transition = transition;
         // Unmounted setters still persist their targets, matching setShape/setExpression.
         const duration = this.host.immediateMotion() ? 0 : timing.duration;
@@ -98,13 +114,17 @@ export class PlaybackController {
             const tasks = [];
             if (target.shape !== undefined) {
                 transition.channels.shape = true;
-                tasks.push(this.host.setShape(target.shape, options));
+                const task = this.host.setShape(target.shape, options);
+                tasks.push(task);
+                void task.catch(() => { });
             }
             if (this.transition !== transition)
                 return;
             if (target.expression !== undefined) {
                 transition.channels.expression = true;
-                tasks.push(this.host.setExpression('both', target.expression, options));
+                const task = this.host.setExpression('both', target.expression, options);
+                tasks.push(task);
+                void task.catch(() => { });
             }
             if (this.transition !== transition)
                 return;
@@ -130,9 +150,14 @@ export class PlaybackController {
         }
     }
     async swapAccessories(transition, accessories, options) {
-        if (accessories === undefined)
+        if (accessories === undefined) {
+            // A shape-only replacement can also interrupt an equipment fade. Restore its
+            // visibility smoothly instead of snapping the surviving canvas to full opacity.
+            if (transition.initialOpacity < 1)
+                await this.fade(transition, transition.initialOpacity, 1, options.duration, options.easing);
             return;
-        await this.fade(transition, 1, 0, options.duration / 2, options.easing);
+        }
+        await this.fade(transition, transition.initialOpacity, 0, options.duration / 2, options.easing);
         if (this.transition !== transition)
             return;
         // Patch only equipment: never restore a captured design over a newer shape/eye target.
@@ -161,7 +186,8 @@ export class PlaybackController {
                 throw error;
         }
     }
-    cancelTransition() {
+    cancelTransition() { ++this.transitionRevision; this.cancelCurrentTransition(); }
+    cancelCurrentTransition() {
         const transition = this.transition;
         if (!transition)
             return;
@@ -171,6 +197,16 @@ export class PlaybackController {
         this.host.cancelAssetMotion(transition.channels);
         transition.resolve({ finished: false });
         this.host.onTransitionEnd?.({ finished: false });
+    }
+    currentOpacity() {
+        if (!this.transition?.animation)
+            return 1;
+        const canvas = this.host.getCanvas();
+        const view = canvas?.ownerDocument?.defaultView;
+        if (!canvas || !view)
+            return 1;
+        const opacity = Number.parseFloat(view.getComputedStyle(canvas).opacity);
+        return Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : 1;
     }
     clearAnimation(transition) {
         const animation = transition.animation;
