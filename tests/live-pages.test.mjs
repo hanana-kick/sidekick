@@ -127,6 +127,25 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
       for (const image of assets.images) assert.ok(responses.some(response => response.url === image.url && response.status === 200), `Preview did not receive HTTP 200: ${image.url}`);
       t.diagnostic(`Verified ${entry} → ${page.url()} with ${assets.images.length} decoded preview tiles, 1200×630 OG image, scene editor and ${responses.length} successful resource responses.`);
       if (screenshots) await page.screenshot({ path: `${screenshots}/live-pages-${name}-success.png` });
+      // Follow the actual visible navigation and verify the newly published runtime.
+      await page.locator('#api-playground-link').click();
+      assert.equal(page.url(), new URL('api-playground.html', canonical).href);
+      await page.waitForFunction(() => document.getElementById('bot')?.ready === true);
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      const flight = await page.evaluate(async () => {
+        const bot = document.getElementById('bot');
+        const before = bot.position;
+        const result = await bot.moveBy({x: -30, y: 20}, {duration: 400, travel: 'natural'});
+        return {before, result, state: bot.movementState, travel: bot.diagnostics.travel};
+      });
+      assert.equal(flight.result.finished, true);
+      assert.equal(flight.state.phase, 'idle');
+      assert.equal(flight.travel.strength, 0);
+      assert.equal(await page.locator('#cancel-preview').isVisible(), true);
+      assert.deepEqual(errors, [], 'Published API playground has no browser errors');
+      assert.deepEqual(failures, [], 'Published API playground loads all resources');
+      if (screenshots) await page.screenshot({ path: `${screenshots}/live-api-${name}-success.png` });
+
     } catch (error) {
       t.diagnostic(JSON.stringify({ url: page.url(), errors, failures, requests, responses }, null, 2));
       if (screenshots) await page.screenshot({ path: `${screenshots}/live-pages-${name}-failure.png`, timeout: 5000 }).catch(() => {});
