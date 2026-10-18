@@ -903,8 +903,13 @@ test('Studio PNG download contains the tightly cropped transparent image at its 
 
 test('tracking modes render eye-only and additive body behavior while preserving the real motion timeline', async t => {
   const page = await pageFor(t, 'vanilla', { reducedMotion: 'no-preference' });
-  await page.locator('#bare').evaluate(async element => {
+  await page.locator('#bare').evaluate(element => {
     element.setActivity('still'); element.trackingMode = 'eyes';
+  });
+  // Switching activity now blends the displayed body pose for 200ms. Compare
+  // eye-only silhouettes only after that independent body motion has settled.
+  await page.waitForFunction(() => !document.getElementById('bare').diagnostics.running);
+  await page.locator('#bare').evaluate(async element => {
     window.trackingFrames = { at: () => element.diagnostics.renderedRotation };
     window.baselineAlpha = (await element.capturePixelsAsync()).pixels.filter((_, i) => i % 4 === 3);
     document.dispatchEvent(new PointerEvent('pointermove', { clientX: 10000, clientY: -10000, pointerType: 'mouse' }));
