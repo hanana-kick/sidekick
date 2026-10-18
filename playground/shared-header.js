@@ -15,7 +15,7 @@ export function mountSiteHeader(host, activePage, base = './') {
   brand.append(avatar, name);
   const nav = doc.createElement('nav'); nav.className = 'product-nav';
   nav.setAttribute('aria-label', 'Sidekick 페이지');
-  for (const [page, label, path] of [['studio', 'Studio', ''], ['api', 'API playground', 'api-playground.html']]) {
+  for (const [page, label, path] of [['studio', 'Studio', ''], ['api', 'API playground', 'api-playground.html'], ['usecases', 'Use cases', 'use-cases.html']]) {
     const link = doc.createElement('a'); link.href = `${base}${path}`; link.textContent = label;
     if (page === activePage) link.setAttribute('aria-current', 'page');
     if (page === 'api') link.id = 'api-playground-link';

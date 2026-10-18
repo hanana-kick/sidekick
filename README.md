@@ -1227,3 +1227,14 @@ export function Example() {
 - 같은 문서에 연결된 HTML/SVG Element를 받습니다. 연결되지 않은 대상, 다른 문서, 잘못된 옵션은 현재 이동을 취소하거나 봇을 표시하기 전에 동기적으로 거부합니다. 크기 0인 대상도 유효한 좌표 기준점입니다.
 - `MoveOptions`의 자연 가속·제동, 중단, reduced-motion 설정을 그대로 사용합니다. `movementBounds="viewport"`이면 화면 제한이 정렬보다 우선하므로 화면 밖 대상에 정확하게 맞추려면 `movementBounds="none"`을 명시하세요.
 - Playground의 이동 기준에서 `moveToElement`를 선택하면 CSS 선택자, 정렬, 오프셋과 동일한 실행 코드가 표시됩니다. 선택자는 Playground 편의 기능이며 실제 API에는 Element 객체를 전달합니다. 복사한 예제에서는 해당 선택자에 맞는 대상 엘리먼트를 앱에 준비해야 합니다.
+
+### Use cases: DOM 배치와 실제 서비스 이벤트
+
+[Use cases](https://sidekick.hananakick.cc/use-cases.html)는 Studio에서 저장한 봇으로 다음 상황을 직접 실행하고 코드를 복사하는 페이지입니다. 모든 페이지가 같은 Studio / API playground / Use cases 메뉴를 사용합니다.
+
+- **화면 고정**: `placement="viewport"`인 작은 봇 DOM이 스크롤과 무관하게 화면에 남습니다. 전체 화면을 덮는 캔버스는 만들지 않습니다.
+- **섹션 안 이동**: `position: relative` 컨테이너 안에 `placement="inline"`, `position: absolute; left: 0; top: 0`인 봇을 놓습니다. 그 DOM 위치가 이동의 원점입니다. 컨테이너의 실제 `clientWidth/Height`에서 봇 크기를 빼 목적지를 제한합니다. 이 예제는 급반전 관성으로 경계를 넘지 않도록 이동을 순차 실행하고 가장 최근의 대기 목적지를 사용합니다. `overflow: hidden`은 마지막 시각적 안전장치이며 resize 시 현재 위치를 다시 제한합니다.
+- **엘리먼트 정렬**: 실제 `Element`를 `moveToElement`에 전달해 동일한 가로·세로 정렬점끼리 맞추고 CSS px 오프셋을 더합니다. 매 호출 시 DOM 위치를 읽으므로 스크롤 후 다시 호출해 새 위치로 이동할 수 있습니다. 자동으로 계속 따라붙는 앵커 제약은 아닙니다.
+- **이벤트 반응**: form submit / CustomEvent → thinking → success의 smile·celebrating 또는 error의 still 상태를 연결합니다. 타이머는 전송 없는 로컬 작업 시뮬레이션입니다. 실제 서비스에서는 요청 결과 이벤트로 교체하세요. 새 결과가 오면 오래된 결과를 무시하며 AbortController로 리스너와 타이머를 정리합니다.
+
+한 번에 한 예제만 활성화하여 불필요한 렌더러를 만들지 않습니다. 예제 종료·전환 시 인스턴스를 제거하고, 보이지 않는 섹션과 숨겨진 페이지의 렌더링을 일시 정지합니다. Studio 설정은 읽기만 하며 실험 동작은 원본에 저장하지 않습니다. 페이지의 코드 조각은 등록·초기화된 `#demo-bot`에 적용하는 예제이며, 설치·HTML·React 초기화 코드는 API playground에서 복사할 수 있습니다.

@@ -1,1 +1,1 @@
-export function mountSiteHeader(host: HTMLElement, activePage: 'studio' | 'api', base?: string): () => void;
+export function mountSiteHeader(host: HTMLElement, activePage: 'studio' | 'api' | 'usecases', base?: string): () => void;
