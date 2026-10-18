@@ -470,3 +470,20 @@ test('Studio zoom slider, camera events, reset, scene JSON and snippets stay syn
   await f.click(f.node('reset-camera')); assert.deepEqual(f.avatar.camera, createCamera());
   assert.equal(f.node('view-zoom').getAttribute('aria-valuenow'), '1');
 });
+
+test('scene editing has explicit OG preset and preserves stable character renderer', async t => {
+  const f = await fixture(t), original = f.avatar;
+  await f.click(f.node('scene-tab'));
+  assert.equal(f.container.querySelector('.previews')?.getAttribute('data-scene-mode'), 'true');
+  await f.input('scene-text', 'Custom card');
+  assert.equal(f.node<HTMLTextAreaElement>('scene-text').value, 'Custom card');
+  assert.equal(f.controller.getSnapshot().design.body.shape, 'square');
+  await f.click(f.node('scene-og-preset'));
+  assert.equal(f.controller.getSnapshot().design.body.shape, 'ghostish');
+  assert.deepEqual(f.controller.getSnapshot().design.accessories.map(item => item.preset), ['glasses', 'beret', 'bowTie']);
+  assert.equal(f.node<HTMLTextAreaElement>('scene-text').value, 'Sidekick');
+  assert.equal(f.node('flat'), original);
+  await f.click(f.node('appearance-tab'));
+  assert.equal(f.container.querySelector('.previews')?.getAttribute('data-scene-mode'), 'true');
+  assert.equal(f.node('flat'), original);
+});

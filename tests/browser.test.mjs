@@ -941,3 +941,30 @@ test('preview wheel zoom leaves settings-panel scrolling and camera slider synch
   await page.locator('#camera-tab').click(); assert.ok(Math.abs(await rangeValue(page, 'view-zoom') - zoom) < .001);
   await page.locator('#reset-camera').click(); assert.equal(await rangeValue(page, 'view-zoom'), 1);
 });
+
+test('scene editor renders OG preset, exports full-size PNG and roundtrips composition JSON', async () => {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+  try {
+    if (offline) await loadOfflineFixture(page); else await page.goto(baseURL);
+    await page.waitForFunction(() => document.querySelector('#flat')?.diagnostics?.ready);
+    await page.locator('#scene-tab').click();
+    await page.locator('#scene-og-preset').click();
+    await page.waitForFunction(() => { const c=document.querySelector('.composition-preview canvas'); return c?.width===1200 && c?.height===630 && document.querySelector('.composition-status')?.textContent.includes('정지 프레임'); });
+    assert.equal(await page.locator('#flat').evaluate(a=>a.design.body.shape), 'ghostish');
+    await page.locator('#scene-text').fill('Sidekick\nHello');
+    const pngPending=page.waitForEvent('download'); await page.locator('#export-composition-png').click();
+    const png=await pngPending, pngBytes=await readFile(await png.path());
+    assert.equal(pngBytes.readUInt32BE(16),1200); assert.equal(pngBytes.readUInt32BE(20),630);
+    const jsonPending=page.waitForEvent('download'); await page.locator('#export-composition-json').click();
+    const json=await jsonPending, doc=JSON.parse(await readFile(await json.path(),'utf8'));
+    assert.equal(doc.compositionVersion,1); assert.equal(doc.composition.text,'Sidekick\nHello');
+    assert.equal(doc.avatar.design.body.shape,'ghostish');
+    await page.locator('#scene-text').fill('Changed');
+    await page.locator('#scene-panel input[type=file]').setInputFiles({name:'scene.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(doc))});
+    await page.waitForFunction(()=>document.querySelector('#scene-text')?.value==='Sidekick\nHello');
+    if(screenshots)await page.screenshot({path:`${screenshots}/scene-editor-desktop.png`});
+    await page.setViewportSize({width:390,height:844});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    if(screenshots)await page.screenshot({path:`${screenshots}/scene-editor-mobile.png`});
+  } finally { await page.close(); }
+});

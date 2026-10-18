@@ -22,6 +22,9 @@ import { ShapeCatalog } from './shape-catalog';
 import { sceneSnippets } from './studio-snippets';
 import { studioBaseURL } from './studio-assets';
 
+import { CompositionPanel, CompositionPreview } from './composition-editor';
+import { defaultComposition } from './composition';
+
 const ASSET_BASE = studioBaseURL(import.meta.env?.BASE_URL ?? '/', import.meta.url);
 const ACTIVITY_LABELS: Record<Activity, string> = { idle: '대기', thinking: '생각 중', listening: '듣는 중', speaking: '말하는 중', celebrating: '축하', still: '정적' };
 const CAMERA_LABELS: Record<CameraPreset, string> = { front: '정면', 'three-quarter': '사선 45°', side: '측면 90°' };
@@ -157,7 +160,9 @@ export function StudioApp({ controller }: { controller: StudioController }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [tab, setTab] = useState(state.recovery ? 'json' : 'appearance'), [resetKey, setResetKey] = useState(0);
   const settingsScroll = useRef<HTMLDivElement>(null);
-  function changeTab(value: string): void { setTab(value); if (settingsScroll.current) settingsScroll.current.scrollTop = 0; }
+  const [composition, setComposition] = useState(defaultComposition), [sceneMode, setSceneMode] = useState(false), [sceneRefresh, setSceneRefresh] = useState(0);
+  const compositionCanvas = useRef<HTMLCanvasElement>(null);
+  function changeTab(value: string): void { setTab(value); if (value === 'scene') setSceneMode(true); if (settingsScroll.current) settingsScroll.current.scrollTop = 0; }
   function reset(): void { controller.reset(); setResetKey(key => key + 1); }
   async function exportPNG(): Promise<void> { try { download(await controller.snapshot(), 'sidekick.png'); controller.report('투명 PNG를 내보냈습니다.'); } catch (error) { controller.report(String(error), true); } }
   return <div className="studio-shell">
@@ -167,16 +172,17 @@ export function StudioApp({ controller }: { controller: StudioController }) {
     <main className="workspace">
       <section className="stage" aria-label="고정 캐릭터 미리보기">
         <div className="stage-header"><div><h1>나만의 작은 동료.</h1><p>형태를 고르고, 개성을 더하세요.</p></div><ToggleGroup type="single" variant="outline" size="sm" value={state.background} onValueChange={value => { if (value) controller.setBackground(value as StudioState['background']); }} aria-label="미리보기 배경" className="background-options">{([['checker', '투명'], ['light', '밝게'], ['dark', '어둡게']] as const).map(([value, label]) => <ToggleGroupItem key={value} value={value} data-background={value}>{label}</ToggleGroupItem>)}</ToggleGroup></div>
-        <div className="previews" data-background={state.background}><div className="preview"><AvatarPreview controller={controller} /></div></div>
-        <footer className="preview-footer"><span className="preview-shape">{MATERIAL_SHAPE_LABELS[state.design.body.shape]}<Badge variant="secondary">Flat</Badge></span><span className="preview-hint"><Move aria-hidden="true" />드래그 회전 · 휠/핀치 확대</span></footer>
+        <div className="previews" data-background={state.background} data-scene-mode={sceneMode}><div className="preview"><AvatarPreview controller={controller} /></div>{sceneMode && <CompositionPreview controller={controller} state={state} composition={composition} canvasRef={compositionCanvas} refresh={sceneRefresh} />}</div>
+        <footer className="preview-footer"><ToggleGroup type="single" size="sm" value={sceneMode ? "scene" : "character"} onValueChange={value => { if (value) setSceneMode(value === "scene"); }} aria-label="편집 화면"><ToggleGroupItem value="character">캐릭터</ToggleGroupItem><ToggleGroupItem value="scene">장면</ToggleGroupItem></ToggleGroup><span className="preview-shape">{MATERIAL_SHAPE_LABELS[state.design.body.shape]}<Badge variant="secondary">Flat</Badge></span><span className="preview-hint"><Move aria-hidden="true" />드래그 회전 · 휠/핀치 확대</span></footer>
       </section>
       <aside className="inspector" aria-label="캐릭터 디자인 설정">
-        <Tabs value={tab} onValueChange={changeTab} className="settings-tabs"><div className="settings-nav"><TabsList className="w-full" aria-label="디자인 항목"><TabsTrigger value="appearance" id="appearance-tab" aria-controls="appearance-panel">외형</TabsTrigger><TabsTrigger value="animation" id="animation-tab" aria-controls="animation-panel">애니메이션</TabsTrigger><TabsTrigger value="camera" id="camera-tab" aria-controls="camera-panel">카메라</TabsTrigger><TabsTrigger value="json" id="json-tab" aria-controls="json-panel">JSON</TabsTrigger></TabsList></div>
+        <Tabs value={tab} onValueChange={changeTab} className="settings-tabs"><div className="settings-nav"><TabsList className="w-full" aria-label="디자인 항목"><TabsTrigger value="appearance" id="appearance-tab" aria-controls="appearance-panel">외형</TabsTrigger><TabsTrigger value="animation" id="animation-tab" aria-controls="animation-panel">애니메이션</TabsTrigger><TabsTrigger value="camera" id="camera-tab" aria-controls="camera-panel">카메라</TabsTrigger><TabsTrigger value="scene" id="scene-tab" aria-controls="scene-panel">장면</TabsTrigger><TabsTrigger value="json" id="json-tab" aria-controls="json-panel">JSON</TabsTrigger></TabsList></div>
           <div ref={settingsScroll} className="settings-scroll" data-testid="settings-scroll">
             {state.warnings.length > 0 && <Alert id="migration-warning" className="migration-warning"><AlertTitle>이전 디자인을 v7으로 변환했습니다</AlertTitle><AlertDescription>{state.warnings.join(' ')}</AlertDescription></Alert>}
             <TabsContent value="appearance" forceMount hidden={tab !== 'appearance'} id="appearance-panel" aria-labelledby="appearance-tab"><AppearancePanel state={state} controller={controller} resetKey={resetKey} /></TabsContent>
             <TabsContent value="animation" forceMount hidden={tab !== 'animation'} id="animation-panel" aria-labelledby="animation-tab"><AnimationPanel state={state} controller={controller} /></TabsContent>
             <TabsContent value="camera" forceMount hidden={tab !== 'camera'} id="camera-panel" aria-labelledby="camera-tab"><CameraPanel state={state} controller={controller} /></TabsContent>
+            <TabsContent value="scene" forceMount hidden={tab !== 'scene'} id="scene-panel" aria-labelledby="scene-tab"><CompositionPanel controller={controller} composition={composition} onChange={setComposition} canvasRef={compositionCanvas} onRefresh={() => setSceneRefresh(n => n + 1)} /></TabsContent>
             <TabsContent value="json" forceMount hidden={tab !== 'json'} id="json-panel" aria-labelledby="json-tab"><JSONPanel state={state} controller={controller} /></TabsContent>
           </div>
         </Tabs>

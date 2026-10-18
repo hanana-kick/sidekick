@@ -812,3 +812,17 @@ SIDEKICK_HEADED=1 xvfb-run -a npm run test:browser
 베레모의 각도·애니메이션 재현 검사는 [`scripts/beret-qa/`](scripts/beret-qa/README.md)에 있습니다. 실제 렌더러의 정점 셰이더·행렬을 사용하는 GLES 진단과, 삼각형 자기 교차·몸체 관통·법선·입구 구조 검사를 함께 사용합니다. 각도 격자와 시간 샘플의 범위는 검사 문서에 명시하며, 유한한 검사를 모든 연속 각도·임의 입력에 대한 보장으로 해석하지 않습니다.
 
 0.2.6은 베레모 안감·입구·커프·크라운을 하나의 연속된 두께 구조로 구성합니다. 도형별 지지 위치와 기울기를 함께 보간하고, 호흡 변형은 몸체와 동일하게 적용합니다. 착용 깊이의 급격한 전환을 막기 위해 안쪽 여유 공간은 점진적으로 좁아지며, 천의 국소 변형에는 연속 가중치를 사용합니다. 회전·도형 전환 중 메시 교차와 갑작스러운 위치 변화는 별도의 재현 검사로 확인합니다. 목도리와 시선 추적 동작은 유지합니다.
+
+### Studio scene editor and social card
+
+The **장면 (Scene)** tab composes the native character and editable text onto a fixed-size canvas. The **캐릭터 / 장면** preview switch keeps the character mounted; character appearance and Camera controls continue to update the composition. Scene previews are still frames. Use **새 프레임** to capture the current animation frame.
+
+- Canvas presets: OG 1200 × 630, square 1080 × 1080, wide 1920 × 1080; custom integer dimensions 320–4096, up to 8 megapixels.
+- Background color, character center X/Y and height, multiline text, text position, font size/family/color.
+- **Sidekick OG 프리셋 적용** explicitly replaces the current avatar with a smiling yellow Ghostish wearing glasses, a beret and a bow tie; white background and “Sidekick” text.
+- **장면 PNG 저장** exports the entire canvas at the selected dimensions. The existing header **PNG 저장** still exports the transparent, alpha-cropped character.
+- **장면 JSON 저장 / 열기** round-trips `{ compositionVersion: 1, composition, avatar }`. The nested `avatar` is the existing `SidekickScene`; legacy character scene and design JSON can also be opened, with default composition placement. Existing character JSON/API exports remain unchanged.
+- Composition positions are canvas percentages. `characterHeight` is the cropped character height as a percentage of the canvas. Text X is its left edge; Y is the center of its multiline block. Exports deliberately clip anything placed outside the canvas.
+- The scene editor uses the native renderer's current transparent snapshot; resolution is limited by the preview's rendering resolution. PNG output dimensions are exact but enlarging a small preview does not add source detail. The published OG asset is generated separately at high native resolution.
+
+Both HTML entry pages include static Open Graph and Twitter card tags with the canonical URL `https://sidekick.hananakick.cc/` and absolute social image URL. The image is `public/og-sidekick.png` (1200 × 630). To regenerate it after geometry changes, run `node scripts/generate-og-image.mjs`; this development-only script replays production AvatarRenderer commands through native EGL/GLES and composites bundled Geist typography. It requires a C compiler, EGL/GLES, and Pillow/fontTools for the offline image composition; none are consumer/runtime dependencies. An optional `SIDEKICK_RENDERER_ROOT` selects a source worktree for generation.
