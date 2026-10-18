@@ -1110,7 +1110,7 @@ export function Companion() {
     if (!avatar || !area) return;
     const x = Math.max(0, Math.min(area.clientWidth - avatar.offsetWidth, localX - avatar.offsetWidth / 2));
     const y = Math.max(0, Math.min(area.clientHeight - avatar.offsetHeight, localY - avatar.offsetHeight / 2));
-    void avatar.moveTo({ x, y }, { duration: 1000, travel: 'natural', maxSpeed: 320, acceleration: 900, deceleration: 1200 });
+    void avatar.moveTo({ x, y }, { duration: 1000, travel: 'natural' });
   }
   return <>
     <div ref={stage} role="group" aria-label="누른 곳으로 이동하는 무대"
