@@ -13,6 +13,9 @@ export interface BeretGeometry extends Geometry {
     crownIndexCount: number;
     /** Minimal rigid seating displacement along the curated band frame's outward normal. */
     seating: number;
+    /** Final surface guard diagnostics for the coherent cloth fitter. */
+    contactCorrection?: number;
+    contactResolved?: boolean;
 }
 /**
  * Fit the immutable shell to the already-cached body triangles. A parallel-axis

@@ -131,13 +131,24 @@ const BERET_SUPPORT_CENTERS = {
     softBurst: [0.05220442273490473, 9.344051706624409e-20],
     boom: [-0.0774359305907004, -1.70229848100482e-19],
     softBoom: [-0.0708967251958692, 1.5886921443561396e-19],
-    flower: [0.13474869990695207, -1.342607280417208e-19],
+    flower: [-0.028443306685688674, -1.342607280417208e-19],
     puffy: [0.1877238140890791, 4.749466135876582e-19],
     puffyDiamond: [-0.21016602516730368, -2.272240719380594e-20],
     pixelCircle: [0.09263332113088871, 0],
-    pixelTriangle: [-0.3947222549749523, -1.512080572535778e-19],
+    pixelTriangle: [-0.14357151603117985, -1.512080572535778e-19],
     bun: [0.006347941750584402, 1.2575182321572059e-19],
-    heart: [0.23740449499228056, 5.073613683801476e-19],
+    heart: [0.002082470543027959, 5.073613683801476e-19],
+};
+/** Authored curl limits preserve the reviewed neutral garments. These values
+ * were calibrated against the actual shell/body triangle audit at default depth.
+ * Interpolate them as ordinary profile data: a per-frame ray-hit limiter can
+ * switch winners abruptly during morphs. Final cloth contact is still checked
+ * against actual triangles; these values alone are not collision guarantees. */
+const BERET_DRAPE_LIMITS = {
+    verySunny: 0, burst: 0,
+    softBurst: .025914255728539178, softBoom: .0735820627175312,
+    puffyDiamond: .42053994400183065, pixelCircle: .11545256551201084,
+    pixelTriangle: .9000745129671436, heart: .8313476587534501,
 };
 /** A complete fit record is built independently for each accessory and shape. */
 function defaults(shape, depth, eyes, beretU, beretTilt, beretScale = 1, haloHeight = 0.22, glassesScale = 1) {
@@ -146,7 +157,11 @@ function defaults(shape, depth, eyes, beretU, beretTilt, beretScale = 1, haloHei
     const tie = BOW_TIE_FITS[shape];
     const front = (y, scale, tilt = 0) => ({ anchor: { region: 'face', uv: [0, Math.atan(y) / 0.9], offset: 0 }, rotation: [tilt, 0, 0], scale });
     return immutable({
-        beretFitTilt: (shape === 'cookie6Sided' ? -40 : shape === 'heart' ? -18 : shape === 'triangle' || shape === 'pixelTriangle' ? -14 : shape === 'boom' ? -32 : shape === 'square' || shape === 'bun' ? -42 : -30) * Math.PI / 180,
+        beretDrapeLimit: BERET_DRAPE_LIMITS[shape] ?? 1,
+        beretFitTransition: 0,
+        beretDrapeStrength: shape === 'softBoom' ? .12 : shape === 'pixelCircle' ? .12 : shape === 'puffyDiamond' ? .40 : shape === 'verySunny' ? .60 : shape === 'softBurst' ? .90 : 1,
+        beretFitRoom: ['heart', 'flower', 'pixelTriangle', 'burst', 'pixelCircle', 'puffyDiamond', 'verySunny', 'softBurst', 'softBoom', 'boom'].includes(shape) ? 1 : 0,
+        beretFitTilt: (shape === 'cookie6Sided' ? -40 : shape === 'heart' ? -40 : shape === 'flower' ? -46 : shape === 'pixelTriangle' ? 15 : shape === 'triangle' ? -14 : shape === 'boom' ? -32 : shape === 'square' || shape === 'bun' ? -42 : -30) * Math.PI / 180,
         beretFitCenter: BERET_SUPPORT_CENTERS[shape], scarfFit: SCARF_SUPPORT_FITS[shape], depth, eyes: { width, height, spacing, offsetY },
         // Historical calibration fields exist only for validating legacy imports.
         mounts: { head: { uv: [0, 0], offset: 0 }, face: { uv: [0, 0], offset: 0 } },
@@ -259,7 +274,7 @@ function parseProfile(value, shape, path) {
     const profile = record(value, path, ['depth', 'mounts', 'eyes']);
     const mounts = record(profile.mounts, `${path}.mounts`, ['head', 'face']);
     const eyes = Object.hasOwn(profile, 'eyes') ? parseEyes(profile.eyes, `${path}.eyes`) : { ...DEFAULT_SHAPE_PROFILES[shape].eyes };
-    return { beretFitCenter: DEFAULT_SHAPE_PROFILES[shape].beretFitCenter, beretFitTilt: DEFAULT_SHAPE_PROFILES[shape].beretFitTilt, scarfFit: DEFAULT_SHAPE_PROFILES[shape].scarfFit, depth: bounded(profile.depth, BODY_DEPTH_RANGE, `${path}.depth`), eyes, accessories: DEFAULT_SHAPE_PROFILES[shape].accessories, mounts: { head: parseMount(mounts.head, `${path}.mounts.head`), face: parseMount(mounts.face, `${path}.mounts.face`) } };
+    return { beretDrapeLimit: DEFAULT_SHAPE_PROFILES[shape].beretDrapeLimit, beretFitTransition: 0, beretDrapeStrength: DEFAULT_SHAPE_PROFILES[shape].beretDrapeStrength, beretFitRoom: DEFAULT_SHAPE_PROFILES[shape].beretFitRoom, beretFitCenter: DEFAULT_SHAPE_PROFILES[shape].beretFitCenter, beretFitTilt: DEFAULT_SHAPE_PROFILES[shape].beretFitTilt, scarfFit: DEFAULT_SHAPE_PROFILES[shape].scarfFit, depth: bounded(profile.depth, BODY_DEPTH_RANGE, `${path}.depth`), eyes, accessories: DEFAULT_SHAPE_PROFILES[shape].accessories, mounts: { head: parseMount(mounts.head, `${path}.mounts.head`), face: parseMount(mounts.face, `${path}.mounts.face`) } };
 }
 /** Validate isolated overrides, filling only omitted legacy eyes from the registry. */
 export function parseShapeProfiles(value, path = 'body.profiles') {
@@ -278,7 +293,7 @@ export function resolveShapeProfile(shape, profiles) {
     return Object.hasOwn(map, shape) ? immutable(parseProfile(map[shape], shape, `body.profiles.${shape}`)) : DEFAULT_SHAPE_PROFILES[shape];
 }
 export function sameShapeProfile(a, b) {
-    return a.beretFitCenter.every((v, i) => v === b.beretFitCenter[i]) && a.beretFitTilt === b.beretFitTilt && a.scarfFit.every((value, i) => value === b.scarfFit[i]) && CURATED_ACCESSORY_KEYS.every(preset => { const x = a.accessories[preset], y = b.accessories[preset]; return x.scale === y.scale && x.anchor.region === y.anchor.region && x.anchor.offset === y.anchor.offset && x.anchor.uv.every((value, i) => value === y.anchor.uv[i]) && x.rotation.every((value, i) => value === y.rotation[i]); }) && a.depth === b.depth && ['width', 'height', 'spacing', 'offsetY'].every(key => a.eyes[key] === b.eyes[key]) && ['head', 'face'].every(slot => a.mounts[slot].offset === b.mounts[slot].offset && a.mounts[slot].uv.every((v, i) => v === b.mounts[slot].uv[i]));
+    return a.beretDrapeLimit === b.beretDrapeLimit && a.beretFitTransition === b.beretFitTransition && a.beretDrapeStrength === b.beretDrapeStrength && a.beretFitRoom === b.beretFitRoom && a.beretFitCenter.every((v, i) => v === b.beretFitCenter[i]) && a.beretFitTilt === b.beretFitTilt && a.scarfFit.every((value, i) => value === b.scarfFit[i]) && CURATED_ACCESSORY_KEYS.every(preset => { const x = a.accessories[preset], y = b.accessories[preset]; return x.scale === y.scale && x.anchor.region === y.anchor.region && x.anchor.offset === y.anchor.offset && x.anchor.uv.every((value, i) => value === y.anchor.uv[i]) && x.rotation.every((value, i) => value === y.rotation[i]); }) && a.depth === b.depth && ['width', 'height', 'spacing', 'offsetY'].every(key => a.eyes[key] === b.eyes[key]) && ['head', 'face'].every(slot => a.mounts[slot].offset === b.mounts[slot].offset && a.mounts[slot].uv.every((v, i) => v === b.mounts[slot].uv[i]));
 }
 /** Body volume, eye calibration and equipment use the same transition progress. */
 export function interpolateShapeProfile(from, to, progress) {
@@ -295,7 +310,15 @@ export function interpolateShapeProfile(from, to, progress) {
         // avoids quaternion sign ambiguity and preserves exact interruption values.
         return { anchor: { region: a.anchor.region, uv: [mix(a.anchor.uv[0], b.anchor.uv[0]), mix(a.anchor.uv[1], b.anchor.uv[1])], offset: mix(a.anchor.offset, b.anchor.offset) }, rotation: a.rotation.map((value, i) => mix(value, b.rotation[i])), scale: mix(a.scale, b.scale) };
     };
-    return immutable({ beretFitCenter: from.beretFitCenter.map((v, i) => mix(v, to.beretFitCenter[i])), beretFitTilt: mix(from.beretFitTilt, to.beretFitTilt), scarfFit: from.scarfFit.map((v, i) => mix(v, to.scarfFit[i])), depth: mix(from.depth, to.depth), eyes, mounts: { head: mount('head'), face: mount('face') }, accessories: Object.fromEntries(CURATED_ACCESSORY_KEYS.map(key => [key, equipment(key)])) });
+    // Release the extra lip curl while the support changes, then restore it with
+    // zero endpoint velocity. The hollow cap itself remains fitted and visible.
+    const smooth = (value) => { const t = Math.max(0, Math.min(1, value)); return t * t * (3 - 2 * t); };
+    // Relax only the free curl early while changing supports; keep the hollow
+    // fitted shell and its slower seating transition throughout the morph.
+    const lipStrength = from.beretDrapeStrength * (1 - smooth(progress / .06)) + to.beretDrapeStrength * smooth((progress - .94) / .06);
+    const entering = smooth(progress / .14), leaving = smooth((progress - .86) / .14);
+    const fitTransition = from.beretFitTransition * (1 - entering) + entering * (1 - leaving) + to.beretFitTransition * leaving;
+    return immutable({ beretDrapeLimit: mix(from.beretDrapeLimit, to.beretDrapeLimit), beretFitTransition: fitTransition, beretDrapeStrength: lipStrength, beretFitRoom: mix(from.beretFitRoom, to.beretFitRoom), beretFitCenter: from.beretFitCenter.map((v, i) => mix(v, to.beretFitCenter[i])), beretFitTilt: mix(from.beretFitTilt, to.beretFitTilt), scarfFit: from.scarfFit.map((v, i) => mix(v, to.scarfFit[i])), depth: mix(from.depth, to.depth), eyes, mounts: { head: mount('head'), face: mount('face') }, accessories: Object.fromEntries(CURATED_ACCESSORY_KEYS.map(key => [key, equipment(key)])) });
 }
 /**
  * Apply the displayed shape profile once to the global neutral eye baseline.

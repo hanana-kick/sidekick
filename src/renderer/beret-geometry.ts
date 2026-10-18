@@ -21,6 +21,9 @@ export interface BeretGeometry extends Geometry {
   crownIndexCount: number;
   /** Minimal rigid seating displacement along the curated band frame's outward normal. */
   seating: number;
+  /** Final surface guard diagnostics for the coherent cloth fitter. */
+  contactCorrection?: number;
+  contactResolved?: boolean;
 }
 interface Ring { rx: number; ry: number; x: number; y: number; z: number; slope: number }
 interface Triangle { a: Vec3; b: Vec3; c: Vec3; minX: number; maxX: number; minY: number; maxY: number; minZ: number; zx: number; zy: number; z0: number; area: number }
@@ -221,7 +224,7 @@ function separation(body: Triangle, hat: Triangle, current: number): number {
 export function beretGeometry(body: BodyDesign, accessory: ResolvedAccessoryDesign, squash = 1, contourOverride?: ShapeContour, profileOverride?: ShapeProfile, rotation: Vec3 = accessory.rotation): BeretGeometry {
   const contour = contourOverride ?? shapeContour({ kind: 'material', name: body.shape });
   const profile = profileOverride ?? resolveShapeProfile(body.shape);
-  if (accessory.preset === "beret") { const stretch = 1 / Math.sqrt(squash); return wornBeret(contour, [BODY_SIZE[0] * .5 * stretch, BODY_SIZE[1] * .5 * squash, profile.depth * .5 * stretch], body.shape, rotation, profile.beretFitTilt, profile.beretFitCenter); }
+  if (accessory.preset === "beret") { const stretch = 1 / Math.sqrt(squash); return wornBeret(contour, [BODY_SIZE[0] * .5 * stretch, BODY_SIZE[1] * .5 * squash, profile.depth * .5 * stretch], body.shape, rotation, profile.beretFitTilt, profile.beretFitCenter, profile.beretFitRoom, profile.beretDrapeStrength, profile.beretFitTransition, profile.beretDrapeLimit); }
   const preset = accessory.preset === 'crown' ? 'crown' : 'beret', shell = shells[preset];
   const mount = profile.accessories[preset];
   const neutralProfile: ShapeProfile = { ...profile, accessories: { ...profile.accessories, [preset]: { ...mount, anchor: { ...mount.anchor, offset: 0 } } } };

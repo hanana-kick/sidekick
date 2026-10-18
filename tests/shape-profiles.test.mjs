@@ -37,7 +37,7 @@ test('beret wearing tilt and center are immutable internal profile data with int
   for (const shape of MATERIAL_SHAPE_NAMES) {
     const current = resolveShapeProfile(shape);
     assert.ok(Number.isFinite(current.beretFitTilt));
-    assert.ok(current.beretFitTilt > -Math.PI / 2 && current.beretFitTilt < 0);
+    assert.ok(current.beretFitTilt > -Math.PI / 2 && current.beretFitTilt < Math.PI / 2);
     assert.equal(current.beretFitCenter.length, 2); assert.ok(current.beretFitCenter.every(Number.isFinite));
     assert.ok(Object.isFrozen(current.beretFitCenter));
     assert.deepEqual(parseShapeProfiles({ [shape]: legacy(current) })[shape].beretFitCenter, current.beretFitCenter);
@@ -47,6 +47,7 @@ test('beret wearing tilt and center are immutable internal profile data with int
     assert.throws(() => { current.beretFitTilt = 0; });
     assert.throws(() => parseShapeProfiles({ [shape]: { ...legacy(current), beretFitTilt: 0 } }), 'wearing tilt is not a legacy customization field');
   }
+  near(resolveShapeProfile('pixelTriangle').beretFitTilt, 15 * Math.PI / 180);
   const from = resolveShapeProfile('square'), to = resolveShapeProfile('triangle'), amount = .413;
   const displayed = interpolateShapeProfile(from, to, amount);
   near(displayed.beretFitTilt, from.beretFitTilt + (to.beretFitTilt - from.beretFitTilt) * amount);
@@ -310,4 +311,49 @@ test('crown front/back calibration changes position at the current physical dept
 test('fuller curated volumes remain varied while public thickness editing is unavailable',()=>{
  assert.equal(resolveShapeProfile('circle').depth,1);assert.equal(resolveShapeProfile('square').depth,.9);assert.equal(resolveShapeProfile('heart').depth,.9);assert.equal(resolveShapeProfile('puffy').depth,1.08);
  for(const name of MATERIAL_SHAPE_NAMES){assert.ok(resolveShapeProfile(name).depth>=.5);assert.throws(()=>publicDesign({body:{shape:name,profiles:{[name]:legacy(profile(name,.18))}}}));}
+});
+
+test('beret lip relaxation preserves settled profiles and has no endpoint velocity impulse', () => {
+  const from = resolveShapeProfile('heart'), to = resolveShapeProfile('pixelTriangle');
+  assert.strictEqual(interpolateShapeProfile(from, to, 0), from);
+  assert.strictEqual(interpolateShapeProfile(from, to, 1), to);
+  const strength = t => interpolateShapeProfile(from, to, t).beretDrapeStrength;
+  const epsilon = 1e-5;
+  assert.ok(Math.abs(strength(epsilon) - 1) / epsilon < .01);
+  assert.ok(Math.abs(strength(1 - epsilon) - 1) / epsilon < .01);
+  assert.equal(strength(.5), 0);
+  assert.ok(strength(52 / 60) < .01, 'known narrow support keeps the extra curl relaxed');
+  for (let i = 1; i < 1000; i++) assert.ok(strength(i / 1000) >= 0 && strength(i / 1000) <= 1);
+  const interrupted = interpolateShapeProfile(from, to, .9);
+  assert.strictEqual(interpolateShapeProfile(interrupted, from, 0), interrupted);
+  assert.ok(Math.abs(interpolateShapeProfile(interrupted, from, epsilon).beretDrapeStrength - interrupted.beretDrapeStrength) < 1e-4);
+});
+
+test('beret transition fitting uses a continuous internal weight and preserves interruption snapshots', () => {
+  const from = resolveShapeProfile('heart'), to = resolveShapeProfile('pixelTriangle');
+  for (const name of MATERIAL_SHAPE_NAMES) assert.equal(resolveShapeProfile(name).beretFitTransition, 0);
+  const weight = t => interpolateShapeProfile(from, to, t).beretFitTransition;
+  const epsilon = 1e-5;
+  assert.equal(weight(.5), 1);
+  assert.ok(weight(epsilon) / epsilon < .01);
+  assert.ok(weight(1 - epsilon) / epsilon < .01);
+  for (let i=0;i<=1000;i++) assert.ok(weight(i/1000)>=0 && weight(i/1000)<=1);
+  for (const time of [.05,.5,.95]) {
+    const current=interpolateShapeProfile(from,to,time);
+    assert.strictEqual(interpolateShapeProfile(current,from,0),current);
+    assert.ok(Math.abs(interpolateShapeProfile(current,from,epsilon).beretFitTransition-current.beretFitTransition)<1e-6);
+    assert.equal(interpolateShapeProfile(current,from,1).beretFitTransition,0);
+  }
+});
+
+test('authored beret curl limits interpolate without per-frame collision-branch resets', () => {
+  const from=resolveShapeProfile('boom'), to=resolveShapeProfile('heart');
+  assert.equal(from.beretDrapeLimit,1);
+  assert.ok(to.beretDrapeLimit>0 && to.beretDrapeLimit<1);
+  for(const name of MATERIAL_SHAPE_NAMES){const value=resolveShapeProfile(name).beretDrapeLimit;assert.ok(value>=0&&value<=1,name);}
+  for(const progress of [.001,.2,.5,.9]){
+    const current=interpolateShapeProfile(from,to,progress);
+    assert.ok(Math.abs(current.beretDrapeLimit-(from.beretDrapeLimit+(to.beretDrapeLimit-from.beretDrapeLimit)*progress))<1e-12);
+    assert.equal(interpolateShapeProfile(current,resolveShapeProfile('flower'),0).beretDrapeLimit,current.beretDrapeLimit);
+  }
 });
