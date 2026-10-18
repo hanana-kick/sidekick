@@ -8,12 +8,12 @@ export interface MoveOptions extends MotionOptions { travel?: 'natural' | 'none'
 export interface MoveResult { finished: boolean; position: AvatarPosition }
 export interface MovementState {
   phase: 'idle' | 'takeoff' | 'flight' | 'landing' | 'braking' | 'settling';
-  /** Monotonic distance progress in natural mode; elapsed duration fraction for plain tweens. */
+  /** Monotonic elapsed progress for paced travel; distance progress for explicit physical limits. */
   progress: number;
   position: AvatarPosition;
   /** Velocity of the constrained CSS position, in CSS pixels per second. */
   velocity: AvatarPosition;
-  /** Actual integrated CSS-pixel acceleration, per second squared. */
+  /** Actual CSS-pixel acceleration, per second squared (analytic or physically integrated). */
   acceleration: AvatarPosition;
   speed: number;
 }
