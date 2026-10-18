@@ -189,3 +189,20 @@ test('README HTML stage handles mouse/touch coordinates and independent stop con
   avatar.dispatchEvent(new window.CustomEvent('sidekick-move-end', { detail: { finished: false } }));
   assert.equal(document.getElementById('flight-status').textContent, '이동 중단됨');
 });
+
+test('header and CDN examples use the canonical case-sensitive bowTie preset', async () => {
+  const { resolveSidekickAttributes } = await import('../dist/library/element/attributes.js');
+  assert.doesNotMatch(readme, /neck-accessory="bowtie"|neckAccessory:\s*'bowtie'/);
+  const htmlExamples = [...readme.matchAll(/```html\n([\s\S]*?)\n```/g)];
+  let checked = 0;
+  for (const [, html] of htmlExamples) {
+    const dom = new JSDOM(html);
+    for (const avatar of dom.window.document.querySelectorAll('sidekick-avatar[neck-accessory="bowTie"]')) {
+      const resolved = resolveSidekickAttributes(new Map([...avatar.attributes].map(a => [a.name, a.value])));
+      assert.ok(resolved.design.accessories.some(a => a.preset === 'bowTie'));
+      checked++;
+    }
+    dom.window.close();
+  }
+  assert.ok(checked > 0);
+});

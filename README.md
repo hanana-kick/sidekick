@@ -78,7 +78,7 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 ```html
 <script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.1/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
-  eyes-accessory="glasses" neck-accessory="bowtie"
+  eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
   style="display:block;width:240px;height:240px"></sidekick-avatar>
 ```
@@ -115,7 +115,7 @@ React와 ReactDOM은 동일한 19.3.1의 미리 빌드된 ESM을 제공합니다
   import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.4.1/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
-    neckAccessory: 'bowtie', leftSmile: 1, rightSmile: 1,
+    neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
     style: { width: 240, height: 240 }
   }));
 </script>
