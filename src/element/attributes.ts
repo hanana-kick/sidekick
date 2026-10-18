@@ -9,7 +9,7 @@ import type { MotionOptions, MotionResult, MotionTarget } from '../core/motion.j
 import { validateShapeMotionOptions } from '../core/shape-motion.js';
 import { parseTrackingMode } from '../core/tracking.js';
 import type { TrackingMode } from '../core/tracking.js';
-import type { AvatarPlacement, AvatarPosition, MovementBounds, MoveResult } from './movement.js';
+import type { AvatarPlacement, AvatarPosition, MovementBounds, MoveResult, MoveOptions, MovementState } from './movement.js';
 import type { MaterialShapeName } from '../core/shapes.js';
 
 /** HTML strings are strict: unlike native booleans, the literal "false" disables. */
@@ -22,6 +22,7 @@ export interface SidekickAttributes {
   'movement-bounds'?: MovementBounds;
   'move-duration'?: NumericAttribute;
   'move-easing'?: 'linear' | 'smooth';
+  'move-travel'?: 'natural' | 'none';
   design?: string;
   shape?: MaterialShapeName;
   'body-color'?: string;
@@ -71,7 +72,7 @@ export interface SidekickAttributes {
 export type SidekickAttributeName = keyof SidekickAttributes;
 export const ACCESSORY_ATTRIBUTE_SLOTS = Object.freeze({ head: 'head', eyes: 'eyes', mouth: 'mouth', neck: 'neck', 'left-ear': 'leftEar', 'right-ear': 'rightEar' } as const);
 export const SIDEKICK_ATTRIBUTES = Object.freeze([
-  'placement', 'position-x', 'position-y', 'movement-bounds', 'move-duration', 'move-easing',
+  'placement', 'position-x', 'position-y', 'movement-bounds', 'move-duration', 'move-easing', 'move-travel',
   'design', 'shape', 'body-color', 'eye-color', 'expression', 'left-expression', 'right-expression',
   'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'accessories',
   'head-accessory', 'head-color', 'eyes-accessory', 'eyes-color', 'mouth-accessory', 'mouth-color',
@@ -85,6 +86,7 @@ export interface SidekickDesignChangeDetail { design: AvatarDesign }
 export interface SidekickCameraChangeDetail { camera: CameraState }
 export interface SidekickEventMap {
   'sidekick-move-end': CustomEvent<MoveResult>;
+  'sidekick-move-progress': CustomEvent<MovementState>;
   'sidekick-play-end': CustomEvent<MotionResult>;
   'sidekick-transition-end': CustomEvent<MotionResult>;
   'sidekick-ready': CustomEvent<Record<string, never>>;
@@ -101,7 +103,7 @@ export interface ResolvedAttributes {
   placement: AvatarPlacement;
   position: AvatarPosition;
   movementBounds: MovementBounds;
-  moveOptions: Required<MotionOptions>;
+  moveOptions: Required<MoveOptions>;
   design: AvatarDesign;
   camera: CameraState;
   gaze: Vec2;
@@ -205,7 +207,7 @@ export function resolveSidekickAttributes(attributes: AttributeValues): Resolved
     placement: read('placement', value => choice(value, ['inline', 'viewport']), 'inline'),
     position: { x: read('position-x', value => number(value, -1e7, 1e7, 'position-x'), 0), y: read('position-y', value => number(value, -1e7, 1e7, 'position-y'), 0) },
     movementBounds: read('movement-bounds', value => choice(value, ['viewport', 'none']), 'viewport'),
-    moveOptions: { duration: read('move-duration', value => number(value, 0, 60000, 'move-duration'), 0), easing: read('move-easing', value => choice(value, ['linear', 'smooth']), 'smooth') },
+    moveOptions: { travel: read('move-travel', value => choice(value, ['natural', 'none']), 'natural'), duration: read('move-duration', value => number(value, 0, 60000, 'move-duration'), 0), easing: read('move-easing', value => choice(value, ['linear', 'smooth']), 'smooth') },
     design: parseDesign(design), camera,
     gaze: [read('gaze-x', value => number(value, -1, 1, 'gaze-x'), 0), read('gaze-y', value => number(value, -1, 1, 'gaze-y'), 0)],
     activity: read('activity', value => choice(value, ACTIVITIES), 'idle'),

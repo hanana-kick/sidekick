@@ -18,7 +18,7 @@ function fixture(patch = {}) {
   const renderer = {
     canvas, stats: { drawCalls: 1, buffers: 3 }, disposals: 0, resizes: 0,
     resize(width, height, dpr) { this.resizes++; canvas.width = Math.max(1, Math.round(width * dpr)); canvas.height = Math.max(1, Math.round(height * dpr)); },
-    render(design, state) { draws.push({ design: structuredClone(design), pose: structuredClone(state.pose), camera: { ...state.camera }, time: state.time, delta: state.delta, contour: state.contour }); },
+    render(design, state) { draws.push({ design: structuredClone(design), pose: structuredClone(state.pose), camera: { ...state.camera }, time: state.time, delta: state.delta, contour: state.contour, travel: structuredClone(state.travel), activity: state.activity, activityFrame: structuredClone(state.activityFrame) }); },
     readPixels() { const result = new Uint8Array(canvas.width * canvas.height * 4); result[3] = 255; return result; },
     dispose() { this.disposals++; },
   };
@@ -333,3 +333,13 @@ test('zoom-only worker state redraws once without restarting demand-only frames'
   f.engine.command({ kind: 'state', state: { camera: { yaw: 0, pitch: 0, roll: 0, zoom: 2 } } });
   assert.equal(f.callbacks.size, 0); assert.equal(f.draws.length, 2); f.engine.dispose();
 });
+
+ test('travel presentation overlays worker gaze and yields to live activity without mutating authored state', () => {
+ const f=fixture({activity:'thinking'}); const before=structuredClone(f.engine.snapshot.pose);
+ f.engine.command({kind:'state',state:{travel:{direction:[1,0],strength:1,lift:.06,bank:-.12}}});f.step();
+ assert.deepEqual(f.draws.at(-1).pose.gaze,[.75,0]);assert.deepEqual(f.engine.snapshot.pose.gaze,before.gaze);
+ assert.equal(f.draws.at(-1).activityFrame.roll,0);assert.equal(f.renderer.resizes,1);
+ f.engine.command({kind:'state',state:{activity:'idle'}});f.step(200);
+ f.engine.command({kind:'state',state:{travel:{direction:[0,0],strength:0,lift:0,bank:0}}});f.step();
+ assert.equal(f.draws.at(-1).activity,'idle'); assert.deepEqual(f.draws.at(-1).pose.gaze,before.gaze);f.engine.dispose();
+ });

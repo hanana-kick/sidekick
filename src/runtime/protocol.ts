@@ -1,3 +1,4 @@
+import type { TravelPresentation } from '../core/travel.js';
 import type { Activity, AvatarDesign, Vec2 } from '../core/design.js';
 import type { CameraState } from '../core/camera.js';
 import type { MotionOptions, MotionResult, MotionTarget, Pose } from '../core/motion.js';
@@ -11,6 +12,7 @@ export const PROTOCOL_VERSION = 1;
 export interface RuntimeState {
   design: AvatarDesign; camera: CameraState; pose: Pose; activity: Activity;
   paused: boolean; reduced: boolean; active: boolean; time: number;
+  travel?: TravelPresentation;
   gaze: Vec2; trackingMode: TrackingMode; trackedGaze?: Vec2;
   width: number; height: number; dpr: number;
 }
@@ -31,6 +33,7 @@ export type RuntimeCommand =
   | { kind: 'snapshot'; request: number; options: SnapshotOptions }
   | { kind: 'dispose' };
 export interface RuntimeSnapshot {
+  travel?: TravelPresentation;
   renderCpu: { lastMs: number; totalMs: number; maxMs: number };
   pose: Pose; time: number; renderedRotation: Pose['rotation']; frames: number; running: boolean; drawCalls: number; buffers: number; width: number; height: number;
 }

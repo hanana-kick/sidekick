@@ -1,3 +1,5 @@
+import { travelMatrix } from '../core/travel.js';
+import type { TravelPresentation } from '../core/travel.js';
 import type { AccessorySlot, Activity, AvatarDesign, RenderStyle, Vec2, Vec3 } from '../core/design.js';
 import { resolveDesign } from '../core/resolved-design.js';
 import type { ActivityFrame, Pose } from '../core/motion.js';
@@ -27,6 +29,7 @@ export interface RenderState {
   pose: Pose; activity: Activity; time: number; delta: number; reduced: boolean; style: RenderStyle;
   /** Optional runtime activity crossfade; direct renderer clients keep the standard loop. */
   activityFrame?: ActivityFrame;
+  travel?: TravelPresentation;
   camera?: CameraAngles & Partial<Pick<CameraState, 'zoom'>>;
   /** Active explicit eye tracks postpone a newly starting idle blink per eye. */
   eyeMotion?: Record<'left' | 'right', boolean>;
@@ -241,7 +244,7 @@ export class AvatarRenderer {
     // View orientation is independent of the body's animated local pose. Matrix
     // composition preserves combined yaw/pitch/roll, unlike adding Euler angles.
     const model = transform([0, activity.bob, 0], [pose.rotation[0], pose.rotation[1], roll]);
-    const root = multiply(cameraViewMatrix(camera), model);
+    const root = travelMatrix(multiply(cameraViewMatrix(camera), model), state.reduced ? undefined : state.travel);
     const aspect = this.displayAspect ?? this.canvas.width / this.canvas.height;
     const contour = state.contour ?? shapeContour({ kind: 'material', name: design.body.shape });
     const profile = state.profile ?? resolveShapeProfile(design.body.shape);

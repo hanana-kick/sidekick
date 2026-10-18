@@ -1,7 +1,8 @@
 import { PlaybackController } from './playback.js';
 import type { PlayOptions, AssetTransitionTarget } from './playback.js';
+import type { TravelPresentation } from '../core/travel.js';
 import { AvatarMovement } from './movement.js';
-import type { AvatarPlacement, AvatarPosition, MovementBounds, MoveResult } from './movement.js';
+import type { AvatarPlacement, AvatarPosition, MovementBounds, MoveResult, MoveOptions, MovementState } from './movement.js';
 import { ACTIVITIES, createAccessory, createDesign, equipAccessory, finite, parseDesign, patchDesign, removeAccessory } from '../core/design.js';
 import type { AccessoryDesign, Activity, AvatarDesign, DesignPatch, RenderStyle, Vec2 } from '../core/design.js';
 import { parseTrackingMode } from '../core/tracking.js';
@@ -58,11 +59,21 @@ export class SidekickAvatar extends HTMLElementBase {
   cancelTransition(): void { this.playback.cancelTransition(); }
   private placementState: AvatarPlacement = 'inline';
   private boundsState: MovementBounds = 'viewport';
+  private travelPresentation?: TravelPresentation;
   private movement = new AvatarMovement({
     now: () => performance.now(), immediate: () => this.paused || this.reduced || !this.connected,
     constrain: point => this.constrainPosition(point),
     render: point => { this.style.setProperty('--sidekick-x', `${point.x}px`); this.style.setProperty('--sidekick-y', `${point.y}px`); if (this.lastTrackedPointer && this.trackingDocument && !this.gesturing) { this.pendingPointer = { ...this.lastTrackedPointer }; this.queueInput(); } },
-    complete: result => this.emit('sidekick-move-end', result),
+    complete: async result => {
+      if (this.bridge && this.connected) {
+        const barrier = this.request<MotionResult>('barrier');
+        this.send({ kind: 'flush', request: barrier.id });
+        try { await barrier.promise; } catch { /* Teardown still settles the caller's movement. */ }
+      }
+      this.emit('sidekick-move-end', result);
+    },
+    progress: state => this.emit('sidekick-move-progress', state),
+    presentation: travel => { this.travelPresentation = travel; this.send({ kind: 'state', state: { travel } }); },
     requestFrame: callback => requestAnimationFrame(callback), cancelFrame: id => cancelAnimationFrame(id),
   });
   get placement(): AvatarPlacement { return this.placementState; }
@@ -71,8 +82,9 @@ export class SidekickAvatar extends HTMLElementBase {
   set movementBounds(value: MovementBounds) { if (value !== 'viewport' && value !== 'none') throw new TypeError('movementBounds must be viewport or none'); this.reflectAttribute('movement-bounds', value); }
   /** Inline: offset from normal layout. Viewport: layout viewport top-left, CSS pixels. */
   get position(): AvatarPosition { return this.movement.position; }
-  moveTo(position: AvatarPosition, options: MotionOptions = {}): Promise<MoveResult> { return this.movement.to(position, options); }
-  moveBy(delta: AvatarPosition, options: MotionOptions = {}): Promise<MoveResult> { return this.movement.by(delta, options); }
+  get movementState(): MovementState { return this.movement.state; }
+  moveTo(position: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { return this.movement.to(position, options); }
+  moveBy(delta: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { return this.movement.by(delta, options); }
   cancelMove(): void { this.movement.cancel(); }
   private constrainPosition(point: AvatarPosition): AvatarPosition {
     if (this.placementState !== 'viewport' || this.boundsState === 'none' || !this.connected) return { ...point };
@@ -261,8 +273,8 @@ export class SidekickAvatar extends HTMLElementBase {
   get ready(): boolean { return this.readyState; }
   /** Last acknowledged worker pose; configuration and camera getters are immediate. */
   get pose(): Pose { return structuredClone(this.currentPose); }
-  get diagnostics(): { ready: boolean; running: boolean; frames: number; drawCalls: number; buffers: number; backend: 'worker' | 'main' | 'none'; generation: number; revision: number; acknowledgedRevision: number; time: number; renderCpu: { lastMs: number; totalMs: number; maxMs: number }; renderedRotation: Pose['rotation'] } {
-    return { ready: this.ready, running: this.ready && (this.snapshotState?.running ?? false), frames: this.snapshotState?.frames ?? 0, drawCalls: this.snapshotState?.drawCalls ?? 0, buffers: this.ready ? this.snapshotState?.buffers ?? 0 : 0, backend: this.bridge?.backend ?? 'none', generation: this.generation, revision: this.bridge?.revision ?? 0, acknowledgedRevision: this.acknowledgedRevision, time: this.snapshotState?.time ?? this.elapsed, renderCpu: { ...(this.snapshotState?.renderCpu ?? { lastMs: 0, totalMs: 0, maxMs: 0 }) }, renderedRotation: [...(this.snapshotState?.renderedRotation ?? [0, 0, 0])] };
+  get diagnostics(): { travel?: TravelPresentation; ready: boolean; running: boolean; frames: number; drawCalls: number; buffers: number; backend: 'worker' | 'main' | 'none'; generation: number; revision: number; acknowledgedRevision: number; time: number; renderCpu: { lastMs: number; totalMs: number; maxMs: number }; renderedRotation: Pose['rotation'] } {
+    return { travel: this.snapshotState?.travel ? structuredClone(this.snapshotState.travel) : undefined, ready: this.ready, running: this.ready && (this.snapshotState?.running ?? false), frames: this.snapshotState?.frames ?? 0, drawCalls: this.snapshotState?.drawCalls ?? 0, buffers: this.ready ? this.snapshotState?.buffers ?? 0 : 0, backend: this.bridge?.backend ?? 'none', generation: this.generation, revision: this.bridge?.revision ?? 0, acknowledgedRevision: this.acknowledgedRevision, time: this.snapshotState?.time ?? this.elapsed, renderCpu: { ...(this.snapshotState?.renderCpu ?? { lastMs: 0, totalMs: 0, maxMs: 0 }) }, renderedRotation: [...(this.snapshotState?.renderedRotation ?? [0, 0, 0])] };
   }
   /** Viewing angles in degrees and centered zoom. Reads return an independent snapshot. */
   get camera(): CameraState { return { ...this.cameraAngles }; }
@@ -357,7 +369,7 @@ export class SidekickAvatar extends HTMLElementBase {
   }
   disconnectedCallback(): void {
     this.connected = false;
-    this.playback.disconnect(); this.movement.cancel();
+    this.playback.disconnect(); this.movement.disconnect();
     this.ownerDocument.defaultView?.removeEventListener('resize', this.onViewportResize);
     this.connected = false; this.readyState = false; this.cancelInput(); this.detachMouseTracking(); this.clearDrag();
     this.disposeBridge(new Error('Avatar disconnected')); this.resetEyes(); this.snapshotState = undefined;
@@ -540,7 +552,7 @@ export class SidekickAvatar extends HTMLElementBase {
   }
   private runtimeState(): RuntimeState {
     const rect = this.getBoundingClientRect();
-    return { design: this.design, camera: this.camera, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
+    return { travel: this.travelPresentation, design: this.design, camera: this.camera, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
   }
   private syncState(): void {
     this.send({ kind: 'state', state: { activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze } });
