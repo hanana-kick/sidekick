@@ -218,6 +218,7 @@ test('natural controls drive physical telemetry and keep a trace through control
   assert.match(await page.locator('#result-log').textContent(), /"finished": false/);
   if (process.env.SIDEKICK_SCREENSHOTS) {
     const { writeFile } = await import('node:fs/promises'); await mkdir(process.env.SIDEKICK_SCREENSHOTS, { recursive: true });
+    await page.locator('#motion-graph').scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${process.env.SIDEKICK_SCREENSHOTS}/api-inertial-telemetry.png` });
     await writeFile(`${process.env.SIDEKICK_SCREENSHOTS}/api-inertial-telemetry-trace.json`, JSON.stringify(trace, null, 2));
   }

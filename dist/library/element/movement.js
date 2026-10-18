@@ -382,17 +382,26 @@ export class AvatarMovement {
             const dvx = desiredX - this.velocity.x, dvy = desiredY - this.velocity.y, dv = Math.hypot(dvx, dvy);
             const projection = dvx * this.velocity.x + dvy * this.velocity.y;
             const braking = track.stopping || projection < -1e-8;
-            const limit = braking ? track.deceleration : track.acceleration;
-            // A braking tick must not cross its minimum-speed point and spend the
-            // stronger braking budget accelerating in the opposite direction.
-            const brakeFraction = braking && dv > 0 ? Math.max(0, -projection / (dv * dv)) : 1;
-            const amount = dv > 0 ? Math.min(1, limit * dt / dv, brakeFraction) : 0;
             const oldX = this.velocity.x, oldY = this.velocity.y;
-            this.velocity.x += dvx * amount;
-            this.velocity.y += dvy * amount;
+            // Split at minimum speed: braking may remove momentum, but cannot buy
+            // reverse acceleration. Consume the remaining time under acceleration,
+            // otherwise a changing perpendicular target could stall every tick.
+            const brakeFraction = braking && dv > 0 ? Math.min(1, Math.max(0, -projection / (dv * dv))) : 0;
+            const brakeTime = braking ? Math.min(dt, dv * brakeFraction / track.deceleration) : 0;
+            const brakeAmount = dv > 0 ? track.deceleration * brakeTime / dv : 0;
+            const midX = oldX + dvx * brakeAmount, midY = oldY + dvy * brakeAmount;
+            const remainingTime = dt - brakeTime;
+            const remainingX = desiredX - midX, remainingY = desiredY - midY;
+            const remainingDelta = Math.hypot(remainingX, remainingY);
+            const accelerateAmount = remainingDelta > 0 ? Math.min(1, track.acceleration * remainingTime / remainingDelta) : 0;
+            this.velocity.x = midX + remainingX * accelerateAmount;
+            this.velocity.y = midY + remainingY * accelerateAmount;
             this.acceleration.x = (this.velocity.x - oldX) / dt;
             this.acceleration.y = (this.velocity.y - oldY) / dt;
-            const proposed = { x: this.point.x + (oldX + this.velocity.x) * dt / 2, y: this.point.y + (oldY + this.velocity.y) * dt / 2 };
+            const proposed = {
+                x: this.point.x + (oldX + midX) * brakeTime / 2 + (midX + this.velocity.x) * remainingTime / 2,
+                y: this.point.y + (oldY + midY) * brakeTime / 2 + (midY + this.velocity.y) * remainingTime / 2,
+            };
             const constrained = this.host.constrain(proposed);
             // Bounds are inelastic walls: discard only the outward velocity component.
             if (constrained.x !== proposed.x) {

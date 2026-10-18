@@ -13,9 +13,9 @@ after(async () => { await browser?.close(); if (server) await new Promise(r => s
 async function fixture(t, options = {}) {
   const directory = process.env.SIDEKICK_SCREENSHOTS;
   if (directory) await mkdir(directory, { recursive: true });
-  const context = await browser.newContext({ viewport: { width: 900, height: 650 }, ...options });
+  const context = await browser.newContext({ viewport: { width: 900, height: 650 }, ...(directory ? { recordVideo: { dir: directory, size: { width: 900, height: 650 } } } : {}), ...options });
   const page = await context.newPage(), errors = [];
-  page.on('pageerror', e => errors.push(e.message)); t.after(async () => { await context.close(); assert.deepEqual(errors, []); });
+  page.on('pageerror', e => errors.push(e.message)); t.after(async () => { await context.close(); if (directory && page.video()) await page.video().saveAs(`${directory}/${t.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.webm`); assert.deepEqual(errors, []); });
   await page.route('**/flight-test.html', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body style="margin:0;background:#f8fafc"></body></html>' }));
   await page.goto(base + '/flight-test.html');
   await page.evaluate(async () => {

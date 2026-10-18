@@ -383,10 +383,11 @@ test('asymmetric braking cannot spend its stronger budget accelerating through a
   const next = f.controller.to({ x: 100, y: 0 }, { maxSpeed: 300, acceleration: 1, deceleration: 100000 });
   assert.equal((await old).finished, false);
   f.at(f.now + 1000 / 240);
-  close(f.controller.state.velocity.x, 0, 1e-9, 'braking ends at zero instead of gaining reverse speed');
+  const reverseBudget = 1 / 240 - 300 / 100000;
+  close(f.controller.state.velocity.x, -reverseBudget, 1e-9, 'remaining tick accelerates only after braking to zero');
   f.at(f.now + 1000 / 240);
   assert.ok(f.controller.state.velocity.x < 0, 'acceleration resumes toward the reversed target');
-  close(f.controller.state.speed, 1 / 240, 1e-9, 'reverse speed uses acceleration budget');
+  close(f.controller.state.speed, reverseBudget + 1 / 240, 1e-9, 'reverse speed uses acceleration budget');
   close(f.controller.state.acceleration.x, -1, 1e-9);
   finish(f); assert.deepEqual(await next, { finished: true, position: { x: 100, y: 0 } });
 });
@@ -398,11 +399,30 @@ test('asymmetric braking through a perpendicular turn does not stall at its mini
   const next = f.controller.to(target, { maxSpeed: 300, acceleration: 60, deceleration: 100000 });
   assert.equal((await old).finished, false);
   f.at(f.now + 1000 / 240);
-  close(f.controller.state.velocity.x, 150, 1e-8);
-  close(f.controller.state.velocity.y, 150, 1e-8);
+  const accelerationTime = 1 / 240 - Math.hypot(150, 150) / 100000;
+  const componentGain = 60 * accelerationTime / Math.sqrt(2);
+  close(f.controller.state.velocity.x, 150 - componentGain, 1e-8);
+  close(f.controller.state.velocity.y, 150 + componentGain, 1e-8);
   const first = f.controller.position;
   advance(f, f.now + 100, 240);
   assert.ok(f.controller.position.y > first.y + 1, 'turn keeps advancing');
   finish(f, { hz: 240 }); assert.deepEqual(await next, { finished: true, position: target });
   f.states.forEach(finiteState);
+});
+
+
+test('early oblique retargets converge across display rates without perpendicular orbiting', async () => {
+  const options = { maxSpeed: 320, acceleration: 900, deceleration: 1200 };
+  for (const hz of [30, 60, 120, 240]) for (let delay = 10; delay <= 200; delay += 10) {
+    const f = fixture(); f.state.max = 2000;
+    await f.controller.to({ x: 751, y: 400 }, { duration: 0 });
+    const old = f.controller.to({ x: 1065, y: 220 }, options);
+    advance(f, delay, hz);
+    const next = f.controller.to({ x: 449, y: 660 }, options);
+    assert.equal((await old).finished, false, `replaced move at ${hz} Hz / ${delay} ms`);
+    finish(f, { hz, timeout: 10000 });
+    assert.deepEqual(await next, { finished: true, position: { x: 449, y: 660 } }, `${hz} Hz / ${delay} ms`);
+    assert.equal(f.events.length, 3);
+    f.states.forEach(finiteState);
+  }
 });
