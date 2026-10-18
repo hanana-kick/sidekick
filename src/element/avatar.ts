@@ -102,7 +102,7 @@ export class SidekickAvatar extends HTMLElementBase {
       // display:none has no layout origin: its zero rectangle must not be added
       // to the current translation repeatedly. Keep the binding for restoration.
       if (!this.getClientRects().length || !state.target.getClientRects().length) {
-        return () => { this.anchorSleeping = true; this.movement.suspend(true); };
+        return () => { if (this.anchorState !== state) return; this.anchorSleeping = true; this.movement.suspend(true); };
       }
       const view = this.ownerDocument.defaultView!;
       const inView = (rect: { left: number; top: number; width: number; height: number }): boolean => rect.width > 0 && rect.height > 0 && rect.left + rect.width > 0 && rect.top + rect.height > 0 && rect.left < view.innerWidth && rect.top < view.innerHeight;
