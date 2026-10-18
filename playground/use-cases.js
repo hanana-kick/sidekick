@@ -1,4 +1,5 @@
 import '../src/index.ts';
+import actionSource from './use-case-actions.js?raw';
 import { mountSiteHeader } from './shared-header.js';
 import { loadStudioSession, applyStudioSession } from './studio-session.ts';
 import { dockInViewport, sectionDestination, alignWithElement, connectTaskEvents } from './use-case-actions.js';
@@ -11,16 +12,22 @@ let active = null, revision = 0;
 const labels = { viewport: '화면 고정', section: '섹션 안 이동', anchor: '엘리먼트 정렬', events: '이벤트 반응' };
 const common = '// Registered and initialized <sidekick-avatar id="demo-bot">\nconst bot = document.querySelector("#demo-bot");\n';
 const codes = {};
+// Preserve readable, executable names in snippets even in minified production bundles.
+function exampleSource(name) {
+  const start = actionSource.indexOf('export function ' + name + '(');
+  const end = actionSource.indexOf('\nexport function ', start + 1);
+  return actionSource.slice(start, end < 0 ? undefined : end).replace('export function ', 'function ').trim();
+}
 function renderCode(kind, source) { codes[kind] = source; $(`code-${kind}`).textContent = source; }
-renderCode('viewport', common + `// Small transparent canvas; DOM is fixed to the viewport.\nbot.style.width = '128px'; bot.style.height = '128px';\n${dockInViewport.toString()}\nawait dockInViewport(bot);\nconst controller = new AbortController();\nwindow.addEventListener('resize', () => dockInViewport(bot), { signal: controller.signal });\n// Optional natural exit:\n// await bot.exit({ to: 'right' });\n// On unmount: controller.abort(); bot.remove();`);
-renderCode('section', common + `const section = document.querySelector('#section-area');\nsection.style.position = 'relative'; section.style.overflow = 'hidden';\nbot.placement = 'inline';\nbot.style.position = 'absolute'; bot.style.left = '0'; bot.style.top = '0';\n// Put the bot inside section BEFORE initialization. Its DOM origin is the anchor.\n${sectionDestination.toString()}\n// Queue destinations until the preceding flight is finished to avoid\n// outward inertia on abrupt reversal near a container boundary.\nawait bot.moveTo(sectionDestination(bot, section, { x: 200, y: 100 }));\n// A resize requires re-clamping the current position to the new section size.\n// The container scrolls with the document; no scroll listener is needed.`);
+renderCode('viewport', common + `// Small transparent canvas; DOM is fixed to the viewport.\nbot.style.width = '128px'; bot.style.height = '128px';\n${exampleSource('dockInViewport')}\nawait dockInViewport(bot);\nconst controller = new AbortController();\nwindow.addEventListener('resize', () => dockInViewport(bot), { signal: controller.signal });\n// Optional natural exit:\n// await bot.exit({ to: 'right' });\n// On unmount: controller.abort(); bot.remove();`);
+renderCode('section', common + `const section = document.querySelector('#section-area');\nsection.style.position = 'relative'; section.style.overflow = 'hidden';\nbot.placement = 'inline';\nbot.style.position = 'absolute'; bot.style.left = '0'; bot.style.top = '0';\n// Put the bot inside section BEFORE initialization. Its DOM origin is the anchor.\n${exampleSource('sectionDestination')}\n// Queue destinations until the preceding flight is finished to avoid\n// outward inertia on abrupt reversal near a container boundary.\nawait bot.moveTo(sectionDestination(bot, section, { x: 200, y: 100 }));\n// A resize requires re-clamping the current position to the new section size.\n// The container scrolls with the document; no scroll listener is needed.`);
 function refreshAnchorCode() {
   const options = { alignX: $('align-x').value, alignY: $('align-y').value, x: Number($('offset-x').value), y: Number($('offset-y').value) };
   renderCode('anchor', common + `const target = document.querySelector('#anchor-target');\nawait bot.moveToElement(target, ${JSON.stringify(options, null, 2)});\n// Samples the target's current DOM rectangle on each call.\n// Target and bot use the same alignment point, then x/y offsets.`);
   return options;
 }
 refreshAnchorCode();
-renderCode('events', common + `const target = document.querySelector('#event-target');\nconst form = document.querySelector('#demo-form');\nconst output = document.querySelector('#event-status');\nconst controller = new AbortController();\n${connectTaskEvents.toString()}\nconnectTaskEvents(bot, target, form, output, controller.signal);\n// Your app can send a result directly:\ntarget.dispatchEvent(new CustomEvent('demo-task', { detail: { state: 'success' } }));\n// On unmount: controller.abort(); bot.remove();`);
+renderCode('events', common + `const target = document.querySelector('#event-target');\nconst form = document.querySelector('#demo-form');\nconst output = document.querySelector('#event-status');\nconst controller = new AbortController();\n${exampleSource('connectTaskEvents')}\nconnectTaskEvents(bot, target, form, output, controller.signal);\n// Your app can send a result directly:\ntarget.dispatchEvent(new CustomEvent('demo-task', { detail: { state: 'success' } }));\n// On unmount: controller.abort(); bot.remove();`);
 function stop() {
   revision++;
   if (active) { active.controller.abort(); active.observer?.disconnect(); active.intersection?.disconnect(); active.bot.remove(); }

@@ -17,7 +17,7 @@ async function setup(t,viewport={width:1280,height:900}) {
 }
 async function start(page,kind){await page.locator(`[data-start="${kind}"]`).click();await page.waitForSelector('#demo-bot[data-configured]');assert.equal(await page.locator('#demo-bot').count(),1);}
 test('fixed companion stays at same viewport coordinates through scroll and exits',async t=>{
- const page=await setup(t);await start(page,'viewport');const first=await page.locator('#demo-bot').boundingBox();
+ const page=await setup(t);await start(page,'viewport');assert.match(await page.locator('#code-viewport').textContent(), /function dockInViewport\(bot\)/); const first=await page.locator('#demo-bot').boundingBox();
  await page.evaluate(()=>window.scrollTo(0,800));const second=await page.locator('#demo-bot').boundingBox();assert.ok(Math.abs(first.x-second.x)<1&&Math.abs(first.y-second.y)<1);
  await page.locator('#viewport-exit').click();await page.waitForFunction(()=>document.querySelector('#demo-bot').presenceState==='hidden');
  await page.locator('#viewport-return').click();await page.waitForFunction(()=>document.querySelector('#demo-bot').presenceState!=='hidden');
