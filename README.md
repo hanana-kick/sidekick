@@ -944,6 +944,7 @@ Both HTML entry pages include static Open Graph and Twitter card tags with the c
 | 메서드 | 의미 |
 | --- | --- |
 | `moveTo({ x, y }, options?: MoveOptions)` | 현재 화면 좌표부터 이동. `Promise<MoveResult>` |
+| `moveToElement(target, options?: MoveToElementOptions)` | 대상 엘리먼트와 같은 정렬점을 맞추고 X/Y 오프셋 적용 |
 | `moveBy({ x, y }, options?)` | 현재 진행 중인 좌표 기준 상대 이동 |
 | `cancelMove()` | 자연 비행은 현재 속도에서 감속한 뒤 포즈를 180ms 정리하고 `finished: false`. none은 위치 이동을 즉시 중단 |
 | `position` | 실제 DOM 좌표 `{ x, y }`의 복사본, 읽기 전용 |
@@ -1184,3 +1185,45 @@ await avatar.enter({ x: 240, y: 120 }, { from: 'top', maxSpeed: 1350 });
 | --- | --- | --- |
 | `onEnterEnd` | `SidekickEventHandler<'sidekick-enter-end'>` | 입장 완료/취소 `{finished, position, presence}` |
 | `onExitEnd` | `SidekickEventHandler<'sidekick-exit-end'>` | 퇴장 완료/취소 `{finished, position, presence}` |
+
+### 엘리먼트 기준 이동
+
+`moveToElement(target: Element, options?: MoveToElementOptions): Promise<MoveResult>`는 특정 DOM 엘리먼트를 기준으로 이동합니다. React의 `SidekickAvatarRef`에서도 같은 메서드를 제공합니다.
+
+```js
+const target = document.querySelector('#message');
+if (target) {
+  await bot.moveToElement(target, {
+    alignX: 'center', // left (기본값) | center | right
+    alignY: 'bottom', // top (기본값) | center | bottom
+    x: 12, y: -16,   // 기본값 0. 화면 기준 오른쪽 / 아래쪽이 양수
+    maxSpeed: 1350, acceleration: 1800, deceleration: 2200,
+  });
+}
+```
+
+대상과 봇의 **동일한 정렬점**을 맞춥니다. `center/center`면 두 박스의 중심이 일치하고, `right/bottom`이면 오른쪽 아래 모서리가 일치합니다. 이후 X/Y 오프셋을 적용합니다. 기준은 투명 캔버스를 포함한 엘리먼트의 화면상 border-box이며, 캐릭터의 불투명 픽셀 경계가 아닙니다.
+
+```tsx
+import { useRef } from 'react';
+import { SidekickAvatar, type SidekickAvatarRef } from '@hanana-kick/sidekick/react';
+
+export function Example() {
+  const bot = useRef<SidekickAvatarRef>(null);
+  const target = useRef<HTMLButtonElement>(null);
+  return <>
+    <SidekickAvatar ref={bot} placement="viewport" />
+    <button ref={target} onClick={() => {
+      if (target.current) void bot.current?.moveToElement(target.current, {
+        alignX: 'center', alignY: 'center', x: 0, y: -100,
+      });
+    }}>이 버튼을 기준으로 이동</button>
+  </>;
+}
+```
+
+- `getBoundingClientRect()`를 호출 시점에 한 번 읽습니다. 페이지 스크롤과 대상의 CSS transform이 반영됩니다. 대상 이동·스크롤·리사이즈를 계속 추적하지 않습니다. 다시 맞추려면 다시 호출하세요. 이동 도중 대상이 제거되어도 이미 계산한 목적지로 이동합니다.
+- `inline`과 `viewport` 모두 현재 봇의 화면 위치를 기준으로 좌표를 변환합니다. 봇 자체의 CSS transform은 측정된 크기에 반영됩니다. 봇 자체의 CSS zoom은 지원하지 않으며 transform: scale()을 사용하세요. 봇 조상에 transform/rotate/scale/perspective/CSS zoom이 있으면 좌표 단위가 달라지므로 명시적으로 오류를 냅니다. 이 경우 봇을 변환 없는 body 바로 아래에 배치하세요.
+- 같은 문서에 연결된 HTML/SVG Element를 받습니다. 연결되지 않은 대상, 다른 문서, 잘못된 옵션은 현재 이동을 취소하거나 봇을 표시하기 전에 동기적으로 거부합니다. 크기 0인 대상도 유효한 좌표 기준점입니다.
+- `MoveOptions`의 자연 가속·제동, 중단, reduced-motion 설정을 그대로 사용합니다. `movementBounds="viewport"`이면 화면 제한이 정렬보다 우선하므로 화면 밖 대상에 정확하게 맞추려면 `movementBounds="none"`을 명시하세요.
+- Playground의 이동 기준에서 `moveToElement`를 선택하면 CSS 선택자, 정렬, 오프셋과 동일한 실행 코드가 표시됩니다. 선택자는 Playground 편의 기능이며 실제 API에는 Element 객체를 전달합니다. 복사한 예제에서는 해당 선택자에 맞는 대상 엘리먼트를 앱에 준비해야 합니다.

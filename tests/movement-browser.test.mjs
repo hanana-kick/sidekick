@@ -68,3 +68,33 @@ test('actual worker asset swap, pause, play/stop and disconnection settle comman
   assert.equal(result.transition.finished, true); assert.equal(result.design.body.shape, 'heart'); assert.equal(result.design.eyes.left.weights.smile, 1); assert.equal(result.design.accessories[0].preset, 'halo');
   assert.equal(result.cancelledLoop.finished, false); assert.deepEqual(result.immediate.position, { x: 40, y: 50 }); assert.ok(result.disconnected.every(value => value.finished === false)); assert.equal(result.animations, 0);
 });
+
+for (const placement of ['viewport', 'inline']) test(`moveToElement anchors, scroll, own transform, sampling and errors (${placement})`, async t => {
+ const page=await pageFor(t,{reducedMotion:'reduce'});
+ const results=await page.evaluate(async placement=>{
+  const bot=document.getElementById('bot');bot.placement=placement;bot.movementBounds='none';
+  const target=document.createElement('div');target.style.cssText='position:absolute;left:320px;top:500px;width:260px;height:140px;transform:rotate(8deg) scale(1.1)';document.body.append(target);
+  bot.style.transform='scale(.8) rotate(12deg)';
+  const errors=[];
+  for(const [alignX,ax] of [['left',0],['center',.5],['right',1]]) for(const [alignY,ay] of [['top',0],['center',.5],['bottom',1]]) {
+   await bot.moveToElement(target,{alignX,alignY,x:13,y:-7});const b=bot.getBoundingClientRect(),r=target.getBoundingClientRect();
+   errors.push(Math.abs(b.left+b.width*ax-r.left-r.width*ax-13),Math.abs(b.top+b.height*ay-r.top-r.height*ay+7));
+  }
+  window.scrollTo(0,100); await bot.moveToElement(target,{alignX:'center',alignY:'center'});
+  const b=bot.getBoundingClientRect(),r=target.getBoundingClientRect();errors.push(Math.abs(b.left+b.width/2-r.left-r.width/2),Math.abs(b.top+b.height/2-r.top-r.height/2));
+  const before=bot.position;target.remove();let rejected=false;try{bot.moveToElement(target);}catch{rejected=true;}
+  return {errors,rejected,before,after:bot.position};
+ },placement);
+ assert.ok(results.errors.every(error=>error<.1),JSON.stringify(results));assert.equal(results.rejected,true);assert.deepEqual(results.before,results.after);
+});
+
+test('moveToElement viewport bounds and retarget preserve movement semantics',async t=>{
+ const page=await pageFor(t);
+ const result=await page.evaluate(async()=>{
+  const bot=document.getElementById('bot'),target=document.createElementNS('http://www.w3.org/2000/svg','svg');target.style.cssText='position:fixed;left:1500px;top:1500px;width:40px;height:30px';document.body.append(target);
+  const first=bot.moveTo({x:600,y:400});await new Promise(resolve=>setTimeout(resolve,90));const velocity=bot.movementState.velocity;
+  const second=bot.moveToElement(target,{alignX:'right',alignY:'bottom'});const after=bot.movementState.velocity;target.remove();
+  return {first:await first,second:await second,velocity,after,max:{x:innerWidth-bot.offsetWidth,y:innerHeight-bot.offsetHeight}};
+ });
+ assert.equal(result.first.finished,false);assert.equal(result.second.finished,true);assert.deepEqual(result.second.position,result.max);assert.deepEqual(result.velocity,result.after);
+});

@@ -1,3 +1,4 @@
+import type { MoveToElementOptions } from './element-target.js';
 import type { EnterOptions, ExitOptions, PresenceResult, PresenceState } from './presence.js';
 import type { PlayOptions, AssetTransitionTarget } from './playback.js';
 import type { TravelPresentation } from '../core/travel.js';
@@ -47,6 +48,8 @@ export declare class SidekickAvatar extends HTMLElementBase {
     get position(): AvatarPosition;
     get movementState(): MovementState;
     moveTo(position: AvatarPosition, options?: MoveOptions): Promise<MoveResult>;
+    /** Sample the target's viewport border-box and align matching anchors, then move with inertia. */
+    moveToElement(target: Element, options?: MoveToElementOptions): Promise<MoveResult>;
     moveBy(delta: AvatarPosition, options?: MoveOptions): Promise<MoveResult>;
     cancelMove(): void;
     private constrainPosition;

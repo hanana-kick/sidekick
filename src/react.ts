@@ -295,3 +295,5 @@ export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
 
   return createElement(tagName, { ...html, 'onsidekick-error': captureError, ref: capture });
 }
+
+export type { MoveToElementOptions, HorizontalAlignment, VerticalAlignment } from './element/element-target.js';

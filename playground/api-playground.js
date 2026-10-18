@@ -30,7 +30,11 @@ function movementOptions() {
 }
 function readAction() {
   switch ($('action-kind').value) {
-    case 'movement': return { method: $('move-method').value, args: [{ x: numeric('target-x'), y: numeric('target-y') }, movementOptions()] };
+    case 'movement': if ($('move-method').value === 'moveToElement') {
+      const selector = $('target-selector').value.trim();
+      if (!selector || !document.querySelector(selector)) throw new TypeError('대상 CSS 선택자에 해당하는 엘리먼트가 없습니다.');
+      return { method: 'moveToElement', args: [selector, { x: numeric('target-x'), y: numeric('target-y'), alignX: $('align-x').value, alignY: $('align-y').value, ...movementOptions() }] };
+    } return { method: $('move-method').value, args: [{ x: numeric('target-x'), y: numeric('target-y') }, movementOptions()] };
     case 'activity': {
       const method = $('activity-operation').value;
       if (method === 'stop') return { method, args: [] };
@@ -67,8 +71,10 @@ function refresh() {
   $('physical-options').hidden = !natural; $('max-speed').disabled = !natural || $('auto-speed').checked; $('easing').disabled = natural;
   $('duration-label').textContent = natural ? '0 = 즉시, 양수 = 자연 비행' : '이동 시간 · ms';
   $('timing-help').textContent = natural ? '거리에 무관한 최고 속도를 향해 가속하다 제동 거리에서 감속합니다. 짧은 이동은 최고 속도에 도달하지 않고, 먼 곳은 더 오래 걸립니다. 양수 duration은 무시합니다.' : '지정한 시간과 easing으로 이동합니다.';
-  $('x-label').textContent = $('move-method').value === 'moveBy' ? 'ΔX · CSS px' : 'X · viewport px';
-  $('y-label').textContent = $('move-method').value === 'moveBy' ? 'ΔY · CSS px' : 'Y · viewport px';
+  const elementRelative = $('move-method').value === 'moveToElement';
+  $('element-target-options').hidden = !elementRelative;
+  $('x-label').textContent = elementRelative ? 'X offset · CSS px' : $('move-method').value === 'moveBy' ? 'ΔX · CSS px' : 'X · viewport px';
+  $('y-label').textContent = elementRelative ? 'Y offset · CSS px' : $('move-method').value === 'moveBy' ? 'ΔY · CSS px' : 'Y · viewport px';
   $('activity-duration').disabled = $('activity-operation').value !== 'play'; $('activity').disabled = $('activity-operation').value === 'stop';
   $('entrance-coordinates').hidden = $('presence-operation').value === 'exit';
   try { renderCode(readAction()); $('execute').disabled = !initialized; }

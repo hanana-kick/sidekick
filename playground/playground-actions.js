@@ -1,11 +1,12 @@
 /** One serializable action describes both the invocation and the displayed example. */
 const literal = value => {
-  if (typeof value === 'string') return `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`;
+  if (typeof value === 'string') return `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll("\n", "\\n").replaceAll("\r", "\\r")}'`;
   if (Array.isArray(value)) return `[${value.map(literal).join(', ')}]`;
   if (value && typeof value === 'object') return `{ ${Object.entries(value).map(([key, entry]) => `${key}: ${literal(entry)}`).join(', ')} }`;
   return JSON.stringify(value);
 };
 function argumentSource(action, value, index) {
+  if (action.method === 'moveToElement' && index === 0) return `document.querySelector(${literal(value)})`;
   if (action.method === 'transitionTo' && index === 0 && value.accessories) {
     return `{ ${Object.entries(value).map(([key, entry]) => `${key}: ${key === 'accessories' ? `[${entry.map(preset => `createAccessory(${literal(preset)})`).join(', ')}]` : literal(entry)}`).join(', ')} }`;
   }
@@ -15,12 +16,17 @@ export function actionSource(action, target = 'avatar') {
   if (action.steps) return action.steps.map(step => actionSource(step, target)).join('\n');
   if (action.property) return `${target}.${action.property} = ${literal(action.value)};`;
   const call = `${target}.${action.method}(${(action.args ?? []).map((value, index) => argumentSource(action, value, index)).join(', ')});`;
-  return ['moveTo', 'moveBy', 'setExpression', 'transitionTo', 'enter', 'exit'].includes(action.method) ? `await ${call}` : call;
+  return ['moveTo', 'moveToElement', 'moveBy', 'setExpression', 'transitionTo', 'enter', 'exit'].includes(action.method) ? `await ${call}` : call;
 }
 export function executeAction(avatar, action, createAccessory) {
   if (action.steps) { let result; for (const step of action.steps) result = executeAction(avatar, step, createAccessory); return result; }
   if (action.property) { avatar[action.property] = action.value; return; }
   const args = structuredClone(action.args ?? []);
+  if (action.method === 'moveToElement') {
+    const selector = args[0];
+    args[0] = avatar.ownerDocument.querySelector(selector);
+    if (!args[0]) throw new TypeError(`대상 엘리먼트를 찾을 수 없습니다: ${selector}`);
+  }
   if (action.method === 'transitionTo' && args[0]?.accessories) args[0].accessories = args[0].accessories.map(preset => createAccessory(preset));
   return avatar[action.method](...args);
 }

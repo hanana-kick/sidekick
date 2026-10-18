@@ -1,3 +1,5 @@
+import { resolveElementTarget } from './element-target.js';
+import type { MoveToElementOptions } from './element-target.js';
 import { AvatarPresence } from './presence.js';
 import type { EnterOptions, ExitOptions, PresenceResult, PresenceState } from './presence.js';
 import { PlaybackController } from './playback.js';
@@ -103,6 +105,11 @@ export class SidekickAvatar extends HTMLElementBase {
   get position(): AvatarPosition { return this.movement.position; }
   get movementState(): MovementState { return this.movement.state; }
   moveTo(position: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { const target = this.constrainPosition(validatePosition(position), true); validateMoveOptions(options); const revision = this.presence.reveal(); if (!this.presence.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.to(target, options).then(result => { if (result.finished) this.presence.recovered(revision); return result; }); }
+  /** Sample the target's viewport border-box and align matching anchors, then move with inertia. */
+  moveToElement(target: Element, options: MoveToElementOptions = {}): Promise<MoveResult> {
+    const resolved = resolveElementTarget(this, this.position, target, options);
+    return this.moveTo(resolved.position, resolved.options);
+  }
   moveBy(delta: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { validatePosition(delta); validateMoveOptions(options); const revision = this.presence.reveal(); if (!this.presence.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.by(delta, options, point => this.constrainPosition(point, true)).then(result => { if (result.finished) this.presence.recovered(revision); return result; }); }
   cancelMove(): void { const revision = this.presence.interrupt(); if (this.presence.owns(revision)) this.movement.cancel(); }
   private constrainPosition(point: AvatarPosition, presenceTarget = false): AvatarPosition {

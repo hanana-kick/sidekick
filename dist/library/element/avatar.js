@@ -1,3 +1,4 @@
+import { resolveElementTarget } from './element-target.js';
 import { AvatarPresence } from './presence.js';
 import { PlaybackController } from './playback.js';
 import { AvatarMovement, validatePosition, validateMoveOptions } from './movement.js';
@@ -104,6 +105,11 @@ export class SidekickAvatar extends HTMLElementBase {
     moveTo(position, options = {}) { const target = this.constrainPosition(validatePosition(position), true); validateMoveOptions(options); const revision = this.presence.reveal(); if (!this.presence.owns(revision))
         return Promise.resolve({ finished: false, position: this.position }); return this.movement.to(target, options).then(result => { if (result.finished)
         this.presence.recovered(revision); return result; }); }
+    /** Sample the target's viewport border-box and align matching anchors, then move with inertia. */
+    moveToElement(target, options = {}) {
+        const resolved = resolveElementTarget(this, this.position, target, options);
+        return this.moveTo(resolved.position, resolved.options);
+    }
     moveBy(delta, options = {}) { validatePosition(delta); validateMoveOptions(options); const revision = this.presence.reveal(); if (!this.presence.owns(revision))
         return Promise.resolve({ finished: false, position: this.position }); return this.movement.by(delta, options, point => this.constrainPosition(point, true)).then(result => { if (result.finished)
         this.presence.recovered(revision); return result; }); }

@@ -19,7 +19,12 @@
 <div class="card-heading"><h2 id="action-heading">1. 할 일 설정</h2><span class="step">CONFIGURE</span></div>
 <label class="field"><span>할 일</span><select id="action-kind"><option value="movement">좌표로 이동</option><option value="activity">활동 / 상태 변경</option><option value="expression">눈 표정 변경</option><option value="tracking">마우스 추적 설정</option><option value="orientation">몸이 바라보는 방향</option><option value="assets">몸체 / 액세서리 전환</option><option value="presence">입장 / 퇴장</option></select></label>
 <div data-action="movement">
-<label class="field"><span>이동 기준</span><select id="move-method"><option value="moveTo">moveTo · 절대 좌표</option><option value="moveBy">moveBy · 상대 거리</option></select></label>
+<label class="field"><span>이동 기준</span><select id="move-method"><option value="moveTo">moveTo · 절대 좌표</option><option value="moveToElement">moveToElement · 엘리먼트 기준</option><option value="moveBy">moveBy · 상대 거리</option></select></label>
+<div id="element-target-options" hidden>
+<label class="field"><span>대상 CSS 선택자</span><input id="target-selector" value="#action-panel" placeholder="#my-element"></label>
+<div class="fields"><label class="field"><span>가로 정렬</span><select id="align-x"><option value="left">left · 왼쪽</option><option value="center">center · 중앙</option><option value="right">right · 오른쪽</option></select></label><label class="field"><span>세로 정렬</span><select id="align-y"><option value="top">top · 위쪽</option><option value="center">center · 중앙</option><option value="bottom">bottom · 아래쪽</option></select></label></div>
+<p class="hint">대상과 봇의 같은 정렬점을 맞춘 뒤 X/Y를 더합니다. 양수는 오른쪽/아래쪽. 실행할 때 위치를 읽으며 이후 자동 추적하지 않습니다. 화면 경계 제한이 적용됩니다. 예: #action-panel, #site-header-brand</p>
+</div>
 <div class="fields"><label class="field"><span id="x-label">X · viewport px</span><input id="target-x" type="number" step="any" value="0"></label><label class="field"><span id="y-label">Y · viewport px</span><input id="target-y" type="number" step="any" value="0"></label></div>
 <p class="help">화면 왼쪽 위가 (0, 0)이며 봇 박스의 왼쪽 위를 지정합니다. 스크롤 위치와 무관한 viewport 좌표입니다. 빈 곳을 탭하면 봇의 중심이 그곳으로 이동합니다.</p>
 <label class="field"><span>이동 방식</span><select id="travel"><option value="natural">natural · 관성을 가진 비행</option><option value="none">none · 시간 기반 이동</option></select></label>
