@@ -1,3 +1,4 @@
+import { STUDIO_SESSION_KEY, loadStudioSession, applyStudioSession } from '../playground/studio-session.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -165,7 +166,8 @@ test('tracking mode choices survive UI edits, round-trip in scenes and reset wit
   assert.equal(avatar.trackingMode, 'eyes'); assert.equal(f.controller.getSnapshot().trackingMode, 'eyes');
   await f.click(body);
   assert.equal(avatar.trackingMode, 'eyes-and-body'); assert.equal(f.controller.exportScene().trackingMode, 'eyes-and-body');
-  assert.equal(f.storage.values.get(STORAGE_KEY), stored); assert.equal(f.storage.writes.length, writes);
+  assert.equal(f.storage.values.get(STORAGE_KEY), stored); assert.ok(f.storage.writes.length > writes);
+  assert.equal(loadStudioSession(f.storage).scene.trackingMode, 'eyes-and-body');
   await f.click(f.node('body-orientation-tab')); await f.key('body-yaw', 'ArrowRight');
   await f.shape('heart'); await f.input('body-color', '#aabbcc');
   assert.equal(avatar.trackingMode, 'eyes-and-body'); assert.equal(avatar.morphing, true);
@@ -385,7 +387,7 @@ test('unreadable original stays intact; first explicit edit backs up before writ
   assert.equal(f.storage.values.get(STORAGE_KEY), raw); assert.deepEqual(f.storage.writes, []);
   assert.equal((f.node('design-json') as HTMLTextAreaElement).value, raw); assert.equal(f.node('json-tab').getAttribute('aria-selected'), 'true');
   await f.input('body-color', '#a4b8c9');
-  assert.deepEqual(f.storage.writes, [`${STORAGE_KEY}.recovery`, STORAGE_KEY]);
+  assert.deepEqual(f.storage.writes, [`${STORAGE_KEY}.recovery`, STORAGE_KEY, STUDIO_SESSION_KEY]);
   assert.equal(f.storage.values.get(`${STORAGE_KEY}.recovery`), raw);
   assert.equal(JSON.parse(f.storage.values.get(STORAGE_KEY)!).body.color, '#a4b8c9');
 });
@@ -517,4 +519,32 @@ test('discarded camera scenes fail atomically and saved originals can be reset s
   assert.equal(f.controller.exportScene().sceneVersion, 3);
   assert.deepEqual(f.avatar.bodyOrientation, createBodyOrientation());
   assert.equal(f.avatar.zoom, 1);
+});
+
+
+test('full Studio scene transfers to Playground and reload without writing temporary commands back', async t => {
+  const f = await fixture(t);
+  const scene = createScene({ design: createDesign({ body: { shape: 'heart', color: '#123456' }, accessories: [createAccessory('crown', 'crown')], eyes: { color: '#654321', left: { weights: { smile: .8, blink: .2 } }, right: { weights: { smile: .3, blink: .1 } } } }), bodyOrientation: { yaw: 31, pitch: 12, roll: -8 }, zoom: 1.7, activity: 'thinking', trackingMode: 'off', paused: true, interaction: 'box', gaze: { x: .3, y: -.2 }, time: 1.2, motion: { face: { uv: [.1, .2] } } });
+  await act(async () => { assert.equal(f.controller.importJSON(serializeScene(scene)), true); });
+  const loaded = loadStudioSession(f.storage);
+  assert.equal(loaded.source, 'saved'); assert.deepEqual(loaded.scene, scene);
+  const fresh = new StudioController(f.storage), other = new MockAvatar();
+  await act(async () => { fresh.bindAvatar(other); });
+  assert.deepEqual(fresh.exportScene(), scene); assert.deepEqual(other.bodyOrientation, scene.bodyOrientation); assert.equal(other.zoom, scene.zoom);
+  const saved = f.storage.values.get(STUDIO_SESSION_KEY);
+  const playground = new MockAvatar();
+  await applyStudioSession(playground, loaded.scene);
+  assert.deepEqual(playground.design, scene.design); assert.equal(playground.activity, 'thinking'); assert.equal(playground.trackingMode, 'off');
+  playground.setActivity('celebrating'); playground.design = createDesign();
+  assert.equal(f.storage.values.get(STUDIO_SESSION_KEY), saved);
+});
+
+test('Studio bridge uses one default, rejects retired keys, and never overwrites invalid scene on load', () => {
+  const empty = store(); assert.equal(loadStudioSession(empty).source, 'default'); assert.equal(loadStudioSession(empty).scene.design.body.shape, 'square');
+  const raw = JSON.stringify({ sceneVersion: 2, camera: { yaw: 20 } });
+  const broken = store({ [STUDIO_SESSION_KEY]: raw });
+  const result = loadStudioSession(broken); assert.equal(result.source, 'invalid'); assert.match(result.message, /원본은 보존/);
+  const controller = new StudioController(broken);
+  assert.equal(controller.getSnapshot().recovery?.raw, raw); assert.equal(broken.values.get(STUDIO_SESSION_KEY), raw); assert.deepEqual(broken.writes, []);
+  assert.equal(loadStudioSession({ getItem() { throw Error('blocked'); } }).source, 'unavailable');
 });

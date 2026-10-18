@@ -1,7 +1,9 @@
+import { AvatarPresence } from './presence.js';
+import type { EnterOptions, ExitOptions, PresenceResult, PresenceState } from './presence.js';
 import { PlaybackController } from './playback.js';
 import type { PlayOptions, AssetTransitionTarget } from './playback.js';
 import type { TravelPresentation } from '../core/travel.js';
-import { AvatarMovement } from './movement.js';
+import { AvatarMovement, validatePosition, validateMoveOptions } from './movement.js';
 import type { AvatarPlacement, AvatarPosition, MovementBounds, MoveResult, MoveOptions, MovementState } from './movement.js';
 import { ACTIVITIES, createAccessory, createDesign, equipAccessory, finite, parseDesign, patchDesign, removeAccessory } from '../core/design.js';
 import type { AccessoryDesign, Activity, AvatarDesign, DesignPatch, RenderStyle, Vec2 } from '../core/design.js';
@@ -79,6 +81,20 @@ export class SidekickAvatar extends HTMLElementBase {
     presentation: travel => { this.travelPresentation = travel; this.send({ kind: 'state', state: { travel } }); },
     requestFrame: callback => requestAnimationFrame(callback), cancelFrame: id => cancelAnimationFrame(id),
   });
+  private presenceHidden = false;
+  private presence = new AvatarPresence({
+    assertViewport: () => { if (this.placement !== 'viewport' || !this.connected) throw new Error('enter/exit require a connected avatar with placement="viewport"'); },
+    position: () => this.position,
+    geometry: () => { const rect = this.getBoundingClientRect(), view = this.ownerDocument.defaultView!; return { width: rect.width, height: rect.height, viewportWidth: view.innerWidth, viewportHeight: view.innerHeight, offsetX: rect.left - this.position.x, offsetY: rect.top - this.position.y }; },
+    constrain: point => this.constrainPosition(point, true),
+    move: (point, options) => this.movement.to(point, options),
+    stage: point => this.movement.relocate(point),
+    visibility: hidden => { this.presenceHidden = hidden; this.style.setProperty('--sidekick-visibility', hidden ? 'hidden' : 'visible'); this.updateMouseTracking(); this.syncState(); },
+    complete: (kind, result) => this.emit(kind === 'enter' ? 'sidekick-enter-end' : 'sidekick-exit-end', result),
+  });
+  get presenceState(): PresenceState { return this.presence.current; }
+  enter(position: AvatarPosition, options: EnterOptions = {}): Promise<PresenceResult> { return this.presence.enter(position, options); }
+  exit(options: ExitOptions = {}): Promise<PresenceResult> { return this.presence.exit(options); }
   get placement(): AvatarPlacement { return this.placementState; }
   set placement(value: AvatarPlacement) { if (value !== 'inline' && value !== 'viewport') throw new TypeError('placement must be inline or viewport'); this.reflectAttribute('placement', value); }
   get movementBounds(): MovementBounds { return this.boundsState; }
@@ -86,10 +102,11 @@ export class SidekickAvatar extends HTMLElementBase {
   /** Inline: offset from normal layout. Viewport: layout viewport top-left, CSS pixels. */
   get position(): AvatarPosition { return this.movement.position; }
   get movementState(): MovementState { return this.movement.state; }
-  moveTo(position: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { return this.movement.to(position, options); }
-  moveBy(delta: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { return this.movement.by(delta, options); }
-  cancelMove(): void { this.movement.cancel(); }
-  private constrainPosition(point: AvatarPosition): AvatarPosition {
+  moveTo(position: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { const target = this.constrainPosition(validatePosition(position), true); validateMoveOptions(options); const revision = this.presence.reveal(); if (!this.presence.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.to(target, options).then(result => { if (result.finished) this.presence.recovered(revision); return result; }); }
+  moveBy(delta: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { validatePosition(delta); validateMoveOptions(options); const revision = this.presence.reveal(); if (!this.presence.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.by(delta, options, point => this.constrainPosition(point, true)).then(result => { if (result.finished) this.presence.recovered(revision); return result; }); }
+  cancelMove(): void { const revision = this.presence.interrupt(); if (this.presence.owns(revision)) this.movement.cancel(); }
+  private constrainPosition(point: AvatarPosition, presenceTarget = false): AvatarPosition {
+    if (!presenceTarget && this.presence?.bypassBounds) return { ...point };
     if (this.placementState !== 'viewport' || this.boundsState === 'none' || !this.connected) return { ...point };
     const view = this.ownerDocument.defaultView;
     if (!view) return { ...point };
@@ -99,9 +116,9 @@ export class SidekickAvatar extends HTMLElementBase {
   private updatePlacement(): void {
     this.style.setProperty('--sidekick-position', this.placementState === 'viewport' ? 'fixed' : 'relative');
     this.style.setProperty('--sidekick-inset', this.placementState === 'viewport' ? '0px' : 'auto');
-    this.measureMovementBox(); this.movement.resize();
+    this.measureMovementBox(); if (this.presence?.bypassBounds) this.presence.resize(); else this.movement.resize();
   }
-  private onViewportResize = (): void => { this.measureMovementBox(); this.movement.resize(); };
+  private onViewportResize = (): void => { this.measureMovementBox(); if (this.presence?.bypassBounds) this.presence.resize(); else this.movement.resize(); };
   private configuration = createDesign();
   // This zero-duration reducer validates commands synchronously. It never runs animation.
   private validator = new MotionTimeline({ left: this.configuration.eyes.left, right: this.configuration.eyes.right });
@@ -348,7 +365,7 @@ export class SidekickAvatar extends HTMLElementBase {
     if (!this.shadowRoot) {
       const shadow = this.attachShadow({ mode: 'open' });
       shadow.innerHTML = `<style>
-        :host{display:inline-block;position:var(--sidekick-position,relative);left:var(--sidekick-inset,auto);top:var(--sidekick-inset,auto);translate:var(--sidekick-x,0px) var(--sidekick-y,0px);width:200px;height:200px;contain:layout style;pointer-events:none;vertical-align:middle}
+        :host{visibility:var(--sidekick-visibility,visible);display:inline-block;position:var(--sidekick-position,relative);left:var(--sidekick-inset,auto);top:var(--sidekick-inset,auto);translate:var(--sidekick-x,0px) var(--sidekick-y,0px);width:200px;height:200px;contain:layout style;pointer-events:none;vertical-align:middle}
         :host{pointer-events:var(--sidekick-pointer-events,none);cursor:var(--sidekick-cursor,auto);touch-action:auto}
         :host(:focus-visible){outline:2px solid currentColor;outline-offset:3px;border-radius:12px}
         canvas{touch-action:var(--sidekick-touch-action,auto);display:block;width:100%;height:100%;object-fit:contain;background:transparent}
@@ -378,7 +395,7 @@ export class SidekickAvatar extends HTMLElementBase {
   }
   disconnectedCallback(): void {
     this.connected = false;
-    this.playback.disconnect(); this.movement.disconnect();
+    this.presence.cancel(); this.playback.disconnect(); this.movement.disconnect();
     this.ownerDocument.defaultView?.removeEventListener('resize', this.onViewportResize);
     this.connected = false; this.readyState = false; this.cancelInput(); this.detachMouseTracking(); this.clearDrag();
     this.disposeBridge(new Error('Avatar disconnected')); this.resetEyes(); this.snapshotState = undefined;
@@ -455,7 +472,12 @@ export class SidekickAvatar extends HTMLElementBase {
       this.batch(() => {
       this.acceptedAttributes = candidate;
       if (touched('paused')) { this.pausedState = resolved.paused; if (resolved.paused) this.movement.finish(); this.playback.policyChanged(); }
-      if (touched('placement', 'movement-bounds')) { this.movement.cancel(); this.placementState = resolved.placement; this.boundsState = resolved.movementBounds; this.updatePlacement(); }
+      if (touched('placement', 'movement-bounds')) {
+        this.placementState = resolved.placement; this.boundsState = resolved.movementBounds;
+        const revision = this.presence.reveal();
+        if (this.presence.owns(revision)) { this.movement.cancel(true); this.presence.recovered(revision); }
+        this.updatePlacement();
+      }
       if (touched('position-x', 'position-y')) void this.moveTo({ x: touched('position-x') ? resolved.position.x : this.position.x, y: touched('position-y') ? resolved.position.y : this.position.y }, resolved.moveOptions);
       if (touched('activity')) { if (!this.playbackCommand) this.playback.cancelPlayback(); this.currentActivity = resolved.activity; }
       if (touched('interaction')) { this.interactionState = resolved.interaction; this.clearDrag(); if (this.isConnected) this.updateInteraction(); }
@@ -562,10 +584,10 @@ export class SidekickAvatar extends HTMLElementBase {
   }
   private runtimeState(): RuntimeState {
     const rect = this.getBoundingClientRect();
-    return { travel: this.travelPresentation, design: this.design, bodyOrientation: this.bodyOrientation, zoom: this.zoom, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
+    return { travel: this.travelPresentation, design: this.design, bodyOrientation: this.bodyOrientation, zoom: this.zoom, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
   }
   private syncState(): void {
-    this.send({ kind: 'state', state: { activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze } });
+    this.send({ kind: 'state', state: { activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze } });
     if (this.paused || this.reduced) { this.currentPose.gaze = [...this.gazeTarget]; this.poseRevision = this.bridge?.revision ?? 0; }
   }
   private attachCanvasListeners(): void {
@@ -593,7 +615,7 @@ export class SidekickAvatar extends HTMLElementBase {
     this.style.setProperty('--sidekick-touch-action', this.interaction === 'box' ? 'none' : 'auto');
     this.style.setProperty('--sidekick-cursor', this.interaction === 'box' ? 'grab' : 'auto');
   }
-  private resize = (): void => { this.measureMovementBox(); this.movement.resize(); this.pendingResize = true; this.queueInput(); };
+  private resize = (): void => { this.measureMovementBox(); if (this.presence?.bypassBounds) this.presence.resize(); else this.movement.resize(); this.pendingResize = true; this.queueInput(); };
   private queueInput(): void { if (!this.inputFrame && this.connected) this.inputFrame = requestAnimationFrame(this.flushInput); }
   private cancelInput(): void { if (this.inputFrame) cancelAnimationFrame(this.inputFrame); this.inputFrame = 0; this.pendingResize = false; this.pendingPointer = undefined; this.pendingDrag = undefined; this.pendingZoom = undefined; this.pendingPinchDistance = undefined; }
   private flushInput = (): void => {
@@ -626,7 +648,7 @@ export class SidekickAvatar extends HTMLElementBase {
   private onVisibility = (): void => { this.updateMouseTracking(); this.syncState(); };
   private setGazeTarget(target: Vec2): void { this.gazeTarget = [...target]; this.syncState(); }
   private updateMouseTracking(): void {
-    const enabled = this.mouseTracking && this.isConnected && this.ready && this.visible && !this.ownerDocument.hidden;
+    const enabled = this.mouseTracking && !this.presenceHidden && this.isConnected && this.ready && this.visible && !this.ownerDocument.hidden;
     if (!enabled) { this.detachMouseTracking(); return; }
     if (this.trackingDocument === this.ownerDocument) return;
     this.detachMouseTracking();

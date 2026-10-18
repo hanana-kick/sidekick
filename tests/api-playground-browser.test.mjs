@@ -14,277 +14,260 @@ before(async () => {
 });
 after(async () => { await browser?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
 async function pageFor(t, options = {}) {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'no-preference', ...options });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce', ...options });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   t.after(async () => { await page.close(); assert.deepEqual(errors, []); });
   await page.goto(`${base}/api-playground.html`);
-  await page.waitForFunction(() => document.getElementById('bot')?.ready && document.getElementById('invocation').textContent.includes('moveTo'));
-  assert.equal(await page.locator('#bot').evaluate(bot => bot.trackingMode), 'eyes-and-body', 'API demo uses the real body-and-eye default');
-  return page;
-}
-async function position(page) { return page.locator('#bot').evaluate(bot => bot.position); }
-async function settle(page) { await page.waitForFunction(() => document.getElementById('bot').movementState.phase === 'idle'); }
-async function recordMoves(page) {
+  await page.waitForFunction(() => document.getElementById('bot')?.ready && document.getElementById('invocation').textContent.includes('moveTo') && document.getElementById('status').textContent.includes('준비'));
   await page.evaluate(() => {
     const bot = document.getElementById('bot');
-    window.moveCalls = [];
-    for (const method of ['moveTo', 'moveBy']) {
+    window.apiCalls = [];
+    for (const method of ['moveTo', 'moveBy', 'cancelMove', 'play', 'setActivity', 'stop', 'setExpression', 'setBodyOrientation', 'transitionTo', 'cancelTransition', 'enter', 'exit']) {
       const original = bot[method].bind(bot);
-      bot[method] = (point, options) => { window.moveCalls.push({ method, point, options }); return original(point, options); };
+      bot[method] = (...args) => { window.apiCalls.push({ method, args: structuredClone(args) }); return original(...args); };
     }
+  });
+  return page;
+}
+async function reveal(page, id) { await page.locator(`#${id}`).evaluate(element => { for (let parent = element.parentElement; parent; parent = parent.parentElement) if (parent.tagName === 'DETAILS') parent.open = true; }); }
+async function fill(page, id, value) { await reveal(page, id); await page.locator(`#${id}`).fill(String(value)); }
+async function select(page, id, value) { await reveal(page, id); await page.locator(`#${id}`).selectOption(value); }
+async function calls(page) { return page.evaluate(() => window.apiCalls); }
+async function lastCall(page) { return page.evaluate(() => window.apiCalls.at(-1)); }
+async function codeCalls(page) {
+  return page.evaluate(async () => {
+    const { createAccessory } = await import('/browser/sidekick.js');
+    const source = document.getElementById('invocation').textContent.replace(/^import\s.*?;\s*$/gm, '');
+    const records = [];
+    const avatar = new Proxy({}, {
+      get: (_, method) => (...args) => { records.push({ method, args }); return Promise.resolve({ finished: true }); },
+      set: (_, property, value) => { records.push({ property, value }); return true; },
+    });
+    const fakeDocument = { querySelector: () => avatar, getElementById: () => avatar };
+    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+    await new AsyncFunction('document', 'createAccessory', source)(fakeDocument, createAccessory);
+    return records;
+  });
+}
+async function executeAndCompare(page) {
+  const expected = await codeCalls(page);
+  const before = (await calls(page)).length;
+  await page.locator('#execute').click();
+  assert.deepEqual((await calls(page))[before], expected.find(call => call.method));
+  return expected[0];
+}
+async function blankPoint(page) {
+  return page.evaluate(() => {
+    for (let y = innerHeight - 15; y > 90; y -= 30) for (let x = innerWidth - 15; x > 5; x -= 30) {
+      const element = document.elementFromPoint(x, y);
+      if (element?.id === 'free-space' || element === document.body || element === document.documentElement || (element?.tagName === 'MAIN' && !element.closest('.controls-panel'))) return { x, y };
+    }
+    throw new Error('No blank page coordinate is reachable');
   });
 }
 
-test('stage targets the avatar center, bounds edge taps and shows copyable exact API options', async t => {
-  const page = await pageFor(t, { reducedMotion: 'reduce' });
-  await recordMoves(page);
-  await page.locator('#duration').fill('850');
-  await page.locator('#travel').selectOption('none');
-  await page.locator('#easing').selectOption('linear');
-  const stage = await page.locator('#movement-stage').boundingBox();
-  const target = { x: stage.x + stage.width * .7, y: stage.y + stage.height * .35 };
-  await page.mouse.click(target.x, target.y);
-  const move = await page.evaluate(() => window.moveCalls.at(-1));
-  assert.equal(move.method, 'moveTo');
-  assert.deepEqual(move.options, { duration: 850, easing: 'linear', travel: 'none' });
-  const actual = await position(page);
-  assert.ok(Math.abs(actual.x + 90 - target.x) < 1);
-  assert.ok(Math.abs(actual.y + 90 - target.y) < 1);
-  const code = await page.locator('#invocation').textContent();
-  assert.ok(code.includes(`avatar.moveTo({ x: ${move.point.x}, y: ${move.point.y} }, { duration: 850, easing: 'linear', travel: 'none' })`));
-  await page.evaluate(() => { window.copiedCode = ''; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async value => { window.copiedCode = value; } } }); });
-  await page.locator('#copy').click();
-  assert.equal(await page.evaluate(() => window.copiedCode), code);
-  await page.mouse.click(stage.x + 2, stage.y + 2);
-  const edge = await position(page);
-  assert.ok(Math.abs(edge.x - stage.x) < 1 && Math.abs(edge.y - stage.y) < 1);
-  assert.match(await page.locator('#result-log').textContent(), /moveTo result/);
-});
-
-test('movement telemetry follows phases; stop movement and stop activity remain independent', async t => {
+test('inputs immediately generate executable movement code; execution uses exactly those options', async t => {
   const page = await pageFor(t);
-  await page.locator('#duration').fill('1600');
-  await page.evaluate(() => {
-    window.phases = [];
-    document.getElementById('bot').addEventListener('sidekick-move-progress', event => window.phases.push(event.detail.phase));
-  });
-  // Keep the activity running long enough to make independence observable.
-  await page.locator('#bot').evaluate(bot => { void bot.play('speaking', { duration: 10000 }); });
-  await page.locator('[data-dx="120"]').click();
-  await page.waitForFunction(() => document.getElementById('phase').textContent === 'flight');
-  assert.equal(await page.locator('#activity-state').textContent(), 'speaking');
-  const live = await page.locator('#bot').evaluate(bot => ({ position: bot.position, rect: { x: bot.getBoundingClientRect().x, y: bot.getBoundingClientRect().y }, movement: bot.movementState }));
-  assert.ok(Math.abs(live.position.x - live.rect.x) < .1 && Math.abs(live.position.y - live.rect.y) < .1);
-  assert.ok(live.movement.progress > 0 && live.movement.progress < 1);
-  await page.locator('#cancel').click();
-  await settle(page);
-  assert.equal(await page.locator('#bot').evaluate(bot => bot.activity), 'speaking');
-  assert.match(await page.locator('#result-log').textContent(), /"finished": false/);
-  assert.match(await page.locator('#invocation').textContent(), /avatar.cancelMove\(\)/);
-  assert.ok((await page.evaluate(() => window.phases)).includes('settling'));
-  await page.locator('[data-dx="-120"]').click();
-  await page.waitForFunction(() => document.getElementById('phase').textContent === 'flight');
-  await page.locator('#stop').click();
-  assert.equal(await page.locator('#bot').evaluate(bot => bot.activity), 'idle');
-  assert.notEqual(await page.locator('#bot').evaluate(bot => bot.movementState.phase), 'idle');
-  await settle(page);
-  assert.equal(await page.locator('#phase').textContent(), 'idle');
-  assert.ok((await page.evaluate(() => window.phases)).includes('landing'));
-});
-
-test('new stage target retargets from the live position and keeps the newest invocation', async t => {
-  const page = await pageFor(t);
-  await recordMoves(page);
-  await page.locator('#duration').fill('1400');
-  const stage = await page.locator('#movement-stage').boundingBox();
-  await page.mouse.click(stage.x + stage.width - 100, stage.y + 110);
-  await page.waitForFunction(() => document.getElementById('phase').textContent === 'flight');
-  const before = await position(page);
-  await page.mouse.click(stage.x + 110, stage.y + stage.height - 100);
-  const after = await position(page);
-  assert.ok(Math.hypot(after.x - before.x, after.y - before.y) < 35);
-  await settle(page);
-  const last = await page.evaluate(() => window.moveCalls.at(-1));
-  assert.deepEqual(await position(page), last.point);
-  assert.ok((await page.locator('#invocation').textContent()).includes(`x: ${last.point.x}, y: ${last.point.y}`));
-  assert.match(await page.locator('#result-log').textContent(), /"finished": false/);
-  assert.match(await page.locator('#result-log').textContent(), /"finished": true/);
-});
-
-test('mobile touch taps move, swipes do not, controls scroll without moving the fixed preview', async t => {
-  const page = await pageFor(t, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' });
-  await recordMoves(page);
-  const stage = await page.locator('#movement-stage').boundingBox();
-  await page.touchscreen.tap(stage.x + stage.width - 25, stage.y + stage.height / 2);
-  const tapped = await position(page);
-  assert.ok(tapped.x >= stage.x && tapped.x + 180 <= stage.x + stage.width + .1);
-  const calls = await page.evaluate(() => window.moveCalls.length);
-  await page.locator('#movement-stage').evaluate(stage => {
-    const rect = stage.getBoundingClientRect();
-    const pointer = { bubbles: true, pointerId: 18, isPrimary: true, pointerType: 'touch', button: 0, clientX: rect.x + 60, clientY: rect.y + 60 };
-    stage.dispatchEvent(new PointerEvent('pointerdown', pointer));
-    stage.dispatchEvent(new PointerEvent('pointermove', { ...pointer, clientY: pointer.clientY + 50 }));
-    stage.dispatchEvent(new PointerEvent('pointerup', { ...pointer, clientY: pointer.clientY + 50 }));
-  });
-  assert.equal(await page.evaluate(() => window.moveCalls.length), calls);
-  await page.locator('.controls-panel').evaluate(panel => { panel.scrollTop = panel.scrollHeight; });
-  assert.deepEqual(await page.locator('#movement-stage').boundingBox(), stage);
-  assert.deepEqual(await position(page), tapped);
-  const stop = page.locator('#cancel-preview'), stopBox = await stop.boundingBox();
-  assert.ok(stopBox && stopBox.y >= 0 && stopBox.y + stopBox.height <= 844, 'Fixed preview stop remains on screen after controls scroll');
-  assert.equal(await stop.evaluate(button => { const rect = button.getBoundingClientRect(); return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) === button; }), true, 'Fixed preview stop remains directly clickable');
-  await page.locator('#bot').evaluate(bot => { const original = bot.cancelMove.bind(bot); window.cancelCalls = 0; bot.cancelMove = () => { window.cancelCalls++; original(); }; });
-  await stop.click();
-  assert.equal(await page.evaluate(() => window.cancelCalls), 1);
-  assert.match(await page.locator('#invocation').textContent(), /avatar.cancelMove\(\)/);
-  const geometry = await page.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth, panel: document.querySelector('.controls-panel').getBoundingClientRect().bottom, nav: [...document.querySelectorAll('.product-nav a')].map(a => ({ text: a.textContent, width: a.getBoundingClientRect().width })) }));
-  assert.equal(geometry.scrollWidth, geometry.width);
-  assert.ok(geometry.panel <= 844);
-  assert.ok(geometry.nav.every(link => link.width > 0));
-  if (process.env.SIDEKICK_SCREENSHOTS) { await mkdir(process.env.SIDEKICK_SCREENSHOTS, { recursive: true }); await page.screenshot({ path: `${process.env.SIDEKICK_SCREENSHOTS}/api-playground-mobile.png` }); }
-});
-
-test('keyboard targets, bounded moveBy and Studio navigation work at desktop and mobile sizes', async t => {
-  const page = await pageFor(t, { reducedMotion: 'reduce' });
-  await page.locator('#movement-stage').focus();
-  const before = await position(page);
-  await page.keyboard.press('ArrowLeft');
-  const after = await position(page);
-  assert.equal(after.x, before.x - 40);
-  assert.match(await page.locator('#invocation').textContent(), /avatar.moveBy\(\{ x: -40, y: 0 \}/);
-  await page.locator('#target-x').fill('100000');
-  await page.locator('#target-y').fill('100000');
-  await page.locator('#move').click();
-  const stage = await page.locator('#movement-stage').boundingBox(), edge = await position(page);
-  assert.ok(Math.abs(edge.x + 180 - stage.x - stage.width) < 1);
-  assert.ok(Math.abs(edge.y + 180 - stage.y - stage.height) < 1);
-  await page.getByRole('link', { name: 'Studio', exact: true }).click();
-  await page.waitForSelector('#api-playground-link');
-  for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
-    await page.setViewportSize(viewport);
-    assert.equal(await page.locator('.app-header .product-nav [aria-current="page"]').textContent(), 'Studio');
-    const link = await page.locator('#api-playground-link').boundingBox();
-    assert.ok(link.x >= 0 && link.x + link.width <= viewport.width && link.height > 0);
-  }
-  await page.locator('#api-playground-link').click();
-  await page.waitForSelector('#movement-stage');
-  assert.equal(new URL(page.url()).pathname, '/api-playground.html');
-  assert.equal(await page.locator('.product-nav [aria-current="page"]').textContent(), 'API playground');
-});
-
-
-test('short portrait and landscape viewports retain a complete canvas and scrollable controls', async t => {
-  const page = await pageFor(t, { reducedMotion: 'reduce' });
-  for (const [width, height] of [[320, 480], [390, 500], [568, 320], [667, 375], [800, 700]]) {
-    await page.setViewportSize({ width, height });
-    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    const result = await page.evaluate(() => {
-      const stage = document.getElementById('movement-stage').getBoundingClientRect(), avatar = document.getElementById('bot').getBoundingClientRect(), panel = document.querySelector('.controls-panel');
-      return { stage: { left: stage.left, right: stage.right, top: stage.top, bottom: stage.bottom }, avatar: { left: avatar.left, right: avatar.right, top: avatar.top, bottom: avatar.bottom }, controlHeight: panel.clientHeight, overflow: panel.scrollHeight > panel.clientHeight, pageWidth: document.documentElement.scrollWidth };
-    });
-    assert.ok(result.avatar.left >= result.stage.left - 1 && result.avatar.right <= result.stage.right + 1 && result.avatar.top >= result.stage.top - 1 && result.avatar.bottom <= result.stage.bottom + 1, `${width}×${height}: canvas stays in stage`);
-    assert.ok(result.stage.bottom <= height && result.pageWidth <= width && result.controlHeight >= 90 && result.overflow, `${width}×${height}: controls and stage fit`);
-  }
-});
-
-test('natural controls drive physical telemetry and keep a trace through controlled braking', async t => {
-  const page = await pageFor(t);
-  await recordMoves(page);
-  await page.locator('#auto-speed').uncheck();
-  await page.locator('#max-speed').fill('240'); await page.locator('#acceleration').fill('600'); await page.locator('#deceleration').fill('900');
-  await page.evaluate(() => {
-    window.physicalTrace = [];
-    document.getElementById('bot').addEventListener('sidekick-move-progress', event => physicalTrace.push({ time: performance.now(), ...event.detail }));
-  });
-  const stage = await page.locator('#movement-stage').boundingBox();
-  await page.mouse.click(stage.x + stage.width - 100, stage.y + 100);
-  await page.waitForFunction(() => document.getElementById('bot').movementState.speed >= 150);
-  const live = await page.evaluate(() => ({
-    state: document.getElementById('bot').movementState,
-    speed: document.getElementById('speed').textContent,
-    velocity: document.getElementById('velocity').textContent,
-    acceleration: document.getElementById('acceleration-vector').textContent,
-    speedPlot: document.getElementById('speed-plot').getAttribute('points'),
-    accelerationPlot: document.getElementById('acceleration-plot').getAttribute('points'),
-    call: moveCalls.at(-1), code: document.getElementById('invocation').textContent,
-  }));
-  assert.deepEqual({ maxSpeed: live.call.options.maxSpeed, acceleration: live.call.options.acceleration, deceleration: live.call.options.deceleration }, { maxSpeed: 240, acceleration: 600, deceleration: 900 });
-  assert.equal(live.call.options.travel, 'natural'); assert.match(live.code, /maxSpeed: 240, acceleration: 600, deceleration: 900/);
-  assert.ok(live.state.speed <= 240 + 1e-6); assert.ok(Math.abs(parseFloat(live.speed) - live.state.speed) < .02);
-  assert.match(live.velocity, /x .+ · y /); assert.match(live.acceleration, /x .+ · y /);
-  for (const points of [live.speedPlot, live.accelerationPlot]) { assert.ok(points.split(' ').length >= 2); assert.doesNotMatch(points, /NaN|Infinity/); }
-  await page.locator('#cancel').click(); await settle(page);
-  const trace = await page.evaluate(() => physicalTrace);
-  assert.ok(trace.some(s => s.phase === 'braking')); assert.ok(trace.some(s => s.phase === 'settling'));
-  assert.equal(trace.at(-1).speed, 0); assert.deepEqual(trace.at(-1).acceleration, { x: 0, y: 0 });
-  assert.match(await page.locator('#result-log').textContent(), /"finished": false/);
-  if (process.env.SIDEKICK_SCREENSHOTS) {
-    const { writeFile } = await import('node:fs/promises'); await mkdir(process.env.SIDEKICK_SCREENSHOTS, { recursive: true });
-    await page.locator('#motion-graph').scrollIntoViewIfNeeded();
-    await page.screenshot({ path: `${process.env.SIDEKICK_SCREENSHOTS}/api-inertial-telemetry.png` });
-    await writeFile(`${process.env.SIDEKICK_SCREENSHOTS}/api-inertial-telemetry-trace.json`, JSON.stringify(trace, null, 2));
-  }
-});
-
-test('default fixed speed mode omits maxSpeed without changing physical acceleration limits', async t => {
-  const page = await pageFor(t, { reducedMotion: 'reduce' });
-  await recordMoves(page);
-  assert.equal(await page.locator('#auto-speed').isChecked(), true);
-  assert.equal(await page.locator('#max-speed').isDisabled(), true);
-  await page.locator('#duration').fill('1000');
-  await page.locator('[data-dx="120"]').click();
-  const call = await page.evaluate(() => window.moveCalls.at(-1));
-  assert.deepEqual(call.options, { duration: 1000, travel: 'natural', acceleration: 1800, deceleration: 2200 });
-  assert.doesNotMatch(await page.locator('#invocation').textContent(), /maxSpeed/);
-  await page.locator('#auto-speed').uncheck();
-  assert.equal(await page.locator('#max-speed').isEnabled(), true);
-  assert.match(await page.locator('#invocation').textContent(), /maxSpeed: 1350/);
+  assert.equal(await page.locator('#movement-stage, .preview-panel').count(), 0);
+  await fill(page, 'target-x', 800); await fill(page, 'target-y', 430);
+  await fill(page, 'duration', 850); await select(page, 'travel', 'none'); await select(page, 'easing', 'linear');
+  assert.equal((await calls(page)).length, 0, 'editing inputs does not execute');
+  let call = await executeAndCompare(page);
+  assert.deepEqual(call, { method: 'moveTo', args: [{ x: 800, y: 430 }, { duration: 850, easing: 'linear', travel: 'none' }] });
+  await select(page, 'move-method', 'moveBy'); await fill(page, 'target-x', -40); await fill(page, 'target-y', 60);
+  call = await executeAndCompare(page); assert.equal(call.method, 'moveBy'); assert.deepEqual(call.args[0], { x: -40, y: 60 });
+  await select(page, 'travel', 'natural'); await page.locator('#auto-speed').uncheck();
+  await fill(page, 'max-speed', 240); await fill(page, 'acceleration', 700); await fill(page, 'deceleration', 1100);
+  call = await executeAndCompare(page);
+  assert.deepEqual(call.args[1], { duration: 850, travel: 'natural', maxSpeed: 240, acceleration: 700, deceleration: 1100 });
   await page.locator('#auto-speed').check();
   assert.doesNotMatch(await page.locator('#invocation').textContent(), /maxSpeed/);
 });
 
-test('shared custom-element brand stays identical across pages and compact viewports', async t => {
+test('activity, expressions, tracking, orientation and assets use public APIs matching copied code', async t => {
   const page = await pageFor(t);
-  const directory = process.env.SIDEKICK_SCREENSHOTS;
-  if (directory) await mkdir(directory, { recursive: true });
-  for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }, { width: 320, height: 480 }]) {
+  await select(page, 'action-kind', 'activity'); await select(page, 'activity', 'thinking');
+  await select(page, 'activity-operation', 'setActivity');
+  assert.equal((await executeAndCompare(page)).method, 'setActivity');
+  assert.equal(await page.locator('#bot').evaluate(bot => bot.activity), 'thinking');
+  await select(page, 'activity-operation', 'play'); await fill(page, 'activity-duration', 700);
+  assert.equal((await executeAndCompare(page)).method, 'play');
+  await select(page, 'activity-operation', 'stop'); assert.equal((await executeAndCompare(page)).method, 'stop');
+  assert.equal(await page.locator('#bot').evaluate(bot => bot.activity), 'idle');
+  await select(page, 'action-kind', 'expression'); await select(page, 'eye-side', 'left'); await select(page, 'expression', 'smile'); await fill(page, 'expression-duration', 0);
+  assert.deepEqual(await executeAndCompare(page), { method: 'setExpression', args: ['left', 'smile', { duration: 0 }] });
+  await select(page, 'action-kind', 'tracking'); await select(page, 'tracking-mode', 'off');
+  assert.deepEqual(await codeCalls(page), [{ property: 'trackingMode', value: 'off' }]);
+  await page.locator('#execute').click(); assert.equal(await page.locator('#bot').evaluate(bot => bot.trackingMode), 'off');
+  await select(page, 'action-kind', 'orientation');
+  await fill(page, 'zoom', 1.5); await fill(page, 'body-yaw', 15); await fill(page, 'body-pitch', -8); await fill(page, 'body-roll', 5);
+  assert.deepEqual(await executeAndCompare(page), { method: 'setBodyOrientation', args: [{ yaw: 15, pitch: -8, roll: 5 }] });
+  assert.equal(await page.locator('#bot').evaluate(bot => bot.zoom), 1.5);
+  await select(page, 'action-kind', 'assets'); await select(page, 'shape', 'heart'); await select(page, 'head-accessory', 'halo'); await select(page, 'eyes-accessory', 'glasses'); await select(page, 'neck-accessory', 'bowTie'); await fill(page, 'transition-duration', 0);
+  const transition = await executeAndCompare(page);
+  assert.equal(transition.method, 'transitionTo'); assert.equal(transition.args[0].shape, 'heart');
+  assert.deepEqual(transition.args[0].accessories.map(a => a.preset), ['halo', 'glasses', 'bowTie']);
+  assert.equal(await page.locator('#bot').evaluate(bot => bot.design.body.shape), 'heart');
+});
+
+test('blank page taps center and clamp the bot; control taps, selections and swipes do not move it', async t => {
+  const page = await pageFor(t);
+  const point = await blankPoint(page);
+  await page.mouse.click(point.x, point.y);
+  const first = await lastCall(page);
+  const dimensions = await page.locator('#bot').evaluate(bot => ({ width: bot.offsetWidth, height: bot.offsetHeight }));
+  assert.equal(first.method, 'moveTo');
+  assert.deepEqual(first.args[0], { x: Math.min(1280 - dimensions.width, Math.max(0, point.x - dimensions.width / 2)), y: Math.min(900 - dimensions.height, Math.max(0, point.y - dimensions.height / 2)) });
+  const count = (await calls(page)).length;
+  await page.locator('#target-x').click(); await page.locator('#copy').click();
+  await page.mouse.move(point.x, point.y); await page.mouse.down(); await page.mouse.move(point.x - 60, point.y - 60); await page.mouse.up();
+  await page.evaluate(() => {
+    const code = document.getElementById('invocation'); const range = document.createRange(); range.selectNodeContents(code);
+    const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range);
+  });
+  await page.evaluate(point => {
+    const target = document.elementFromPoint(point.x, point.y);
+    for (const type of ['pointerdown', 'pointerup']) target.dispatchEvent(new PointerEvent(type, { bubbles: true, isPrimary: true, button: 0, pointerId: 7, clientX: point.x, clientY: point.y }));
+  }, point);
+  assert.equal((await calls(page)).length, count);
+});
+
+test('cancel controls invoke only their API and update the generated code', async t => {
+  const page = await pageFor(t);
+  for (const [id, method] of [['cancel', 'cancelMove'], ['cancel-preview', 'cancelMove'], ['cancel-transition', 'cancelTransition']]) {
+    if (id === 'cancel-transition') await select(page, 'action-kind', 'assets');
+    await page.locator(`#${id}`).click();
+    assert.deepEqual(await lastCall(page), { method, args: [] });
+    assert.deepEqual(await codeCalls(page), [{ method, args: [] }]);
+  }
+});
+
+test('JavaScript and React copy stays synchronized and mobile controls stay inside the viewport', async t => {
+  const page = await pageFor(t, { viewport: { width: 320, height: 480 }, isMobile: true, hasTouch: true });
+  await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async value => { window.copiedCode = value; } } }));
+  for (const format of ['javascript', 'react']) {
+    await select(page, 'code-format', format);
+    const code = await page.locator('#invocation').textContent();
+    if (format === 'react') assert.match(code, /SidekickAvatar/);
+    await page.locator('#copy').click();
+    assert.equal(await page.evaluate(() => window.copiedCode), code);
+    assert.ok((await page.locator('#copy-status').textContent()).trim());
+  }
+  for (const kind of ['movement', 'activity', 'expression', 'tracking', 'orientation', 'assets', 'presence']) {
+    await select(page, 'action-kind', kind);
+    const bounds = await page.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth,
+      controls: [...document.querySelectorAll('button, input, select')].filter(e => e.getClientRects().length).map(e => { const r = e.getBoundingClientRect(); return { id: e.id, left: r.left, right: r.right }; }) }));
+    assert.equal(bounds.scrollWidth, bounds.width, kind);
+    for (const control of bounds.controls) assert.ok(control.left >= -1 && control.right <= 321, `${kind}: ${control.id} fits horizontally`);
+    await page.locator('#execute').scrollIntoViewIfNeeded(); assert.equal(await page.locator('#execute').isVisible(), true);
+  }
+  await page.locator('#cancel-preview').click();
+  assert.equal((await lastCall(page)).method, 'cancelMove');
+  if (process.env.SIDEKICK_SCREENSHOTS) { await mkdir(process.env.SIDEKICK_SCREENSHOTS, { recursive: true }); await page.screenshot({ path: `${process.env.SIDEKICK_SCREENSHOTS}/api-playground-mobile.png` }); }
+});
+
+test('mobile taps and swipe gestures use page coordinates without control-scroll movement', async t => {
+  const page = await pageFor(t, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const point = await blankPoint(page);
+  await page.touchscreen.tap(point.x, point.y);
+  assert.equal((await lastCall(page)).method, 'moveTo');
+  const count = (await calls(page)).length;
+  await page.evaluate(point => {
+    const target = document.elementFromPoint(point.x, point.y);
+    const common = { bubbles: true, pointerId: 20, pointerType: 'touch', isPrimary: true, button: 0, clientX: point.x, clientY: point.y };
+    target.dispatchEvent(new PointerEvent('pointerdown', common));
+    target.dispatchEvent(new PointerEvent('pointermove', { ...common, clientY: point.y - 50 }));
+    target.dispatchEvent(new PointerEvent('pointerup', { ...common, clientY: point.y - 50 }));
+  }, point);
+  await page.locator('#copy').scrollIntoViewIfNeeded();
+  assert.equal((await calls(page)).length, count);
+  const toolbar = await page.locator('#cancel-preview').boundingBox();
+  assert.ok(toolbar.y >= 0 && toolbar.y + toolbar.height <= 844, 'global stop stays visible while the page scrolls');
+});
+
+test('both pages preserve accessible shared branding and navigation at narrow sizes', async t => {
+  const page = await pageFor(t);
+  for (const viewport of [{ width: 1280, height: 900 }, { width: 320, height: 480 }]) {
     await page.setViewportSize(viewport);
-    let reference;
     for (const route of ['api-playground.html', '']) {
       await page.goto(`${base}/${route}`);
       await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
-      await page.evaluate(() => document.fonts.ready);
-      // A no-op resize may advance the command revision without emitting a frame.
-      // Capture explicitly synchronizes the renderer; then count actual draws.
-      await page.locator('.brand-avatar').evaluate(a => a.capturePixelsAsync());
-      await page.waitForFunction(() => document.querySelector('.brand-avatar').diagnostics.frames > 0);
-      const frames = await page.locator('.brand-avatar').evaluate(a => a.diagnostics.frames);
-      await page.waitForTimeout(200);
-      assert.equal(await page.locator('.brand-avatar').evaluate(a => a.diagnostics.frames), frames, 'Paused header does not keep drawing');
-      const brand = await page.locator('.brand').evaluate(link => {
-        const avatar = link.querySelector('sidekick-avatar');
-        const text = getComputedStyle(link), box = link.getBoundingClientRect();
-        return { font: text.fontFamily, size: text.fontSize, weight: text.fontWeight, text: link.textContent,
-          width: box.width, height: box.height, paused: avatar.paused, tracking: avatar.trackingMode,
-          zoom: avatar.zoom, canvasWidth: avatar.getBoundingClientRect().width, shape: avatar.design.body.shape,
-          accessories: avatar.design.accessories.map(a => a.preset).sort(), smile: avatar.design.eyes.left.weights.smile };
-      });
-      assert.ok(brand.paused); assert.equal(brand.tracking, 'off'); assert.equal(brand.shape, 'ghostish');
-      assert.ok(brand.canvasWidth <= 44); assert.equal(brand.zoom, 2);
-      assert.deepEqual(brand.accessories, ['beret', 'bowTie', 'glasses']); assert.equal(brand.smile, 1);
-      if (reference) assert.deepEqual(brand, reference); else reference = brand;
-      const layout = await page.evaluate(() => {
-        const header = document.querySelector('.app-header').getBoundingClientRect();
-        const preview = document.querySelector('.preview-panel, .previews').getBoundingClientRect();
-        return { overflow: document.documentElement.scrollWidth > innerWidth,
-          headerBottom: header.bottom, previewTop: preview.top, previewHeight: preview.height,
-          links: [...document.querySelectorAll('.app-header a')].map(a => { const r = a.getBoundingClientRect(); return [r.left, r.right, r.width, r.height]; }) };
-      });
-      assert.equal(layout.overflow, false);
-      assert.ok(layout.previewTop >= layout.headerBottom - 1);
-      assert.ok(layout.previewHeight > 60, JSON.stringify(layout));
-      for (const [left, right, width, height] of layout.links) assert.ok(left >= 0 && right <= viewport.width + 1 && width > 0 && height > 0);
-      if (directory) await page.screenshot({ path: `${directory}/shared-header-${route ? 'api' : 'studio'}-${viewport.width}x${viewport.height}.png` });
+      const brand = await page.locator('.brand-avatar').evaluate(avatar => ({ paused: avatar.paused, tracking: avatar.trackingMode, zoom: avatar.zoom, shape: avatar.design.body.shape, accessories: avatar.design.accessories.map(a => a.preset).sort() }));
+      assert.deepEqual(brand, { paused: true, tracking: 'off', zoom: 2, shape: 'ghostish', accessories: ['beret', 'bowTie', 'glasses'] });
+      assert.equal(await page.locator('.product-nav [aria-current="page"]').textContent(), route ? 'API playground' : 'Studio');
+      for (const link of await page.locator('.app-header a').all()) {
+        const box = await link.boundingBox(); assert.ok(box && box.x >= 0 && box.x + box.width <= viewport.width + 1);
+      }
     }
+  }
+});
+
+test('invalid movement inputs cannot execute and valid values restore executable code', async t => {
+  const page = await pageFor(t);
+  await fill(page, 'duration', -1);
+  assert.equal(await page.locator('#execute').isDisabled(), true);
+  assert.equal((await calls(page)).length, 0);
+  assert.ok((await page.locator('#status').textContent()).trim());
+  await fill(page, 'duration', 1200); await page.locator('#auto-speed').uncheck();
+  for (const id of ['max-speed', 'acceleration', 'deceleration']) {
+    for (const value of [0, 100001]) {
+      await fill(page, id, value); assert.equal(await page.locator('#execute').isDisabled(), true);
+      assert.equal((await calls(page)).length, 0, `${id} rejects ${value}`);
+    }
+    await fill(page, id, 100);
+  }
+  const call = await executeAndCompare(page);
+  assert.deepEqual(call.args[1], { duration: 1200, travel: 'natural', maxSpeed: 100, acceleration: 100, deceleration: 100 });
+});
+
+test('presence controls produce executable entry and exit APIs and restore a hidden companion', async t => {
+  const page = await pageFor(t);
+  await select(page, 'action-kind', 'presence'); await select(page, 'presence-operation', 'exit'); await select(page, 'presence-edge', 'right');
+  assert.deepEqual(await executeAndCompare(page), { method: 'exit', args: [{ to: 'right' }] });
+  await page.waitForFunction(() => document.getElementById('bot').presenceState === 'hidden');
+  await select(page, 'presence-operation', 'enter'); await select(page, 'presence-edge', 'left'); await fill(page, 'entrance-x', 350); await fill(page, 'entrance-y', 220);
+  assert.deepEqual(await executeAndCompare(page), { method: 'enter', args: [{ x: 350, y: 220 }, { from: 'left' }] });
+  await page.waitForFunction(() => document.getElementById('bot').presenceState === 'visible');
+  assert.deepEqual(await page.locator('#bot').evaluate(bot => bot.position), { x: 350, y: 220 });
+});
+
+test('generated JavaScript reproduces preview state on a fresh real avatar', async t => {
+  const page = await pageFor(t);
+  await page.evaluate(async () => {
+    const preview = document.getElementById('bot');
+    const fresh = document.createElement('sidekick-avatar');
+    fresh.id = 'fresh-code-avatar'; fresh.setAttribute('placement', 'viewport');
+    fresh.style.cssText = 'width:180px;height:180px;pointer-events:none';
+    const ready = new Promise(resolve => fresh.addEventListener('sidekick-ready', resolve, { once: true }));
+    document.body.append(fresh); if (!fresh.ready) await ready;
+    fresh.design = preview.design; fresh.setActivity(preview.activity); fresh.bodyOrientation = preview.bodyOrientation;
+    fresh.zoom = preview.zoom; fresh.trackingMode = preview.trackingMode; fresh.paused = preview.paused;
+    await fresh.moveTo(preview.position, { duration: 0, travel: 'none' });
+  });
+  for (const [kind, fields] of [
+    ['movement', [['target-x', 280], ['target-y', 180], ['duration', 0], ['travel', 'none']]],
+    ['expression', [['eye-side', 'both'], ['expression', 'smile'], ['expression-duration', 0]]],
+    ['orientation', [['body-yaw', 15], ['body-pitch', -8], ['body-roll', 5], ['zoom', 1.5]]],
+    ['tracking', [['tracking-mode', 'off']]],
+    ['assets', [['shape', 'heart'], ['head-accessory', 'halo'], ['eyes-accessory', 'glasses'], ['neck-accessory', 'bowTie'], ['transition-duration', 0]]],
+  ]) {
+    await select(page, 'action-kind', kind);
+    for (const [id, value] of fields) {
+      if (await page.locator(`#${id}`).evaluate(element => element.tagName === 'SELECT')) await select(page, id, value);
+      else await fill(page, id, value);
+    }
+    const source = await page.locator('#invocation').textContent();
+    await page.locator('#execute').click();
+    await page.evaluate(async source => {
+      const { createAccessory } = await import('/browser/sidekick.js');
+      const fresh = document.getElementById('fresh-code-avatar');
+      const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+      await new AsyncFunction('document', 'createAccessory', source.replace(/^import\s.*?;\s*$/gm, ''))({ querySelector: () => fresh, getElementById: () => fresh }, createAccessory);
+    }, source);
+    const states = await page.evaluate(() => {
+      const snapshot = avatar => ({ position: avatar.position, design: avatar.design, bodyOrientation: avatar.bodyOrientation, zoom: avatar.zoom, trackingMode: avatar.trackingMode, activity: avatar.activity });
+      return { preview: snapshot(document.getElementById('bot')), fresh: snapshot(document.getElementById('fresh-code-avatar')) };
+    });
+    assert.deepEqual(states.fresh, states.preview, `${kind}: copied code reproduces the complete public state`);
   }
 });

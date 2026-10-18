@@ -119,21 +119,21 @@ export class AvatarMovement {
             this.schedule();
         });
     }
-    by(delta, options = {}) {
+    by(delta, options = {}, constrainTarget = point => point) {
         const offset = validatePosition(delta);
         validateMoveOptions(options);
         const revision = ++this.revision;
         this.sample(this.host.now());
         if (revision !== this.revision)
             return this.result(false);
-        return this.to({ x: this.point.x + offset.x, y: this.point.y + offset.y }, options);
+        return this.to(constrainTarget({ x: this.point.x + offset.x, y: this.point.y + offset.y }), options);
     }
     /** Brake natural travel with inertia, then settle. Plain tweens freeze; lifecycle teardown resets immediately. */
     cancel(immediate = false) {
+        const revision = ++this.revision;
         const pending = this.track;
         if (!pending)
             return;
-        const revision = ++this.revision;
         if (immediate || this.host.immediate()) {
             this.complete(pending, false);
             return;
@@ -165,6 +165,19 @@ export class AvatarMovement {
         this.phase = 'settling';
         this.report();
         this.schedule();
+    }
+    /** Internal presence staging: hidden relocation, no synthetic successful movement event. */
+    relocate(point) {
+        const target = validatePosition(point);
+        const revision = ++this.revision;
+        if (this.track)
+            this.complete(this.track, false);
+        if (revision !== this.revision)
+            return;
+        this.write(target);
+        if (revision !== this.revision)
+            return;
+        this.reset();
     }
     /** Disconnect must not leave a detached element scheduling a presentation-only landing. */
     disconnect() { this.cancel(true); }

@@ -67,9 +67,11 @@ export declare class AvatarMovement {
     get position(): AvatarPosition;
     get state(): MovementState;
     to(point: AvatarPosition, options?: MoveOptions): Promise<MoveResult>;
-    by(delta: AvatarPosition, options?: MoveOptions): Promise<MoveResult>;
+    by(delta: AvatarPosition, options?: MoveOptions, constrainTarget?: (point: AvatarPosition) => AvatarPosition): Promise<MoveResult>;
     /** Brake natural travel with inertia, then settle. Plain tweens freeze; lifecycle teardown resets immediately. */
     cancel(immediate?: boolean): void;
+    /** Internal presence staging: hidden relocation, no synthetic successful movement event. */
+    relocate(point: AvatarPosition): void;
     /** Disconnect must not leave a detached element scheduling a presentation-only landing. */
     disconnect(): void;
     /** Clamp both current point and remaining target after viewport/element resizing, without restarting the clock. */

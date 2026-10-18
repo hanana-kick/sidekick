@@ -82,7 +82,7 @@ function AnimationPanel({ state, controller }: { state: StudioState; controller:
           <ToggleGroupItem id="mouse-tracking" value="eyes">눈만</ToggleGroupItem>
           <ToggleGroupItem id="tracking-eyes-and-body" value="eyes-and-body">눈과 몸</ToggleGroupItem>
         </ToggleGroup>
-        <FieldDescription id="mouse-tracking-help">눈만 또는 눈과 몸이 페이지의 마우스를 따라봅니다. 몸 움직임은 기존 모션 위에 부드럽게 더해지며 몸체 방향를 바꾸지 않습니다. 장면 JSON에 저장됩니다.</FieldDescription>
+        <FieldDescription id="mouse-tracking-help">눈만 또는 눈과 몸이 페이지의 마우스를 따라봅니다. 몸 움직임은 기존 모션 위에 부드럽게 더해지며 몸체 방향을 바꾸지 않습니다. 장면 JSON에 저장됩니다.</FieldDescription>
       </FieldSet>
       <div className="motion-actions"><Button id="look-left" variant="ghost" size="sm" onClick={() => controller.look(-.9)}>왼쪽 보기</Button><Button id="look-center" variant="ghost" size="sm" onClick={() => controller.look(0)}>정면 보기</Button><Button id="look-right" variant="ghost" size="sm" onClick={() => controller.look(.9)}>오른쪽 보기</Button><Button id="face-motion" variant="outline" size="sm" aria-pressed={state.movedFace} onClick={controller.toggleFace}>얼굴 이동</Button></div>
     </section>
@@ -174,9 +174,10 @@ export function StudioApp({ controller }: { controller: StudioController }) {
   function reset(): void { controller.reset(); setResetKey(key => key + 1); }
   async function exportPNG(): Promise<void> { try { download(await controller.snapshot(), 'sidekick.png'); controller.report('투명 PNG를 내보냈습니다.'); } catch (error) { controller.report(String(error), true); } }
   return <div className="studio-shell">
-    <header className="app-header"><SiteHeaderBrand />
+    <header className="app-header"><SiteHeaderBrand /></header>
+    <div className="studio-toolbar" aria-label="Studio 파일 작업">
       <div className="header-actions"><Button id="reset" variant="ghost" onClick={reset} aria-label="디자인 초기화"><RotateCcw data-icon="inline-start" /><span className="action-label">초기화</span></Button><Button id="export-png" variant="outline" onClick={() => void exportPNG()} aria-label="PNG 저장"><ImageDown data-icon="inline-start" /><span className="action-label">PNG 저장</span></Button><Button id="export-json" onClick={() => { download(new Blob([controller.exportJSON()], { type: 'application/json' }), 'sidekick.scene.json'); controller.report('장면 JSON을 내보냈습니다.'); }}><FileJson data-icon="inline-start" /><span>JSON 내보내기</span></Button></div>
-    </header>
+    </div>
     <main className="workspace">
       <section className="stage" aria-label="고정 캐릭터 미리보기">
         <div className="stage-header"><div><h1>나만의 작은 동료.</h1><p>형태를 고르고, 개성을 더하세요. <a href={`${ASSET_BASE}api-playground.html`} className="underline">API 체험</a></p></div><ToggleGroup type="single" variant="outline" size="sm" value={state.background} onValueChange={value => { if (value) controller.setBackground(value as StudioState['background']); }} aria-label="미리보기 배경" className="background-options">{([['checker', '투명'], ['light', '밝게'], ['dark', '어둡게']] as const).map(([value, label]) => <ToggleGroupItem key={value} value={value} data-background={value}>{label}</ToggleGroupItem>)}</ToggleGroup></div>

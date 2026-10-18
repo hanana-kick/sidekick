@@ -1,3 +1,4 @@
+import type { PresenceResult } from './presence.js';
 import type { Activity, AvatarDesign, Vec2 } from '../core/design.js';
 import type { BodyOrientation, BodyOrientationPreset } from '../core/body-orientation.js';
 import type { EyeExpression } from '../core/expressions.js';
@@ -103,6 +104,8 @@ export interface SidekickZoomChangeDetail {
     zoom: number;
 }
 export interface SidekickEventMap {
+    'sidekick-enter-end': CustomEvent<PresenceResult>;
+    'sidekick-exit-end': CustomEvent<PresenceResult>;
     'sidekick-move-end': CustomEvent<MoveResult>;
     'sidekick-move-progress': CustomEvent<MovementState>;
     'sidekick-play-end': CustomEvent<MotionResult>;

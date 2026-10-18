@@ -2,7 +2,9 @@
 
 /* Shared dimensions and typography prevent page navigation from changing identity. */
 .app-header {
-  display: flex; align-items: center; gap: 20px; min-width: 0;
+  box-sizing: border-box; display: flex; align-items: center; gap: 20px; min-width: 0;
+  position: sticky; top: 0; z-index: 40; flex-shrink: 0;
+  font-size: 14px; font-weight: 400; line-height: 1.5; letter-spacing: normal;
   min-height: 70px; padding: 10px 24px; background: #fff;
   border-bottom: 1px solid #e2e8f0; color: #0f172a;
   font-family: 'Geist Variable', system-ui, sans-serif;
@@ -22,6 +24,7 @@
   margin-left: auto; padding: 3px; border: 1px solid #e2e8f0; border-radius: 10px;
 }
 .app-header .product-nav a {
+  display: block; box-sizing: border-box; font-weight: 400; letter-spacing: normal;
   padding: 7px 12px; border-radius: 7px; color: #475569;
   font-size: 12px; line-height: 1.4; text-decoration: none; white-space: nowrap;
 }
@@ -33,7 +36,7 @@
   .app-header .brand { font-size: 17px; gap: 4px; letter-spacing: -.5px; }
   .app-header .brand-avatar { width: 36px; height: 36px; flex-basis: 36px; }
   .app-header .product-nav a { padding: 7px 9px; font-size: 12px; }
-  .studio-shell .app-header .product-nav { order: 3; width: 100%; justify-content: center; border: 0; border-top: 1px solid #e2e8f0; border-radius: 0; padding: 6px 0 0; margin-top: 0; }
+
 }
 @media (max-width: 359px) {
   .app-header { padding-inline: 10px; gap: 4px; }

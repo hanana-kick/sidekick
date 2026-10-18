@@ -22,6 +22,8 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
     moveDeceleration?: number;
     moveEasing?: MotionOptions['easing'];
     moveTravel?: SidekickAttributes['move-travel'];
+    onEnterEnd?: SidekickEventHandler<'sidekick-enter-end'>;
+    onExitEnd?: SidekickEventHandler<'sidekick-exit-end'>;
     onMoveProgress?: SidekickEventHandler<'sidekick-move-progress'>;
     onMoveEnd?: SidekickEventHandler<'sidekick-move-end'>;
     onPlayEnd?: SidekickEventHandler<'sidekick-play-end'>;

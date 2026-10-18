@@ -2,193 +2,88 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { JSDOM } from 'jsdom';
+import ts from 'typescript';
+import { actionSource, executeAction, codeForAction } from '../playground/playground-actions.js';
 
-const html = await readFile(new URL('../api-playground.html', import.meta.url), 'utf8');
-const script = (await readFile(new URL('../playground/api-playground.js', import.meta.url), 'utf8')).replace(/^import[^\n]+\n/gm, '');
-const flush = () => new Promise(resolve => setImmediate(resolve));
-function fixture(t) {
-  const dom = new JSDOM(html, { url: 'https://sidekick.test/api-playground.html', runScripts: 'outside-only', pretendToBeVisual: true });
-  t.after(() => dom.window.close());
-  const w = dom.window, $ = id => w.document.getElementById(id);
-  Object.defineProperties(w, { innerWidth: { value: 1280, writable: true }, innerHeight: { value: 900, writable: true } });
-  w.matchMedia = () => ({ matches: false, addEventListener() {} });
-  w.ResizeObserver = class { observe() {} };
-  w.mountSiteHeader = () => {};
-  w.createAccessory = preset => ({ preset });
-  const bounds = { x: 428, y: 146, left: 428, top: 146, right: 1256, bottom: 786, width: 828, height: 640 };
-  $('movement-stage').getBoundingClientRect = () => bounds;
-  class MockAvatar extends w.HTMLElement {
-    ready = true;
-    point = { x: 0, y: 0 };
-    activity = 'idle';
-    paused = false;
-    interaction = 'none';
-    calls = [];
-    diagnostics = { backend: 'mock' };
-    movementState = { phase: 'idle', progress: 0, position: this.point, velocity: { x: 0, y: 0 } };
-    get offsetWidth() { return 180; }
-    get offsetHeight() { return 180; }
-    get position() { return { ...this.point }; }
-    getBoundingClientRect() { return { x: this.point.x, y: this.point.y, width: 180, height: 180 }; }
-    emit(name, detail) { this.dispatchEvent(new w.CustomEvent(`sidekick-${name}`, { detail })); }
-    moveTo(point, options) {
-      this.calls.push({ method: 'moveTo', point, options }); this.point = { ...point };
-      this.movementState = { ...this.movementState, phase: 'idle', progress: 1, position: this.position };
-      this.emit('move-progress', this.movementState);
-      const result = { finished: true, position: this.position }; this.emit('move-end', result); return Promise.resolve(result);
-    }
-    moveBy(delta, options) {
-      this.calls.push({ method: 'moveBy', point: delta, options });
-      this.point = { x: this.point.x + delta.x, y: this.point.y + delta.y };
-      const result = { finished: true, position: this.position }; this.emit('move-end', result); return Promise.resolve(result);
-    }
-    cancelMove() { this.calls.push({ method: 'cancelMove' }); }
-    play(activity, options) { this.calls.push({ method: 'play', activity, options }); this.activity = activity; return Promise.resolve({ finished: true }); }
-    stop() { this.calls.push({ method: 'stop' }); this.activity = 'idle'; }
-    transitionTo(patch, options) { this.calls.push({ method: 'transitionTo', patch, options }); return Promise.resolve({ finished: true }); }
-    cancelTransition() { this.calls.push({ method: 'cancelTransition' }); }
-  }
-  w.customElements.define('sidekick-avatar', MockAvatar);
-  w.eval(script);
-  const bot = $('bot'); bot.calls.length = 0;
-  function input(id, value) { $(id).value = String(value); $(id).dispatchEvent(new w.Event('input', { bubbles: true })); }
-  function pointer(name, x, y, extras = {}) {
-    const event = new w.Event(name, { bubbles: true });
-    Object.assign(event, { clientX: x, clientY: y, pointerId: 1, isPrimary: true, button: 0, ...extras });
-    $('movement-stage').dispatchEvent(event);
-  }
-  return { w, $, bot, input, pointer, bounds };
+const actions = [
+  { method: 'moveTo', args: [{ x: 300, y: 240 }, { duration: 850, travel: 'none', easing: 'linear' }] },
+  { method: 'moveBy', args: [{ x: -40, y: 60 }, { duration: 1200, travel: 'natural', acceleration: 1800, deceleration: 2200 }] },
+  { method: 'moveTo', args: [{ x: 400, y: 100 }, { travel: 'natural', maxSpeed: 240, acceleration: 700, deceleration: 1100 }] },
+  { method: 'cancelMove', args: [] },
+  { method: 'setActivity', args: ['thinking'] },
+  { method: 'play', args: ['celebrating', { duration: 1400 }] },
+  { method: 'play', args: ['speaking'] },
+  { method: 'stop', args: [] },
+  ...['left', 'right', 'both'].map(side => ({ method: 'setExpression', args: [side, 'smile', { duration: 250 }] })),
+  { property: 'trackingMode', value: 'eyes-only' },
+  { property: 'trackingMode', value: 'eyes-and-body' },
+  { property: 'trackingMode', value: 'off' },
+  { property: 'zoom', value: 1.5 },
+  { method: 'setBodyOrientation', args: [{ yaw: 15, pitch: -8, roll: 5 }] },
+  { method: 'transitionTo', args: [{ shape: 'heart', accessories: ['halo', 'glasses', 'bowTie'] }, { duration: 700 }] },
+  { method: 'transitionTo', args: [{ shape: 'ghostish', accessories: [] }, { duration: 0 }] },
+  { method: 'cancelTransition', args: [] },
+  { method: 'enter', args: [{ x: 200, y: 180 }, { from: 'left' }] },
+  { method: 'exit', args: [{ to: 'right' }] },
+];
+const createAccessory = preset => ({ preset, created: true });
+function recorder() {
+  const calls = [];
+  const avatar = new Proxy({}, {
+    get: (_, method) => (...args) => { calls.push({ method, args }); return Promise.resolve({ finished: true }); },
+    set: (_, property, value) => { calls.push({ property, value }); return true; },
+  });
+  return { avatar, calls };
+}
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+function stripImports(source) { return source.replace(/^import\s.*?;\s*$/gm, ''); }
+
+for (const action of actions) {
+  test(`generated JavaScript executes the same descriptor: ${JSON.stringify(action)}`, async () => {
+    const original = structuredClone(action);
+    const expected = structuredClone(action);
+    if (expected.method === 'transitionTo') expected.args[0].accessories = expected.args[0].accessories.map(createAccessory);
+    const direct = recorder();
+    await executeAction(direct.avatar, action, createAccessory);
+    assert.deepEqual(direct.calls, [expected]);
+    const sourceTarget = recorder();
+    await new AsyncFunction('subject', 'createAccessory', actionSource(action, 'subject'))(sourceTarget.avatar, createAccessory);
+    assert.deepEqual(sourceTarget.calls, direct.calls);
+    const generated = recorder();
+    const document = { querySelector: () => generated.avatar, getElementById: () => generated.avatar };
+    await new AsyncFunction('document', 'createAccessory', stripImports(codeForAction(action)))(document, createAccessory);
+    assert.deepEqual(generated.calls, direct.calls, 'copyable code and executed action must match exactly');
+    assert.deepEqual(action, original, 'execution must not mutate descriptor');
+  });
 }
 
-test('playground moveTo and moveBy use bounded values matching the generated invocation', async t => {
-  const f = fixture(t);
-  f.input('duration', 850); f.input('easing', 'linear'); f.input('travel', 'none');
-  f.input('target-x', 10000); f.input('target-y', -1000); f.$('move').click();
-  await flush();
-  const first = f.bot.calls.at(-1);
-  assert.deepEqual(JSON.parse(JSON.stringify(first)), { method: 'moveTo', point: { x: 1076, y: 146 }, options: { duration: 850, easing: 'linear', travel: 'none' } });
-  assert.match(f.$('invocation').textContent, /avatar.moveTo\(\{ x: 1076, y: 146 \}, \{ duration: 850, easing: 'linear', travel: 'none' \}\)/);
-  f.input('move-method', 'moveBy'); f.input('target-x', -40); f.input('target-y', 60); f.$('move').click();
-  await flush();
-  assert.equal(f.bot.position.x, 1036); assert.equal(f.bot.position.y, 206);
-  assert.match(f.$('invocation').textContent, /avatar.moveBy\(\{ x: -40, y: 60 \}/);
-  assert.equal(f.$('x-label').textContent, 'ΔX · CSS px');
-  assert.match(f.$('result-log').textContent, /moveBy result/);
+test('orientation and zoom remain a single compound descriptor in execution and copied code', async () => {
+  const action = { steps: [{ method: 'setBodyOrientation', args: [{ yaw: 15, pitch: -8, roll: 5 }] }, { property: 'zoom', value: 1.5 }] };
+  const direct = recorder(); await executeAction(direct.avatar, action, createAccessory);
+  const copied = recorder(); await new AsyncFunction('avatar', 'createAccessory', actionSource(action))(copied.avatar, createAccessory);
+  assert.deepEqual(direct.calls, action.steps); assert.deepEqual(copied.calls, direct.calls);
 });
 
-test('stage taps center the avatar; drags, scrolls, long presses and secondary pointers do not move', async t => {
-  const f = fixture(t);
-  f.pointer('pointerdown', 800, 500); f.pointer('pointerup', 800, 500);
-  assert.equal(f.bot.position.x, 710); assert.equal(f.bot.position.y, 410);
-  const count = f.bot.calls.length;
-  f.pointer('pointerdown', 800, 500); f.pointer('pointermove', 800, 530); f.pointer('pointerup', 800, 530);
-  f.pointer('pointerdown', 800, 500); f.w.scrollY = 20; f.pointer('pointerup', 800, 500);
-  f.pointer('pointerdown', 800, 500); f.pointer('pointercancel', 800, 500); f.pointer('pointerup', 800, 500);
-  f.pointer('pointerdown', 800, 500); f.pointer('pointerdown', 810, 500, { pointerId: 2, isPrimary: false }); f.pointer('pointerup', 800, 500);
-  const actualNow = f.w.performance.now.bind(f.w.performance); let time = 0;
-  f.w.performance.now = () => time;
-  f.pointer('pointerdown', 800, 500); time = 700; f.pointer('pointerup', 800, 500);
-  f.w.performance.now = actualNow;
-  assert.equal(f.bot.calls.length, count);
-  f.pointer('pointerdown', 430, 148); f.pointer('pointerup', 430, 148);
-  assert.equal(f.bot.position.x, 428); assert.equal(f.bot.position.y, 146);
-  await flush();
-});
-
-test('keyboard targets and independent stop controls call only their respective APIs', async t => {
-  const f = fixture(t), before = f.bot.position;
-  f.$('movement-stage').dispatchEvent(new f.w.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
-  assert.equal(f.bot.position.x, before.x - 40);
-  assert.equal(f.bot.calls.at(-1).method, 'moveBy');
-  f.$('cancel').click();
-  assert.equal(f.bot.calls.at(-1).method, 'cancelMove');
-  assert.match(f.$('invocation').textContent, /avatar.cancelMove\(\)/);
-  f.$('cancel-preview').click();
-  assert.equal(f.bot.calls.at(-1).method, 'cancelMove');
-  assert.equal(f.bot.calls.filter(call => call.method === 'cancelMove').length, 2);
-  f.$('play').click(); await flush();
-  assert.equal(f.bot.calls.at(-1).method, 'play');
-  assert.equal(f.$('activity-state').textContent, 'celebrating');
-  f.$('stop').click(); await flush();
-  assert.equal(f.bot.calls.at(-1).method, 'stop');
-  assert.equal(f.$('activity-state').textContent, 'idle');
-});
-
-test('progress events update live state without replacing the invocation or flooding the log', async t => {
-  const f = fixture(t), source = f.$('invocation').textContent, logCount = f.$('result-log').children.length;
-  f.bot.point = { x: 600.123, y: 300.456 };
-  f.bot.movementState = { phase: 'flight', progress: .42, position: f.bot.position, velocity: { x: 20, y: 30 } };
-  f.bot.emit('move-progress', f.bot.movementState);
-  assert.equal(f.$('phase').textContent, 'flight');
-  assert.equal(f.$('progress').value, .42);
-  assert.equal(f.$('progress-value').textContent, '42%');
-  assert.equal(f.$('position').textContent, 'x 600.12 · y 300.46');
-  assert.equal(f.$('invocation').textContent, source);
-  assert.equal(f.$('result-log').children.length, logCount);
-  f.input('duration', -5); const count = f.bot.calls.length; f.$('move').click();
-  assert.equal(f.bot.calls.length, count);
-  assert.match(f.$('status').textContent, /0–10000ms/);
-  await flush();
-});
-
-test('copy, asset transition, options and result log controls stay wired', async t => {
-  const f = fixture(t); let copied;
-  Object.defineProperty(f.w.navigator, 'clipboard', { value: { writeText: async value => { copied = value; } } });
-  f.$('copy').click(); await flush();
-  assert.equal(copied, f.$('invocation').textContent);
-  f.$('transition').click(); await flush();
-  assert.equal(f.bot.calls.at(-1).patch.shape, 'heart');
-  assert.match(f.$('invocation').textContent, /import \{ createAccessory \}/);
-  assert.match(f.$('invocation').textContent, /createAccessory\('halo'\)/);
-  f.$('interactive').checked = true; f.$('interactive').dispatchEvent(new f.w.Event('change'));
-  assert.equal(f.bot.interaction, 'box');
-  f.$('reduce').checked = true; f.$('reduce').dispatchEvent(new f.w.Event('change'));
-  assert.equal(f.bot.paused, true);
-  f.$('clear-log').click(); assert.equal(f.$('result-log').children.length, 0);
-});
-
-test('natural playground controls generate physical options and validate their full ranges', async t => {
-  const f = fixture(t);
-  f.$('auto-speed').checked = false; f.$('auto-speed').dispatchEvent(new f.w.Event('input'));
-  f.input('travel', 'natural'); f.input('duration', 1500); f.input('max-speed', 240); f.input('acceleration', 700); f.input('deceleration', 1100);
-  f.$('move').click(); await flush();
-  assert.deepEqual(JSON.parse(JSON.stringify(f.bot.calls.at(-1).options)), { duration: 1500, travel: 'natural', maxSpeed: 240, acceleration: 700, deceleration: 1100 });
-  assert.match(f.$('invocation').textContent, /maxSpeed: 240, acceleration: 700, deceleration: 1100/); assert.equal(f.$('physical-options').hidden, false);
-  f.$('auto-speed').checked = true; f.$('auto-speed').dispatchEvent(new f.w.Event('input')); f.$('move').click(); await flush();
-  assert.equal(Object.hasOwn(f.bot.calls.at(-1).options, 'maxSpeed'), false); assert.equal(f.bot.calls.at(-1).options.duration, 1500);
-  f.$('auto-speed').checked = false; f.$('auto-speed').dispatchEvent(new f.w.Event('input'));
-  for (const id of ['max-speed', 'acceleration', 'deceleration']) {
-    for (const value of [0, 100001]) {
-      const count = f.bot.calls.length; f.input(id, value); f.$('move').click(); await flush();
-      assert.equal(f.bot.calls.length, count); assert.match(f.$('status').textContent, /1–100000/);
-    }
-    f.input(id, 100);
+test('React examples compile as TSX and include the selected real API', () => {
+  for (const action of actions) {
+    const source = codeForAction(action, 'react');
+    assert.match(source, /@hanana-kick\/sidekick\/react/);
+    assert.match(source, /SidekickAvatar/);
+    assert.match(source, /ref/);
+    assert.ok(source.includes(action.method ?? action.property));
+    const result = ts.transpileModule(source, { fileName: 'example.tsx', reportDiagnostics: true,
+      compilerOptions: { jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } });
+    assert.deepEqual(result.diagnostics?.filter(d => d.category === ts.DiagnosticCategory.Error), []);
   }
-  f.input('travel', 'none'); assert.equal(f.$('physical-options').hidden, true); f.input('max-speed', -1); f.$('move').click(); await flush();
-  assert.deepEqual(JSON.parse(JSON.stringify(f.bot.calls.at(-1).options)), { duration: 1500, easing: 'smooth', travel: 'none' });
 });
 
-test('physical telemetry displays signed vectors, magnitudes and state-backed traces', async t => {
-  const f = fixture(t);
-  f.bot.movementState = { phase: 'braking', progress: .6, position: f.bot.position, velocity: { x: -30, y: 40 }, acceleration: { x: 120, y: -160 }, speed: 50 };
-  f.bot.emit('move-progress', f.bot.movementState);
-  assert.equal(f.$('speed').textContent, '50 px/s'); assert.equal(f.$('velocity').textContent, 'x -30 · y 40');
-  assert.equal(f.$('acceleration-value').textContent, '200 px/s²'); assert.equal(f.$('acceleration-vector').textContent, 'x 120 · y -160');
-  assert.equal(f.$('motion-graph').dataset.phase, 'braking');
-  for (const id of ['speed-plot', 'acceleration-plot']) {
-    const points = f.$(id).getAttribute('points'); assert.ok(points.length); assert.doesNotMatch(points, /NaN|Infinity/);
-  }
-  await flush();
-});
-
-
-test('fixed speed defaults omit only the speed cap and retain fixed acceleration values', async t => {
-  const f = fixture(t);
-  assert.equal(f.$('auto-speed').checked, true); assert.equal(f.$('max-speed').disabled, true);
-  f.input('duration', 1200); f.input('max-speed', -1); f.$('move').click(); await flush();
-  assert.deepEqual(JSON.parse(JSON.stringify(f.bot.calls.at(-1).options)), { duration: 1200, travel: 'natural', acceleration: 1800, deceleration: 2200 });
-  assert.doesNotMatch(f.$('invocation').textContent, /maxSpeed/);
-  assert.match(f.$('timing-help').textContent, /먼 곳은 더 오래/);
+test('the playground is a free-page companion without a framed movement stage', async () => {
+  const html = await readFile(new URL('../api-playground.html', import.meta.url), 'utf8');
+  const dom = new JSDOM(html);
+  try {
+    assert.equal(dom.window.document.querySelector('#movement-stage, .preview-panel'), null);
+    for (const id of ['bot', 'action-kind', 'execute', 'code-format', 'copy', 'invocation']) assert.ok(dom.window.document.getElementById(id), id);
+  } finally { dom.window.close(); }
 });
 
 test('both pages share a paused native avatar brand and accessible navigation', async t => {
@@ -225,4 +120,87 @@ test('both pages share a paused native avatar brand and accessible navigation', 
     assert.equal(host.querySelector('#api-playground-link').href, 'https://sidekick.test/nested/api-playground.html');
     cleanup(); assert.equal(host.childElementCount, 0);
   }
+});
+
+async function controllerFixture(t) {
+  const html = await readFile(new URL('../api-playground.html', import.meta.url), 'utf8');
+  const source = (await readFile(new URL('../playground/api-playground.js', import.meta.url), 'utf8')).replace(/^import[^\n]+\n/gm, '');
+  const dom = new JSDOM(html, { url: 'https://sidekick.test/api-playground.html', runScripts: 'outside-only', pretendToBeVisual: true });
+  t.after(() => dom.window.close());
+  const w = dom.window, $ = id => w.document.getElementById(id);
+  Object.assign(w, { structuredClone, codeForAction, executeAction, createAccessory, MATERIAL_SHAPE_LABELS: { heart: 'Heart', ghostish: 'Ghost' }, mountSiteHeader() {}, loadStudioSession: () => ({ message: 'Default scene', scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), applyStudioSession: async () => {} });
+  w.matchMedia = () => ({ matches: false, addEventListener() {} });
+  class Avatar extends w.HTMLElement {
+    ready = true; calls = []; point = { x: 0, y: 0 }; activity = 'idle'; trackingMode = 'eyes-and-body'; zoom = 1;
+    get position() { return this.point; }
+    get offsetWidth() { return 180; } get offsetHeight() { return 180; }
+    movementState = { phase: 'idle', progress: 0, velocity: { x: 0, y: 0 }, acceleration: { x: 0, y: 0 } };
+    moveTo(...args) { this.calls.push({ method: 'moveTo', args }); this.point = args[0]; return Promise.resolve({ finished: true }); }
+    moveBy(...args) { this.calls.push({ method: 'moveBy', args }); this.point = { x: this.point.x + args[0].x, y: this.point.y + args[0].y }; return Promise.resolve({ finished: true }); }
+  }
+  for (const method of ['setExpression', 'setActivity', 'play', 'stop', 'setBodyOrientation', 'transitionTo', 'cancelMove', 'cancelTransition', 'enter', 'exit']) Avatar.prototype[method] = function (...args) { this.calls.push({ method, args }); return Promise.resolve({ finished: true }); };
+  w.customElements.define('sidekick-avatar', Avatar);
+  w.eval(source); await new Promise(resolve => setImmediate(resolve)); const bot = $('bot'); bot.calls.length = 0;
+  const input = (id, value) => { $(id).value = String(value); $(id).dispatchEvent(new w.Event('input', { bubbles: true })); };
+  const pointer = (type, x, y, target = w.document.body, extra = {}) => { const event = new w.Event(type, { bubbles: true }); Object.assign(event, { clientX: x, clientY: y, isPrimary: true, pointerId: 1, button: 0, ...extra }); target.dispatchEvent(event); };
+  return { w, $, bot, input, pointer };
+}
+const plain = value => JSON.parse(JSON.stringify(value));
+
+test('controller updates code before execution and dispatches every selected action', async t => {
+  const f = await controllerFixture(t);
+  for (const [kind, values, method] of [
+    ['movement', [['target-x', 400], ['target-y', 200], ['duration', 0]], 'moveTo'],
+    ['activity', [['activity-operation', 'setActivity'], ['activity', 'thinking']], 'setActivity'],
+    ['activity', [['activity-operation', 'play'], ['activity-duration', 700]], 'play'],
+    ['activity', [['activity-operation', 'stop']], 'stop'],
+    ['expression', [['eye-side', 'left'], ['expression', 'smile'], ['expression-duration', 0]], 'setExpression'],
+    ['orientation', [['body-yaw', 15], ['body-pitch', -8], ['body-roll', 5], ['zoom', 1.5]], 'setBodyOrientation'],
+    ['assets', [['shape', 'heart'], ['head-accessory', 'halo'], ['transition-duration', 0]], 'transitionTo'],
+    ['presence', [['presence-operation', 'enter']], 'enter'],
+    ['presence', [['presence-operation', 'exit']], 'exit'],
+  ]) {
+    const before = f.bot.calls.length; f.input('action-kind', kind);
+    for (const [id, value] of values) f.input(id, value);
+    assert.equal(f.bot.calls.length, before, 'editing does not execute');
+    const generated = recorder();
+    await new AsyncFunction('document', 'createAccessory', stripImports(f.$('invocation').textContent))({ querySelector: () => generated.avatar }, createAccessory);
+    assert.equal(f.$('execute').disabled, false, kind); f.$('execute').click();
+    assert.equal(f.bot.calls.at(-1).method, method);
+    assert.deepEqual(plain(f.bot.calls.at(-1)), generated.calls.find(call => call.method));
+  }
+  assert.equal(f.bot.zoom, 1.5);
+  f.input('action-kind', 'tracking'); f.input('tracking-mode', 'off'); f.$('execute').click(); assert.equal(f.bot.trackingMode, 'off');
+  f.input('action-kind', 'movement'); f.input('duration', -1); assert.equal(f.$('execute').disabled, true);
+  const before = f.bot.calls.length; f.$('execute').click(); assert.equal(f.bot.calls.length, before);
+});
+
+test('controller free-page gestures ignore controls, drags, selections, cancellation and secondary pointers', async t => {
+  const f = await controllerFixture(t);
+  f.pointer('pointerdown', 700, 500); f.pointer('pointerup', 700, 500);
+  assert.deepEqual(plain(f.bot.calls.at(-1).args[0]), { x: 610, y: 410 });
+  const count = f.bot.calls.length;
+  f.pointer('pointerdown', 600, 450, f.$('target-x')); f.pointer('pointerup', 600, 450, f.$('target-x'));
+  f.pointer('pointerdown', 700, 500); f.pointer('pointermove', 700, 550); f.pointer('pointerup', 700, 550);
+  f.pointer('pointerdown', 700, 500); f.pointer('pointercancel', 700, 500); f.pointer('pointerup', 700, 500);
+  f.pointer('pointerdown', 700, 500); f.pointer('pointerdown', 710, 500, f.w.document.body, { isPrimary: false, pointerId: 2 }); f.pointer('pointerup', 700, 500);
+  const range = f.w.document.createRange(); range.selectNodeContents(f.$('invocation')); f.w.getSelection().addRange(range);
+  f.pointer('pointerdown', 700, 500); f.pointer('pointerup', 700, 500);
+  assert.equal(f.bot.calls.length, count);
+  f.w.getSelection().removeAllRanges();
+  f.pointer('pointerdown', 1, 1); f.pointer('pointerup', 1, 1);
+  assert.deepEqual(plain(f.bot.calls.at(-1).args[0]), { x: 0, y: 0 });
+});
+
+test('controller copy follows format changes, and telemetry does not overwrite code', async t => {
+  const f = await controllerFixture(t); let copied;
+  Object.defineProperty(f.w.navigator, 'clipboard', { value: { writeText: async value => { copied = value; } } });
+  f.input('action-kind', 'expression');
+  f.$('code-format').value = 'react'; f.$('code-format').dispatchEvent(new f.w.Event('change'));
+  f.$('copy').click(); await Promise.resolve(); assert.equal(copied, f.$('invocation').textContent); assert.match(copied, /SidekickAvatar/);
+  const code = f.$('invocation').textContent;
+  f.bot.dispatchEvent(new f.w.CustomEvent('sidekick-move-progress', { detail: { phase: 'braking', progress: .6, velocity: { x: -30, y: 40 }, acceleration: { x: 120, y: -160 }, speed: 50 } }));
+  assert.equal(f.$('speed').textContent, '50 px/s'); assert.equal(f.$('acceleration-value').textContent, '200 px/s²');
+  assert.equal(f.$('invocation').textContent, code);
+  for (const id of ['speed-plot', 'acceleration-plot']) assert.doesNotMatch(f.$(id).getAttribute('points'), /NaN|Infinity/);
 });

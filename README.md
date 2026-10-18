@@ -17,7 +17,7 @@ npm install https://github.com/hanana-kick/sidekick.git
 버전을 고정하려면 릴리스 태그를 지정합니다.
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.5.0
+npm install https://github.com/hanana-kick/sidekick.git#v0.6.0
 ```
 
 빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.5.0`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
@@ -76,7 +76,7 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 ### 일반 HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.5.0/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.6.0/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
@@ -88,7 +88,7 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.5.0/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.6.0/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -104,15 +104,15 @@ React와 ReactDOM은 동일한 19.3.1의 미리 빌드된 ESM을 제공합니다
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.5.0/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.5.0/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.6.0/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.6.0/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.5.0/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.6.0/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
@@ -1039,7 +1039,7 @@ API playground는 “기본 최고 속도 · 1350 CSS px/s”이 기본으로 �
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.5.0/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.6.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { maxSpeed: 320, acceleration: 900, deceleration: 1200 });
@@ -1076,7 +1076,7 @@ API playground는 “기본 최고 속도 · 1350 CSS px/s”이 기본으로 �
 <button id="flight-stop" type="button">활동 중단</button>
 <p id="flight-status" aria-live="off">idle</p>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.5.0/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.6.0/dist/browser/sidekick.js';
   const stage = document.getElementById('flight-stage');
   const bot = document.getElementById('flight-avatar');
   const status = document.getElementById('flight-status');
@@ -1153,3 +1153,29 @@ export function Companion() {
 React SSR은 기존처럼 안전하며 ref는 클라이언트 등록 후 게시됩니다. 선언형 `positionX/Y` props는 값이 바뀔 때만 반영되므로 일반적인 부모 rerender가 명령형 이동을 되돌리지 않습니다. 위 ref 호출은 `MoveOptions`를 직접 전달하며 `moveDuration`·`moveTravel`·`moveMaxSpeed`·`moveAcceleration`·`moveDeceleration` props는 선언형 `positionX/Y` 변경에 적용됩니다. React의 `onAssetTransitionEnd`는 Sidekick 묶음 전환 이벤트입니다. 기존 네이티브 CSS `onTransitionEnd`와 구분됩니다.
 
 공개 타입 `AvatarPlacement`, `AvatarPosition`, `MovementBounds`, `MoveOptions`, `MoveResult`, `MovementState`, `PlayOptions`, `AssetTransitionTarget`은 메인/`register` 엔트리에서 가져올 수 있습니다. `MoveOptions.travel`의 값은 `'natural' | 'none'`이며, 기존 `MotionOptions`를 받는 도형/표정/포즈 API에는 `travel`을 전달하지 않습니다.
+
+
+## API playground: 원하는 동작을 코드로 만들기
+
+[API playground](https://sidekick.hananakick.cc/api-playground.html)에서 이동, 활동/상태, 좌우 눈 표정, 마우스 추적, 몸 방향, 외형 전환, 입장/퇴장을 선택하세요. 값을 바꾸는 즉시 HTML + JavaScript 또는 React 코드가 갱신됩니다. 실행과 코드 생성은 동일한 명령 데이터에 기반합니다. 설치 및 Studio 봇 초기화 코드는 별도 준비 영역에서 제공합니다.
+
+봇은 작은 투명 캔버스 하나를 `placement="viewport"`로 페이지 전체에서 이동시킵니다. 전체 화면 크기 캔버스를 만들지 않습니다. 좌표는 viewport 왼쪽 위 기준 CSS 픽셀이며 페이지 스크롤 높이를 더하지 않습니다. 빈 곳의 클릭/탭은 봇 중심을 해당 위치로 이동시키고 실제 호출 좌표를 코드에 반영합니다. 버튼·폼·링크·코드 선택·스크롤 제스처는 이동을 실행하지 않습니다. 봇은 포인터 이벤트를 통과시켜 페이지 조작을 막지 않습니다.
+
+Studio에서 저장한 디자인과 장면 설정을 동일 브라우저·동일 origin에서 읽습니다. API playground의 임시 명령은 Studio 저장값을 덮어쓰지 않습니다. 저장 데이터가 잘못되었거나 브라우저 저장소를 사용할 수 없으면 안내와 기본 봇을 표시하며 원본을 삭제하지 않습니다. 다른 브라우저/기기로 옮길 때는 Studio JSON 내보내기/불러오기를 사용하세요.
+
+### 자연스럽게 입장하고 퇴장하기
+
+```js
+// placement="viewport" 요소에서 사용합니다.
+await avatar.enter({ x: 120, y: 200 }, { from: 'left' });
+await avatar.exit({ to: 'right' });
+// 다시 입장할 수 있습니다.
+await avatar.enter({ x: 240, y: 120 }, { from: 'top', maxSpeed: 1350 });
+```
+
+- `enter(point, options?)`: 화면 밖에서 `point`까지 비행합니다. `from`은 `left`(기본), `right`, `top`, `bottom`입니다.
+- `exit(options?)`: 선택한 화면 바깥으로 비행한 뒤 숨깁니다. `to`는 `right`(기본), `left`, `top`, `bottom`입니다.
+- 두 메서드는 기존 `MoveOptions`의 속도·가속·감속·travel·duration 설정을 받습니다. 자연 비행은 실제 관성을 사용합니다. paused 또는 모션 줄이기에서는 즉시 적용합니다.
+- 결과는 `{ finished, position, presence }`입니다. 읽기 전용 `presenceState`는 `visible`, `entering`, `exiting`, `hidden` 중 하나입니다. 완료 이벤트는 `sidekick-enter-end` / `sidekick-exit-end`, React props는 `onEnterEnd` / `onExitEnd`입니다. React ref에서도 같은 메서드를 사용합니다.
+- `inline` 배치에서는 사용할 수 없습니다. 입퇴장 중 새 입퇴장 명령은 현재 위치와 관성에서 다시 목표를 잡습니다. 일반 `moveTo` / `moveBy`는 입퇴장을 취소하고 봇을 보이게 합니다. `cancelMove()`는 숨기지 않고 제동합니다.
+- 퇴장이 완전히 끝난 뒤 렌더러와 추적 구독을 비활성화합니다. 디자인·활동·추적 설정은 보존하며 재입장 시 복원합니다. 창 크기가 바뀌면 진행 중인 퇴장 목적지를 새 화면 경계에 맞춥니다.

@@ -1,3 +1,4 @@
+import type { PresenceResult } from './presence.js';
 import { ACTIVITIES, createAccessory, createDesign, equipAccessory, finite, parseDesign } from '../core/design.js';
 import type { AccessoryPreset, AccessorySlot, Activity, AvatarDesign, Vec2 } from '../core/design.js';
 import { bodyOrientationPreset, createBodyOrientation } from '../core/body-orientation.js';
@@ -95,6 +96,8 @@ export interface SidekickDesignChangeDetail { design: AvatarDesign }
 export interface SidekickBodyOrientationChangeDetail { bodyOrientation: BodyOrientation }
 export interface SidekickZoomChangeDetail { zoom: number }
 export interface SidekickEventMap {
+  'sidekick-enter-end': CustomEvent<PresenceResult>;
+  'sidekick-exit-end': CustomEvent<PresenceResult>;
   'sidekick-move-end': CustomEvent<MoveResult>;
   'sidekick-move-progress': CustomEvent<MovementState>;
   'sidekick-play-end': CustomEvent<MotionResult>;

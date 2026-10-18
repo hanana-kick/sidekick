@@ -1,4 +1,6 @@
-import { createAccessory, createDesign, equipAccessory, migrateDesign, patchDesign, serializeDesign, ACCESSORY_PRESETS, ACCESSORY_SLOTS_BY_PRESET, ACCESSORY_LABELS } from '../src/core/design.js';
+import { STUDIO_SESSION_KEY, loadStudioSession, applyStudioSession, defaultStudioDesign } from './studio-session.js';
+export { defaultStudioDesign } from './studio-session.js';
+import { createAccessory, equipAccessory, migrateDesign, patchDesign, serializeDesign, ACCESSORY_PRESETS, ACCESSORY_SLOTS_BY_PRESET, ACCESSORY_LABELS } from '../src/core/design.js';
 import type { AccessoryPreset, AccessorySlot, Activity, AvatarDesign, DesignPatch } from '../src/core/design.js';
 import { createBodyOrientation } from '../src/core/body-orientation.js';
 import type { BodyOrientation, BodyOrientationPreset } from '../src/core/body-orientation.js';
@@ -18,7 +20,7 @@ export const ACCESSORY_NAMES = ACCESSORY_LABELS;
 export const SLOT_NAMES: Record<AccessorySlot, string> = { head: '머리', eyes: '눈', mouth: '입', neck: '목', leftEar: '왼쪽 귀', rightEar: '오른쪽 귀' };
 export const EQUIPMENT_GROUPS: readonly { slot: AccessorySlot; presets: readonly AccessoryPreset[] }[] = (Object.keys(SLOT_NAMES) as AccessorySlot[]).map(slot => ({ slot, presets: ACCESSORY_PRESETS.filter(preset => ACCESSORY_SLOTS_BY_PRESET[preset].includes(slot)) }));
 // Keep the previous Studio starting design. New equipment is always opt-in.
-export const defaultStudioDesign = (): AvatarDesign => createDesign({ body: { shape: 'square' }, accessories: [createAccessory('beret', 'hat')] });
+
 export interface StoragePort { getItem(key: string): string | null; setItem(key: string, value: string): void }
 export type AvatarPort = Pick<SidekickAvatar, 'design' | 'bodyOrientation' | 'zoom' | 'paused' | 'trackingMode' | 'resetTracking' | 'interaction' | 'updateDesign' | 'setShape' | 'setExpression' | 'setEyeWeights' | 'setBodyOrientation' | 'setBodyOrientationPreset' | 'setActivity' | 'lookAt' | 'seek' | 'motion' | 'snapshot' | 'addEventListener' | 'removeEventListener'>;
 export interface SavedRecovery { raw: string; key: string; error: string }
@@ -56,6 +58,7 @@ export class StudioController {
   private readonly initialized = new WeakSet<AvatarPort>();
   private avatar: AvatarPort | undefined;
   private importGeneration = 0;
+  private applyingSession = false;
   constructor(private readonly storage?: StoragePort) {
     let design = defaultStudioDesign(), recovery: SavedRecovery | undefined;
     let warnings: string[] = [], storageError = false;
@@ -67,6 +70,9 @@ export class StudioController {
         catch (error) { recovery = { raw, key, error: errorMessage(error) }; }
       }
     } catch { storageError = true; }
+    const saved = loadStudioSession(storage);
+    if (saved.invalid) recovery = saved.invalid;
+    if (saved.source === 'saved') { design = saved.scene.design; recovery = undefined; }
     this.state = {
       design, bodyOrientation: createBodyOrientation(), zoom: 1, duration: 450, easing: 'smooth', activity: 'idle', paused: false, trackingMode: 'eyes-and-body',
       movedFace: false, gaze: { x: 0, y: 0 }, time: 0, motion: {}, motionDuration: 400, motionEasing: 'smooth', interaction: 'box', background: 'checker', jsonDraft: recovery?.raw ?? serializeScene(createScene({ design, interaction: 'box' })),
@@ -74,6 +80,13 @@ export class StudioController {
       status: recovery ? '저장된 설정을 읽을 수 없습니다. JSON에서 오류를 수정하거나 초기화하세요. 원본은 보존됩니다.' : storageError ? '브라우저 저장소를 읽을 수 없습니다. JSON으로 내보내세요.' : '디자인 변경은 이 브라우저에 저장됩니다.',
       statusError: !!recovery || storageError,
     };
+    if (saved.source === 'saved') {
+      const scene = saved.scene;
+      this.state = { ...this.state, design: scene.design, bodyOrientation: scene.bodyOrientation, zoom: scene.zoom,
+        activity: scene.activity, paused: scene.paused, trackingMode: scene.trackingMode, interaction: scene.interaction,
+        gaze: scene.gaze, time: scene.time, motion: scene.motion, duration: scene.shapeDuration, easing: scene.shapeEasing,
+        motionDuration: scene.motionDuration, motionEasing: scene.motionEasing, movedFace: !!scene.motion.face?.uv.some(value => value !== 0), jsonDraft: serializeScene(scene) };
+    }
   }
   getSnapshot = (): StudioState => this.state;
   subscribe = (listener: () => void): (() => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
@@ -89,7 +102,8 @@ export class StudioController {
     avatar.addEventListener('sidekick-zoom-change', zoomChanged);
     avatar.addEventListener('sidekick-error', failed);
     if (!this.initialized.has(avatar)) {
-      avatar.design = this.state.design;
+      this.applyingSession = true;
+      try { this.watch(applyStudioSession(avatar, this.scene())); } finally { this.applyingSession = false; }
       this.initialized.add(avatar);
       if (!this.state.recovery) this.persist();
     }
@@ -109,6 +123,7 @@ export class StudioController {
       // Never overwrite the only copy of invalid data. The recovery write must succeed first.
       if (this.state.recovery) this.storage.setItem(`${this.state.recovery.key}.recovery`, this.state.recovery.raw);
       this.storage.setItem(STORAGE_KEY, serializeDesign(this.state.design));
+      this.storage.setItem(STUDIO_SESSION_KEY, serializeScene(this.scene()));
       if (this.state.recovery) this.update({ recoverySaved: true });
       this.report(message);
     } catch {
@@ -121,8 +136,10 @@ export class StudioController {
       shapeDuration: state.duration, shapeEasing: state.easing, motionDuration: state.motionDuration, motionEasing: state.motionEasing });
   }
   private runtime(patch: Partial<StudioState>): void {
+    if (this.applyingSession) return;
     const next = { ...this.state, ...patch };
     this.update({ ...patch, jsonDraft: this.state.recovery && !this.state.recoverySaved ? this.state.jsonDraft : serializeScene(this.scene(next)) });
+    if (!this.state.recovery || this.state.recoverySaved) this.persist();
   }
   private commit(design: AvatarDesign, message?: string): void {
     const motion = { ...this.state.motion };

@@ -1,168 +1,44 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <title>Sidekick · API playground</title>
-  <link rel="stylesheet" href="./playground/shared-header.css">
-  <style>
-    .app-header { position: fixed; z-index: 30; inset: 0 0 auto; height: 70px; }
-    @media (max-width: 760px) { .app-header { height: 66px; } }
-    :root { color-scheme: light; --ink: #24242c; --muted: #62636b; --line: #e1e2e7; --paper: #fff; --accent: #f3c849; --preview-top: 94px; --preview-height: 344px; }
-    * { box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; }
-    body { margin: 0; background: #f7f7f9; color: var(--ink); font: 14px/1.55 system-ui, sans-serif; }
-    button, input, select { font: inherit; }
-    button, select, input[type="number"] { min-height: 42px; border: 1px solid var(--line); border-radius: 9px; background: white; color: var(--ink); }
-    button { padding: 9px 13px; cursor: pointer; font-weight: 550; }
-    button:hover { background: #f4f4f6; }
-    button.primary { background: var(--ink); border-color: var(--ink); color: white; }
-    button.primary:hover { background: #44444c; }
-    :focus-visible { outline: 3px solid #9c7616; outline-offset: 3px; }
-    a { color: inherit; }
-    .playground-layout { padding: 94px 24px 40px; }
-    .controls-panel { position: fixed; inset: 94px auto 24px 24px; width: 380px; max-width: 100%; overflow: auto; overscroll-behavior-y: contain; scrollbar-width: thin; scrollbar-gutter: stable; padding-right: 8px; }
-    h1 { margin: 0; font-size: 25px; letter-spacing: -.7px; }
-    h2 { margin: 0; font-size: 15px; }
-    p { margin: 8px 0 0; }
-    .intro { margin-bottom: 22px; }
-    .muted, .help { color: var(--muted); }
-    .help { font-size: 12px; }
-    .card { padding: 20px; margin-top: 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 15px; }
-    .card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 15px; }
-    .step { color: var(--muted); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
-    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .field { min-width: 0; display: grid; gap: 5px; margin-bottom: 12px; }
-    .field > span { font-size: 12px; font-weight: 550; }
-    .field input, .field select { width: 100%; min-width: 0; padding: 8px 10px; }
-    [hidden] { display: none !important; }
-    .motion-readings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 12px; }
-    .motion-readings .caption, .motion-readings .vector { display: block; color: var(--muted); }
-    .motion-readings .magnitude { display: block; margin: 3px 0; font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; }
-    .motion-readings .vector { font-size: 11px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-    #motion-graph { width: 100%; height: auto; display: block; margin-top: 14px; overflow: visible; }
-    #motion-graph text { font: 9px system-ui, sans-serif; fill: var(--muted); }
-    #motion-graph .grid { fill: none; stroke: var(--line); stroke-width: 1; }
-    #motion-graph polyline { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    #speed-plot { stroke: #a16a08; }
-    #acceleration-plot { stroke: #386dba; stroke-dasharray: 5 3; }
-    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
-    .actions > button { flex: 1; white-space: nowrap; }
-    .directions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin: 12px 0; }
-    .directions button { padding-inline: 4px; }
-    .check { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; font-size: 13px; }
-    .check input { margin: 4px 0 0; }
-    .preview-panel { position: fixed; inset: 94px 24px 24px 428px; display: flex; flex-direction: column; min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
-    .preview-heading { flex: none; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; padding: 17px 20px; border-bottom: 1px solid var(--line); }
-    .preview-heading p { margin: 0; font-size: 12px; color: var(--muted); }
-    #movement-stage { position: relative; flex: 1; min-height: 180px; cursor: crosshair; touch-action: pan-y; background-color: #fafafc; background-image: radial-gradient(#dcdde3 1px, transparent 1px); background-size: 20px 20px; }
-    #movement-stage:focus-visible { outline-offset: -4px; }
-    #target-marker { position: absolute; width: 20px; height: 20px; transform: translate(-50%, -50%); border: 1px solid #b99535; border-radius: 50%; pointer-events: none; }
-    #target-marker::before, #target-marker::after { content: ''; position: absolute; background: #b99535; }
-    #target-marker::before { width: 1px; height: 28px; left: 9px; top: -5px; }
-    #target-marker::after { height: 1px; width: 28px; top: 9px; left: -5px; }
-    .telemetry { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; padding: 14px 20px; border-top: 1px solid var(--line); font-size: 12px; }
-    .telemetry label, .telemetry .caption { display: block; color: var(--muted); margin-bottom: 3px; }
-    .telemetry output { font-variant-numeric: tabular-nums; }
-    .phase-line { display: flex; gap: 6px; align-items: center; }
-    #cancel-preview { min-height: 24px; flex: none; padding: 3px 6px; font-size: 11px; line-height: 1.2; }
-    #phase { display: inline-block; font-weight: 650; }
-    .progress-line { display: flex; align-items: center; gap: 8px; }
-    progress { width: 100%; min-width: 0; height: 6px; accent-color: #a7821c; }
-    #progress-value { width: 36px; flex: none; text-align: right; }
-    #bot { width: 180px; height: 180px; z-index: 20; }
-    pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace; }
-    #invocation { padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: #f8f8fa; }
-    #copy { min-height: 34px; padding: 5px 10px; font-size: 12px; }
-    #copy-status { min-height: 19px; margin-top: 7px; }
-    #result-log { padding: 0; margin: 0; list-style: none; max-height: 360px; overflow: auto; }
-    #result-log li { border-top: 1px solid var(--line); padding: 11px 0; }
-    #result-log li:first-child { border-top: 0; padding-top: 0; }
-    #result-log .entry-title { display: block; margin-bottom: 3px; font-size: 12px; font-weight: 650; }
-    #result-log pre { color: var(--muted); font-size: 11px; }
-    #status { margin-top: 8px; font-size: 12px; color: var(--muted); }
-    details > summary { cursor: pointer; font-weight: 600; }
-    @media (max-width: 760px) {
-      .playground-layout { padding: calc(var(--preview-top) + var(--preview-height) + 18px) 14px 28px; }
-      .controls-panel { inset: calc(var(--preview-top) + var(--preview-height) + 18px) 14px 14px; width: auto; padding-right: 4px; }
-      :root { --preview-top: 80px; --preview-height: 344px; }
-      .preview-panel { inset: var(--preview-top) 14px auto; height: var(--preview-height); z-index: 10; box-shadow: 0 12px 24px #24242c0a; }
-      .preview-heading { padding: 10px 14px; }
-      .preview-heading h2 { font-size: 13px; }
-      .preview-heading p { font-size: 11px; }
-      .telemetry { padding: 9px 14px; gap: 7px 12px; font-size: 11px; }
-      .telemetry .caption, .telemetry label { margin-bottom: 1px; }
-      .card { padding: 17px; }
-      h1 { font-size: 23px; }
-    }
-    @media (max-width: 760px) and (max-height: 740px) { :root { --preview-height: 312px; } .preview-heading p { display: none; } }
-    @media (max-height: 500px) and (min-width: 521px) {
-      .controls-panel { inset: 82px auto 14px 14px; width: 44%; }
-      .playground-layout { padding: 82px 14px 28px; }
-      .preview-panel { inset: 72px 14px 8px 49%; height: auto; }
-      .preview-heading { display: none; }
-      .telemetry { padding: 5px 12px; gap: 5px 12px; }
-      .telemetry .caption, .telemetry label { display: none; }
-    }
-    @media (max-width: 520px) and (max-height: 560px) {
-      :root { --preview-height: 250px; }
-      .preview-heading { display: none; }
-      .telemetry { padding: 5px 12px; gap: 5px 12px; }
-      .telemetry .caption, .telemetry label { display: none; }
-    }
-  </style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="./favicon.svg"><title>Sidekick · API playground</title>
+<link rel="stylesheet" href="./playground/shared-header.css">
+<style>
+:root{color-scheme:light;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--paper:#fff}*{box-sizing:border-box}body{margin:0;background:#f8fafc;color:var(--ink);font:14px/1.6 system-ui,sans-serif}button,input,select{font:inherit;color:inherit}button,select,input{min-height:42px;border:1px solid var(--line);border-radius:8px;background:white;padding:8px 12px;max-width:100%}button,select,summary{cursor:pointer}button:hover{background:#f1f5f9}button.primary{background:#0f172a;color:white;border-color:#0f172a}input[type=checkbox]{min-height:0;padding:0}a{color:inherit}:focus-visible{outline:3px solid #ca8a04;outline-offset:3px}[hidden]{display:none!important}.workspace{max-width:1180px;margin:auto;padding:38px 24px 160px}.intro{max-width:740px;margin-bottom:28px}.eyebrow{font-size:12px;color:#a16207;font-weight:650}h1{font-size:30px;letter-spacing:-1px;margin:6px 0}h2{font-size:17px;margin:0}p{margin:8px 0}.muted,.help{color:var(--muted)}.help{font-size:12px}.workspace-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:20px;align-items:start}.card{background:white;border:1px solid var(--line);border-radius:14px;padding:22px;min-width:0}.card+.card{margin-top:18px}.card-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.field{display:grid;gap:5px;margin:14px 0;min-width:0}.field>span{font-size:12px;font-weight:600}.field input,.field select{width:100%;min-width:0}.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.fields .field{margin:10px 0}.check{display:flex;align-items:center;gap:9px;margin:12px 0}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}.actions button{flex:1}.code-card{position:sticky;top:92px}.code-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.code-heading select{min-height:36px;padding:5px 8px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;margin:0}#invocation{margin-top:16px;padding:18px;border-radius:9px;background:#f1f5f9;min-height:120px}#copy-status{min-height:20px}#status{overflow-wrap:anywhere}details{margin-top:16px}summary{font-weight:600}.secondary{margin-top:28px;max-width:740px}.secondary details{background:white;border:1px solid var(--line);border-radius:12px;padding:16px}.motion-readings{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px}.motion-readings span,.motion-readings output{display:block}.magnitude{font-size:18px;font-weight:600}#motion-graph{display:block;width:100%;height:140px}#motion-graph text{font:9px system-ui;fill:#64748b}.grid{fill:none;stroke:#e2e8f0}polyline{fill:none;stroke-width:2}#speed-plot{stroke:#a16207}#acceleration-plot{stroke:#2563eb}#result-log{list-style:none;padding:0;max-height:240px;overflow:auto}#result-log li{padding:10px 0;border-top:1px solid var(--line)}#result-log pre{font-size:11px}#bot{width:180px;height:180px;z-index:25;pointer-events:none!important}.flight-toolbar{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:12px;padding:9px 14px;background:#ffffffed;border:1px solid var(--line);box-shadow:0 8px 30px #0f172a12;border-radius:12px;max-width:calc(100% - 24px);font-size:12px}.flight-toolbar output{white-space:nowrap}.flight-toolbar button{white-space:nowrap;min-height:36px;padding:6px 10px}#free-space{min-height:180px;display:grid;place-items:center;border:1px dashed #cbd5e1;border-radius:14px;margin-top:24px;color:#64748b;text-align:center;padding:24px}#free-space p{pointer-events:none}.step{font-size:11px;color:#64748b}#progress{max-width:100%}#install-code{margin-top:12px;background:#f1f5f9;padding:12px;border-radius:8px}#motion-preference{margin-top:10px}.direction-help{background:#f8fafc;padding:10px;border-radius:8px}
+@media(max-width:760px){.workspace{padding:24px 14px 140px}.workspace-grid{grid-template-columns:1fr;gap:16px}.code-card{position:static}.card{padding:18px}h1{font-size:25px}.intro{margin-bottom:20px}.flight-toolbar{gap:7px;padding:7px 9px}.flight-toolbar .toolbar-caption{display:none}.flight-toolbar output{font-size:10px}#free-space{min-height:200px}}
+</style>
 </head>
 <body>
-  <header class="app-header"><div class="site-header-brand" id="site-header-brand"></div></header>
-  <main class="playground-layout">
-    <section class="controls-panel" aria-labelledby="page-title">
-      <div class="intro"><div class="step">Movement · Activity · Assets</div><h1 id="page-title">움직임을 직접 만들어 보세요.</h1><p class="muted">미리보기를 클릭하거나 탭하면 가속해서 날아가고, 도착 전에 감속합니다. 새 목적지를 고르면 현재 속도를 이어받아 방향을 바꿔요.</p></div>
-      <section class="card" aria-labelledby="movement-heading">
-        <div class="card-heading"><h2 id="movement-heading">이동</h2><span class="step">moveTo / moveBy</span></div>
-        <label class="field"><span>호출할 메서드</span><select id="move-method"><option value="moveTo">moveTo · 절대 좌표로</option><option value="moveBy">moveBy · 현재 위치에서</option></select></label>
-        <div class="fields"><label class="field"><span id="x-label">X · viewport px</span><input id="target-x" type="number" step="any" value="0" aria-labelledby="x-label"></label><label class="field"><span id="y-label">Y · viewport px</span><input id="target-y" type="number" step="any" value="0" aria-labelledby="y-label"></label></div>
-        <label class="field"><span>Travel · 이동 방식</span><select id="travel"><option value="natural">natural · 가속 → 비행 → 감속</option><option value="none">none · 시간 기반 보간</option></select></label>
-        <div id="physical-options">
-          <label class="check"><input id="auto-speed" type="checkbox" checked><span>기본 최고 속도 · 1350 CSS px/s</span></label>
-          <label class="field"><span>최고 속도 · CSS px/s</span><input id="max-speed" type="number" min="1" max="100000" step="any" value="1350" disabled aria-describedby="timing-help"></label>
-          <div class="fields"><label class="field"><span>가속도 · CSS px/s²</span><input id="acceleration" type="number" min="1" max="100000" step="any" value="1800"></label><label class="field"><span>감속도 · CSS px/s²</span><input id="deceleration" type="number" min="1" max="100000" step="any" value="2200"></label></div>
-        </div>
-        <div class="fields"><label class="field"><span id="duration-label">즉시 이동: 0 · 비행: 양수</span><input id="duration" type="number" min="0" max="10000" step="50" value="1200" aria-describedby="timing-help"></label><label class="field"><span>Easing · none 전용</span><select id="easing" aria-describedby="timing-help"><option value="smooth">smooth · 부드럽게</option><option value="linear">linear · 일정하게</option></select></label></div>
-        <p class="help" id="timing-help">거리와 관계없이 고정 최고 속도를 향해 가속하다가 제동 거리에 들어가면 감속합니다. 양수 duration은 속도나 도착 시간에 영향을 주지 않습니다.</p>
-        <div class="actions" style="margin-top:12px"><button class="primary" id="move">이동 실행</button><button id="cancel">감속해서 멈추기</button></div>
-        <div class="directions" aria-label="방향별 이동"><button data-dx="-120" data-dy="0" aria-label="왼쪽으로 120픽셀 이동">← 왼쪽</button><button data-dx="0" data-dy="-120" aria-label="위로 120픽셀 이동">↑ 위</button><button data-dx="0" data-dy="120" aria-label="아래로 120픽셀 이동">↓ 아래</button><button data-dx="120" data-dy="0" aria-label="오른쪽으로 120픽셀 이동">→ 오른쪽</button></div>
-        <p class="help">좌표는 캐릭터 박스의 왼쪽 위 기준입니다. 이 체험에서는 목적지만 미리보기 안으로 제한합니다. 관성 경로와 제동 위치는 미리보기 밖으로 나갈 수 있으며 화면 경계에서 멈춥니다. 자연 비행의 중지는 현재 진행 방향으로 감속한 뒤 자세를 정리합니다. 낮은 감속도에서는 더 멀리 이동할 수 있습니다.</p>
-      </section>
-      <section class="card" aria-labelledby="physics-heading">
-        <div class="card-heading"><h2 id="physics-heading">실제 이동 측정</h2><span class="step">movementState</span></div>
-        <div class="motion-readings">
-          <div><span class="caption">속력 · |velocity|</span><output class="magnitude" id="speed" aria-live="off">0 px/s</output><output class="vector" id="velocity" aria-live="off" aria-label="속도 벡터 · CSS px/s">x 0 · y 0</output></div>
-          <div><span class="caption">가속도 · |acceleration|</span><output class="magnitude" id="acceleration-value" aria-live="off">0 px/s²</output><output class="vector" id="acceleration-vector" aria-live="off" aria-label="가속도 벡터 · CSS px/s²">x 0 · y 0</output></div>
-        </div>
-        <svg id="motion-graph" viewBox="0 0 316 140" role="img" aria-labelledby="motion-graph-title motion-graph-desc">
-          <title id="motion-graph-title">마지막 측정까지 6초의 실제 속력과 가속도</title><desc id="motion-graph-desc">위 실선은 속력, 아래 점선은 가속도의 크기입니다. 각 그래프는 0부터 표시된 최댓값까지 독립적으로 표시합니다. 현재 숫자는 그래프 위에 있습니다.</desc>
-          <path class="grid" d="M8 12H308M8 52H308M8 78H308M8 118H308" />
-          <text x="8" y="9">속력 · px/s</text><text id="speed-scale" x="308" y="9" text-anchor="end">320</text><text x="8" y="64">0</text>
-          <polyline id="speed-plot" points="8,52 308,52" />
-          <text x="8" y="75">가속도 · px/s²</text><text id="acceleration-scale" x="308" y="75" text-anchor="end">1200</text><text x="8" y="130">0 · 6초 전</text><text x="308" y="130" text-anchor="end">마지막 측정</text>
-          <polyline id="acceleration-plot" points="8,118 308,118" />
-        </svg>
-        <p class="help">장식적인 기울기가 아닌 DOM 이동의 속도·가속도입니다. 오른쪽·아래 방향이 양수입니다. 새 목적지와 중지 버튼을 번갈아 눌러 관성·제동을 비교하세요.</p>
-      </section>
-      <section class="card" aria-labelledby="invocation-heading"><div class="card-heading"><h2 id="invocation-heading">실행 코드</h2><button id="copy">코드 복사</button></div><pre id="invocation" tabindex="0"></pre><p id="copy-status" class="help" role="status"></p><p class="help">등록된 &lt;sidekick-avatar id="bot"&gt;에 호출하세요. 컨트롤을 바꾸면 다음 호출, 실행 후에는 실제 호출한 코드가 표시됩니다.</p></section>
-      <section class="card" aria-labelledby="activity-heading"><div class="card-heading"><h2 id="activity-heading">활동</h2><span class="step">play / stop</span></div><label class="field"><span>Activity</span><select id="activity"><option value="celebrating">celebrating · 축하</option><option value="speaking">speaking · 말하기</option><option value="thinking">thinking · 생각하기</option><option value="listening">listening · 듣기</option></select></label><label class="field"><span>재생 구간 · ms (0 = 계속 반복)</span><input id="activity-duration" type="number" min="0" max="60000" step="100" value="0"></label><div class="actions"><button id="play">활동 재생</button><button id="stop">활동 중지</button></div><p class="help">활동을 재생한 뒤 미리보기를 눌러 보세요. 활동·표정은 비행과 동시에 이어집니다. 이동 중지는 활동을 유지하고, stop()은 활동만 중지합니다. 0은 이 체험의 반복 재생 옵션이며 API에는 duration을 생략합니다.</p></section>
-      <section class="card" aria-labelledby="assets-heading"><div class="card-heading"><h2 id="assets-heading">외형 전환</h2><span class="step">transitionTo</span></div><div class="actions"><button id="transition">도형·표정·장식 전환</button><button id="cancel-transition">전환 중지</button></div></section>
-      <section class="card" aria-labelledby="options-heading"><h2 id="options-heading">미리보기 옵션</h2><label class="check"><input id="interactive" type="checkbox">캐릭터 박스에서 드래그 / 줌 허용</label><label class="check"><input id="reduce" type="checkbox">일시 정지 · 이동 / 외형 전환 즉시 적용</label><p class="help" id="motion-preference"></p><p class="help">미리보기는 스크롤해도 고정됩니다. 키보드로 미리보기에 포커스한 뒤 방향키로 이동하거나 Home으로 중앙에 놓을 수 있습니다.</p></section>
-      <section class="card" aria-labelledby="results-heading"><div class="card-heading"><h2 id="results-heading">결과 · 이벤트</h2><button id="clear-log">비우기</button></div><ol id="result-log" aria-label="최근 API 결과" role="log" aria-live="polite" aria-relevant="additions"></ol><p id="status" role="status">초기화 중…</p></section>
-    </section>
-    <section class="preview-panel" aria-label="고정 캐릭터 미리보기">
-      <div class="preview-heading"><h2>Live preview</h2><p id="stage-help">클릭 / 탭해서 이동 · 방향키도 사용 가능</p></div>
-      <div id="movement-stage" tabindex="0" role="group" aria-label="이동 미리보기" aria-describedby="stage-help"><span id="target-marker" hidden aria-hidden="true"></span></div>
-      <div class="telemetry"><div><span class="caption">Movement phase</span><div class="phase-line"><output id="phase" aria-label="Movement phase" aria-live="polite">idle</output><button id="cancel-preview" type="button" aria-label="미리보기 이동 멈추기">이동 멈추기</button></div></div><div><span class="caption">Position · viewport px</span><output id="position" aria-live="off" aria-label="Position · viewport px">x 0 · y 0</output></div><div><label for="progress">Progress</label><div class="progress-line"><progress id="progress" max="1" value="0"></progress><output id="progress-value" aria-live="off">0%</output></div></div><div><span class="caption">Activity</span><output id="activity-state" aria-label="Activity">idle</output></div></div>
-    </section>
-  </main>
-  <sidekick-avatar id="bot" placement="viewport" body-color="#FFCC37" shape="ghostish" head-accessory="beret" eyes-accessory="glasses" aria-label="Sidekick 미리보기 캐릭터"></sidekick-avatar>
-  <script type="module" src="./playground/api-playground.js"></script>
-</body>
-</html>
+<header class="app-header"><div class="site-header-brand" id="site-header-brand"></div></header>
+<main class="workspace">
+<div class="intro"><div class="eyebrow">API PLAYGROUND</div><h1>무엇을 하게 할까요?</h1><p class="muted">할 일과 값을 정하면, 그대로 실행할 수 있는 코드가 만들어집니다. 봇은 이 페이지 전체를 돌아다닙니다. 빈 곳을 클릭하거나 탭해서 목적지를 정해 보세요.</p></div>
+<p id="studio-session-status" class="help" role="status"></p>
+<div class="workspace-grid">
+<section class="card" id="action-panel" aria-labelledby="action-heading">
+<div class="card-heading"><h2 id="action-heading">1. 할 일 설정</h2><span class="step">CONFIGURE</span></div>
+<label class="field"><span>할 일</span><select id="action-kind"><option value="movement">좌표로 이동</option><option value="activity">활동 / 상태 변경</option><option value="expression">눈 표정 변경</option><option value="tracking">마우스 추적 설정</option><option value="orientation">몸이 바라보는 방향</option><option value="assets">몸체 / 액세서리 전환</option><option value="presence">입장 / 퇴장</option></select></label>
+<div data-action="movement">
+<label class="field"><span>이동 기준</span><select id="move-method"><option value="moveTo">moveTo · 절대 좌표</option><option value="moveBy">moveBy · 상대 거리</option></select></label>
+<div class="fields"><label class="field"><span id="x-label">X · viewport px</span><input id="target-x" type="number" step="any" value="0"></label><label class="field"><span id="y-label">Y · viewport px</span><input id="target-y" type="number" step="any" value="0"></label></div>
+<p class="help">화면 왼쪽 위가 (0, 0)이며 봇 박스의 왼쪽 위를 지정합니다. 스크롤 위치와 무관한 viewport 좌표입니다. 빈 곳을 탭하면 봇의 중심이 그곳으로 이동합니다.</p>
+<label class="field"><span>이동 방식</span><select id="travel"><option value="natural">natural · 관성을 가진 비행</option><option value="none">none · 시간 기반 이동</option></select></label>
+<details><summary>속도와 시간 설정</summary><div id="physical-options"><label class="check"><input id="auto-speed" type="checkbox" checked>기본 최고 속도 · 1350 CSS px/s</label><label class="field"><span>최고 속도 · CSS px/s</span><input id="max-speed" type="number" min="1" max="100000" step="any" value="1350" disabled></label><div class="fields"><label class="field"><span>가속도 · px/s²</span><input id="acceleration" type="number" min="1" max="100000" step="any" value="1800"></label><label class="field"><span>감속도 · px/s²</span><input id="deceleration" type="number" min="1" max="100000" step="any" value="2200"></label></div></div><div class="fields"><label class="field"><span id="duration-label">0 = 즉시, 양수 = 자연 비행</span><input id="duration" type="number" min="0" max="10000" step="50" value="1200"></label><label class="field"><span>Easing · none 전용</span><select id="easing"><option value="smooth">smooth</option><option value="linear">linear</option></select></label></div><p class="help" id="timing-help"></p></details>
+</div>
+<div data-action="activity" hidden><label class="field"><span>실행 방법</span><select id="activity-operation"><option value="play">play · 활동 재생</option><option value="setActivity">setActivity · 상태 변경</option><option value="stop">stop · 활동 중지</option></select></label><label class="field"><span>상태</span><select id="activity"><option>celebrating</option><option>speaking</option><option>thinking</option><option>listening</option><option>idle</option><option>still</option></select></label><label class="field"><span>재생 구간 · ms (0 = 계속 반복)</span><input id="activity-duration" type="number" min="0" max="60000" step="100" value="0"></label><p class="help">상태는 이동 중에도 유지됩니다. 활동 중지와 이동 중지는 별개입니다. 반복 재생은 API의 duration을 생략합니다.</p></div>
+<div data-action="expression" hidden><div class="fields"><label class="field"><span>눈</span><select id="eye-side"><option value="both">양쪽</option><option value="left">왼쪽</option><option value="right">오른쪽</option></select></label><label class="field"><span>표정</span><select id="expression"><option value="smile">웃는 눈</option><option value="neutral">기본 눈</option><option value="blink">감은 눈</option></select></label></div><label class="field"><span>전환 시간 · ms</span><input id="expression-duration" type="number" min="0" max="10000" value="400"></label></div>
+<div data-action="tracking" hidden><label class="field"><span>마우스 추적</span><select id="tracking-mode"><option value="eyes-and-body">몸 + 눈</option><option value="eyes">눈만</option><option value="off">끄기</option></select></label><p class="help">페이지 전체에서 마우스 위치를 추적합니다. 터치 기기에서는 외부 마우스 연결 시 확인할 수 있습니다.</p></div>
+<div data-action="orientation" hidden><div class="fields"><label class="field"><span>Yaw · 좌우 방향 (°)</span><input id="body-yaw" type="number" min="-360" max="360" step="any" value="45"></label><label class="field"><span>Pitch · 상하 방향 (°)</span><input id="body-pitch" type="number" min="-90" max="90" step="any" value="0"></label><label class="field"><span>Roll · 몸 기울기 (°)</span><input id="body-roll" type="number" min="-180" max="180" step="any" value="0"></label><label class="field"><span>Zoom · 표시 배율</span><input id="zoom" type="number" min="0.5" max="3" step="0.1" value="1"></label></div><p class="help direction-help">양수 yaw는 화면 오른쪽, 양수 pitch는 몸의 윗부분을 보는 쪽으로, 양수 roll은 반시계 방향입니다. 추적과 활동 자세가 추가로 합성됩니다. 고정 방향만 보려면 마우스 추적을 끄고 상태를 still로 설정하세요.</p></div>
+<div data-action="assets" hidden><label class="field"><span>몸체</span><select id="shape"></select></label><div class="fields"><label class="field"><span>머리</span><select id="head-accessory"><option value="">없음</option><option>beret</option><option>halo</option><option>crown</option></select></label><label class="field"><span>눈</span><select id="eyes-accessory"><option value="">없음</option><option>glasses</option><option>sunglasses</option></select></label><label class="field"><span>목</span><select id="neck-accessory"><option value="">없음</option><option>bowTie</option><option>scarf</option><option>necklace</option></select></label><label class="field"><span>전환 시간 · ms</span><input id="transition-duration" type="number" min="0" max="10000" value="700"></label></div><p class="help">선택한 액세서리 목록으로 교체합니다. 비어 있는 부위의 기존 장식은 제거됩니다.</p><button id="cancel-transition" type="button">외형 전환 중지</button></div>
+<div data-action="presence" hidden><label class="field"><span>입장 / 퇴장</span><select id="presence-operation"><option value="enter">enter · 화면 밖에서 입장</option><option value="exit">exit · 화면 밖으로 퇴장</option></select></label><label class="field"><span>화면 가장자리</span><select id="presence-edge"><option value="left">왼쪽</option><option value="right">오른쪽</option><option value="top">위</option><option value="bottom">아래</option></select></label><div class="fields" id="entrance-coordinates"><label class="field"><span>도착 X · viewport px</span><input id="entrance-x" type="number" step="any" value="100"></label><label class="field"><span>도착 Y · viewport px</span><input id="entrance-y" type="number" step="any" value="200"></label></div><p class="help">관성을 가진 비행으로 화면의 경계를 통과합니다. 퇴장이 끝난 봇은 다시 입장할 수 있습니다.</p></div>
+<div class="actions"><button class="primary" id="execute">설정대로 실행</button><button id="cancel">이동 멈추기</button></div><p class="help" id="status" role="status">초기화 중…</p>
+</section>
+<section class="card code-card" aria-labelledby="invocation-heading"><div class="code-heading"><h2 id="invocation-heading">2. 이 코드로 사용하세요</h2><select id="code-format" aria-label="코드 형식"><option value="javascript">HTML + JavaScript</option><option value="react">React</option></select></div><p class="help">현재 선택한 할 일과 입력값입니다. 값을 바꾸면 실행하기 전에도 코드가 갱신됩니다.</p><pre id="invocation" tabindex="0"></pre><div class="actions"><button id="copy">코드 복사</button></div><p id="copy-status" class="help" role="status"></p><details id="install-guide"><summary>처음 사용하나요? 설치 / 요소 준비</summary><p class="help">아래 준비 코드를 한 번 적용한 뒤 위 호출 코드를 사용하세요. React 코드는 설치된 패키지를 사용하는 완성된 컴포넌트입니다.</p><pre id="install-code"></pre><p class="help"><a href="https://github.com/hanana-kick/sidekick#readme" target="_blank" rel="noreferrer">ESM / 일반 script / React CDN 전체 가이드 ↗</a></p></details></section>
+</div>
+<div id="free-space" aria-label="클릭 또는 탭으로 자유롭게 이동"><p>여기뿐 아니라 페이지의 빈 곳 어디든<br>클릭하거나 탭해 보세요.</p></div>
+<section class="secondary" aria-label="상세 진단"><details id="diagnostics"><summary>실제 이동 측정 / 현재 상태</summary><p>위치 <output id="position"></output> · 활동 <output id="activity-state"></output></p><progress id="progress" max="1" value="0"></progress> <output id="progress-value">0%</output><div class="motion-readings"><div><span>속력</span><output class="magnitude" id="speed">0 px/s</output><output id="velocity"></output></div><div><span>가속도</span><output class="magnitude" id="acceleration-value">0 px/s²</output><output id="acceleration-vector"></output></div></div><svg id="motion-graph" viewBox="0 0 316 140" role="img" aria-label="최근 6초의 실제 속력과 가속도"><path class="grid" d="M8 12H308M8 52H308M8 78H308M8 118H308"/><text x="8" y="9">속력 · px/s</text><text id="speed-scale" x="308" y="9" text-anchor="end">320</text><polyline id="speed-plot"/><text x="8" y="75">가속도 · px/s²</text><text id="acceleration-scale" x="308" y="75" text-anchor="end">1200</text><polyline id="acceleration-plot"/></svg></details><details><summary>결과 / 이벤트 기록</summary><button id="clear-log">기록 비우기</button><ol id="result-log" aria-live="off"></ol></details><p class="help" id="motion-preference"></p></section>
+</main>
+<div class="flight-toolbar"><span class="toolbar-caption">PAGE COMPANION</span><output id="phase" aria-label="Movement phase">idle</output><button id="cancel-preview">이동 멈추기</button></div>
+<sidekick-avatar id="bot" placement="viewport" body-color="#FFCC37" shape="ghostish" head-accessory="beret" eyes-accessory="glasses" interaction="none" aria-label="Sidekick 페이지 캐릭터"></sidekick-avatar>
+<script type="module" src="./playground/api-playground.js"></script>
+</body></html>

@@ -1,3 +1,4 @@
+import type { EnterOptions, ExitOptions, PresenceResult, PresenceState } from './presence.js';
 import type { PlayOptions, AssetTransitionTarget } from './playback.js';
 import type { TravelPresentation } from '../core/travel.js';
 import type { AvatarPlacement, AvatarPosition, MovementBounds, MoveResult, MoveOptions, MovementState } from './movement.js';
@@ -33,6 +34,11 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private measureMovementBox;
     private travelPresentation?;
     private movement;
+    private presenceHidden;
+    private presence;
+    get presenceState(): PresenceState;
+    enter(position: AvatarPosition, options?: EnterOptions): Promise<PresenceResult>;
+    exit(options?: ExitOptions): Promise<PresenceResult>;
     get placement(): AvatarPlacement;
     set placement(value: AvatarPlacement);
     get movementBounds(): MovementBounds;

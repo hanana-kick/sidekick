@@ -1,218 +1,155 @@
 import { mountSiteHeader } from './shared-header.js';
-import { createAccessory } from '../src/index.ts';
+import { createAccessory, MATERIAL_SHAPE_LABELS } from '../src/index.ts';
+import { codeForAction, executeAction } from './playground-actions.js';
+import { loadStudioSession, applyStudioSession } from './studio-session.ts';
 
 const $ = id => document.getElementById(id);
 mountSiteHeader($('site-header-brand'), 'api');
-const bot = $('bot'), stage = $('movement-stage');
-const method = $('move-method'), xInput = $('target-x'), yInput = $('target-y');
-const durationInput = $('duration'), easingInput = $('easing'), travelInput = $('travel');
-const autoSpeed = $('auto-speed');
-const maxSpeedInput = $('max-speed'), accelerationInput = $('acceleration'), decelerationInput = $('deceleration');
-const invocation = $('invocation'), log = $('result-log');
-let alternate = false, initialized = false, gesture = null, resizeFrame = 0;
-let code = '';
+const bot = $('bot');
+let storage; try { storage = localStorage; } catch {}
+const studioSession = loadStudioSession(storage);
+$('studio-session-status').textContent = studioSession.message;
+let initialized = false, initializing = false, gesture = null, selectedAction = null, code = '', execution = 0;
 const samples = [];
 const number = value => Math.round(value * 100) / 100;
-const pointCode = point => `{ x: ${number(point.x)}, y: ${number(point.y)} }`;
-const setCode = value => { code = value; invocation.textContent = value; $('copy-status').textContent = ''; };
-const avatarCode = statement => `const avatar = document.querySelector('#bot');\n${statement}`;
-
-function stageBounds() {
-  const rect = stage.getBoundingClientRect();
-  // Keep the entire fixed-size canvas in the stage, including at narrow widths.
-  const minX = Math.max(0, rect.left), minY = Math.max(0, rect.top);
-  return { minX, minY, maxX: Math.max(minX, Math.min(innerWidth, rect.right) - bot.offsetWidth), maxY: Math.max(minY, Math.min(innerHeight, rect.bottom) - bot.offsetHeight) };
+const numeric = id => {
+  const input = $(id);
+  if (input.value === '' || !input.checkValidity()) throw new RangeError(`${input.closest('label')?.querySelector('span')?.textContent ?? id}: 유효한 범위의 숫자를 입력하세요.`);
+  return Number(input.value);
+};
+const viewportPoint = point => ({ x: number(Math.max(0, Math.min(Math.max(0, innerWidth - bot.offsetWidth), point.x))), y: number(Math.max(0, Math.min(Math.max(0, innerHeight - bot.offsetHeight), point.y))) });
+const center = () => viewportPoint({ x: (innerWidth - bot.offsetWidth) / 2, y: (innerHeight - bot.offsetHeight) / 2 });
+for (const [value, label] of Object.entries(MATERIAL_SHAPE_LABELS)) {
+  const option = document.createElement('option'); option.value = value; option.textContent = label; $('shape').append(option);
 }
-function constrain(point) {
-  const bounds = stageBounds();
-  return { x: number(Math.max(bounds.minX, Math.min(bounds.maxX, point.x))), y: number(Math.max(bounds.minY, Math.min(bounds.maxY, point.y))) };
+$('shape').value = 'heart'; $('head-accessory').value = 'beret'; $('eyes-accessory').value = 'glasses';
+function movementOptions() {
+  const duration = numeric('duration'), travel = $('travel').value;
+  if (travel === 'none') return { duration, easing: $('easing').value, travel };
+  return { duration, travel, ...($('auto-speed').checked ? {} : { maxSpeed: numeric('max-speed') }), acceleration: numeric('acceleration'), deceleration: numeric('deceleration') };
 }
-function center() {
-  const rect = stage.getBoundingClientRect();
-  return constrain({ x: rect.left + (rect.width - bot.offsetWidth) / 2, y: rect.top + (rect.height - bot.offsetHeight) / 2 });
-}
-function marker(point) {
-  const rect = stage.getBoundingClientRect(), target = $('target-marker');
-  target.hidden = false;
-  target.style.left = `${point.x + bot.offsetWidth / 2 - rect.left}px`;
-  target.style.top = `${point.y + bot.offsetHeight / 2 - rect.top}px`;
-}
-function readOptions() {
-  if (!durationInput.checkValidity() || durationInput.value === '') throw new RangeError('이동 시간은 0–10000ms로 입력하세요.');
-  const duration = Number(durationInput.value), travel = travelInput.value;
-  if (travel === 'none') return { duration, easing: easingInput.value, travel };
-  for (const input of [...(autoSpeed.checked ? [] : [maxSpeedInput]), accelerationInput, decelerationInput]) {
-    if (input.value === '' || !input.checkValidity()) throw new RangeError('최고 속도·가속도·감속도는 1–100000 사이 숫자로 입력하세요. 자동 속도에서는 최고 속도 입력을 사용하지 않습니다.');
+function readAction() {
+  switch ($('action-kind').value) {
+    case 'movement': return { method: $('move-method').value, args: [{ x: numeric('target-x'), y: numeric('target-y') }, movementOptions()] };
+    case 'activity': {
+      const method = $('activity-operation').value;
+      if (method === 'stop') return { method, args: [] };
+      if (method === 'setActivity') return { method, args: [$('activity').value] };
+      const duration = numeric('activity-duration');
+      return { method, args: [$('activity').value, ...(duration ? [{ duration }] : [])] };
+    }
+    case 'expression': return { method: 'setExpression', args: [$('eye-side').value, $('expression').value, { duration: numeric('expression-duration') }] };
+    case 'tracking': return { property: 'trackingMode', value: $('tracking-mode').value };
+    case 'orientation': return { steps: [{ method: 'setBodyOrientation', args: [{ yaw: numeric('body-yaw'), pitch: numeric('body-pitch'), roll: numeric('body-roll') }] }, { property: 'zoom', value: numeric('zoom') }] };
+    case 'assets': return { method: 'transitionTo', args: [{ shape: $('shape').value, accessories: ['head-accessory', 'eyes-accessory', 'neck-accessory'].map(id => $(id).value).filter(Boolean) }, { duration: numeric('transition-duration') }] };
+    case 'presence': return $('presence-operation').value === 'enter'
+      ? { method: 'enter', args: [{ x: numeric('entrance-x'), y: numeric('entrance-y') }, { from: $('presence-edge').value }] }
+      : { method: 'exit', args: [{ to: $('presence-edge').value }] };
+    default: throw new TypeError('할 일을 선택하세요.');
   }
-  return { duration, travel, ...(autoSpeed.checked ? {} : { maxSpeed: Number(maxSpeedInput.value) }), acceleration: Number(accelerationInput.value), deceleration: Number(decelerationInput.value) };
 }
-function optionsCode(options) { return `{ ${Object.entries(options).map(([key, value]) => `${key}: ${typeof value === 'string' ? `'${value}'` : value}`).join(', ')} }`; }
-function movementCommand() {
-  if (![xInput, yInput].every(input => input.value !== '' && input.checkValidity())) throw new RangeError('X와 Y에 유효한 숫자를 입력하세요.');
-  const input = { x: Number(xInput.value), y: Number(yInput.value) }, from = bot.position;
-  const target = constrain(method.value === 'moveBy' ? { x: from.x + input.x, y: from.y + input.y } : input);
-  const point = method.value === 'moveBy' ? { x: number(target.x - from.x), y: number(target.y - from.y) } : target;
-  const options = readOptions();
-  return { method: method.value, point, target, options, code: avatarCode(`const result = await avatar.${method.value}(${pointCode(point)}, ${optionsCode(options)});`) };
+function renderCode(action) {
+  selectedAction = action;
+  code = codeForAction(action, $('code-format').value, studioSession.scene);
+  $('invocation').textContent = code; $('copy-status').textContent = '';
 }
-function previewCommand() {
-  $('x-label').textContent = method.value === 'moveBy' ? 'ΔX · CSS px' : 'X · viewport px';
-  $('y-label').textContent = method.value === 'moveBy' ? 'ΔY · CSS px' : 'Y · viewport px';
-  const natural = travelInput.value === 'natural';
-  $('physical-options').hidden = !natural;
-  maxSpeedInput.disabled = !natural || autoSpeed.checked;
-  easingInput.disabled = natural;
-  $('cancel').textContent = natural ? '감속해서 멈추기' : '이동 중지';
-  $('duration-label').textContent = natural ? '즉시 이동: 0 · 비행: 양수' : '이동 시간 · ms';
-  $('timing-help').textContent = natural
-    ? autoSpeed.checked
-      ? '기본 최고 속도는 거리와 무관하게 1350 CSS px/s입니다. 최고 속도를 향해 가속하다가 제동 거리에서 감속합니다. 짧으면 최고 속도에 도달하지 않으며 먼 곳은 더 오래 걸립니다. 양수 duration은 무시하고 0ms는 즉시 이동입니다.'
-      : '입력한 최고 속도·가속도·감속도 한도를 사용합니다. 양수 duration은 무시하며 도착 시간은 거리와 관성으로 결정됩니다. 0ms는 즉시 이동입니다.'
-    : 'none은 정확한 시간과 Easing으로 위치를 보간합니다. 가속·감속 옵션과 비행 자세는 사용하지 않습니다.';
-  try { setCode(movementCommand().code); }
-  catch { setCode('// 유효한 좌표와 이동 옵션을 입력하면 호출 코드가 표시됩니다.'); }
+function refresh() {
+  const kind = $('action-kind').value;
+  for (const panel of document.querySelectorAll('[data-action]')) panel.hidden = panel.dataset.action !== kind;
+  const natural = $('travel').value === 'natural';
+  $('physical-options').hidden = !natural; $('max-speed').disabled = !natural || $('auto-speed').checked; $('easing').disabled = natural;
+  $('duration-label').textContent = natural ? '0 = 즉시, 양수 = 자연 비행' : '이동 시간 · ms';
+  $('timing-help').textContent = natural ? '거리에 무관한 최고 속도를 향해 가속하다 제동 거리에서 감속합니다. 짧은 이동은 최고 속도에 도달하지 않고, 먼 곳은 더 오래 걸립니다. 양수 duration은 무시합니다.' : '지정한 시간과 easing으로 이동합니다.';
+  $('x-label').textContent = $('move-method').value === 'moveBy' ? 'ΔX · CSS px' : 'X · viewport px';
+  $('y-label').textContent = $('move-method').value === 'moveBy' ? 'ΔY · CSS px' : 'Y · viewport px';
+  $('activity-duration').disabled = $('activity-operation').value !== 'play'; $('activity').disabled = $('activity-operation').value === 'stop';
+  $('entrance-coordinates').hidden = $('presence-operation').value === 'exit';
+  try { renderCode(readAction()); $('execute').disabled = !initialized; }
+  catch (error) { selectedAction = null; code = `// ${error.message}`; $('invocation').textContent = code; $('copy-status').textContent = ''; $('execute').disabled = true; }
 }
 function graph(movement, speed, acceleration) {
   const now = performance.now(), last = samples.at(-1);
-  // Sample actual public state at up to 30 Hz; retargets and braking retain history.
   if (last && now - last.time < 1000 / 30) samples[samples.length - 1] = { time: last.time, speed, acceleration };
   else samples.push({ time: now, speed, acceleration });
   while (samples.length > 240 || (samples.length > 1 && samples[1].time < now - 6000)) samples.shift();
   for (const [key, fallback, top] of [['speed', 320, 12], ['acceleration', 1200, 78]]) {
-    const maximum = Math.max(fallback, ...samples.map(sample => sample[key]));
-    const scale = Math.ceil(maximum / 100) * 100;
-    const points = samples.map(sample => `${number(Math.max(0, (sample.time - now + 6000) / 6000) * 300 + 8)},${number(top + 40 - sample[key] / scale * 40)}`).join(' ');
-    $(`${key}-plot`).setAttribute('points', points);
+    const scale = Math.ceil(Math.max(fallback, ...samples.map(sample => sample[key])) / 100) * 100;
+    $(`${key}-plot`).setAttribute('points', samples.map(sample => `${number(Math.max(0, (sample.time - now + 6000) / 6000) * 300 + 8)},${number(top + 40 - sample[key] / scale * 40)}`).join(' '));
     $(`${key}-scale`).textContent = `${scale}`;
   }
   $('motion-graph').dataset.phase = movement.phase;
 }
 function telemetry(detail = bot.movementState) {
-  const movement = detail ?? { phase: 'idle', progress: 0, position: bot.position };
-  const position = bot.position;
+  const movement = detail ?? { phase: 'idle', progress: 0 }, position = bot.position;
   const velocity = movement.velocity ?? { x: 0, y: 0 }, acceleration = movement.acceleration ?? { x: 0, y: 0 };
-  const speed = movement.speed ?? Math.hypot(velocity.x, velocity.y), accelerationMagnitude = Math.hypot(acceleration.x, acceleration.y);
-  if ($('phase').textContent !== movement.phase) $('phase').textContent = movement.phase;
-  const progress = Math.max(0, Math.min(1, movement.progress));
-  $('progress').value = progress;
-  $('progress-value').textContent = `${Math.round(progress * 100)}%`;
-  $('position').textContent = `x ${number(position.x)} · y ${number(position.y)}`;
-  $('activity-state').textContent = bot.activity;
-  $('speed').textContent = `${number(speed)} px/s`;
-  $('velocity').textContent = `x ${number(velocity.x)} · y ${number(velocity.y)}`;
-  $('acceleration-value').textContent = `${number(accelerationMagnitude)} px/s²`;
-  $('acceleration-vector').textContent = `x ${number(acceleration.x)} · y ${number(acceleration.y)}`;
-  graph(movement, speed, accelerationMagnitude);
+  const speed = movement.speed ?? Math.hypot(velocity.x, velocity.y), magnitude = Math.hypot(acceleration.x, acceleration.y);
+  $('phase').textContent = bot.presenceState === 'hidden' ? 'hidden' : movement.phase;
+  const progress = Math.max(0, Math.min(1, movement.progress)); $('progress').value = progress; $('progress-value').textContent = `${Math.round(progress * 100)}%`;
+  $('position').textContent = `x ${number(position.x)} · y ${number(position.y)}`; $('activity-state').textContent = bot.activity;
+  $('speed').textContent = `${number(speed)} px/s`; $('velocity').textContent = `x ${number(velocity.x)} · y ${number(velocity.y)}`;
+  $('acceleration-value').textContent = `${number(magnitude)} px/s²`; $('acceleration-vector').textContent = `x ${number(acceleration.x)} · y ${number(acceleration.y)}`;
+  graph(movement, speed, magnitude);
 }
 function report(kind, result) {
-  const entry = document.createElement('li'), title = document.createElement('span'), value = document.createElement('pre');
-  title.className = 'entry-title'; title.textContent = kind;
-  value.textContent = JSON.stringify(result, null, 2);
-  entry.append(title, value); log.prepend(entry);
-  while (log.children.length > 12) log.lastElementChild.remove();
-  $('status').textContent = kind === 'error' ? String(result) : `${kind} · ${result?.finished === false ? '중단됨' : result?.finished === true ? '완료' : '업데이트됨'}`;
-  telemetry();
+  const entry = document.createElement('li'), title = document.createElement('strong'), value = document.createElement('pre');
+  title.textContent = kind; value.textContent = JSON.stringify(result, null, 2); entry.append(title, value); $('result-log').prepend(entry);
+  while ($('result-log').children.length > 12) $('result-log').lastElementChild.remove();
 }
-async function run(kind, source, operation) {
-  setCode(source);
-  try { const result = await operation(); if (result !== undefined) report(`${kind} result`, result); telemetry(); }
-  catch (error) { report('error', error.message); }
-}
-function move() {
+async function run(action) {
+  const id = ++execution; renderCode(action);
+  $('status').textContent = '실행 중…';
   try {
-    const command = movementCommand();
-    // Show precisely the values passed to the API after stage bounds are applied.
-    xInput.value = String(command.point.x); yInput.value = String(command.point.y);
-    marker(command.target);
-    void run(command.method, command.code, () => bot[command.method](command.point, command.options));
-  } catch (error) { report('error', error.message); }
+    const promise = executeAction(bot, action, createAccessory); telemetry();
+    const result = await promise;
+    report(action.method ?? action.property ?? 'bodyOrientation / zoom', result ?? { applied: true });
+    if (id === execution) $('status').textContent = result?.finished === false ? '중단되었습니다.' : '적용되었습니다.';
+    telemetry();
+  } catch (error) { report('error', error.message); if (id === execution) $('status').textContent = error.message; }
 }
-function moveTo(point) { method.value = 'moveTo'; xInput.value = String(point.x); yInput.value = String(point.y); previewCommand(); move(); }
-function moveBy(point) { method.value = 'moveBy'; xInput.value = String(point.x); yInput.value = String(point.y); previewCommand(); move(); }
-for (const input of [method, xInput, yInput, durationInput, easingInput, travelInput, autoSpeed, maxSpeedInput, accelerationInput, decelerationInput]) input.addEventListener('input', previewCommand);
-$('move').onclick = move;
-for (const input of [xInput, yInput, durationInput, maxSpeedInput, accelerationInput, decelerationInput]) input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); move(); } });
-for (const button of document.querySelectorAll('[data-dx]')) button.onclick = () => moveBy({ x: Number(button.dataset.dx), y: Number(button.dataset.dy) });
-const cancelMove = () => void run('cancelMove', avatarCode('avatar.cancelMove();'), () => bot.cancelMove());
-$('cancel').onclick = cancelMove;
-$('cancel-preview').onclick = cancelMove;
-$('play').onclick = () => {
-  const activity = $('activity').value, input = $('activity-duration');
-  if (!input.checkValidity() || input.value === '') { report('error', '활동 재생 구간은 0–60000ms로 입력하세요.'); return; }
-  const duration = Number(input.value), options = duration ? { duration } : undefined;
-  const source = duration ? `const result = await avatar.play('${activity}', { duration: ${duration} });` : `const playback = avatar.play('${activity}');\n// 활동 재생 중에도 moveTo() / moveBy()를 호출할 수 있습니다.\n// avatar.stop()으로 활동만 중지합니다.`;
-  void run('play', avatarCode(source), () => { const result = bot.play(activity, options); telemetry(); return result; });
-};
-$('stop').onclick = () => void run('stop', avatarCode('avatar.stop();'), () => bot.stop());
-$('transition').onclick = () => {
-  alternate = !alternate;
-  const shape = alternate ? 'heart' : 'ghostish', expression = alternate ? 'smile' : 'neutral', accessory = alternate ? 'halo' : 'beret';
-  void run('transitionTo', `import { createAccessory } from '@hanana-kick/sidekick';\n\n${avatarCode(`const result = await avatar.transitionTo({\n  shape: '${shape}',\n  expression: '${expression}',\n  accessories: [createAccessory('${accessory}'), createAccessory('glasses')]\n}, { duration: 700 });`)}`, () => bot.transitionTo({ shape, expression, accessories: [createAccessory(accessory), createAccessory('glasses')] }, { duration: 700 }));
-};
-$('cancel-transition').onclick = () => void run('cancelTransition', avatarCode('avatar.cancelTransition();'), () => bot.cancelTransition());
-$('interactive').onchange = event => { bot.interaction = event.target.checked ? 'box' : 'none'; setCode(avatarCode(`avatar.interaction = '${bot.interaction}';`)); };
-$('reduce').onchange = event => { bot.paused = event.target.checked; setCode(avatarCode(`avatar.paused = ${bot.paused};`)); telemetry(); };
-$('clear-log').onclick = () => { log.replaceChildren(); $('status').textContent = '기록을 비웠습니다.'; };
+$('execute').onclick = () => { try { void run(readAction()); } catch (error) { $('status').textContent = error.message; } };
+const cancelMove = () => { $('action-kind').value = 'movement'; refresh(); void run({ method: 'cancelMove', args: [] }); };
+$('cancel').onclick = cancelMove; $('cancel-preview').onclick = cancelMove;
+$('cancel-transition').onclick = () => void run({ method: 'cancelTransition', args: [] });
+for (const input of document.querySelectorAll('#action-panel input, #action-panel select')) input.addEventListener('input', refresh);
+$('code-format').onchange = () => { if (selectedAction) renderCode(selectedAction); };
+$('clear-log').onclick = () => $('result-log').replaceChildren();
 $('copy').onclick = async () => {
-  try { await navigator.clipboard.writeText(code); $('copy-status').textContent = '코드를 복사했습니다.'; }
-  catch {
-    const range = document.createRange(); range.selectNodeContents(invocation);
-    const selection = window.getSelection(); selection?.removeAllRanges(); selection?.addRange(range);
-    $('copy-status').textContent = '선택된 코드를 직접 복사하세요.';
-  }
+  const copied = code;
+  try { await navigator.clipboard.writeText(copied); $('copy-status').textContent = copied === code ? '코드를 복사했습니다.' : '이전 코드를 복사했습니다. 변경된 코드를 다시 복사하세요.'; }
+  catch { const range = document.createRange(); range.selectNodeContents($('invocation')); const selection = getSelection(); selection?.removeAllRanges(); selection?.addRange(range); $('copy-status').textContent = '선택된 코드를 직접 복사하세요.'; }
 };
-
-// Pointer-up plus a movement/scroll threshold distinguishes a tap from a swipe.
-// Do not prevent default: touch scrolling and browser zoom stay available.
-stage.addEventListener('pointerdown', event => {
-  if (!event.isPrimary || event.button !== 0) { gesture = null; return; }
-  gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, scroll: window.scrollY, time: performance.now() };
+// Controls, links, selectable code and the header never become destination clicks.
+const excluded = target => target instanceof Element && Boolean(target.closest('button,input,select,textarea,label,a,summary,pre,[contenteditable],.card,.app-header,.flight-toolbar,details'));
+document.addEventListener('pointerdown', event => {
+  if (!initialized || !event.isPrimary || event.button !== 0 || excluded(event.target) || getSelection()?.toString()) { gesture = null; return; }
+  gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, scrollX, scrollY, time: performance.now() };
 });
-window.addEventListener('pointermove', event => {
-  if (gesture?.id === event.pointerId && Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 8) gesture = null;
-}, { passive: true });
+window.addEventListener('pointermove', event => { if (gesture?.id === event.pointerId && Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 8) gesture = null; }, { passive: true });
 window.addEventListener('pointercancel', () => { gesture = null; }, { passive: true });
+window.addEventListener('scroll', () => { gesture = null; }, { passive: true });
 window.addEventListener('pointerup', event => {
   const tap = gesture; gesture = null;
-  if (!tap || tap.id !== event.pointerId || performance.now() - tap.time > 600 || Math.abs(window.scrollY - tap.scroll) > 2 || Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 8) return;
-  const rect = stage.getBoundingClientRect();
-  if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
-  moveTo(constrain({ x: event.clientX - bot.offsetWidth / 2, y: event.clientY - bot.offsetHeight / 2 }));
+  if (!tap || tap.id !== event.pointerId || excluded(event.target) || getSelection()?.toString() || performance.now() - tap.time > 600 || scrollX !== tap.scrollX || scrollY !== tap.scrollY || Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 8) return;
+  const point = viewportPoint({ x: event.clientX - bot.offsetWidth / 2, y: event.clientY - bot.offsetHeight / 2 });
+  $('action-kind').value = 'movement'; $('move-method').value = 'moveTo'; $('target-x').value = String(point.x); $('target-y').value = String(point.y); refresh(); void run(readAction());
 }, { passive: true });
-stage.addEventListener('keydown', event => {
-  const offsets = { ArrowLeft: [-40, 0], ArrowRight: [40, 0], ArrowUp: [0, -40], ArrowDown: [0, 40] };
-  if (offsets[event.key]) { event.preventDefault(); const [x, y] = offsets[event.key]; moveBy({ x, y }); }
-  else if (event.key === 'Home') { event.preventDefault(); moveTo(center()); }
-});
-
 bot.addEventListener('sidekick-move-progress', event => telemetry(event.detail));
-for (const name of ['move-end', 'play-end', 'transition-end']) bot.addEventListener(`sidekick-${name}`, event => report(`sidekick-${name}`, event.detail));
-function initialize() {
-  if (initialized) return;
-  initialized = true;
-  const point = center();
-  void bot.moveTo(point, { duration: 0, travel: 'none' });
-  const firstTarget = constrain({ x: point.x + 120, y: point.y });
-  xInput.value = String(firstTarget.x); yInput.value = String(firstTarget.y);
-  previewCommand(); telemetry();
-  report('ready', { backend: bot.diagnostics.backend, canvas: { width: bot.offsetWidth, height: bot.offsetHeight } });
+for (const name of ['move-end', 'play-end', 'transition-end', 'enter-end', 'exit-end']) bot.addEventListener(`sidekick-${name}`, event => { report(`sidekick-${name}`, event.detail); telemetry(); });
+async function initialize() {
+  if (initialized || initializing) return; initializing = true;
+  await applyStudioSession(bot, studioSession.scene);
+  bot.interaction = 'none';
+  $('tracking-mode').value = studioSession.scene.trackingMode;
+  for (const axis of ['yaw', 'pitch', 'roll']) $(`body-${axis}`).value = String(studioSession.scene.bodyOrientation[axis]);
+  $('zoom').value = String(studioSession.scene.zoom);
+  const point = center(); void bot.moveTo(point, { duration: 0, travel: 'none' });
+  $('target-x').value = String(point.x); $('target-y').value = String(point.y); $('entrance-x').value = String(point.x); $('entrance-y').value = String(point.y);
+  initialized = true; initializing = false;
+  refresh(); telemetry(); $('status').textContent = '준비되었습니다. 값을 설정하고 실행해 보세요.';
 }
-bot.addEventListener('sidekick-ready', initialize);
-if (bot.ready) initialize();
-function resize() {
-  cancelAnimationFrame(resizeFrame);
-  resizeFrame = requestAnimationFrame(() => {
-    if (!initialized) return;
-    const current = bot.position, next = constrain(current);
-    // A resized stage invalidates an in-flight destination as well as its current point.
-    if (next.x !== current.x || next.y !== current.y || bot.movementState.phase !== 'idle') void bot.moveTo(next, { duration: 0, travel: 'none' });
-    $('target-marker').hidden = true;
-    telemetry();
-  });
-}
-new ResizeObserver(resize).observe(stage);
-window.addEventListener('resize', resize);
+bot.addEventListener('sidekick-ready', initialize); if (bot.ready) initialize();
+window.addEventListener('resize', () => { gesture = null; /* The avatar viewport bounds handle resize, without replacing the selected command. */ telemetry(); });
 const preference = matchMedia('(prefers-reduced-motion: reduce)');
-function showPreference() { $('motion-preference').textContent = preference.matches ? '운영체제: 모션 줄이기 켜짐. 이동은 즉시 적용됩니다.' : '운영체제의 모션 줄이기 설정을 존중합니다.'; }
-preference.addEventListener('change', showPreference);
-showPreference();
+function showPreference() { $('motion-preference').textContent = preference.matches ? '운영체제의 모션 줄이기 설정이 켜져 있어 이동이 즉시 적용됩니다.' : '운영체제의 모션 줄이기 설정을 존중합니다.'; }
+preference.addEventListener('change', showPreference); showPreference(); refresh();
+$('install-code').textContent = `npm install github:hanana-kick/sidekick#v0.6.0\n\n<!-- HTML: Studio에서 설정한 봇으로 시작 -->\n<sidekick-avatar id="bot" placement="viewport"\n  style="width:180px;height:180px;pointer-events:none">\n</sidekick-avatar>\n<script type="module">\n  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.6.0/dist/browser/sidekick.js';\n  const scene = ${JSON.stringify(studioSession.scene, null, 2)};\n  const bot = document.querySelector('#bot');\n  bot.design = scene.design;\n  bot.setActivity(scene.activity);\n  bot.bodyOrientation = scene.bodyOrientation;\n  bot.zoom = scene.zoom;\n  bot.trackingMode = scene.trackingMode;\n  bot.paused = scene.paused;\n  bot.lookAt({ space: 'view', ...scene.gaze });\n  bot.seek(scene.time);\n  await bot.motion.to(scene.motion, { duration: 0 });\n  // 위 호출 코드를 이 위치에 넣으세요.\n</script>`;

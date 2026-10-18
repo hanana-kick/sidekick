@@ -27,6 +27,8 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
   moveDeceleration?: number;
   moveEasing?: MotionOptions['easing'];
   moveTravel?: SidekickAttributes['move-travel'];
+  onEnterEnd?: SidekickEventHandler<'sidekick-enter-end'>;
+  onExitEnd?: SidekickEventHandler<'sidekick-exit-end'>;
   onMoveProgress?: SidekickEventHandler<'sidekick-move-progress'>;
   onMoveEnd?: SidekickEventHandler<'sidekick-move-end'>;
   onPlayEnd?: SidekickEventHandler<'sidekick-play-end'>;
@@ -102,6 +104,7 @@ const attributeProps = {
   shapeDuration: 'shape-duration', shapeEasing: 'shape-easing', motionDuration: 'motion-duration', motionEasing: 'motion-easing', time: 'time',
 } as const satisfies Partial<Record<keyof SidekickAvatarProps, string>>;
 const eventProps = {
+  onEnterEnd: 'sidekick-enter-end', onExitEnd: 'sidekick-exit-end',
   onMoveEnd: 'sidekick-move-end', onMoveProgress: 'sidekick-move-progress', onPlayEnd: 'sidekick-play-end', onAssetTransitionEnd: 'sidekick-transition-end',
   onReady: 'sidekick-ready', onDesignChange: 'sidekick-design-change', onMotionEnd: 'sidekick-motion-end',
   onShapeEnd: 'sidekick-shape-end', onBodyOrientationChange: 'sidekick-body-orientation-change', onZoomChange: 'sidekick-zoom-change', onActivate: 'sidekick-activate', onError: 'sidekick-error',
