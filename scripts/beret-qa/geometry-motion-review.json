@@ -1,0 +1,437 @@
+{
+  "source": {
+    "src/renderer/worn-beret.ts": "396a8437710cd1b788390ce67bd235cb72aa15247c60bc7e7e6ac66780036ad0",
+    "src/renderer/cloth-clearance.ts": "e9e3ddd82d8d15971a15404bcb7e24c6e5d6f3c459389e6345214f61f7f62773",
+    "src/renderer/beret-geometry.ts": "e904656d36ac622f77dfa4a8ea218373d45f30a58ab9a1e28fda6005c026ea65",
+    "src/core/shape-profiles.ts": "772ebec8e1c24243221b3c935301dec19438141a3fd4d7b4c180bf2b5015f406",
+    "src/core/shape-motion.ts": "60ec76022048e54e94247d85da3dc5477b90754af5931489871e1482a3aa4249",
+    "src/renderer/body-geometry.ts": "8b6646b4cce06ee38c16bd3e5bac6a5f18b9fcbc37195ec5e257b2d693d7577b",
+    "immutable-api": "441e1c61d6411af0b043ee67ef94dc466cd56aad6a9b3f2acb24d51aac3408ef"
+  },
+  "scope": "Finite numerical motion controls supplementing native review; not a continuous-time guarantee.",
+  "newOnsetConvergence": [
+    {
+      "from": "pixelTriangle",
+      "to": "heart",
+      "frame": 3,
+      "n": 1,
+      "max": 0.06915743355470214,
+      "maxRms": 0.03709531703345038,
+      "worst": {
+        "from": 0.03333333333333333,
+        "to": 0.05,
+        "seating": -0.10829667091224662,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "pixelTriangle",
+      "to": "heart",
+      "frame": 3,
+      "n": 10,
+      "max": 0.008148425799801214,
+      "maxRms": 0.004825186089159876,
+      "worst": {
+        "from": 0.03833333333333333,
+        "to": 0.04,
+        "seating": -0.13046464930499238,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "pixelTriangle",
+      "to": "heart",
+      "frame": 3,
+      "n": 100,
+      "max": 0.0008460309936536023,
+      "maxRms": 0.0005139414475030406,
+      "worst": {
+        "from": 0.0385,
+        "to": 0.03866666666666666,
+        "seating": -0.13400387669292405,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "heart",
+      "to": "pixelTriangle",
+      "frame": 3,
+      "n": 1,
+      "max": 0.04364530962239351,
+      "maxRms": 0.01773170528941761,
+      "worst": {
+        "from": 0.03333333333333333,
+        "to": 0.05,
+        "seating": -0.07784150073762086,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "heart",
+      "to": "pixelTriangle",
+      "frame": 3,
+      "n": 10,
+      "max": 0.004625858375590355,
+      "maxRms": 0.0019528143297428066,
+      "worst": {
+        "from": 0.03833333333333333,
+        "to": 0.04,
+        "seating": -0.08061036840985351,
+        "correction": 0.00075
+      },
+      "correction": 0.00075
+    },
+    {
+      "from": "heart",
+      "to": "pixelTriangle",
+      "frame": 3,
+      "n": 100,
+      "max": 0.0005429527774960684,
+      "maxRms": 0.0003375127486774354,
+      "worst": {
+        "from": 0.036166666666666666,
+        "to": 0.036333333333333336,
+        "seating": -0.08239439323882922,
+        "correction": 0.00075
+      },
+      "correction": 0.00075
+    },
+    {
+      "from": "burst",
+      "to": "heart",
+      "frame": 2,
+      "n": 1,
+      "max": 0.03746814056815846,
+      "maxRms": 0.030448635296634677,
+      "worst": {
+        "from": 0.016666666666666666,
+        "to": 0.03333333333333333,
+        "seating": -0.10284424886642769,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "burst",
+      "to": "heart",
+      "frame": 2,
+      "n": 10,
+      "max": 0.015388682118500346,
+      "maxRms": 0.011276365124116238,
+      "worst": {
+        "from": 0.025,
+        "to": 0.02666666666666667,
+        "seating": -0.09499774375792984,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "burst",
+      "to": "heart",
+      "frame": 2,
+      "n": 100,
+      "max": 0.006884176951684385,
+      "maxRms": 0.005024351756160887,
+      "worst": {
+        "from": 0.025333333333333333,
+        "to": 0.025500000000000002,
+        "seating": -0.09034682038838517,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "boom",
+      "to": "heart",
+      "frame": 2,
+      "n": 1,
+      "max": 0.036774070151009385,
+      "maxRms": 0.014151457157459104,
+      "worst": {
+        "from": 0.016666666666666666,
+        "to": 0.03333333333333333,
+        "seating": -0.10573230522083459,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "boom",
+      "to": "heart",
+      "frame": 2,
+      "n": 10,
+      "max": 0.003905352758606167,
+      "maxRms": 0.00154011386863306,
+      "worst": {
+        "from": 0.030000000000000002,
+        "to": 0.03166666666666666,
+        "seating": -0.10553015241204612,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "boom",
+      "to": "heart",
+      "frame": 2,
+      "n": 100,
+      "max": 0.0003908483931157033,
+      "maxRms": 0.00015418390400388635,
+      "worst": {
+        "from": 0.030666666666666665,
+        "to": 0.030833333333333334,
+        "seating": -0.10542454741664077,
+        "correction": 0
+      },
+      "correction": 0
+    }
+  ],
+  "previousOnsetControls": [
+    {
+      "from": "boom",
+      "to": "heart",
+      "frame": 1,
+      "n": 1,
+      "max": 0.016218779940762738,
+      "maxRms": 0.00653477446257376,
+      "worst": {
+        "from": 0,
+        "to": 0.016666666666666666,
+        "seating": -0.10349266323229757,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "boom",
+      "to": "heart",
+      "frame": 1,
+      "n": 10,
+      "max": 0.0029645733535412066,
+      "maxRms": 0.0011193638631211628,
+      "worst": {
+        "from": 0.015000000000000001,
+        "to": 0.016666666666666666,
+        "seating": -0.10349266323229757,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "boom",
+      "to": "heart",
+      "frame": 1,
+      "n": 100,
+      "max": 0.000306109380801182,
+      "maxRms": 0.00011565925354683167,
+      "worst": {
+        "from": 0.0165,
+        "to": 0.016666666666666666,
+        "seating": -0.10349266323229757,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "burst",
+      "to": "heart",
+      "frame": 4,
+      "n": 1,
+      "max": 0.010661402471704813,
+      "maxRms": 0.006397232930607286,
+      "worst": {
+        "from": 0.05,
+        "to": 0.06666666666666667,
+        "seating": -0.12657623392710823,
+        "correction": 0.004
+      },
+      "correction": 0.004
+    },
+    {
+      "from": "burst",
+      "to": "heart",
+      "frame": 4,
+      "n": 10,
+      "max": 0.0025568310371844095,
+      "maxRms": 0.0020766916356573283,
+      "worst": {
+        "from": 0.05,
+        "to": 0.051666666666666666,
+        "seating": -0.12468015845806957,
+        "correction": 0
+      },
+      "correction": 0.004
+    },
+    {
+      "from": "burst",
+      "to": "heart",
+      "frame": 4,
+      "n": 100,
+      "max": 0.0006355901162205986,
+      "maxRms": 0.0005675184560914991,
+      "worst": {
+        "from": 0.050666666666666665,
+        "to": 0.05083333333333333,
+        "seating": -0.12392534760792917,
+        "correction": 0
+      },
+      "correction": 0.004
+    },
+    {
+      "from": "heart",
+      "to": "triangle",
+      "frame": 3,
+      "n": 1,
+      "max": 0.033366287138321016,
+      "maxRms": 0.011023256275230648,
+      "worst": {
+        "from": 0.03333333333333333,
+        "to": 0.05,
+        "seating": -0.08498576830429327,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "heart",
+      "to": "triangle",
+      "frame": 3,
+      "n": 10,
+      "max": 0.0038780492797045843,
+      "maxRms": 0.0020882453105390587,
+      "worst": {
+        "from": 0.03833333333333333,
+        "to": 0.04,
+        "seating": -0.08549838454148836,
+        "correction": 0.0022500000000000003
+      },
+      "correction": 0.00275
+    },
+    {
+      "from": "heart",
+      "to": "triangle",
+      "frame": 3,
+      "n": 100,
+      "max": 0.0005796450474789469,
+      "maxRms": 0.0004921183403186856,
+      "worst": {
+        "from": 0.043666666666666666,
+        "to": 0.04383333333333333,
+        "seating": -0.08522041567737192,
+        "correction": 0.001
+      },
+      "correction": 0.00275
+    },
+    {
+      "from": "pixelTriangle",
+      "to": "heart",
+      "frame": 4,
+      "n": 1,
+      "max": 0.039039840599679416,
+      "maxRms": 0.032974569337175914,
+      "worst": {
+        "from": 0.05,
+        "to": 0.06666666666666667,
+        "seating": -0.07583484046603337,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "pixelTriangle",
+      "to": "heart",
+      "frame": 4,
+      "n": 10,
+      "max": 0.005766165715143423,
+      "maxRms": 0.0039748080669395084,
+      "worst": {
+        "from": 0.05,
+        "to": 0.051666666666666666,
+        "seating": -0.10484418657741924,
+        "correction": 0
+      },
+      "correction": 0
+    },
+    {
+      "from": "pixelTriangle",
+      "to": "heart",
+      "frame": 4,
+      "n": 100,
+      "max": 0.001632683523157126,
+      "maxRms": 0.0014312802689258558,
+      "worst": {
+        "from": 0.055,
+        "to": 0.05516666666666667,
+        "seating": -0.0965095592769393,
+        "correction": 0
+      },
+      "correction": 0
+    }
+  ],
+  "retarget": [
+    {
+      "progress": 0.05,
+      "immediateStep": 0,
+      "epsilonStep": 2.691506127743191e-7,
+      "weight": 0.2915451896128097,
+      "correction": 0
+    },
+    {
+      "progress": 0.14,
+      "immediateStep": 0,
+      "epsilonStep": 3.0392524681048306e-7,
+      "weight": 1,
+      "correction": 0
+    },
+    {
+      "progress": 0.4,
+      "immediateStep": 0,
+      "epsilonStep": 4.151578652041771e-7,
+      "weight": 1,
+      "correction": 0
+    },
+    {
+      "progress": 0.86,
+      "immediateStep": 0,
+      "epsilonStep": 0.0000011218506231736368,
+      "weight": 1,
+      "correction": 0
+    },
+    {
+      "progress": 0.95,
+      "immediateStep": 0,
+      "epsilonStep": 0.000002418215605628585,
+      "weight": 0.29154518961281006,
+      "correction": 0
+    }
+  ],
+  "reviewedResidual": {
+    "path": "Burst to Heart",
+    "timeSeconds": [
+      0.025355,
+      0.025356
+    ],
+    "maximumSeatingStepApprox": 0.003,
+    "maximumVertexStepApprox": 0.0042,
+    "classification": "Finite settled-fitting branch change; exact swept insertion remains smooth. Native review accepted bounded appearance at normal scale. Not waived for geometry intersection checks."
+  },
+  "historicalMorphContactCheck": {
+    "states": 363,
+    "maxCorrection": 0.0005,
+    "selfCrossings": 0,
+    "bodyCrossings": 0,
+    "unresolved": 0
+  },
+  "fullGeometryGate": {
+    "states": 1230,
+    "failures": 0,
+    "maxCorrection": 0.0045,
+    "cap": 0.006
+  },
+  "testedCodeCommit": "2ec3c693dc6eb106273ddab9e5e214474c4fddbe"
+}

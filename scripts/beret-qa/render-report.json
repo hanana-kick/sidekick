@@ -1,14 +1,17 @@
 {
-  "schemaVersion": 1,
-  "status": "Complete finite validation; no unresolved rendered defect in the tested scope",
+  "schemaVersion": 2,
+  "testedCodeCommit": "2ec3c693",
+  "status": "Complete finite validation with no unresolved severe rendered defect in tested scope",
   "sourceHashes": {
-    "renderer/worn-beret.ts": "fc32adf0b43955a768938adcfbc09997887d5644177b81480f5f2c7cca2a353f",
-    "renderer/webgl.ts": "ee3fbfa36b41f9de962ad8b4015449632958bab9c6773ec23d326dd07333f21f",
+    "renderer/worn-beret.ts": "396a8437710cd1b788390ce67bd235cb72aa15247c60bc7e7e6ac66780036ad0",
+    "renderer/cloth-clearance.ts": "e9e3ddd82d8d15971a15404bcb7e24c6e5d6f3c459389e6345214f61f7f62773",
+    "renderer/webgl.ts": "9ea95aa1f3998dd3b2799771db3fb04f5ce819f52db0b23590a79fa05b60f545",
     "core/motion.ts": "a6058bb1df4d10b7c4fdd8bc57a861279159066f273a0d13566bbcb2e1355256",
-    "core/shape-profiles.ts": "af403fd46d0296aa056b840b05569912bca2e59cb24955420163db2eb9fe5b61"
+    "core/shape-profiles.ts": "772ebec8e1c24243221b3c935301dec19438141a3fd4d7b4c180bf2b5015f406"
   },
   "sourceTree": {
-    "treeSha256": "a348c5e5528c5b8d92edd841be5cad2f4eee7517d1752a240615fb9456711858",
+    "fileCount": 42,
+    "sha256": "5b10a3df85bae325db69fe546cc185ad8e9ce1a3a97dc60f89366a9727d32a43",
     "files": {
       "auto.ts": "49e3367229fb31fe6157f6c19eab6ef1053ecb854d03102d53c4ac44feb9b4ee",
       "core.ts": "ffabf160b99e1d428950b6d63aba8b1ca2d12516fec4e6556466b37b24794c16",
@@ -26,7 +29,7 @@
       "core/resolved-design.ts": "60a1a2508973ea9ac265175da617cb84797c1d3d22937ed1cc9b517f14ccbe0d",
       "core/scene.ts": "54cea8082002dc91f1435b3f8be327de1b119786c71735195dbfa2ba21434d44",
       "core/shape-motion.ts": "60ec76022048e54e94247d85da3dc5477b90754af5931489871e1482a3aa4249",
-      "core/shape-profiles.ts": "af403fd46d0296aa056b840b05569912bca2e59cb24955420163db2eb9fe5b61",
+      "core/shape-profiles.ts": "772ebec8e1c24243221b3c935301dec19438141a3fd4d7b4c180bf2b5015f406",
       "core/shapes.ts": "205ca176b7ac205d649ad9e2cc888faf6539ee2e04562662128a41f2e0d42166",
       "core/surface.ts": "d6d3657c63f2d68e2dc55170e2cc3d89cc3f5d6a6d9108f14f6cda80afb050a8",
       "core/tracking.ts": "18e3cb6fb8a9bb50f152d009923b5adc115a3fd0043b245272487e92ceffc28a",
@@ -35,40 +38,34 @@
       "index.ts": "886cceaecaeaffae9d56d25692678738407de54b23a90e939e9e9fa5d8131201",
       "react.ts": "873f3771145763d01b56a25ebee2b30b10db2440ca8084d3da6473f40e76c3d8",
       "register.ts": "e3748c189879fdffabb70566f7a17bf564cc4cc69cae7a3da548646fbd489ecc",
-      "renderer/beret-geometry.ts": "61f5cd1912aa4ce76fd1a85b66926488f71e335e826318af36bf687556940997",
+      "renderer/beret-geometry.ts": "e904656d36ac622f77dfa4a8ea218373d45f30a58ab9a1e28fda6005c026ea65",
       "renderer/body-geometry.ts": "8b6646b4cce06ee38c16bd3e5bac6a5f18b9fcbc37195ec5e257b2d693d7577b",
       "renderer/catalog-accessory-geometry.ts": "0ecba354208436827de836f424ab556a28c09e354f31d0cc8b0b1ea52073f184",
+      "renderer/cloth-clearance.ts": "e9e3ddd82d8d15971a15404bcb7e24c6e5d6f3c459389e6345214f61f7f62773",
       "renderer/eye-projection.ts": "a2e5c769c2407b792639a26d96f63e8e58658bace476165d808ef021e5e83baf",
       "renderer/geometry.ts": "2f1faf4c42cc854ee0dd37b2a76e4afec2df5138326498a385dfd36c56e9c499",
       "renderer/glasses-geometry.ts": "eaeec2a6214d5c903d92a1d666d268c3a1cc10148528dcbc73967ef877a94830",
       "renderer/rigid-contact.ts": "f62de4087dc67a3cae53534878dde87ea5092ed0ca784e43ae64425da77542df",
       "renderer/scarf-geometry.ts": "ec3bca0d34610a6e63f8a9a10124dbf993a0b2df9dd252c76f6bef161e214b7e",
       "renderer/volume-triangulation.ts": "4e95ebbecde5a086f00d970bdb8f79b9ce286b6a8720abf7c332e869cdc75cd7",
-      "renderer/webgl.ts": "ee3fbfa36b41f9de962ad8b4015449632958bab9c6773ec23d326dd07333f21f",
-      "renderer/worn-beret.ts": "fc32adf0b43955a768938adcfbc09997887d5644177b81480f5f2c7cca2a353f",
+      "renderer/webgl.ts": "9ea95aa1f3998dd3b2799771db3fb04f5ce819f52db0b23590a79fa05b60f545",
+      "renderer/worn-beret.ts": "396a8437710cd1b788390ce67bd235cb72aa15247c60bc7e7e6ac66780036ad0",
       "runtime/create-worker.ts": "8603a0f62a06d3f33953c1026490711b11369c608cc78a458074b32c8d995a15",
       "runtime/protocol.ts": "379b7cc5591e693f3eb62ebd763c073cf5be53f39514224cdaf312d046ae4891",
       "runtime/render-bridge.ts": "24dcf0fc74f8c99bc64fe64ab221fdcd2a6dcacc293bc951a3fed9b7ed926a6f",
       "runtime/render-engine.ts": "f23c63f96054ba593b8a4c01832bd9e1f6263b196004069c3caffbe3c8fec802",
       "runtime/render-worker.ts": "5defd8a4c8d11028ddc7fa3e9c372a92dfc3201500ba5d392a02b956dcd10a84"
-    },
-    "currentRepositoryMatches": true
+    }
   },
-  "renderer": "Actual AvatarRenderer geometry, production vertex shader and matrices replayed in Mesa llvmpipe GLES3; fragment output replaced by semantic object IDs and 16-bit depth",
-  "resolution": {
-    "static": 384,
-    "angularPhases": 384,
-    "denseTemporal": 192,
-    "morph": 384,
-    "targetedReview": 768
-  },
+  "renderer": "Actual AvatarRenderer geometry, vertex shader, model/projection matrices and culling replayed in native Mesa GLES3. Diagnostic fragment encodes semantic object IDs and 16-bit depth.",
+  "runtimeHistory": "Renderer resets at each independent sequence; delta in seconds; actual animation and chronological warmup retained. Raw and world-space motion measured separately.",
   "coverage": {
-    "totalStates": 175026,
-    "nativePassesPerState": 3,
+    "totalCases": 175026,
+    "nativePassesPerCase": 3,
     "totalNativePasses": 525078,
     "runs": [
       {
-        "dir": "smooth-static",
+        "dir": "authored-static",
         "type": "static",
         "expected": 10920,
         "actual": 10920,
@@ -77,12 +74,13 @@
         "cullMissingStates": 0,
         "maxCullMissing": 0,
         "depthTieStates": 0,
-        "cullIdMismatchStates": 46,
+        "cullIdMismatchStates": 30,
+        "maxWorldVertexStep": 0,
         "maxMeshVertexStep": 0,
         "maxMaskXor": 0
       },
       {
-        "dir": "smooth-temporal",
+        "dir": "authored-temporal",
         "type": "temporal",
         "expected": 76020,
         "actual": 76020,
@@ -91,12 +89,13 @@
         "cullMissingStates": 0,
         "maxCullMissing": 0,
         "depthTieStates": 0,
-        "cullIdMismatchStates": 59,
-        "maxMeshVertexStep": 0.01598819430720676,
-        "maxMaskXor": 0.3849056603773585
+        "cullIdMismatchStates": 50,
+        "maxWorldVertexStep": 0.05392385944727379,
+        "maxMeshVertexStep": 0.015561057826943739,
+        "maxMaskXor": 0.3359073359073359
       },
       {
-        "dir": "smooth-phases",
+        "dir": "authored-phases",
         "type": "phases",
         "expected": 87360,
         "actual": 87360,
@@ -105,12 +104,13 @@
         "cullMissingStates": 0,
         "maxCullMissing": 0,
         "depthTieStates": 0,
-        "cullIdMismatchStates": 392,
+        "cullIdMismatchStates": 340,
+        "maxWorldVertexStep": 2.0011577935847673,
         "maxMeshVertexStep": 0,
         "maxMaskXor": 0
       },
       {
-        "dir": "smooth-morph",
+        "dir": "authored-morph",
         "type": "morph",
         "expected": 726,
         "actual": 726,
@@ -119,29 +119,134 @@
         "cullMissingStates": 0,
         "maxCullMissing": 0,
         "depthTieStates": 0,
-        "cullIdMismatchStates": 2,
-        "maxMeshVertexStep": 0.021249545094499757,
-        "maxMaskXor": 0.1461100569259962
+        "cullIdMismatchStates": 1,
+        "maxWorldVertexStep": 0.06007511568301819,
+        "maxMeshVertexStep": 0.059664528031262806,
+        "maxMaskXor": 0.192079940784604
       }
-    ]
+    ],
+    "meaning": "Unique keys verified within each matrix; physical states may overlap across matrices."
   },
   "matrix": {
     "static": {
-      "shapes": 35,
-      "yawDegrees": {
-        "from": 0,
-        "to": 345,
+      "shapes": "all 35 catalog names",
+      "yaw": {
+        "min": 0,
+        "max": 345,
         "step": 15
       },
-      "pitchDegrees": {
-        "from": -90,
-        "to": 90,
+      "pitch": {
+        "min": -90,
+        "max": 90,
         "step": 15
       },
-      "cameraRollDegrees": 0
+      "roll": 0,
+      "size": 384,
+      "zoom": 1.5,
+      "states": 10920
     },
-    "phases": {
+    "temporal": {
+      "shapes": "all 35",
+      "activities": [
+        "idle",
+        "thinking",
+        "listening",
+        "speaking",
+        "celebrating",
+        "accessory-turn"
+      ],
+      "fps": 30,
+      "framesPerSequence": 181,
+      "cameras": [
+        [
+          0,
+          -30
+        ],
+        [
+          45,
+          15
+        ]
+      ],
+      "size": 192,
+      "states": 76020,
+      "worldSpaceMetrics": true
+    },
+    "morph": {
+      "sequences": [
+        [
+          "heart",
+          "boom",
+          "pixelTriangle"
+        ],
+        [
+          "flower",
+          "triangle",
+          "square"
+        ],
+        [
+          "clover8Leaf",
+          "heart",
+          "circle"
+        ]
+      ],
+      "retargetMs": 600,
+      "fps": 60,
+      "frames": 121,
+      "cameras": [
+        [
+          0,
+          -30
+        ],
+        [
+          45,
+          15
+        ]
+      ],
+      "states": 726
+    },
+    "exactRegressions": [
+      {
+        "shape": "cookie6Sided",
+        "activity": "idle",
+        "fps": 60,
+        "frames": [
+          424,
+          425,
+          426,
+          427,
+          428
+        ]
+      },
+      {
+        "shape": "softBurst",
+        "activity": "idle",
+        "fps": 60,
+        "frames": [
+          86,
+          87,
+          88,
+          89,
+          90
+        ]
+      }
+    ],
+    "angularPhases": {
+      "states": 87360,
       "shapes": 35,
+      "yaw": {
+        "min": 0,
+        "max": 345,
+        "step": 15
+      },
+      "pitch": {
+        "min": -90,
+        "max": 90,
+        "step": 15
+      },
+      "size": 384,
+      "zoom": 1.5,
+      "selectionFps": 60,
+      "selectionDurationSeconds": 10,
       "phases": [
         {
           "activity": "idle",
@@ -215,325 +320,2782 @@
           "value": 1.070865832408172,
           "score": 1.070865832408172
         }
-      ],
-      "selection": "Actual squash minima/maxima sampled at 60 fps over0–10s for idle, listening, speaking, and celebrating; renderer warmed from time zero then state frozen while 312 camera angles vary"
-    },
-    "temporal": {
-      "shapes": 35,
-      "modes": [
-        "idle",
-        "thinking",
-        "listening",
-        "speaking",
-        "celebrating",
-        "accessory-turn"
-      ],
-      "fps": 30,
-      "framesPerSequence": 181,
-      "seconds": [
-        0,
-        6
-      ],
-      "cameras": [
-        [
-          0,
-          -30
-        ],
-        [
-          45,
-          15
-        ]
-      ],
-      "turn": "Explicit bounded sinusoidal body and accessory rotations; no inferred camera interpolation"
-    },
-    "morph": {
-      "sequences": [
-        [
-          "heart",
-          "boom",
-          "pixelTriangle"
-        ],
-        [
-          "flower",
-          "triangle",
-          "square"
-        ],
-        [
-          "clover8Leaf",
-          "heart",
-          "circle"
-        ]
-      ],
-      "fps": 60,
-      "frames": 121,
-      "interruptionMs": 600,
-      "cameras": [
-        [
-          0,
-          -30
-        ],
-        [
-          45,
-          15
-        ]
       ]
-    }
+    },
+    "topology": {
+      "outerProfileRings": 31,
+      "originalVertices": [
+        0,
+        1857
+      ],
+      "extraInnerBandVertices": [
+        1858,
+        2049
+      ],
+      "extraInnerBandObjectId": 4
+    },
+    "runtimeHistory": "Independent renderer reset at each activity/camera/morph sequence. Exact selected runtime replay warms from zero. Delta is seconds."
   },
   "findings": {
-    "cullingDisappearanceStates": 0,
-    "nearDepthTieStates": 0,
-    "maximumSemanticIdDisagreementPixels": 2,
-    "semanticIdMeaning": "At most two edge pixels change semantic material ID with face culling disabled; garment coverage is unchanged. This is recorded, not counted as disappeared mesh.",
-    "diagnosticTriage": {
+    "cullingDisappearanceCases": 0,
+    "nearDepthTieCases": 0,
+    "semanticIdDisagreement": {
+      "cases": 421,
+      "maximumPixelsPerCase": 2,
+      "missingCoverage": 0,
+      "interpretation": "Culled versus unculled semantic IDs differ at one or two pixels in these cases, without missing garment coverage. These tiny material-ID residuals are retained in raw metrics; they are not reported as disappearing geometry."
+    },
+    "triage": {
       "static": {
-        "flagged": 130,
-        "manual": 130,
-        "remaining": 0,
-        "classes": {
-          "intrinsicSilhouette": 113,
-          "bodyOcclusion": 17
-        }
+        "flagged": 100,
+        "manual": 100,
+        "remaining": 0
       },
       "temporal": {
-        "flagged": 138,
-        "manual": 138,
-        "remaining": 0,
-        "meaning": "Normal body occlusion of coherent lined aperture"
+        "flagged": 234,
+        "manual": 234,
+        "remaining": 0
       },
       "phases": {
-        "flagged": 1149,
-        "automatic": 1011,
-        "manual": 138,
+        "flagged": 1371,
+        "automatic": 1157,
+        "manual": 214,
         "remaining": 0,
-        "automaticCriterion": "No removed cuff/crown pixels; one garment-only crown component; every cuff pixel within2px of garment silhouette; no culling,ID,or depth discrepancy. Other cases require manual review.",
-        "exactSelectedReplayMetricMismatches": 0
+        "criterion": "No removed cuff/crown pixels; one garment-only crown component; every cuff pixel within2px of garment silhouette; no culling,ID,or depth discrepancy. Other cases require manual review.",
+        "replayMetricMismatches": 0
       },
       "morph": {
         "flagged": 0
       }
     },
-    "maximumExplicitTurnVertexStep": {
-      "shape": "pentagon",
-      "camera": {
-        "yaw": 0,
-        "pitch": -30,
-        "roll": 0
-      },
-      "activity": "accessory-turn",
-      "time": 4.533333333333333,
-      "frame": 136,
-      "body": 1969,
-      "band": 34,
-      "crown": 155,
-      "hatOnly": 247,
-      "occluded": 49,
-      "cullMissing": 0,
-      "cullIdMismatch": 0,
-      "depthTie": 0,
-      "bandComponents": [
-        34
+    "motionExtrema": {
+      "worstTurn": [
+        {
+          "shape": "pixelTriangle",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "accessory-turn",
+          "time": 4.566666666666666,
+          "frame": 137,
+          "body": 1450,
+          "band": 32,
+          "crown": 145,
+          "hatOnly": 343,
+          "occluded": 124,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            30
+          ],
+          "crownComponents": [
+            145
+          ],
+          "worldMaxVertexStep": 0.016397114029429744,
+          "worldRmsVertexStep": 0.012591084293651108,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.14499778747558595,
+                0
+              ]
+            ]
+          ],
+          "target": -0.14499778747558595,
+          "bodyModel": [
+            0.9265578985214233,
+            0.16792675852775574,
+            0.3502853214740753,
+            0,
+            0.004274953622370958,
+            0.8888652324676514,
+            -0.43742984533309937,
+            0,
+            -0.3884332776069641,
+            0.4106290340423584,
+            0.8306094408035278,
+            0,
+            0,
+            -0.009081387892365456,
+            0.005243141669780016,
+            1
+          ],
+          "hatModel": [
+            0.922229528427124,
+            0.16714230179786682,
+            0.34864896535873413,
+            0,
+            0.004315176047384739,
+            0.8972284197807312,
+            -0.4415455460548401,
+            0,
+            -0.3866187334060669,
+            0.4087108075618744,
+            0.8267292976379395,
+            0,
+            0,
+            -0.009081387892365456,
+            0.005243141669780016,
+            1
+          ],
+          "meshMaxVertexStep": 0.013891321705951145,
+          "meshRmsVertexStep": 0.0049534969807521236,
+          "changedPixels": 44,
+          "garmentXor": 17,
+          "garmentUnion": 230,
+          "garmentXorFraction": 0.07391304347826087
+        },
+        {
+          "shape": "pixelTriangle",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "accessory-turn",
+          "time": 4.566666666666666,
+          "frame": 137,
+          "body": 1397,
+          "band": 29,
+          "crown": 278,
+          "hatOnly": 310,
+          "occluded": 0,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            29
+          ],
+          "crownComponents": [
+            278
+          ],
+          "worldMaxVertexStep": 0.016397122715745945,
+          "worldRmsVertexStep": 0.012591105739278892,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.14499778747558595,
+                0
+              ]
+            ]
+          ],
+          "target": -0.14499778747558595,
+          "bodyModel": [
+            0.91428142786026,
+            -0.12894697487354279,
+            -0.39606931805610657,
+            0,
+            0.22874052822589874,
+            0.937832236289978,
+            0.22269484400749207,
+            0,
+            0.34595540165901184,
+            -0.29697099328041077,
+            0.895283043384552,
+            0,
+            -0.001919122994877398,
+            -0.010128972120583057,
+            -0.001919122994877398,
+            1
+          ],
+          "hatModel": [
+            0.9100103974342346,
+            -0.1283446103334427,
+            -0.3942191004753113,
+            0,
+            0.23089271783828735,
+            0.9466561675071716,
+            0.22479014098644257,
+            0,
+            0.3443392813205719,
+            -0.29558369517326355,
+            0.8911007642745972,
+            0,
+            -0.001919122994877398,
+            -0.010128972120583057,
+            -0.001919122994877398,
+            1
+          ],
+          "meshMaxVertexStep": 0.013891321705951145,
+          "meshRmsVertexStep": 0.0049534969807521236,
+          "changedPixels": 26,
+          "garmentXor": 15,
+          "garmentUnion": 322,
+          "garmentXorFraction": 0.046583850931677016
+        },
+        {
+          "shape": "pixelTriangle",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "accessory-turn",
+          "time": 4.6,
+          "frame": 138,
+          "body": 1446,
+          "band": 32,
+          "crown": 148,
+          "hatOnly": 350,
+          "occluded": 132,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            24,
+            4,
+            3
+          ],
+          "crownComponents": [
+            148
+          ],
+          "worldMaxVertexStep": 0.01615517868975555,
+          "worldRmsVertexStep": 0.012533009072994398,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.14499778747558595,
+                0
+              ]
+            ]
+          ],
+          "target": -0.14499778747558595,
+          "bodyModel": [
+            0.9262264966964722,
+            0.16625581681728363,
+            0.35329657793045044,
+            0,
+            0.013506707735359669,
+            0.8813514709472656,
+            -0.45016029477119446,
+            0,
+            -0.3902195394039154,
+            0.42608919739723206,
+            0.8225154280662537,
+            0,
+            0,
+            -0.00998527929186821,
+            0.005765003617852926,
+            1
+          ],
+          "hatModel": [
+            0.9214679002761841,
+            0.1654016524553299,
+            0.35148146748542786,
+            0,
+            0.013646570034325123,
+            0.8904778957366943,
+            -0.45482170581817627,
+            0,
+            -0.38821473717689514,
+            0.42390012741088867,
+            0.8182896375656128,
+            0,
+            0,
+            -0.00998527929186821,
+            0.005765003617852926,
+            1
+          ],
+          "meshMaxVertexStep": 0.013727114605965804,
+          "meshRmsVertexStep": 0.004859920814859818,
+          "changedPixels": 36,
+          "garmentXor": 13,
+          "garmentUnion": 225,
+          "garmentXorFraction": 0.057777777777777775
+        },
+        {
+          "shape": "pixelTriangle",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "accessory-turn",
+          "time": 4.6,
+          "frame": 138,
+          "body": 1394,
+          "band": 34,
+          "crown": 268,
+          "hatOnly": 306,
+          "occluded": 0,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            31,
+            3
+          ],
+          "crownComponents": [
+            268
+          ],
+          "worldMaxVertexStep": 0.01615517505155061,
+          "worldRmsVertexStep": 0.012532987283288848,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.14499778747558595,
+                0
+              ]
+            ]
+          ],
+          "target": -0.14499778747558595,
+          "bodyModel": [
+            0.9147171974182129,
+            -0.13225778937339783,
+            -0.3951648473739624,
+            0,
+            0.22514629364013672,
+            0.9415209889411926,
+            0.20604491233825684,
+            0,
+            0.3483754098415375,
+            -0.28031569719314575,
+            0.9002291560173035,
+            0,
+            -0.002110137604176998,
+            -0.011137131601572037,
+            -0.002110137604176998,
+            1
+          ],
+          "hatModel": [
+            0.910017728805542,
+            -0.13157829642295837,
+            -0.3931346535682678,
+            0,
+            0.22747768461704254,
+            0.9512704610824585,
+            0.20817852020263672,
+            0,
+            0.34658560156822205,
+            -0.27887552976608276,
+            0.895604133605957,
+            0,
+            -0.002110137604176998,
+            -0.011137131601572037,
+            -0.002110137604176998,
+            1
+          ],
+          "meshMaxVertexStep": 0.013727114605965804,
+          "meshRmsVertexStep": 0.004859920814859818,
+          "changedPixels": 23,
+          "garmentXor": 6,
+          "garmentUnion": 311,
+          "garmentXorFraction": 0.01929260450160772
+        },
+        {
+          "shape": "pixelTriangle",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "accessory-turn",
+          "time": 4.533333333333333,
+          "frame": 136,
+          "body": 1455,
+          "band": 29,
+          "crown": 148,
+          "hatOnly": 338,
+          "occluded": 114,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            25
+          ],
+          "crownComponents": [
+            148
+          ],
+          "worldMaxVertexStep": 0.016165849170672597,
+          "worldRmsVertexStep": 0.012482781548065702,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.14499778747558595,
+                0
+              ]
+            ]
+          ],
+          "target": -0.14499778747558595,
+          "bodyModel": [
+            0.9270241260528564,
+            0.16941653192043304,
+            0.34689733386039734,
+            0,
+            -0.004797970876097679,
+            0.8960542678833008,
+            -0.4247901737689972,
+            0,
+            -0.3860260248184204,
+            0.3954254984855652,
+            0.8384724259376526,
+            0,
+            0,
+            -0.008128680288791656,
+            0.004693096037954092,
+            1
+          ],
+          "hatModel": [
+            0.9231488108634949,
+            0.16870829463005066,
+            0.3454471528530121,
+            0,
+            -0.0048383385874331,
+            0.9035931825637817,
+            -0.4283641278743744,
+            0,
+            -0.3844122886657715,
+            0.3937724530696869,
+            0.8349672555923462,
+            0,
+            0,
+            -0.008128680288791656,
+            0.004693096037954092,
+            1
+          ],
+          "meshMaxVertexStep": 0.013235794273399248,
+          "meshRmsVertexStep": 0.004781752308225742,
+          "changedPixels": 52,
+          "garmentXor": 19,
+          "garmentUnion": 236,
+          "garmentXorFraction": 0.08050847457627118
+        },
+        {
+          "shape": "pixelTriangle",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "accessory-turn",
+          "time": 4.533333333333333,
+          "frame": 136,
+          "body": 1390,
+          "band": 26,
+          "crown": 282,
+          "hatOnly": 319,
+          "occluded": 0,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            26
+          ],
+          "crownComponents": [
+            282
+          ],
+          "worldMaxVertexStep": 0.016165840512212124,
+          "worldRmsVertexStep": 0.012482771872022597,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.14499778747558595,
+                0
+              ]
+            ]
+          ],
+          "target": -0.14499778747558595,
+          "bodyModel": [
+            0.9136619567871094,
+            -0.12549786269664764,
+            -0.3973481357097626,
+            0,
+            0.23223936557769775,
+            0.9339780807495117,
+            0.23902472853660583,
+            0,
+            0.34398728609085083,
+            -0.31328147649765015,
+            0.8899105191230774,
+            0,
+            -0.001717792241834104,
+            -0.009066365659236908,
+            -0.001717792241834104,
+            1
+          ],
+          "hatModel": [
+            0.9098424911499023,
+            -0.12497323751449585,
+            -0.395687073469162,
+            0,
+            0.23419331014156342,
+            0.9418360590934753,
+            0.24103575944900513,
+            0,
+            0.34254929423332214,
+            -0.31197184324264526,
+            0.8861903548240662,
+            0,
+            -0.001717792241834104,
+            -0.009066365659236908,
+            -0.001717792241834104,
+            1
+          ],
+          "meshMaxVertexStep": 0.013235794273399248,
+          "meshRmsVertexStep": 0.004781752308225742,
+          "changedPixels": 19,
+          "garmentXor": 5,
+          "garmentUnion": 324,
+          "garmentXorFraction": 0.015432098765432098
+        },
+        {
+          "shape": "pixelTriangle",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "accessory-turn",
+          "time": 0.16666666666666666,
+          "frame": 5,
+          "body": 1470,
+          "band": 27,
+          "crown": 164,
+          "hatOnly": 322,
+          "occluded": 93,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            27
+          ],
+          "crownComponents": [
+            164
+          ],
+          "worldMaxVertexStep": 0.017845340750997498,
+          "worldRmsVertexStep": 0.014366658333569862,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.14499778747558595,
+                0
+              ]
+            ]
+          ],
+          "target": -0.14499778747558595,
+          "bodyModel": [
+            0.9947084188461304,
+            -0.014089861884713173,
+            -0.06821447610855103,
+            0,
+            -0.016620740294456482,
+            0.9089718461036682,
+            -0.43011513352394104,
+            0,
+            0.0676770955324173,
+            0.4265263080596924,
+            0.8987722992897034,
+            0,
+            0,
+            0.005588550120592117,
+            -0.003226550994440913,
+            1
+          ],
+          "hatModel": [
+            0.9975572228431702,
+            -0.014130214229226112,
+            -0.06840983778238297,
+            0,
+            -0.01652594469487667,
+            0.9037876129150391,
+            -0.4276620149612427,
+            0,
+            0.06787092238664627,
+            0.4277478754520416,
+            0.9013463258743286,
+            0,
+            0,
+            0.005588550120592117,
+            -0.003226550994440913,
+            1
+          ],
+          "meshMaxVertexStep": 0.012895403301584663,
+          "meshRmsVertexStep": 0.004077663546302056,
+          "changedPixels": 35,
+          "garmentXor": 7,
+          "garmentUnion": 229,
+          "garmentXorFraction": 0.03056768558951965
+        },
+        {
+          "shape": "pixelTriangle",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "accessory-turn",
+          "time": 0.16666666666666666,
+          "frame": 5,
+          "body": 1293,
+          "band": 30,
+          "crown": 268,
+          "hatOnly": 301,
+          "occluded": 0,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            29
+          ],
+          "crownComponents": [
+            268
+          ],
+          "worldMaxVertexStep": 0.017845351336028183,
+          "worldRmsVertexStep": 0.014366668581356448,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.14499778747558595,
+                0
+              ]
+            ]
+          ],
+          "target": -0.14499778747558595,
+          "bodyModel": [
+            0.6622129082679749,
+            0.03827188163995743,
+            -0.7445172667503357,
+            0,
+            0.22767572104930878,
+            0.9468774795532227,
+            0.2511810064315796,
+            0,
+            0.7105042338371277,
+            -0.33392834663391113,
+            0.6147943735122681,
+            0,
+            0.001180999563075602,
+            0.0062332176603376865,
+            0.001180999563075602,
+            1
+          ],
+          "hatModel": [
+            0.664109468460083,
+            0.03838149085640907,
+            -0.7466495037078857,
+            0,
+            0.2263771891593933,
+            0.9414770603179932,
+            0.24974840879440308,
+            0,
+            0.7125390768051147,
+            -0.3348847031593323,
+            0.6165550947189331,
+            0,
+            0.001180999563075602,
+            0.0062332176603376865,
+            0.001180999563075602,
+            1
+          ],
+          "meshMaxVertexStep": 0.012895403301584663,
+          "meshRmsVertexStep": 0.004077663546302056,
+          "changedPixels": 26,
+          "garmentXor": 17,
+          "garmentUnion": 305,
+          "garmentXorFraction": 0.05573770491803279
+        }
       ],
-      "crownComponents": [
-        155
+      "worstActivity": [
+        {
+          "shape": "gem",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 5.666666666666667,
+          "frame": 170,
+          "body": 2171,
+          "band": 32,
+          "crown": 145,
+          "hatOnly": 306,
+          "occluded": 100,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            31
+          ],
+          "crownComponents": [
+            145
+          ],
+          "worldMaxVertexStep": 0.017156591333069952,
+          "worldRmsVertexStep": 0.010945877427643476,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.026337890625,
+                0
+              ]
+            ]
+          ],
+          "target": -0.026337890625,
+          "bodyModel": [
+            0.9975332021713257,
+            -0.007189114112406969,
+            0.004150637425482273,
+            0,
+            0.00836214143782854,
+            0.8702234029769897,
+            -0.5024237036705017,
+            0,
+            0,
+            0.4987838864326477,
+            0.8639190196990967,
+            0,
+            0,
+            0.005597496870905161,
+            -0.0032317163422703743,
+            1
+          ],
+          "hatModel": [
+            0.9999653697013855,
+            -0.007206642534583807,
+            0.004160757176578045,
+            0,
+            0.00832151435315609,
+            0.8659954071044922,
+            -0.49998268485069275,
+            0,
+            0,
+            0.5,
+            0.8660253882408142,
+            0,
+            0,
+            0.005597496870905161,
+            -0.0032317163422703743,
+            1
+          ],
+          "meshMaxVertexStep": 0.015561057826943739,
+          "meshRmsVertexStep": 0.012328552105708233,
+          "changedPixels": 68,
+          "garmentXor": 12,
+          "garmentUnion": 210,
+          "garmentXorFraction": 0.05714285714285714
+        },
+        {
+          "shape": "gem",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 5.666666666666667,
+          "frame": 170,
+          "body": 2000,
+          "band": 31,
+          "crown": 167,
+          "hatOnly": 258,
+          "occluded": 40,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            31
+          ],
+          "crownComponents": [
+            167
+          ],
+          "worldMaxVertexStep": 0.017156602300475495,
+          "worldRmsVertexStep": 0.010945883080038065,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.026337890625,
+                0
+              ]
+            ]
+          ],
+          "target": -0.026337890625,
+          "bodyModel": [
+            0.7038432359695435,
+            -0.008018415421247482,
+            -0.7068817615509033,
+            0,
+            0.1898127645254135,
+            0.9706080555915833,
+            0.17798690497875214,
+            0,
+            0.6813514232635498,
+            -0.25818952918052673,
+            0.6813514232635498,
+            0,
+            0.0011828902643173933,
+            0.006243196316063404,
+            0.0011828902643173933,
+            1
+          ],
+          "hatModel": [
+            0.7055593132972717,
+            -0.00803796574473381,
+            -0.7086052298545837,
+            0,
+            0.18889056146144867,
+            0.9658923745155334,
+            0.17712216079235077,
+            0,
+            0.6830126643180847,
+            -0.258819043636322,
+            0.6830126643180847,
+            0,
+            0.0011828902643173933,
+            0.006243196316063404,
+            0.0011828902643173933,
+            1
+          ],
+          "meshMaxVertexStep": 0.015561057826943739,
+          "meshRmsVertexStep": 0.012328552105708233,
+          "changedPixels": 81,
+          "garmentXor": 21,
+          "garmentUnion": 226,
+          "garmentXorFraction": 0.09292035398230089
+        },
+        {
+          "shape": "gem",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 4.1,
+          "frame": 123,
+          "body": 2166,
+          "band": 32,
+          "crown": 141,
+          "hatOnly": 313,
+          "occluded": 111,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            30
+          ],
+          "crownComponents": [
+            141
+          ],
+          "worldMaxVertexStep": 0.016606458156949878,
+          "worldRmsVertexStep": 0.013352306325402134,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.026337890625,
+                0
+              ]
+            ]
+          ],
+          "target": -0.026337890625,
+          "bodyModel": [
+            0.9966868758201599,
+            0.08236050605773926,
+            -0.04755086079239845,
+            0,
+            -0.09475626051425934,
+            0.860020637512207,
+            -0.4965331554412842,
+            0,
+            0,
+            0.500606894493103,
+            0.867076575756073,
+            0,
+            0,
+            0.1269981414079666,
+            -0.07332241535186768,
+            1
+          ],
+          "hatModel": [
+            0.9954785704612732,
+            0.08226066082715988,
+            -0.04749321565032005,
+            0,
+            -0.0949864313006401,
+            0.8621097207069397,
+            -0.4977392852306366,
+            0,
+            0,
+            0.5,
+            0.8660253882408142,
+            0,
+            0,
+            0.1269981414079666,
+            -0.07332241535186768,
+            1
+          ],
+          "meshMaxVertexStep": 0.015495805333216688,
+          "meshRmsVertexStep": 0.01226792931652825,
+          "changedPixels": 69,
+          "garmentXor": 21,
+          "garmentUnion": 212,
+          "garmentXorFraction": 0.09905660377358491
+        },
+        {
+          "shape": "gem",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 4.1,
+          "frame": 123,
+          "body": 1990,
+          "band": 29,
+          "crown": 175,
+          "hatOnly": 243,
+          "occluded": 26,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            29
+          ],
+          "crownComponents": [
+            175
+          ],
+          "worldMaxVertexStep": 0.016606463216675308,
+          "worldRmsVertexStep": 0.013352308143439365,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.026337890625,
+                0
+              ]
+            ]
+          ],
+          "target": -0.026337890625,
+          "bodyModel": [
+            0.7221688032150269,
+            0.09186121076345444,
+            -0.6873592138290405,
+            0,
+            0.11474094539880753,
+            0.9592283964157104,
+            0.24874652922153473,
+            0,
+            0.6838417053222656,
+            -0.2591331899166107,
+            0.6838417053222656,
+            0,
+            0.026837864890694618,
+            0.14164802432060242,
+            0.026837864890694618,
+            1
+          ],
+          "hatModel": [
+            0.7212933301925659,
+            0.09174984693527222,
+            -0.6865259408950806,
+            0,
+            0.11501966416835785,
+            0.96155846118927,
+            0.24935075640678406,
+            0,
+            0.6830126643180847,
+            -0.258819043636322,
+            0.6830126643180847,
+            0,
+            0.026837864890694618,
+            0.14164802432060242,
+            0.026837864890694618,
+            1
+          ],
+          "meshMaxVertexStep": 0.015495805333216688,
+          "meshRmsVertexStep": 0.01226792931652825,
+          "changedPixels": 78,
+          "garmentXor": 23,
+          "garmentUnion": 230,
+          "garmentXorFraction": 0.1
+        },
+        {
+          "shape": "gem",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 1.6,
+          "frame": 48,
+          "body": 2155,
+          "band": 30,
+          "crown": 141,
+          "hatOnly": 318,
+          "occluded": 119,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            28
+          ],
+          "crownComponents": [
+            141
+          ],
+          "worldMaxVertexStep": 0.01824278374097558,
+          "worldRmsVertexStep": 0.01515783868960891,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.026337890625,
+                0
+              ]
+            ]
+          ],
+          "target": -0.026337890625,
+          "bodyModel": [
+            1.0006935596466064,
+            0.12502413988113403,
+            -0.07218271493911743,
+            0,
+            -0.1396821290254593,
+            0.8385121822357178,
+            -0.48411524295806885,
+            0,
+            0,
+            0.5055267214775085,
+            0.8755979537963867,
+            0,
+            0,
+            0.11419428884983063,
+            -0.06593010574579239,
+            1
+          ],
+          "hatModel": [
+            0.9897534251213074,
+            0.12365729361772537,
+            -0.07139357179403305,
+            0,
+            -0.1427871435880661,
+            0.8571515679359436,
+            -0.4948767125606537,
+            0,
+            0,
+            0.5,
+            0.8660253882408142,
+            0,
+            0,
+            0.11419428884983063,
+            -0.06593010574579239,
+            1
+          ],
+          "meshMaxVertexStep": 0.015418118351517294,
+          "meshRmsVertexStep": 0.012220966969203195,
+          "changedPixels": 82,
+          "garmentXor": 25,
+          "garmentUnion": 214,
+          "garmentXorFraction": 0.11682242990654206
+        },
+        {
+          "shape": "gem",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 1.6,
+          "frame": 48,
+          "body": 1973,
+          "band": 32,
+          "crown": 171,
+          "hatOnly": 233,
+          "occluded": 20,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            32
+          ],
+          "crownComponents": [
+            171
+          ],
+          "worldMaxVertexStep": 0.0182427532986425,
+          "worldRmsVertexStep": 0.015157816459145197,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.026337890625,
+                0
+              ]
+            ]
+          ],
+          "target": -0.026337890625,
+          "bodyModel": [
+            0.7340179681777954,
+            0.13944628834724426,
+            -0.681176483631134,
+            0,
+            0.07842829078435898,
+            0.9352388381958008,
+            0.27596867084503174,
+            0,
+            0.6905623078346252,
+            -0.26167988777160645,
+            0.6905623078346252,
+            0,
+            0.02413209341466427,
+            0.12736718356609344,
+            0.02413209341466427,
+            1
+          ],
+          "hatModel": [
+            0.7259932160377502,
+            0.1379217803478241,
+            -0.6737294793128967,
+            0,
+            0.08017168194055557,
+            0.956028401851654,
+            0.28210321068763733,
+            0,
+            0.6830126643180847,
+            -0.258819043636322,
+            0.6830126643180847,
+            0,
+            0.02413209341466427,
+            0.12736718356609344,
+            0.02413209341466427,
+            1
+          ],
+          "meshMaxVertexStep": 0.015418118351517294,
+          "meshRmsVertexStep": 0.012220966969203195,
+          "changedPixels": 85,
+          "garmentXor": 27,
+          "garmentUnion": 227,
+          "garmentXorFraction": 0.11894273127753303
+        },
+        {
+          "shape": "gem",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.03333333333333333,
+          "frame": 1,
+          "body": 2185,
+          "band": 34,
+          "crown": 144,
+          "hatOnly": 311,
+          "occluded": 105,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            33
+          ],
+          "crownComponents": [
+            144
+          ],
+          "worldMaxVertexStep": 0.047706813849959326,
+          "worldRmsVertexStep": 0.0433125380397481,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.026337890625,
+                0
+              ]
+            ]
+          ],
+          "target": -0.026337890625,
+          "bodyModel": [
+            0.9903368353843689,
+            0.01786242425441742,
+            -0.010312875732779503,
+            0,
+            -0.021221617236733437,
+            0.8824340105056763,
+            -0.5094735622406006,
+            0,
+            0,
+            0.4952757954597473,
+            0.8578428030014038,
+            0,
+            0,
+            0.021255966275930405,
+            -0.012272138148546219,
+            1
+          ],
+          "hatModel": [
+            0.9997832179069519,
+            0.018032805994153023,
+            -0.010411245748400688,
+            0,
+            -0.020822491496801376,
+            0.8658376336097717,
+            -0.49989160895347595,
+            0,
+            0,
+            0.5,
+            0.8660253882408142,
+            0,
+            0,
+            0.021255966275930405,
+            -0.012272138148546219,
+            1
+          ],
+          "meshMaxVertexStep": 0.015382790662472836,
+          "meshRmsVertexStep": 0.012176747945664514,
+          "changedPixels": 189,
+          "garmentXor": 67,
+          "garmentUnion": 237,
+          "garmentXorFraction": 0.28270042194092826
+        },
+        {
+          "shape": "gem",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.03333333333333333,
+          "frame": 1,
+          "body": 2007,
+          "band": 31,
+          "crown": 170,
+          "hatOnly": 257,
+          "occluded": 38,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            31
+          ],
+          "crownComponents": [
+            170
+          ],
+          "worldMaxVertexStep": 0.04770682632919457,
+          "worldRmsVertexStep": 0.043312548478339395,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.026337890625,
+                0
+              ]
+            ]
+          ],
+          "target": -0.026337890625,
+          "bodyModel": [
+            0.7040486931800842,
+            0.019922945648431778,
+            -0.6964991092681885,
+            0,
+            0.17147429287433624,
+            0.9842272996902466,
+            0.20148620009422302,
+            0,
+            0.6765592694282532,
+            -0.2563736140727997,
+            0.6765592694282532,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "hatModel": [
+            0.7107642889022827,
+            0.020112982019782066,
+            -0.7031427025794983,
+            0,
+            0.16824929416179657,
+            0.9657164216041565,
+            0.1976967453956604,
+            0,
+            0.6830126643180847,
+            -0.258819043636322,
+            0.6830126643180847,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "meshMaxVertexStep": 0.015382790662472836,
+          "meshRmsVertexStep": 0.012176747945664514,
+          "changedPixels": 200,
+          "garmentXor": 76,
+          "garmentUnion": 255,
+          "garmentXorFraction": 0.2980392156862745
+        }
       ],
-      "meshMaxVertexStep": 0.004612592378903887,
-      "meshRmsVertexStep": 0.0024584265719936904,
-      "changedPixels": 22,
-      "garmentXor": 10,
-      "garmentUnion": 207,
-      "garmentXorFraction": 0.04830917874396135
+      "worstWorld": [
+        {
+          "shape": "bun",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.03333333333333333,
+          "frame": 1,
+          "body": 2467,
+          "band": 34,
+          "crown": 161,
+          "hatOnly": 291,
+          "occluded": 82,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            34
+          ],
+          "crownComponents": [
+            161
+          ],
+          "worldMaxVertexStep": 0.05392385944727379,
+          "worldRmsVertexStep": 0.04910194869550194,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.04715332031249999,
+                0
+              ]
+            ]
+          ],
+          "target": -0.04715332031249999,
+          "bodyModel": [
+            0.7040486931800842,
+            0.019922945648431778,
+            -0.6964991092681885,
+            0,
+            0.17147429287433624,
+            0.9842272996902466,
+            0.20148620009422302,
+            0,
+            0.6765592694282532,
+            -0.2563736140727997,
+            0.6765592694282532,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "hatModel": [
+            0.7107642889022827,
+            0.020112982019782066,
+            -0.7031427025794983,
+            0,
+            0.16824929416179657,
+            0.9657164216041565,
+            0.1976967453956604,
+            0,
+            0.6830126643180847,
+            -0.258819043636322,
+            0.6830126643180847,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "meshMaxVertexStep": 0.015110403599664325,
+          "meshRmsVertexStep": 0.011925462636417432,
+          "changedPixels": 215,
+          "garmentXor": 78,
+          "garmentUnion": 246,
+          "garmentXorFraction": 0.3170731707317073
+        },
+        {
+          "shape": "bun",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.03333333333333333,
+          "frame": 1,
+          "body": 2651,
+          "band": 36,
+          "crown": 146,
+          "hatOnly": 291,
+          "occluded": 79,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            36
+          ],
+          "crownComponents": [
+            146
+          ],
+          "worldMaxVertexStep": 0.053923849402918285,
+          "worldRmsVertexStep": 0.049101940206883764,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.04715332031249999,
+                0
+              ]
+            ]
+          ],
+          "target": -0.04715332031249999,
+          "bodyModel": [
+            0.9903368353843689,
+            0.01786242425441742,
+            -0.010312875732779503,
+            0,
+            -0.021221617236733437,
+            0.8824340105056763,
+            -0.5094735622406006,
+            0,
+            0,
+            0.4952757954597473,
+            0.8578428030014038,
+            0,
+            0,
+            0.021255966275930405,
+            -0.012272138148546219,
+            1
+          ],
+          "hatModel": [
+            0.9997832179069519,
+            0.018032805994153023,
+            -0.010411245748400688,
+            0,
+            -0.020822491496801376,
+            0.8658376336097717,
+            -0.49989160895347595,
+            0,
+            0,
+            0.5,
+            0.8660253882408142,
+            0,
+            0,
+            0.021255966275930405,
+            -0.012272138148546219,
+            1
+          ],
+          "meshMaxVertexStep": 0.015110403599664325,
+          "meshRmsVertexStep": 0.011925462636417432,
+          "changedPixels": 229,
+          "garmentXor": 64,
+          "garmentUnion": 244,
+          "garmentXorFraction": 0.26229508196721313
+        },
+        {
+          "shape": "square",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.03333333333333333,
+          "frame": 1,
+          "body": 2466,
+          "band": 37,
+          "crown": 162,
+          "hatOnly": 295,
+          "occluded": 77,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            37
+          ],
+          "crownComponents": [
+            162
+          ],
+          "worldMaxVertexStep": 0.053876439739419586,
+          "worldRmsVertexStep": 0.049058056700578556,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.038798828125,
+                0
+              ]
+            ]
+          ],
+          "target": -0.038798828125,
+          "bodyModel": [
+            0.7040486931800842,
+            0.019922945648431778,
+            -0.6964991092681885,
+            0,
+            0.17147429287433624,
+            0.9842272996902466,
+            0.20148620009422302,
+            0,
+            0.6765592694282532,
+            -0.2563736140727997,
+            0.6765592694282532,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "hatModel": [
+            0.7107642889022827,
+            0.020112982019782066,
+            -0.7031427025794983,
+            0,
+            0.16824929416179657,
+            0.9657164216041565,
+            0.1976967453956604,
+            0,
+            0.6830126643180847,
+            -0.258819043636322,
+            0.6830126643180847,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "meshMaxVertexStep": 0.014980408518365379,
+          "meshRmsVertexStep": 0.011818021792960298,
+          "changedPixels": 223,
+          "garmentXor": 74,
+          "garmentUnion": 253,
+          "garmentXorFraction": 0.2924901185770751
+        },
+        {
+          "shape": "square",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.03333333333333333,
+          "frame": 1,
+          "body": 2722,
+          "band": 36,
+          "crown": 148,
+          "hatOnly": 293,
+          "occluded": 73,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            36
+          ],
+          "crownComponents": [
+            148
+          ],
+          "worldMaxVertexStep": 0.053876429826909523,
+          "worldRmsVertexStep": 0.04905804834184148,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.038798828125,
+                0
+              ]
+            ]
+          ],
+          "target": -0.038798828125,
+          "bodyModel": [
+            0.9903368353843689,
+            0.01786242425441742,
+            -0.010312875732779503,
+            0,
+            -0.021221617236733437,
+            0.8824340105056763,
+            -0.5094735622406006,
+            0,
+            0,
+            0.4952757954597473,
+            0.8578428030014038,
+            0,
+            0,
+            0.021255966275930405,
+            -0.012272138148546219,
+            1
+          ],
+          "hatModel": [
+            0.9997832179069519,
+            0.018032805994153023,
+            -0.010411245748400688,
+            0,
+            -0.020822491496801376,
+            0.8658376336097717,
+            -0.49989160895347595,
+            0,
+            0,
+            0.5,
+            0.8660253882408142,
+            0,
+            0,
+            0.021255966275930405,
+            -0.012272138148546219,
+            1
+          ],
+          "meshMaxVertexStep": 0.014980408518365379,
+          "meshRmsVertexStep": 0.011818021792960298,
+          "changedPixels": 198,
+          "garmentXor": 60,
+          "garmentUnion": 248,
+          "garmentXorFraction": 0.24193548387096775
+        },
+        {
+          "shape": "slanted",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.03333333333333333,
+          "frame": 1,
+          "body": 2204,
+          "band": 33,
+          "crown": 169,
+          "hatOnly": 259,
+          "occluded": 43,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            33
+          ],
+          "crownComponents": [
+            169
+          ],
+          "worldMaxVertexStep": 0.05328305272037567,
+          "worldRmsVertexStep": 0.048878992967290036,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.06032226562499999,
+                0
+              ]
+            ]
+          ],
+          "target": -0.06032226562499999,
+          "bodyModel": [
+            0.7040486931800842,
+            0.019922945648431778,
+            -0.6964991092681885,
+            0,
+            0.17147429287433624,
+            0.9842272996902466,
+            0.20148620009422302,
+            0,
+            0.6765592694282532,
+            -0.2563736140727997,
+            0.6765592694282532,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "hatModel": [
+            0.7107642889022827,
+            0.020112982019782066,
+            -0.7031427025794983,
+            0,
+            0.16824929416179657,
+            0.9657164216041565,
+            0.1976967453956604,
+            0,
+            0.6830126643180847,
+            -0.258819043636322,
+            0.6830126643180847,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "meshMaxVertexStep": 0.014599872023222764,
+          "meshRmsVertexStep": 0.011905010388380136,
+          "changedPixels": 227,
+          "garmentXor": 78,
+          "garmentUnion": 255,
+          "garmentXorFraction": 0.3058823529411765
+        },
+        {
+          "shape": "slanted",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.03333333333333333,
+          "frame": 1,
+          "body": 2442,
+          "band": 33,
+          "crown": 149,
+          "hatOnly": 308,
+          "occluded": 85,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            32
+          ],
+          "crownComponents": [
+            149
+          ],
+          "worldMaxVertexStep": 0.05328304233221706,
+          "worldRmsVertexStep": 0.04887898440861137,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.06032226562499999,
+                0
+              ]
+            ]
+          ],
+          "target": -0.06032226562499999,
+          "bodyModel": [
+            0.9903368353843689,
+            0.01786242425441742,
+            -0.010312875732779503,
+            0,
+            -0.021221617236733437,
+            0.8824340105056763,
+            -0.5094735622406006,
+            0,
+            0,
+            0.4952757954597473,
+            0.8578428030014038,
+            0,
+            0,
+            0.021255966275930405,
+            -0.012272138148546219,
+            1
+          ],
+          "hatModel": [
+            0.9997832179069519,
+            0.018032805994153023,
+            -0.010411245748400688,
+            0,
+            -0.020822491496801376,
+            0.8658376336097717,
+            -0.49989160895347595,
+            0,
+            0,
+            0.5,
+            0.8660253882408142,
+            0,
+            0,
+            0.021255966275930405,
+            -0.012272138148546219,
+            1
+          ],
+          "meshMaxVertexStep": 0.014599872023222764,
+          "meshRmsVertexStep": 0.011905010388380136,
+          "changedPixels": 232,
+          "garmentXor": 82,
+          "garmentUnion": 263,
+          "garmentXorFraction": 0.311787072243346
+        },
+        {
+          "shape": "oval",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.03333333333333333,
+          "frame": 1,
+          "body": 2043,
+          "band": 32,
+          "crown": 168,
+          "hatOnly": 260,
+          "occluded": 43,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            32
+          ],
+          "crownComponents": [
+            168
+          ],
+          "worldMaxVertexStep": 0.05309893852028808,
+          "worldRmsVertexStep": 0.0486835714735855,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.042055664062499984,
+                0
+              ]
+            ]
+          ],
+          "target": -0.042055664062499984,
+          "bodyModel": [
+            0.7040486931800842,
+            0.019922945648431778,
+            -0.6964991092681885,
+            0,
+            0.17147429287433624,
+            0.9842272996902466,
+            0.20148620009422302,
+            0,
+            0.6765592694282532,
+            -0.2563736140727997,
+            0.6765592694282532,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "hatModel": [
+            0.7107642889022827,
+            0.020112982019782066,
+            -0.7031427025794983,
+            0,
+            0.16824929416179657,
+            0.9657164216041565,
+            0.1976967453956604,
+            0,
+            0.6830126643180847,
+            -0.258819043636322,
+            0.6830126643180847,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "meshMaxVertexStep": 0.015043114238708128,
+          "meshRmsVertexStep": 0.012243275099154256,
+          "changedPixels": 214,
+          "garmentXor": 87,
+          "garmentUnion": 259,
+          "garmentXorFraction": 0.3359073359073359
+        },
+        {
+          "shape": "oval",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.03333333333333333,
+          "frame": 1,
+          "body": 2045,
+          "band": 36,
+          "crown": 144,
+          "hatOnly": 305,
+          "occluded": 84,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            36
+          ],
+          "crownComponents": [
+            144
+          ],
+          "worldMaxVertexStep": 0.05309892759820938,
+          "worldRmsVertexStep": 0.04868356240324576,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.042055664062499984,
+                0
+              ]
+            ]
+          ],
+          "target": -0.042055664062499984,
+          "bodyModel": [
+            0.9903368353843689,
+            0.01786242425441742,
+            -0.010312875732779503,
+            0,
+            -0.021221617236733437,
+            0.8824340105056763,
+            -0.5094735622406006,
+            0,
+            0,
+            0.4952757954597473,
+            0.8578428030014038,
+            0,
+            0,
+            0.021255966275930405,
+            -0.012272138148546219,
+            1
+          ],
+          "hatModel": [
+            0.9997832179069519,
+            0.018032805994153023,
+            -0.010411245748400688,
+            0,
+            -0.020822491496801376,
+            0.8658376336097717,
+            -0.49989160895347595,
+            0,
+            0,
+            0.5,
+            0.8660253882408142,
+            0,
+            0,
+            0.021255966275930405,
+            -0.012272138148546219,
+            1
+          ],
+          "meshMaxVertexStep": 0.015043114238708128,
+          "meshRmsVertexStep": 0.012243275099154256,
+          "changedPixels": 223,
+          "garmentXor": 68,
+          "garmentUnion": 257,
+          "garmentXorFraction": 0.26459143968871596
+        }
+      ],
+      "worstMask": [
+        {
+          "shape": "oval",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.03333333333333333,
+          "frame": 1,
+          "body": 2043,
+          "band": 32,
+          "crown": 168,
+          "hatOnly": 260,
+          "occluded": 43,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            32
+          ],
+          "crownComponents": [
+            168
+          ],
+          "worldMaxVertexStep": 0.05309893852028808,
+          "worldRmsVertexStep": 0.0486835714735855,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.042055664062499984,
+                0
+              ]
+            ]
+          ],
+          "target": -0.042055664062499984,
+          "bodyModel": [
+            0.7040486931800842,
+            0.019922945648431778,
+            -0.6964991092681885,
+            0,
+            0.17147429287433624,
+            0.9842272996902466,
+            0.20148620009422302,
+            0,
+            0.6765592694282532,
+            -0.2563736140727997,
+            0.6765592694282532,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "hatModel": [
+            0.7107642889022827,
+            0.020112982019782066,
+            -0.7031427025794983,
+            0,
+            0.16824929416179657,
+            0.9657164216041565,
+            0.1976967453956604,
+            0,
+            0.6830126643180847,
+            -0.258819043636322,
+            0.6830126643180847,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "meshMaxVertexStep": 0.015043114238708128,
+          "meshRmsVertexStep": 0.012243275099154256,
+          "changedPixels": 214,
+          "garmentXor": 87,
+          "garmentUnion": 259,
+          "garmentXorFraction": 0.3359073359073359
+        },
+        {
+          "shape": "pixelTriangle",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.6666666666666666,
+          "frame": 20,
+          "body": 1487,
+          "band": 30,
+          "crown": 160,
+          "hatOnly": 346,
+          "occluded": 128,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            29
+          ],
+          "crownComponents": [
+            160
+          ],
+          "worldMaxVertexStep": 0.04778072829141306,
+          "worldRmsVertexStep": 0.04210967961156148,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.14499778747558595,
+                0
+              ]
+            ]
+          ],
+          "target": -0.14499778747558595,
+          "bodyModel": [
+            0.9822203516960144,
+            -0.005218164995312691,
+            0.003012708853930235,
+            0,
+            0.006358224432915449,
+            0.897611141204834,
+            -0.5182360410690308,
+            0,
+            0,
+            0.4911194145679474,
+            0.8506437540054321,
+            0,
+            0,
+            0.038609158247709274,
+            -0.02229100838303566,
+            1
+          ],
+          "hatModel": [
+            0.999981164932251,
+            -0.005312521476298571,
+            0.0030671856366097927,
+            0,
+            0.006134371273219585,
+            0.8660090565681458,
+            -0.4999905824661255,
+            0,
+            0,
+            0.5,
+            0.8660253882408142,
+            0,
+            0,
+            0.038609158247709274,
+            -0.02229100838303566,
+            1
+          ],
+          "meshMaxVertexStep": 0.013612997744550801,
+          "meshRmsVertexStep": 0.011220228189558963,
+          "changedPixels": 202,
+          "garmentXor": 87,
+          "garmentUnion": 263,
+          "garmentXorFraction": 0.33079847908745247
+        },
+        {
+          "shape": "puffyDiamond",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.03333333333333333,
+          "frame": 1,
+          "body": 1844,
+          "band": 33,
+          "crown": 131,
+          "hatOnly": 330,
+          "occluded": 153,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            32
+          ],
+          "crownComponents": [
+            131
+          ],
+          "worldMaxVertexStep": 0.045618957242802516,
+          "worldRmsVertexStep": 0.04131277108697765,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.06682266235351562,
+                0
+              ]
+            ]
+          ],
+          "target": -0.06682266235351562,
+          "bodyModel": [
+            0.9903368353843689,
+            0.01786242425441742,
+            -0.010312875732779503,
+            0,
+            -0.021221617236733437,
+            0.8824340105056763,
+            -0.5094735622406006,
+            0,
+            0,
+            0.4952757954597473,
+            0.8578428030014038,
+            0,
+            0,
+            0.021255966275930405,
+            -0.012272138148546219,
+            1
+          ],
+          "hatModel": [
+            0.9997832179069519,
+            0.018032805994153023,
+            -0.010411245748400688,
+            0,
+            -0.020822491496801376,
+            0.8658376336097717,
+            -0.49989160895347595,
+            0,
+            0,
+            0.5,
+            0.8660253882408142,
+            0,
+            0,
+            0.021255966275930405,
+            -0.012272138148546219,
+            1
+          ],
+          "meshMaxVertexStep": 0.015022459917639956,
+          "meshRmsVertexStep": 0.011842167922341756,
+          "changedPixels": 189,
+          "garmentXor": 69,
+          "garmentUnion": 210,
+          "garmentXorFraction": 0.32857142857142857
+        },
+        {
+          "shape": "pixelTriangle",
+          "camera": {
+            "yaw": 0,
+            "pitch": -30,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 5.7,
+          "frame": 171,
+          "body": 1472,
+          "band": 33,
+          "crown": 162,
+          "hatOnly": 352,
+          "occluded": 131,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            29,
+            4
+          ],
+          "crownComponents": [
+            162
+          ],
+          "worldMaxVertexStep": 0.04886484389897191,
+          "worldRmsVertexStep": 0.04319262297961247,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.14499778747558595,
+                0
+              ]
+            ]
+          ],
+          "target": -0.14499778747558595,
+          "bodyModel": [
+            0.9880555868148804,
+            -0.02326340042054653,
+            0.013431131839752197,
+            0,
+            0.027817439287900925,
+            0.8861077427864075,
+            -0.5115945339202881,
+            0,
+            0,
+            0.4942103326320648,
+            0.8559973835945129,
+            0,
+            0,
+            0.02671789936721325,
+            -0.015425587072968483,
+            1
+          ],
+          "hatModel": [
+            0.9996306300163269,
+            -0.02353593148291111,
+            0.013588476926088333,
+            0,
+            0.027176953852176666,
+            0.8657054901123047,
+            -0.49981531500816345,
+            0,
+            0,
+            0.5,
+            0.8660253882408142,
+            0,
+            0,
+            0.02671789936721325,
+            -0.015425587072968483,
+            1
+          ],
+          "meshMaxVertexStep": 0.014156724991272053,
+          "meshRmsVertexStep": 0.01167161232429397,
+          "changedPixels": 209,
+          "garmentXor": 85,
+          "garmentUnion": 259,
+          "garmentXorFraction": 0.3281853281853282
+        },
+        {
+          "shape": "puffyDiamond",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 3.2,
+          "frame": 96,
+          "body": 1896,
+          "band": 37,
+          "crown": 164,
+          "hatOnly": 295,
+          "occluded": 85,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            37
+          ],
+          "crownComponents": [
+            164
+          ],
+          "worldMaxVertexStep": 0.04104359880846843,
+          "worldRmsVertexStep": 0.03360311576732237,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.06682266235351562,
+                0
+              ]
+            ]
+          ],
+          "target": -0.06682266235351562,
+          "bodyModel": [
+            0.6844234466552734,
+            -0.041431792080402374,
+            -0.7001234889030457,
+            0,
+            0.2226201295852661,
+            1.0048683881759644,
+            0.15816201269626617,
+            0,
+            0.6693262457847595,
+            -0.2536327540874481,
+            0.6693262457847595,
+            0,
+            0.009638441726565361,
+            0.05087089538574219,
+            0.009638441726565361,
+            1
+          ],
+          "hatModel": [
+            0.6984185576438904,
+            -0.042278990149497986,
+            -0.7144396305084229,
+            0,
+            0.21378766000270844,
+            0.9650000929832458,
+            0.1518869251012802,
+            0,
+            0.6830126643180847,
+            -0.258819043636322,
+            0.6830126643180847,
+            0,
+            0.009638441726565361,
+            0.05087089538574219,
+            0.009638441726565361,
+            1
+          ],
+          "meshMaxVertexStep": 0.013765090914968458,
+          "meshRmsVertexStep": 0.010840097475482133,
+          "changedPixels": 206,
+          "garmentXor": 81,
+          "garmentUnion": 248,
+          "garmentXorFraction": 0.32661290322580644
+        },
+        {
+          "shape": "cookie4Sided",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.03333333333333333,
+          "frame": 1,
+          "body": 1908,
+          "band": 31,
+          "crown": 170,
+          "hatOnly": 260,
+          "occluded": 46,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            31
+          ],
+          "crownComponents": [
+            170
+          ],
+          "worldMaxVertexStep": 0.05061056639319552,
+          "worldRmsVertexStep": 0.04623195649647955,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.052817382812499994,
+                0
+              ]
+            ]
+          ],
+          "target": -0.052817382812499994,
+          "bodyModel": [
+            0.7040486931800842,
+            0.019922945648431778,
+            -0.6964991092681885,
+            0,
+            0.17147429287433624,
+            0.9842272996902466,
+            0.20148620009422302,
+            0,
+            0.6765592694282532,
+            -0.2563736140727997,
+            0.6765592694282532,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "hatModel": [
+            0.7107642889022827,
+            0.020112982019782066,
+            -0.7031427025794983,
+            0,
+            0.16824929416179657,
+            0.9657164216041565,
+            0.1976967453956604,
+            0,
+            0.6830126643180847,
+            -0.258819043636322,
+            0.6830126643180847,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "meshMaxVertexStep": 0.013918766364912953,
+          "meshRmsVertexStep": 0.011129686432372153,
+          "changedPixels": 203,
+          "garmentXor": 82,
+          "garmentUnion": 255,
+          "garmentXorFraction": 0.3215686274509804
+        },
+        {
+          "shape": "cookie4Sided",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 5.066666666666666,
+          "frame": 152,
+          "body": 1893,
+          "band": 34,
+          "crown": 167,
+          "hatOnly": 261,
+          "occluded": 49,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            34
+          ],
+          "crownComponents": [
+            167
+          ],
+          "worldMaxVertexStep": 0.04847380293788962,
+          "worldRmsVertexStep": 0.044290577123049436,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.052817382812499994,
+                0
+              ]
+            ]
+          ],
+          "target": -0.052817382812499994,
+          "bodyModel": [
+            0.7064836025238037,
+            0.0073365685530006886,
+            -0.7037035226821899,
+            0,
+            0.1786268651485443,
+            0.9713650941848755,
+            0.1894596517086029,
+            0,
+            0.6810877919197083,
+            -0.25808966159820557,
+            0.6810877919197083,
+            0,
+            0.0018484307220205665,
+            0.009755863808095455,
+            0.0018484307220205665,
+            1
+          ],
+          "hatModel": [
+            0.7084802389144897,
+            0.007357302587479353,
+            -0.7056922912597656,
+            0,
+            0.17762146890163422,
+            0.965897798538208,
+            0.18839329481124878,
+            0,
+            0.6830126643180847,
+            -0.258819043636322,
+            0.6830126643180847,
+            0,
+            0.0018484307220205665,
+            0.009755863808095455,
+            0.0018484307220205665,
+            1
+          ],
+          "meshMaxVertexStep": 0.012996698163858697,
+          "meshRmsVertexStep": 0.010415602409166877,
+          "changedPixels": 201,
+          "garmentXor": 80,
+          "garmentUnion": 252,
+          "garmentXorFraction": 0.31746031746031744
+        },
+        {
+          "shape": "bun",
+          "camera": {
+            "yaw": 45,
+            "pitch": 15,
+            "roll": 0
+          },
+          "activity": "celebrating",
+          "time": 0.03333333333333333,
+          "frame": 1,
+          "body": 2467,
+          "band": 34,
+          "crown": 161,
+          "hatOnly": 291,
+          "occluded": 82,
+          "cullMissing": 0,
+          "cullIdMismatch": 0,
+          "depthTie": 0,
+          "bandComponents": [
+            34
+          ],
+          "crownComponents": [
+            161
+          ],
+          "worldMaxVertexStep": 0.05392385944727379,
+          "worldRmsVertexStep": 0.04910194869550194,
+          "delta": 0.03333333333333333,
+          "reduced": false,
+          "seats": [
+            [
+              "beret",
+              [
+                -0.04715332031249999,
+                0
+              ]
+            ]
+          ],
+          "target": -0.04715332031249999,
+          "bodyModel": [
+            0.7040486931800842,
+            0.019922945648431778,
+            -0.6964991092681885,
+            0,
+            0.17147429287433624,
+            0.9842272996902466,
+            0.20148620009422302,
+            0,
+            0.6765592694282532,
+            -0.2563736140727997,
+            0.6765592694282532,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "hatModel": [
+            0.7107642889022827,
+            0.020112982019782066,
+            -0.7031427025794983,
+            0,
+            0.16824929416179657,
+            0.9657164216041565,
+            0.1976967453956604,
+            0,
+            0.6830126643180847,
+            -0.258819043636322,
+            0.6830126643180847,
+            0,
+            0.004491914063692093,
+            0.023707950487732887,
+            0.004491914063692093,
+            1
+          ],
+          "meshMaxVertexStep": 0.015110403599664325,
+          "meshRmsVertexStep": 0.011925462636417432,
+          "changedPixels": 215,
+          "garmentXor": 78,
+          "garmentUnion": 246,
+          "garmentXorFraction": 0.3170731707317073
+        }
+      ]
     },
-    "maximumOrdinaryActivityVertexStep": {
-      "shape": "pixelTriangle",
-      "camera": {
-        "yaw": 0,
-        "pitch": -30,
-        "roll": 0
-      },
-      "activity": "celebrating",
-      "time": 5.666666666666667,
-      "frame": 170,
-      "body": 1487,
-      "band": 36,
-      "crown": 147,
-      "hatOnly": 323,
-      "occluded": 68,
-      "cullMissing": 0,
-      "cullIdMismatch": 0,
-      "depthTie": 0,
-      "bandComponents": [
-        36
-      ],
-      "crownComponents": [
-        147
-      ],
-      "meshMaxVertexStep": 0.01598819430720676,
-      "meshRmsVertexStep": 0.013247834658423458,
-      "changedPixels": 99,
-      "garmentXor": 33,
-      "garmentUnion": 273,
-      "garmentXorFraction": 0.12087912087912088
+    "extremaVisualReview": {
+      "pixelTriangleTurn": "Frames 135–139, both cameras: supported cap with gradual cuff relaxation; no independent pop, tear or disappearance.",
+      "celebration": "Oval/Bun frames 0–3 and PixelTriangle frames 18–22, both cameras: high mask change and world motion arise from shared body/root movement, with coherent supported garment."
     },
-    "maximumMaskMotion": {
-      "shape": "pixelTriangle",
-      "camera": {
-        "yaw": 45,
-        "pitch": 15,
-        "roll": 0
+    "reviewedMotionExceptions": [
+      {
+        "case": "Heart→Boom→PixelTriangle interrupted morph, frames93–95",
+        "rawMaximum": 0.059664528031262806,
+        "worldMaximum": 0.06007510986934336,
+        "assessment": "Rapid but coherent supported seating/curl recovery; not an isolated reset, tear or disappearance. This case-specific assessment is not a general jump tolerance."
       },
-      "activity": "celebrating",
-      "time": 5.7,
-      "frame": 171,
-      "body": 1440,
-      "band": 31,
-      "crown": 178,
-      "hatOnly": 217,
-      "occluded": 2,
-      "cullMissing": 0,
-      "cullIdMismatch": 0,
-      "depthTie": 0,
-      "bandComponents": [
-        31
-      ],
-      "crownComponents": [
-        178
-      ],
-      "meshMaxVertexStep": 0.015383310896700548,
-      "meshRmsVertexStep": 0.012753032970317761,
-      "changedPixels": 223,
-      "garmentXor": 102,
-      "garmentUnion": 265,
-      "garmentXorFraction": 0.3849056603773585
-    },
-    "motionInterpretation": "Largest ordinary mask motion accompanies whole-body celebration bob/roll. High-resolution neighborhoods preserve garment support and shell continuity; it is not treated as an independent cap jump."
+      {
+        "case": "Burst→Heart narrow early transition interval",
+        "approximateSeatResidual": 0.003,
+        "approximateVertexResidual": 0.00422,
+        "assessment": "Bounded residual retained and disclosed. Runtime default and linear controls show no conspicuous independent pop. No claim of perfect mathematical continuity."
+      }
+    ],
+    "appearanceScope": "Settled wearing remains the primary quality gate. Brief intermediate openings and supported rapid relaxation are accepted; conspicuous independent jumps, tearing, disappearance and severe distortion remain failures."
   },
   "baselineControls": {
-    "originalCookieAndSoftBurst": {
-      "passed": true,
-      "scope": "Only the exact Cookie6Sided idle425→426 and SoftBurst idle87→88 animation regressions, not global accessory aesthetic acceptance.",
-      "thresholds": {
-        "knownCookieBaselineMaskXorMinimum": 0.5,
-        "candidateCookieMaskXorMaximum": 0.1,
-        "knownSoftBurstBaselineVertexStepMinimum": 0.09,
-        "candidateVertexStepMaximum": 0.005
+    "passed": true,
+    "scope": "Only the exact Cookie6Sided idle425→426 and SoftBurst idle87→88 animation regressions, not global accessory aesthetic acceptance.",
+    "thresholds": {
+      "knownCookieBaselineMaskXorMinimum": 0.5,
+      "candidateCookieMaskXorMaximum": 0.1,
+      "knownSoftBurstBaselineVertexStepMinimum": 0.09,
+      "candidateVertexStepMaximum": 0.005
+    },
+    "pairs": [
+      {
+        "shape": "cookie6Sided",
+        "frame": 426,
+        "camera": {
+          "yaw": 0,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 2
+        },
+        "baselineMaskXor": 0.7416425038376258,
+        "candidateMaskXor": 0.005533232329886042,
+        "candidateMeshStep": 0.000370602125619406
       },
-      "pairs": [
-        {
-          "shape": "cookie6Sided",
-          "frame": 426,
-          "camera": {
-            "yaw": 0,
-            "pitch": 0,
-            "roll": 0,
-            "zoom": 2
-          },
-          "baselineMaskXor": 0.7416425038376258,
-          "candidateMaskXor": 0.005736636245110821,
-          "candidateMeshStep": 0.000370602125619406
+      {
+        "shape": "cookie6Sided",
+        "frame": 426,
+        "camera": {
+          "yaw": 0,
+          "pitch": -30,
+          "roll": 0,
+          "zoom": 2
         },
-        {
-          "shape": "cookie6Sided",
-          "frame": 426,
-          "camera": {
-            "yaw": 0,
-            "pitch": -30,
-            "roll": 0,
-            "zoom": 2
-          },
-          "baselineMaskXor": 0.7903158286431927,
-          "candidateMaskXor": 0.005969939598258182,
-          "candidateMeshStep": 0.000370602125619406
+        "baselineMaskXor": 0.7903158286431927,
+        "candidateMaskXor": 0.005723977104091583,
+        "candidateMeshStep": 0.000370602125619406
+      },
+      {
+        "shape": "cookie6Sided",
+        "frame": 426,
+        "camera": {
+          "yaw": 45,
+          "pitch": 15,
+          "roll": 0,
+          "zoom": 2
         },
-        {
-          "shape": "cookie6Sided",
-          "frame": 426,
-          "camera": {
-            "yaw": 45,
-            "pitch": 15,
-            "roll": 0,
-            "zoom": 2
-          },
-          "baselineMaskXor": 0.6775374067725947,
-          "candidateMaskXor": 0.006887258571642461,
-          "candidateMeshStep": 0.000370602125619406
+        "baselineMaskXor": 0.6775374067725947,
+        "candidateMaskXor": 0.007044364508393285,
+        "candidateMeshStep": 0.000370602125619406
+      },
+      {
+        "shape": "softBurst",
+        "frame": 88,
+        "camera": {
+          "yaw": 0,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 2
         },
-        {
-          "shape": "softBurst",
-          "frame": 88,
-          "camera": {
-            "yaw": 0,
-            "pitch": 0,
-            "roll": 0,
-            "zoom": 2
-          },
-          "baselineMeshStep": 0.10257766184856812,
-          "candidateMeshStep": 0.0004107806346864668
+        "baselineMeshStep": 0.10257766184856812,
+        "candidateMeshStep": 0.0003899181496630025
+      },
+      {
+        "shape": "softBurst",
+        "frame": 88,
+        "camera": {
+          "yaw": 0,
+          "pitch": -30,
+          "roll": 0,
+          "zoom": 2
         },
-        {
-          "shape": "softBurst",
-          "frame": 88,
-          "camera": {
-            "yaw": 0,
-            "pitch": -30,
-            "roll": 0,
-            "zoom": 2
-          },
-          "baselineMeshStep": 0.10257766184856812,
-          "candidateMeshStep": 0.0004107806346864668
+        "baselineMeshStep": 0.10257766184856812,
+        "candidateMeshStep": 0.0003899181496630025
+      },
+      {
+        "shape": "softBurst",
+        "frame": 88,
+        "camera": {
+          "yaw": 45,
+          "pitch": 15,
+          "roll": 0,
+          "zoom": 2
         },
-        {
-          "shape": "softBurst",
-          "frame": 88,
-          "camera": {
-            "yaw": 45,
-            "pitch": 15,
-            "roll": 0,
-            "zoom": 2
-          },
-          "baselineMeshStep": 0.10257766184856812,
-          "candidateMeshStep": 0.0004107806346864668
-        }
-      ]
-    },
-    "laterDiscoveredMorphAndTurn": {
-      "scope": "Exact known motion regressions only. This gate does not replace the complete finite temporal sweep, geometry audit, or visual review of other maxima.",
-      "directories": [
-        "final-morph-v2",
-        "smooth-morph",
-        "final-boom-turn-v3-worst",
-        "smooth-temporal"
-      ],
-      "tests": [
-        {
-          "name": "Heart intermediate morph68->69",
-          "old": 0.11023129469444896,
-          "current": 0.00994032116501007,
-          "oldMinimum": 0.09,
-          "currentMaximum": 0.02,
-          "pass": true
-        },
-        {
-          "name": "Boom turn60->61",
-          "old": 0.06396139398101126,
-          "current": 0.0002510076647902055,
-          "oldMinimum": 0.05,
-          "currentMaximum": 0.01,
-          "pass": true
-        }
-      ]
-    },
-    "visual": "Released PixelTriangle unsupported tongue/inverted lining wedge reproduced and removed; old Cookie/SoftBurst anchor jumps and later retarget/support-fit jumps required new baseline-failing tests."
+        "baselineMeshStep": 0.10257766184856812,
+        "candidateMeshStep": 0.0003899181496630025
+      }
+    ]
+  },
+  "geometryGate": {
+    "report": "geometry-report.json",
+    "sampledStates": 1230,
+    "scope": "Independent final-source intersection, topology and normal audit, separate from rendered case coverage."
   },
   "reviewArtifacts": [
-    "visual-triage/smooth-static-130-dispositions.json",
-    "visual-triage/smooth-temporal-138-dispositions.json",
-    "visual-triage/smooth-phase-batch1-45-dispositions.json",
-    "visual-triage/smooth-phase-batch2-dispositions.json"
+    "visual-triage/authored-static-100-dispositions.json",
+    "visual-triage/authored-temporal-dispositions.json",
+    "visual-triage/authored-phase-batch1-dispositions.json",
+    "visual-triage/authored-phase-batch2-dispositions.json"
   ],
   "limitations": [
-    "Finite 15-degree angular grid, eight selected runtime extrema, and dense 30 fps sampling at two cameras; not a proof over continuous angles and time.",
-    "Diagnostic native raster replay complements browser integration and independent geometry tests; it is not a claim of identical antialiasing on every physical GPU.",
-    "Flags were classified with garment-only masks and manual review; screenshot counts and visible lining area were never automatic aesthetic pass criteria.",
-    "Small finite solver/Float32 quantization remains; exact historical nonconverging jumps were eliminated rather than hidden by relaxed thresholds."
+    "Finite15-degree angle grid, eight selected runtime extrema, and dense30fps sampling at two cameras are not a proof over every continuous angle/time.",
+    "Native diagnostic raster replay complements browser integration tests; it does not guarantee identical antialiasing on every GPU.",
+    "An empty hat cavity is not solid cloth. Natural body occlusion and visible inner lining are separately classified; zero intersections alone does not establish convincing wearing.",
+    "Some accepted fast transitions remain visibly quick. The bounded Burst residual and case-specific recovery above are not hidden by an enlarged global threshold."
   ]
 }

@@ -39,7 +39,8 @@
       ]
     ],
     "size": 192,
-    "states": 76020
+    "states": 76020,
+    "worldSpaceMetrics": true
   },
   "morph": {
     "sequences": [
@@ -191,5 +192,18 @@
         "score": 1.070865832408172
       }
     ]
-  }
+  },
+  "topology": {
+    "outerProfileRings": 31,
+    "originalVertices": [
+      0,
+      1857
+    ],
+    "extraInnerBandVertices": [
+      1858,
+      2049
+    ],
+    "extraInnerBandObjectId": 4
+  },
+  "runtimeHistory": "Independent renderer reset at each activity/camera/morph sequence. Exact selected runtime replay warms from zero. Delta is seconds."
 }

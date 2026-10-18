@@ -1,53 +1,56 @@
-# Final beret performance audit: controlled sequential ABBA
+# Final beret performance audit
 
-Final source: worn-beret.ts SHA-256 fc32adf0b43955a768938adcfbc09997887d5644177b81480f5f2c7cca2a353f. All tracked source hashes verified unchanged before and after the benchmark.
+Final geometry commit: `2ec3c693`. Measured candidate HEAD: `5986722db511686eabd74cd6510f93e136207d35`. Release: v0.2.5 (`92ae6f80d06397c8bf6371f1fc1423b9568e18b4`). Source fingerprints matched before and after the complete run.
 
 ## Conclusion
 
-The final geometry fixes retain a measurable active-morph CPU cost versus v0.2.5: median body+beret pipeline is approximately 3%,11%,16% slower on the three tested paths. Typical cached activity geometry remains cheap, but the final-source all35 activity evidence was collected under contention and is retained separately; do not claim a controlled activity speedup from it. The earlier 22–31 ms morph medians were materially affected by QA contention, as demonstrated by this new sequential comparison.
+The corrected garment trades additional active-morph CPU work for its fitting and continuous collision behavior. Across the three interrupted paths, median pipeline CPU is 43–45% higher than release. Cached idle geometry remains inexpensive, and changing-frame upload traffic is 34.4% lower. First-time fits can still take tens of milliseconds.
 
-This is server Node CPU timing, not real GPU/browser/ultra-low-end performance. Candidate active morph p95 ranges16.1–20.6ms before actual GPU work, so a low-end60Hz guarantee is not supported.
+These are server Node CPU measurements, not browser/GPU or ultra-low-end device results. Candidate active-morph p95 is 32.8–41.1 ms before remaining renderer/GPU work. A low-end 60 fps guarantee is not supported.
 
 ## Method
 
-- Intel Xeon Platinum8573C, Node source via tsx. Explicit ABBA order: release,current,current,release, separate sequential processes. Parent confirmed broad native render/audit jobs finished; no other heavy local jobs planned during this run.
-- Three actual interrupted ShapeTimeline paths only; no repeated all35 activity sweep. Each starts a1000ms linear transition, retargets at frame36 to another1000ms transition, and advances frames0–120 at60Hz with real idle breathing. Body target changes at request time.
-- Each process performs a full path warmup before its measured path. Report pools two measured runs per variant:192 active frames/path, excluding frame0 and settled tail. Raw logs include all121 frames per path, and summaries preserve individual-run medians.
-- Pipeline = ShapeTimeline.advance + bodyGeometry + beretGeometry + retarget setup at frame36. Body cache is populated before beret fitting, matching render order. This omits remaining renderer CPU work and GPU execution.
-- ABBA controls ordering better than a single reused baseline; it is still a modest single-host sample with GC/scheduler variance. Maxima are preserved, never silently trimmed.
+- Sequential release/current/current/release (ABBA), separate processes; each path has a complete warmup before measurement. Parent confirmed heavy render/replay jobs ended before the run; no concurrent heavy local jobs were planned. This is not a guarantee against all host scheduling noise.
+- Three actual ShapeTimeline paths, 1,000 ms linear transitions retargeted at frame 36; frames 0–120 at 60 Hz, with actual idle squash. Body shape target changes at retarget time. Pooled active samples exclude frame 0 and settled tail: 192 frames/path/variant.
+- Pipeline = retarget setup + timeline advance + bodyGeometry + beretGeometry. Body mesh is built before fitting, matching renderer order. Raw per-stage timings and both individual run medians are retained.
+- Quantiles use sorted index floor(n × percentile); maxima are untrimmed. One ABBA block and three static shapes are a bounded sample. GC, JIT and scheduler variation remain.
+- Host: INTEL(R) XEON(R) PLATINUM 8573C; Node v24.19.0; TypeScript source loaded through tsx.
 
-## Active-morph distributions (median/p95/max ms)
+## Active morph: median/p95/max milliseconds
 
-| Path | Release pipeline | Final candidate pipeline | Release fit only | Final candidate fit only |
+| Path | Release pipeline | Current pipeline | Release fit | Current fit |
 |---|---:|---:|---:|---:|
-| flower → triangle → square | 11.977/15.681/22.458 | 12.315/16.525/19.802 | 1.991/3.149/4.064 | 1.962/4.489/7.851 |
-| heart → boom → pixelTriangle | 12.471/18.606/29.817 | 13.826/20.600/36.967 | 1.991/2.933/6.922 | 3.807/7.304/8.682 |
-| clover8Leaf → heart → circle | 11.327/14.188/15.080 | 13.090/16.069/18.203 | 1.117/1.557/2.366 | 2.891/4.642/6.514 |
+| flower → triangle → square | 12.327/18.302/22.395 | 17.842/41.096/46.025 | 2.044/3.476/5.796 | 7.378/29.356/36.147 |
+| heart → boom → pixelTriangle | 13.228/21.779/32.806 | 18.934/34.496/54.095 | 2.055/2.922/7.321 | 7.255/26.224/41.100 |
+| clover8Leaf → heart → circle | 11.080/15.752/16.917 | 16.080/32.835/40.809 | 1.109/1.578/2.304 | 6.294/22.271/31.349 |
 
-## Body build and repeatability
+## Body-build cost and repeatability
 
-| Path | Release body median/p95/max | Candidate body median/p95/max | Release run pipeline medians | Candidate run pipeline medians |
+| Path | Release body median/p95/max | Current body median/p95/max | Release run medians | Current run medians |
 |---|---:|---:|---:|---:|
-| flower → triangle → square | 9.585/12.662/15.782 | 9.643/11.867/13.725 | 12.186 / 11.783 | 12.336 / 11.844 |
-| heart → boom → pixelTriangle | 10.024/15.444/26.255 | 10.140/13.822/21.281 | 12.367 / 12.551 | 13.394 / 14.323 |
-| clover8Leaf → heart → circle | 9.721/12.298/13.246 | 9.256/12.072/14.099 | 11.813 / 10.698 | 13.416 / 12.948 |
+| flower → triangle → square | 9.889/14.259/15.734 | 9.709/13.229/27.127 | 13.040 / 11.719 | 17.592 / 18.108 |
+| heart → boom → pixelTriangle | 10.765/18.277/29.307 | 10.118/12.731/17.714 | 14.172 / 12.119 | 18.614 / 19.498 |
+| clover8Leaf → heart → circle | 9.742/13.545/14.504 | 9.334/11.932/13.994 | 11.728 / 10.999 | 15.768 / 16.485 |
 
-## Other preserved final-source evidence
+## Cached idle and first fit
 
-- The final fc32adf0 all35 activity/cold-fit run was collected at03:25UTC while broad QA used four Mesa threads. It reused an earlier release baseline and cannot establish controlled speedup or regression. Full report:FC32ADF0-LOADED-REPORT.md; raw:fc32adf0-loaded-candidate.json.
-- That loaded run measured candidate pooled typical activity medians0.109/0.114/0.114ms (idle/speaking/celebrating), p95 .813/.546/.628ms, with maxima123.0/16.6/21.9ms. Cold fit median7.11ms under load. These are preserved observations, not expected uncontended timings.
-- The first breathing cycles can also trigger deterministic cache misses from exact floating-point neutral-depth keys. Typical cheap frames do not mean every early frame is cheap; details and per-shape raw timings are retained.
-- Geometry remains1858 vertices/3712 triangles,44592 vertex bytes/22272 index bytes. Earlier production-renderer counting-GL evidence reports two beret draw ranges, no per-frame candidate index upload,40.6% less changing-frame upload traffic than baseline. Counting-GL was not rerun for this final ABBA; no GPU-speed claim.
+Body is prebuilt before first-fit timing. Code warms on separate contour identities. Cached results measure 180 breathing frames after warming the entire same interval twice, including exact floating-point cache keys. First fits below are one observation each, not a cold-fit distribution. The baseline Heart body cache was already populated by module behavior, so its body timing is not a cold mesh build.
 
-## Reproducible raw artifacts
+| Shape | Release cached median/p95/max | Current cached median/p95/max | Release first fit | Current first fit | Current separate body build |
+|---|---:|---:|---:|---:|---:|
+| square | 1.913/2.476/3.041 | 0.071/0.144/3.384 | 6.104 | 11.437 | 15.026 |
+| heart | 0.103/0.144/0.305 | 0.071/0.125/0.801 | 0.205 | 66.327 | 13.172 |
+| flower | 2.136/2.788/5.248 | 0.070/0.120/0.580 | 8.379 | 37.603 | 19.491 |
 
-- benchmark-abba.mjs: short harness (variant and sequence arguments).
-- abba-1-baseline.json and .log
-- abba-2-candidate.json and .log
-- abba-3-candidate.json and .log
-- abba-4-baseline.json and .log
-- abba-summary.json:pooled stage distributions and individual-run medians.
-- final-source-sha256.txt:current source fingerprints.
-- FC32ADF0-LOADED-REPORT.md / fc32adf0-loaded-candidate.json:preserved loaded all35 and morph evidence, explicitly not the controlled comparison.
+Exact neutral-depth cache keys can differ by floating-point rounding during the first breathing cycles and trigger additional fits. Fully warmed small medians do not promise uniformly cheap first frames. Morph contours change identity and require new fits despite warm JIT. No fresh all-35 activity sweep was performed.
 
-No product edits were made by the benchmark worker. All benchmark processes have terminated.
+## Draws, buffers, uploads and allocations
+
+- Counting-GL production renderer, 60 changing idle frames for each of Square/Heart/Flower. Both variants: 3 scene draw calls/frame (body plus two beret ranges), 8 buffers and peak 4 VAOs; disposal leaves zero live buffers, VAOs, programs and shaders.
+- Current beret: 2,050 vertices / 4,096 triangles; 49,200 vertex bytes / 24,576 shared index bytes. Release: 2,086 vertices / 4,164 triangles; 50,064 / 24,984 bytes.
+- Changing-frame upload: current 49,200 bytes/frame versus release 75,048 (34.4% less). Current has zero recurring bufferData calls and one bufferSubData/frame; release has one of each. These are counted API bytes, not GPU execution timing.
+- No heap-allocation or GC-byte instrument was run. Upload counts and retained GL object counts must not be presented as total CPU allocation counts.
+
+## Portable raw evidence
+
+See [performance-artifacts/README.md](performance-artifacts/README.md) for reproduction, [pooled summary](performance-artifacts/abba-summary.json), [cached/cold/counting data](performance-artifacts/cached-cold-counts.json), and [source fingerprints](performance-artifacts/source-before-sha256.txt). All raw frames and individual logs are included. Earlier source snapshots and loaded-run numbers are superseded by this report.

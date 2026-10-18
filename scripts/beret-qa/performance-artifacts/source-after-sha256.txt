@@ -1,0 +1,5 @@
+396a8437710cd1b788390ce67bd235cb72aa15247c60bc7e7e6ac66780036ad0  sidekick-fixed-accessories/src/renderer/worn-beret.ts
+e9e3ddd82d8d15971a15404bcb7e24c6e5d6f3c459389e6345214f61f7f62773  sidekick-fixed-accessories/src/renderer/cloth-clearance.ts
+e904656d36ac622f77dfa4a8ea218373d45f30a58ab9a1e28fda6005c026ea65  sidekick-fixed-accessories/src/renderer/beret-geometry.ts
+9ea95aa1f3998dd3b2799771db3fb04f5ce819f52db0b23590a79fa05b60f545  sidekick-fixed-accessories/src/renderer/webgl.ts
+772ebec8e1c24243221b3c935301dec19438141a3fd4d7b4c180bf2b5015f406  sidekick-fixed-accessories/src/core/shape-profiles.ts

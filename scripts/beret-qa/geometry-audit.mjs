@@ -1,7 +1,6 @@
 // Run after npm run build:all. No rendering or network access is needed.
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import { fileURLToPath } from 'node:url';
 import { MATERIAL_SHAPE_NAMES } from '../../dist/src/core/design.js';
 import { shapeContour } from '../../dist/src/core/contours.js';
 import { resolveShapeProfile } from '../../dist/src/core/shape-profiles.js';
@@ -32,8 +31,10 @@ function check(metadata, contour, profile, rotation = [0,0,0]) {
     }
   }
   const badEdges=[...edges.values()].filter(([n,b])=>n!==2||b!==0).length;
-  const row={...metadata,rotation,selfCrossings:self.count,bodyCrossings:body.count,degenerate,normalOpposed,badEdges,signedVolume,euler:mesh.vertices.length/6-edges.size+ts.length};
-  row.pass = !row.selfCrossings && !row.bodyCrossings && !degenerate && !normalOpposed && !badEdges && signedVolume>0 && row.euler===2;
+  // The coherent shell has 1,858 original vertices plus three 64-vertex
+  // subdivisions of inner band 4→5. The appended IDs are 1,858–2,049.
+  const row={...metadata,rotation,vertices:mesh.vertices.length/6,contactResolved:mesh.contactResolved,contactCorrection:mesh.contactCorrection,selfCrossings:self.count,bodyCrossings:body.count,degenerate,normalOpposed,badEdges,signedVolume,euler:mesh.vertices.length/6-edges.size+ts.length};
+  row.pass = row.vertices===2050 && row.contactResolved===true && Number.isFinite(row.contactCorrection) && row.contactCorrection>=0 && row.contactCorrection<=.006 && !row.selfCrossings && !row.bodyCrossings && !degenerate && !normalOpposed && !badEdges && signedVolume>0 && row.euler===2;
   if (!row.pass) row.samples={self:self.samples,body:body.samples};
   rows.push(row); console.log(metadata.shape, metadata.kind, row.pass?'PASS':'FAIL');
 }
@@ -63,7 +64,17 @@ for (const [from,to,next] of [
     check({kind:'broader-morph',shape:next??to,from,to,next,progress:step/10},timeline.contour,timeline.profile);
   }
 }
-const sourceFiles=['src/renderer/worn-beret.ts','src/renderer/beret-geometry.ts','src/core/shape-profiles.ts','src/core/shape-motion.ts','src/renderer/body-geometry.ts'];
+// Cross-family samples exercise both directions through a roomier supported
+// profile. These are finite samples, not all shape pairs or continuous proof.
+for (const shape of MATERIAL_SHAPE_NAMES) for (const [from,to] of [[shape,'heart'],['heart',shape]]) {
+  for (const progress of [.2,.5,.8,.95]) {
+    const timeline=new ShapeTimeline(from); timeline.to(to,{duration:1000,easing:'linear'});
+    timeline.advance(progress*1000);
+    check({kind:'catalog-heart-morph',shape:to,from,to,progress},timeline.contour,timeline.profile);
+  }
+}
+const sourceFiles=['src/renderer/worn-beret.ts','src/renderer/cloth-clearance.ts','src/renderer/beret-geometry.ts','src/core/shape-profiles.ts','src/core/shape-motion.ts','src/renderer/body-geometry.ts'];
 const provenance=Object.fromEntries(sourceFiles.flatMap(p => [p, 'dist/'+p.replace(/\.ts$/,'.js')]).map(p=>[p,crypto.createHash('sha256').update(fs.readFileSync(new URL(p,root))).digest('hex')]));
-fs.writeFileSync(output,JSON.stringify({created:new Date().toISOString(),source:fileURLToPath(root),provenance,method:'Triangle interior and positive-area coplanar intersections, with seam-only contact excluded. No concealed-body-crossing exemptions. Geometry tests do not prove visual quality or continuous-time correctness.',states:rows.length,failures:rows.filter(r=>!r.pass).length,rows},null,2));
+const countsByKind=Object.fromEntries([...new Set(rows.map(r=>r.kind))].map(kind=>[kind,rows.filter(r=>r.kind===kind).length]));
+fs.writeFileSync(output,JSON.stringify({created:new Date().toISOString(),source:'.',provenance,method:'Triangle interior and positive-area coplanar intersections, with seam-only contact excluded. No concealed-body-crossing exemptions. Geometry tests do not prove visual quality or continuous-time correctness.',states:rows.length,maxCorrection:Math.max(...rows.map(r=>r.contactCorrection)),countsByKind,failures:rows.filter(r=>!r.pass).length,rows},null,2));
 if(rows.some(r=>!r.pass))process.exitCode=1;

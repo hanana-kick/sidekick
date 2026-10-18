@@ -1,79 +1,64 @@
-## Repository installation and prerequisites
+# Beret rendering regression harness
 
-Place this folder at `scripts/beret-qa`. It requires Node.js, the project’s existing `tsx` development dependency, a C compiler, and Linux Mesa `libEGL.so.1` with surfaceless GLES 3 support. No additional npm dependency is introduced. Run `node build-native.mjs` from this folder first. The helper binary is generated, not committed.
+This harness records actual `AvatarRenderer` calls and replays its production vertex shader, geometry, matrices and culling in native Mesa GLES3. A diagnostic fragment shader writes object IDs and 16-bit screen depth. Counts are coverage, not an aesthetic score.
 
-For a candidate run from this folder: `SOURCE=../.. TOPOLOGY=coherent31 OUT=output node --import tsx grid.mjs`. Use a detached worktree for the baseline and provide its absolute path as SOURCE. Keep separate output folders. Native Mesa diagnostics complement, rather than replace, browser integration tests.
+Final results: [Korean summary](validation-summary.ko.md), [render report](render-report.json), [geometry report](geometry-report.json), and [performance cost](performance-report.md).
 
-# Beret angular and temporal validation
+## Requirements
 
-This independent harness records actual `AvatarRenderer` WebGL calls and executes the production vertex shader and matrices in a persistent Mesa GLES3 context. Only the fragment shader is replaced with object IDs and 16-bit screen depth. It does not infer correctness from screenshot counts or red-pixel counts.
+Run from `scripts/beret-qa` with the project's installed `tsx` dev dependency, Node.js, a C compiler, and Linux Mesa `libEGL.so.1` supporting surfaceless GLES3. No additional npm dependency is required.
 
-## Running
-
-Run from this directory, using the existing project's TypeScript loader:
-
-```
-SOURCE=../.. TOPOLOGY=coherent31 OUT=output SIZE=384 ZOOM=1.5 \
-  node --import tsx grid.mjs
+```sh
+node build-native.mjs
 ```
 
-For a baseline run, use `SOURCE=/absolute/path/to/baseline-worktree` and omit `TOPOLOGY=coherent31`. Freeze the source before starting a run. `provenance.json` records source-file SHA256 hashes; `native.log` records the graphics implementation. `build-native.mjs` builds the persistent native replay helper from the included C source.
+The generated `native-grid` binary is not committed. Freeze source files for a complete run. Use separate output directories for each source revision. `provenance.json` records SHA256 hashes, and `native.log` records the GL implementation.
 
-## Precise coverage
+## Full finite matrix
 
-- Static: all 35 catalog shapes × 24 yaw values (0–345°, every 15°) × 13 pitch values (−90–90°, every 15°) = **10,920 views**. Camera roll 0, neutral pose, still activity. This is a finite grid, not a proof over infinitely many angles.
-- Temporal (`TEMPORAL=1`): 181 frames at 30 fps over 0–6 seconds; idle, thinking, listening, speaking, celebrating, and accessory-turn; cameras (yaw 0°, pitch −30°) and (45°, 15°); all 35 shapes. **76,020 frames**, each with three diagnostic native passes. Accessory-turn adds ±0.1-radian accessory rotations and bounded sinusoidal body rotations. Runtime squash and the production accessory behavior remain active; the candidate beret intentionally no longer applies delayed accessory rotation.
-- Angular animation extrema (`PHASE_MATRIX=1 FPS=60`): all 35 shapes × the full 312-angle grid × eight actual runtime phases = **87,360 views**. Phases are squash minima/maxima of idle, listening, speaking, and celebrating, selected on a 60 fps grid over 0–10 seconds. Each is warmed from time zero and frozen at delta zero while varying camera. Exact selected frames and motion states are retained in phases.json and each metric row.
-- Exact runtime stress (`STRESS=1 FPS=60`): replay from time zero, then retain the target and two neighboring frames on each side. Targets include Slanted speaking frame 522, Boom idle frame 129, and celebrating frame 196 for selected difficult shapes.
-- Exact flicker controls: Cookie6Sided idle frames 425→426 and SoftBurst idle frames 87→88. Use `TARGET=88 ACTIVITY=idle` for the latter.
-- Interrupted morphs (`MORPH=1 TEMPORAL=1 FPS=60`): heart→boom→pixelTriangle, flower→triangle→square, and clover8Leaf→heart→circle. Retarget at 600 ms. Each sequence has 121 frames at two cameras, giving **726 frames**.
+```sh
+LP_NUM_THREADS=2 SOURCE=../.. TOPOLOGY=coherent31 OUT=output-static SIZE=384 ZOOM=1.5 node --import tsx run-sharded.mjs
+LP_NUM_THREADS=2 SOURCE=../.. TOPOLOGY=coherent31 OUT=output-phases SIZE=384 ZOOM=1.5 PHASE_MATRIX=1 FPS=60 node --import tsx run-sharded.mjs
+LP_NUM_THREADS=2 SOURCE=../.. TOPOLOGY=coherent31 OUT=output-temporal SIZE=192 TEMPORAL=1 FPS=30 node --import tsx run-sharded.mjs
+LP_NUM_THREADS=2 SOURCE=../.. TOPOLOGY=coherent31 OUT=output-morph SIZE=384 ZOOM=1.5 MORPH=1 TEMPORAL=1 FPS=60 SHAPES=heart,flower,clover8Leaf VIEWS='[[0,-30],[45,15]]' node --import tsx grid.mjs
+```
 
-The angular phase sweep command is `SOURCE=../.. TOPOLOGY=coherent31 PHASE_MATRIX=1 FPS=60 SIZE=384 ZOOM=1.5 OUT=output-phases node --import tsx grid.mjs`. Temporal tests do not test every time sample at every camera angle. Broad static screening is 384 px with 1.5× zoom; exact defects are also replayed at 768 px with 2× zoom.
+- Static: 35 shapes × yaw 0–345° in 15° steps × pitch −90–90° in 15° steps = **10,920** cases. Camera roll 0; neutral still pose.
+- Phase-angle: the same grid × eight actual activity extrema = **87,360** cases. Select squash minima/maxima for idle, listening, speaking and celebrating on a 60 fps grid over 0–10 seconds. Warm each phase chronologically from zero; freeze delta at zero while changing camera. Exact selections are in `phases.json`.
+- Dense temporal: 35 shapes × six modes × 181 frames × two cameras = **76,020** cases. Modes are idle, thinking, listening, speaking, celebrating and accessory-turn. Frames cover 0–6 seconds at 30 fps; cameras are (0°,−30°) and (45°,15°). Accessory-turn includes ±0.1 rad joint rotations plus bounded sinusoidal body rotations.
+- Interrupted morph: heart→boom→pixelTriangle, flower→triangle→square, clover8Leaf→heart→circle; retarget at 600 ms; 121 frames at 60 fps and two cameras = **726** cases.
 
-## Masks and metrics
+Total: **175,026 cases**, three diagnostic native passes per case. Each matrix has unique keys, but actual geometric states can overlap between matrices. This does not prove every continuous time/angle combination. Exact coverage is specified in `matrix.json`.
 
-Three passes per state:
+The sharded runner caps each Node process at 192 MB, verifies complete shape counts and unique keys, and checks source hashes before merging. Incomplete runs are not passes. Keep at most two bounded streams running if memory permits; do not benchmark performance concurrently.
 
-1. Production face culling with all objects.
-2. Culling disabled, with all objects.
-3. Production culling with the garment only.
+## Runtime fidelity
 
-Object IDs: 1 body, 2 exterior cuff, 3 exterior crown/stem, 4 lining, 5 turned lip. Diagnostic PNG colors are yellow, dark red, red, blue, and green respectively. The production depth buffer handles occlusion. A garment hidden behind the body is not counted as a disappearing mesh.
+Each independent activity/camera/morph sequence starts with a new renderer. `delta` is in seconds and animation runs with `reduced:false`. Static tests use reduced motion. Rows retain body/hat model matrices, raw and world-space maximum/RMS vertex steps, mask changes and effective seating. A stateful renderer transform can move an otherwise unchanged mesh, so raw mesh displacement alone is insufficient.
 
-JSONL stores the exact shape, camera, activity, time, frame, object areas, natural occlusion, culling differences, near-depth ties, and connected exterior regions. Temporal rows additionally include mask XOR and, in the current harness, maximum/RMS vertex displacement in body-local coordinates.
+`RUNTIME_CASES=1 TEMPORAL=1 CASES_FILE=... FPS=30` warms every selected runtime case from frame zero before replay. Phase cases use `PHASE_MATRIX=1 CASES_FILE=...`. `CAPTURE_ALL=1` saves images; `CAPTURE_FRAMES=...` restricts saved images without removing numerical frames. `DETAILED_MASKS=1` adds garment-only visibility comparisons.
 
-Mask XOR includes expected movement. Small connected components can be raster aliasing. Neither metric is an aesthetic pass/fail criterion on its own. Suspected failures require high-resolution review and geometry evidence.
+## Diagnostic interpretation
 
-`BODY_POINTS` can project independently computed triangle-intersection points onto the ID/depth buffers. The recorded tolerance is a 1-pixel neighborhood and 20/65535 normalized depth. Only exterior-skin points are considered. This indicates that an intersection is near a visible exterior surface; it does not automatically prove perceptible clipping. Concealed lining and the turned lip require separate classification.
+Each case renders:
+1. All objects with production culling.
+2. All objects with culling disabled.
+3. Garment only with production culling.
 
-## Validated baseline controls
+IDs: 1 body/yellow, 2 outer cuff/dark red, 3 crown/stem/red, 4 inner lining/blue, 5 rolled lip/green. Current geometry has 2,050 vertices and 4,096 triangles. Coherent topology has original vertices 0–1857; appended inner-wall vertices 1858–2049 belong to lining, not the crown. Baseline v0.2.5 uses different topology: omit `TOPOLOGY=coherent31` for a detached baseline worktree supplied as an absolute `SOURCE`.
 
-Frozen baseline: v0.2.5, commit `92ae6f80d06397c8bf6371f1fc1423b9568e18b4`.
+Natural body occlusion is not disappearing cloth. Connected mask fragments can be edge rasterization. High mask XOR can be ordinary body movement. Near-depth ties and culling discrepancies require investigation, not an automatic aesthetic verdict. Visible lining inside a real cavity is legitimate; the cavity is empty space, not a solid collision volume.
 
-- The high-resolution PixelTriangle front view reproduces the user's unsupported cuff tongue and lining wedge. Independent visual review confirmed the match.
-- Independent geometry tests find true cuff self-intersections and outer/lining crossings.
-- Projected intersection probes identify Flower front-view crown penetration at ring 4 and Slanted side-view penetration at rings 4–5.
-- Cookie6Sided frame 426 changes 74.2% of the front-view garment mask union, while adjacent frames change about 1%. The corresponding underside value is 79.0%. Culling differences are zero: this is a geometry/anchor jump.
-- SoftBurst idle frame 88 moves a cuff vertex by 0.1026 body units in one frame.
+A strict automatic silhouette class requires zero removed cuff/crown pixels, one connected garment-only crown, every cuff pixel within two pixels of the silhouette, and zero culling/ID/depth discrepancies. Other diagnostic flags need paired visual review. Inspect ambiguous cases at 768 px. Independent triangle-intersection, winding, degeneracy and motion-convergence tests remain separate gates.
 
-`validate-repros.mjs` requires these known baseline defects to be detected and the candidate to eliminate them. Its thresholds are explicit, and its output is limited to those exact regressions. It does not claim global fit acceptance.
+## Baseline-positive controls
 
-## Artifacts and limits
+Released v0.2.5 commit `92ae6f80d06397c8bf6371f1fc1423b9568e18b4` reproduces the unsupported PixelTriangle cuff tongue, folded lining and genuine self-intersections. Cookie6Sided idle 425→426 changes approximately 74% of the front garment-mask union; SoftBurst idle 87→88 moves a cuff vertex by approximately 0.103 body units.
 
-`baseline-grid384` contains the complete static matrix. `baseline-temporal` contains the complete broad temporal run when its summary is present. `baseline-flicker`, `baseline-softburst-idle`, and matching candidate folders contain exact high-resolution controls. `baseline-exposure` contains projected intersection probes. `baseline-morph` contains the selected interrupted transitions.
+Use `STRESS=1 TEMPORAL=1 FPS=60 SHAPES=cookie6Sided` for the Cookie control. For SoftBurst use `SHAPES=softBurst TARGET=88 ACTIVITY=idle`. Match baseline camera/size/zoom exactly when comparing. `validate-repros.mjs` requires known baseline failures and their removal; its success applies only to those regressions.
 
-Raw frame files are overwritten and deleted. Only metrics and limited representative/failing PNGs are retained. Candidate topology is explicitly versioned: the older 16-ring outer shell plus offset lining must not be classified using the new coherent 31-ring profile.
+## Acceptance and limitations
 
-Final acceptance requires independent self-intersection, degeneracy, winding/stretch checks and visual review of the reproduced failures. The grid harness intentionally reports diagnostic flags instead of inventing an aesthetic success verdict.
+The approved visual intent permits brief intermediate openings and rapid supported cloth relaxation. It does not permit conspicuous independent jumps, torn/intersecting cloth, disappearance, or severe cap distortion. A velocity threshold alone cannot distinguish these cases. Case-specific reviewed recovery bounds and any small residual numerical discontinuity must be reported, not generalized into a loose global tolerance.
 
-## Focused reproduction and triage
-
-`ACTIVITIES=accessory-turn TEMPORAL=1` selects the changed explicit-rotation subset:35×181×2=12,670 states. Keep source revisions in separate output folders. Carry older render results forward only with exhaustive byte-equivalence of every affected geometry state, not a static endpoint assumption.
-
-`PHASE_MATRIX=1 CASES_FILE=/absolute/path/cases.json DETAILED_MASKS=1 CAPTURE_ALL=1` replays exact selected phase/camera cases after warming each activity. Each case contains `shape`, `phaseIndex`, and `camera.yaw/pitch`. Detailed masks record garment-only components and cuff/crown pixels removed by foreground occlusion. `CAPTURE_FRAMES=67,68,69,70,71,72` limits retained PNGs without changing the full numerical run.
-
-A narrowly defined intrinsic-silhouette class requires zero removed cuff/crown pixels, a single connected garment-only crown, every cuff pixel within two pixels of the garment silhouette, and zero culling/depth discrepancies. Cases outside that class require visual classification; this rule does not establish animation smoothness or authorize ignoring mesh-intersection failures.
-
-For bounded memory, replace `grid.mjs` with `run-sharded.mjs` in the same command. Each shape runs in a separate192MB-heap Node process. The runner verifies source hashes remain identical, each shard reaches its expected count, and state keys are unique before merging. Failed shards remain evidence; an incomplete run is not a pass. Keep the source frozen for the entire command.
-
-Structural checks and motion convergence are documented in [geometry-audit.md](geometry-audit.md). Final sampled results are in [render-report.json](render-report.json), [geometry-report.json](geometry-report.json), and [performance-report.md](performance-report.md).
+Raw frame buffers are overwritten; retain compressed metrics, provenance, exact coverage, representative/flagged images and per-case dispositions. Carry older native results forward only after exact equivalence of every affected rendered state, including model matrices and history-dependent state. A clean intersection count does not establish convincing wearing or cavity occupancy.
