@@ -92,3 +92,7 @@ CASES_FILE=/workspace/shared/crown-fit-qa/candidate-5-grid/flagged-cases.json SI
 ```
 
 All 128 flagged candidate-5 low-resolution cases were rechecked at 768px. Remaining individual-pixel details are in `/workspace/shared/crown-fit-qa/candidate-5-residual-pixels`. The static grid's `unchanged-related-source-hashes.json` records exact baseline/candidate SHA256s for the beret, scarf, cloth-clearance, catalog accessory, and WebGL renderer files. Their byte identity does not by itself certify unchanged behavior through shared callers; independent rendering parity tests cover that separately.
+
+The activity harness accepts the same `CASES_FILE` and `DETAIL_PIXELS` options. For a selected activity case, it still warms chronologically from frame 0 to the requested frame; it never substitutes a static render at that timestamp. Candidate 5's 93 low-resolution flagged activity cases were rechecked at 768px in `candidate-5-activity-flags-768`, and residual coordinates are in `candidate-5-activity-residual-pixels`. Consolidated findings and scope limitations are in `/workspace/shared/crown-fit-qa/candidate-5-visibility-review.md`.
+
+When comparing two later candidates, pass `--baseline-label 'candidate 5'` (or the relevant name) alongside `--baseline`; this keeps comparison headings explicit about the chosen baseline. Candidate 6's comparison pages use candidate 5, not the original v0.3.1 baseline.

@@ -67,6 +67,7 @@ const draws=captured.draws.map((d,i)=>({...d,id:i+1}));
 const a=await render(draws,0),b=await render(draws,1),c=await render(draws.slice(1),0),m=metrics(a,b,c);
 const key=`${shape}/${activity}/${camera.yaw}/${camera.pitch}/${frame}`;assert(!keys.has(key));keys.add(key);
 const row={shape,activity,camera,frame,time,delta,reduced:false,...m,...previous?maskChange(a,previous):{}};previous=a;
+if(process.env.DETAIL_PIXELS==='1'){row.cullingAnomalyPixels=[];for(let i=0;i<a.length;i+=4){const ai=a[i+3]?a[i]:0,bi=b[i+3]?b[i]:0,ad=a[i+1]*256+a[i+2],bd=b[i+1]*256+b[i+2];if((ai!==bi||(ai>=2&&Math.abs(ad-bd)>2))&&row.cullingAnomalyPixels.length<32)row.cullingAnomalyPixels.push({x:(i/4)%size,y:Math.floor(i/4/size),productionId:ai,unculledId:bi,productionDepth:ad,unculledDepth:bd});}}
 gzip.write(JSON.stringify(row)+'\n');total.views++;total.nativePasses+=3;summary.views++;
 if(m.crownVisiblePixels===0){total.viewsWithZeroVisibleCrown++;summary.zeroVisibleViews++;}
 if(m.crownOnlyPixels===0)total.viewsWithZeroCrownOnlyMask++;
