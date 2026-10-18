@@ -82,6 +82,10 @@ for (const placement of ['viewport', 'inline']) test(`moveToElement anchors, scr
   }
   window.scrollTo(0,100); await bot.moveToElement(target,{alignX:'center',alignY:'center'});
   const b=bot.getBoundingClientRect(),r=target.getBoundingClientRect();errors.push(Math.abs(b.left+b.width/2-r.left-r.width/2),Math.abs(b.top+b.height/2-r.top-r.height/2));
+  target.style.width='360px';target.style.height='240px';
+  await bot.moveToElement(target,{alignX:'right',alignY:'bottom'});
+  const resizedBot=bot.getBoundingClientRect(),resizedTarget=target.getBoundingClientRect();
+  errors.push(Math.abs(resizedBot.right-resizedTarget.right),Math.abs(resizedBot.bottom-resizedTarget.bottom));
   const before=bot.position;target.remove();let rejected=false;try{bot.moveToElement(target);}catch{rejected=true;}
   return {errors,rejected,before,after:bot.position};
  },placement);
