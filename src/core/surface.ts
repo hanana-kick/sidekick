@@ -213,7 +213,12 @@ export function sampleAccessorySurface(body: BodyDesign, accessory: Pick<Resolve
   const deformedTangent: Vec3 = [orientation[0]! * stretch, orientation[1]! * squash, orientation[2]! * stretch];
   const bitangent = normalize(cross(normal, deformedTangent)), tangent = normalize(cross(bitangent, normal));
   let point: Vec3;
-  if (accessory.preset === 'halo') {
+  if (accessory.preset === 'crown') {
+    // Crown support is authored in canonical XY, not perimeter arc phase.
+    // Concave outlines have very different arc lengths; a phase cannot name
+    // the same summit reliably. The rigid seating solver determines depth.
+    point = [anchor.uv[0], anchor.uv[1], 0];
+  } else if (accessory.preset === 'halo') {
     point = [0, Math.max(...contour.points.map(p => p[1])), 0];
   } else if (anchor.region === 'face') {
     const x = direction[0] / direction[2], y = direction[1] / direction[2], radius = Math.hypot(x, y);

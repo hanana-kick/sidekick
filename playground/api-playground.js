@@ -1,6 +1,8 @@
+import { mountSiteHeader } from './shared-header.js';
 import { createAccessory } from '../src/index.ts';
 
 const $ = id => document.getElementById(id);
+mountSiteHeader($('site-header-brand'), 'api');
 const bot = $('bot'), stage = $('movement-stage');
 const method = $('move-method'), xInput = $('target-x'), yInput = $('target-y');
 const durationInput = $('duration'), easingInput = $('easing'), travelInput = $('travel');

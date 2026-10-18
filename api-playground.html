@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <title>Sidekick · API playground</title>
+  <link rel="stylesheet" href="./playground/shared-header.css">
   <style>
+    .app-header { position: fixed; z-index: 30; inset: 0 0 auto; height: 70px; }
+    @media (max-width: 760px) { .app-header { height: 66px; } }
     :root { color-scheme: light; --ink: #24242c; --muted: #62636b; --line: #e1e2e7; --paper: #fff; --accent: #f3c849; --preview-top: 94px; --preview-height: 344px; }
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
@@ -18,12 +21,6 @@
     button.primary:hover { background: #44444c; }
     :focus-visible { outline: 3px solid #9c7616; outline-offset: 3px; }
     a { color: inherit; }
-    .app-header { position: fixed; z-index: 30; inset: 0 0 auto; height: 70px; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--paper); border-bottom: 1px solid var(--line); }
-    .brand { text-decoration: none; font-size: 21px; font-weight: 700; letter-spacing: -.7px; }
-    .brand span { color: #ac8419; margin-right: 7px; }
-    .product-nav { display: flex; gap: 4px; border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
-    .product-nav a { padding: 7px 12px; text-decoration: none; border-radius: 7px; font-size: 13px; white-space: nowrap; }
-    .product-nav a[aria-current="page"] { background: var(--ink); color: white; }
     .playground-layout { padding: 94px 24px 40px; }
     .controls-panel { position: fixed; inset: 94px auto 24px 24px; width: 380px; max-width: 100%; overflow: auto; overscroll-behavior-y: contain; scrollbar-width: thin; scrollbar-gutter: stable; padding-right: 8px; }
     h1 { margin: 0; font-size: 25px; letter-spacing: -.7px; }
@@ -74,7 +71,7 @@
     .progress-line { display: flex; align-items: center; gap: 8px; }
     progress { width: 100%; min-width: 0; height: 6px; accent-color: #a7821c; }
     #progress-value { width: 36px; flex: none; text-align: right; }
-    sidekick-avatar { width: 180px; height: 180px; z-index: 20; }
+    #bot { width: 180px; height: 180px; z-index: 20; }
     pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace; }
     #invocation { padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: #f8f8fa; }
     #copy { min-height: 34px; padding: 5px 10px; font-size: 12px; }
@@ -87,9 +84,6 @@
     #status { margin-top: 8px; font-size: 12px; color: var(--muted); }
     details > summary { cursor: pointer; font-weight: 600; }
     @media (max-width: 760px) {
-      .app-header { height: 66px; padding: 10px 14px; gap: 8px; }
-      .brand { font-size: 19px; }
-      .product-nav a { padding: 7px 9px; font-size: 12px; }
       .playground-layout { padding: calc(var(--preview-top) + var(--preview-height) + 18px) 14px 28px; }
       .controls-panel { inset: calc(var(--preview-top) + var(--preview-height) + 18px) 14px 14px; width: auto; padding-right: 4px; }
       :root { --preview-top: 80px; --preview-height: 344px; }
@@ -117,14 +111,10 @@
       .telemetry { padding: 5px 12px; gap: 5px 12px; }
       .telemetry .caption, .telemetry label { display: none; }
     }
-    @media (max-width: 360px) { .brand span { display: none; } .product-nav a { padding-inline: 7px; } }
   </style>
 </head>
 <body>
-  <header class="app-header">
-    <a class="brand" href="./" aria-label="Sidekick 홈"><span aria-hidden="true">✳</span>sidekick</a>
-    <nav class="product-nav" aria-label="Sidekick 페이지"><a href="./">Studio</a><a href="./api-playground.html" aria-current="page">API playground</a></nav>
-  </header>
+  <header class="app-header"><div class="site-header-brand" id="site-header-brand"></div></header>
   <main class="playground-layout">
     <section class="controls-panel" aria-labelledby="page-title">
       <div class="intro"><div class="step">Movement · Activity · Assets</div><h1 id="page-title">움직임을 직접 만들어 보세요.</h1><p class="muted">미리보기를 클릭하거나 탭하면 가속해서 날아가고, 도착 전에 감속합니다. 새 목적지를 고르면 현재 속도를 이어받아 방향을 바꿔요.</p></div>

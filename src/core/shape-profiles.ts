@@ -1,3 +1,4 @@
+import { CROWN_SUPPORTS } from './crown-profiles.js';
 import type { AccessoryPreset, AccessorySlot, Vec2, Vec3 } from './design.js';
 import type { Anchor, ResolvedAccessoryDesign, ResolvedEyeDesign } from './resolved-design.js';
 import { MATERIAL_SHAPE_NAMES } from './shapes.js';
@@ -16,7 +17,8 @@ export interface ShapeMount { uv: Vec2; offset: number }
 /** Shape calibration never contains smile/blink weights or expression targets. */
 export interface ShapeEyeProfile { width: number; height: number; spacing: number; offsetY: number }
 /** Internal equipment fit. Position and model orientation are deliberately independent.
- * Crown UV chooses a lobe by perimeter phase; rotation describes the cap band /
+ * Head UV usually chooses a lobe by perimeter phase; crown alone stores exact
+ * canonical support XY. Rotation describes the cap band /
  * halo plane in an upright crown frame, never the radial direction to that lobe.
  */
 export interface CuratedAccessoryMount { anchor: Anchor; rotation: Vec3; scale: number }
@@ -207,6 +209,7 @@ function defaults(shape: MaterialShapeName, depth: number, eyes: readonly [numbe
   const [mouthY, neckY, size, leftEarV, rightEarV, earSize, mouthTilt, neckTilt] = LOWER_ACCESSORY_FITS[shape];
   const tie = BOW_TIE_FITS[shape];
   const fit = BERET_FIT_PROFILES[shape];
+  const [crownX, crownY, crownTilt, crownScale] = CROWN_SUPPORTS[shape];
   const front = (y: number, scale: number, tilt = 0): CuratedAccessoryMount => ({ anchor: { region: 'face', uv: [0, Math.atan(y) / 0.9], offset: 0 }, rotation: [tilt, 0, 0], scale });
   return immutable({
     beretApertureX: shape === 'pentagon' ? .73 : shape === 'flower' ? .82 : shape === 'pixelTriangle' ? .87 : 1, beretApertureZ: shape === 'flower' ? 1.08 : 1,
@@ -221,7 +224,7 @@ function defaults(shape: MaterialShapeName, depth: number, eyes: readonly [numbe
     mounts: { head: { uv: [0, 0], offset: 0 }, face: { uv: [0, 0], offset: 0 } },
     accessories: {
       beret: { anchor: { region: 'crown', uv: [beretU, 0], offset: 0 }, rotation: [0, beretTilt, 0], scale: beretScale },
-      crown: { anchor: { region: 'crown', uv: [beretU, 0], offset: 0 }, rotation: [0, beretTilt * .5, 0], scale: beretScale * .98 },
+      crown: { anchor: { region: 'crown', uv: [crownX, crownY], offset: 0 }, rotation: [0, crownTilt * Math.PI / 180, 0], scale: crownScale },
       halo: { anchor: { region: 'crown', uv: [0, 0], offset: haloHeight }, rotation: [0, 0, 0], scale: 1 },
       glasses: { anchor: { region: 'face', uv: [0, 0.1], offset: 0 }, rotation: [0, 0, 0], scale: glassesScale },
       sunglasses: { anchor: { region: 'face', uv: [0, 0.1], offset: 0 }, rotation: [0, 0, 0], scale: glassesScale },

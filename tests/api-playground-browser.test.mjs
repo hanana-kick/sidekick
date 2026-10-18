@@ -241,3 +241,49 @@ test('automatic speed mode omits maxSpeed without changing physical acceleration
   await page.locator('#auto-speed').check();
   assert.doesNotMatch(await page.locator('#invocation').textContent(), /maxSpeed/);
 });
+
+test('shared custom-element brand stays identical across pages and compact viewports', async t => {
+  const page = await pageFor(t);
+  const directory = process.env.SIDEKICK_SCREENSHOTS;
+  if (directory) await mkdir(directory, { recursive: true });
+  for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }, { width: 320, height: 480 }]) {
+    await page.setViewportSize(viewport);
+    let reference;
+    for (const route of ['api-playground.html', '']) {
+      await page.goto(`${base}/${route}`);
+      await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
+      await page.evaluate(() => document.fonts.ready);
+      // A no-op resize may advance the command revision without emitting a frame.
+      // Capture explicitly synchronizes the renderer; then count actual draws.
+      await page.locator('.brand-avatar').evaluate(a => a.capturePixelsAsync());
+      await page.waitForFunction(() => document.querySelector('.brand-avatar').diagnostics.frames > 0);
+      const frames = await page.locator('.brand-avatar').evaluate(a => a.diagnostics.frames);
+      await page.waitForTimeout(200);
+      assert.equal(await page.locator('.brand-avatar').evaluate(a => a.diagnostics.frames), frames, 'Paused header does not keep drawing');
+      const brand = await page.locator('.brand').evaluate(link => {
+        const avatar = link.querySelector('sidekick-avatar');
+        const text = getComputedStyle(link), box = link.getBoundingClientRect();
+        return { font: text.fontFamily, size: text.fontSize, weight: text.fontWeight, text: link.textContent,
+          width: box.width, height: box.height, paused: avatar.paused, tracking: avatar.trackingMode,
+          zoom: avatar.camera.zoom, canvasWidth: avatar.getBoundingClientRect().width, shape: avatar.design.body.shape,
+          accessories: avatar.design.accessories.map(a => a.preset).sort(), smile: avatar.design.eyes.left.weights.smile };
+      });
+      assert.ok(brand.paused); assert.equal(brand.tracking, 'off'); assert.equal(brand.shape, 'ghostish');
+      assert.ok(brand.canvasWidth <= 44); assert.equal(brand.zoom, 2);
+      assert.deepEqual(brand.accessories, ['beret', 'bowTie', 'glasses']); assert.equal(brand.smile, 1);
+      if (reference) assert.deepEqual(brand, reference); else reference = brand;
+      const layout = await page.evaluate(() => {
+        const header = document.querySelector('.app-header').getBoundingClientRect();
+        const preview = document.querySelector('.preview-panel, .previews').getBoundingClientRect();
+        return { overflow: document.documentElement.scrollWidth > innerWidth,
+          headerBottom: header.bottom, previewTop: preview.top, previewHeight: preview.height,
+          links: [...document.querySelectorAll('.app-header a')].map(a => { const r = a.getBoundingClientRect(); return [r.left, r.right, r.width, r.height]; }) };
+      });
+      assert.equal(layout.overflow, false);
+      assert.ok(layout.previewTop >= layout.headerBottom - 1);
+      assert.ok(layout.previewHeight > 60, JSON.stringify(layout));
+      for (const [left, right, width, height] of layout.links) assert.ok(left >= 0 && right <= viewport.width + 1 && width > 0 && height > 0);
+      if (directory) await page.screenshot({ path: `${directory}/shared-header-${route ? 'api' : 'studio'}-${viewport.width}x${viewport.height}.png` });
+    }
+  }
+});
