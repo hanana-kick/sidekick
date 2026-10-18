@@ -30,8 +30,8 @@ export function projectEyes(design, root, face = [0, 0], gaze = [0, 0], squash =
     const frontFacing = determinant > MIN_FRONT_AREA;
     // Keep finite diagnostic inverse rows; they no longer control glyph rendering.
     const inverseBasis = frontFacing ? [uy / determinant, -ux / determinant, -ry / determinant, rx / determinant] : [0, 0, 0, 0];
-    const u = clamp(eye.anchor.uv[0] + face[0] + gaze[0] * 0.1, -1.35 + eye.spacing / 2, 1.35 - eye.spacing / 2);
-    const v = clamp(eye.anchor.uv[1] + face[1] + gaze[1] * 0.1, -1.35, 1.35);
+    const u = clamp(eye.anchor.uv[0], -1.35 + eye.spacing / 2, 1.35 - eye.spacing / 2);
+    const v = clamp(eye.anchor.uv[1], -1.35, 1.35);
     const unit = Math.min(BODY_SIZE[0], BODY_SIZE[1]) * 0.5 * eye.scale;
     const size = [eye.width * unit, eye.height * unit];
     const outline = contour ?? shapeContour({ kind: 'material', name: design.body.shape });
@@ -97,9 +97,55 @@ export function projectEyes(design, root, face = [0, 0], gaze = [0, 0], squash =
             contourFits.clear();
         contourFits.set(fittingKey, fit);
     }
+    // Fit the neutral pair once, then translate it as a single unit. Re-fitting
+    // the angular targets toward the origin makes the outer eye stop while the
+    // inner eye keeps moving, collapsing the spacing on concave shapes.
+    const targetU = clamp(u + face[0] + clamp(gaze[0], -1, 1) * .1, -1.35 + eye.spacing / 2, 1.35 - eye.spacing / 2);
+    const targetV = clamp(v + face[1] + clamp(gaze[1], -1, 1) * .1, -1.35, 1.35);
+    const dx = Math.tan(targetU * 1.05) - Math.tan(u * 1.05);
+    const dy = Math.tan(targetV * .9) / Math.cos(targetU * 1.05) - Math.tan(v * .9) / Math.cos(u * 1.05);
+    // The neutral shoulder reserves travel. Gaze may use that space, but keeps
+    // the entire smile/blink envelope inside the surface with a small margin.
+    const travelFits = (amount) => original.every((center, index) => {
+        const envelope = envelopes[index];
+        return containsRectangleWithMargin(outline, center.x * fit + dx * amount, center.y * fit + dy * amount, envelope.halfWidth / stretch, envelope.bottom / squash, envelope.top / squash, .015);
+    });
+    const travelKey = `travel:${fittingKey}:${dx}:${dy}`;
+    let travel = contourFits.get(travelKey);
+    if (travel === undefined) {
+        travel = 1;
+        if (dx !== 0 || dy !== 0) {
+            if (!travelFits(0))
+                travel = 0;
+            else {
+                // Stop at the first boundary: never jump across a notch into another lobe.
+                let low = 0, high = 1;
+                for (let i = 1; i <= 12; i++) {
+                    const amount = i / 12;
+                    if (!travelFits(amount)) {
+                        high = amount;
+                        break;
+                    }
+                    low = amount;
+                }
+                if (low < 1)
+                    for (let i = 0; i < 12; i++) {
+                        const mid = (low + high) / 2;
+                        if (travelFits(mid))
+                            low = mid;
+                        else
+                            high = mid;
+                    }
+                travel = low;
+            }
+        }
+        if (contourFits.size >= 64)
+            contourFits.clear();
+        contourFits.set(travelKey, travel);
+    }
     const one = (side) => {
         const originalEye = original[side < 0 ? 0 : 1];
-        const raw = [originalEye.x * fit, originalEye.y * fit, 1];
+        const raw = [originalEye.x * fit + dx * travel, originalEye.y * fit + dy * travel, 1];
         const direction = normalize(raw);
         const frame = sampleSurfaceAtXY(design.body, raw[0], raw[1], squash, outline, displayedProfile);
         // Readback of the actual curved surface. Rendering uses this stable local XY

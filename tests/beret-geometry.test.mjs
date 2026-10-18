@@ -53,7 +53,7 @@ test('worn beret has bounded geometry, independent cuff material and finite unit
   const mesh = beretGeometry(createDesign().body, createAccessory('beret'));
   assert.ok(mesh.vertices.length / 6 < 2500 && mesh.indices.length / 3 > 1500);
   assert.equal(mesh.bandIndexCount + mesh.crownIndexCount, mesh.indices.length);
-  assert.ok(mesh.bandIndexCount > 0 && mesh.crownIndexCount > mesh.bandIndexCount);
+  assert.ok(mesh.bandIndexCount > 0 && mesh.crownIndexCount > 0);
   assert.ok(mesh.vertices.every(Number.isFinite));
   for (let i = 0; i < mesh.vertices.length; i += 6) near(Math.hypot(...mesh.vertices.subarray(i + 3, i + 6)), 1, 'unit normal');
   assert.equal(beretBandColor('#b84742'), '#843330');
@@ -86,7 +86,7 @@ test('all 35 berets keep a compact inclined wearing region and connected cuff', 
 test('felt deformation stays near heart proportions while flexing to local support', () => {
   const reference=beretGeometry(createDesign({body:{shape:'heart'}}).body,createAccessory('beret'));
   const pairs=[];
-  const count=reference.vertices.length/6;
+  const count=1061; // Outer authored silhouette; lining thickness is tested separately.
   for(let i=0;i<count;i+=11) for(const offset of [1,17,64,197]) pairs.push([i,(i+offset)%count]);
   const distance=(mesh,a,b)=>Math.hypot(...[0,1,2].map(k=>mesh.vertices[a*6+k]-mesh.vertices[b*6+k]));
   const expected=pairs.map(([a,b])=>distance(reference,a,b));
@@ -95,8 +95,14 @@ test('felt deformation stays near heart proportions while flexing to local suppo
     assert.deepEqual(mesh.indices,reference.indices);
     for(let i=0;i<pairs.length;i++){
       const delta=distance(mesh,...pairs[i])-expected[i];
-      assert.ok(delta>=-.141&&delta<=(shape==='boom'?.135:.071),shape+' bounded local felt deformation '+i+': '+delta);
+      assert.ok(delta>=-.141&&delta<=.141,shape+' bounded local felt deformation '+i+': '+delta);
     }
+    // Pairwise distance can grow when two compressed sectors move apart.
+    // Bound each actual displacement in the wearing frame instead of mistaking
+    // that local compression for global hat scaling.
+    const tilt=(shape==='heart'?-18:shape==='triangle'||shape==='pixelTriangle'?-14:shape==='boom'?-32:shape==='square'||shape==='bun'?-42:-30)*Math.PI/180;
+    const local=(m,i,t)=>{const p=point(m,i),a=point(m,1024),x=p[0]-a[0],y=p[1]-a[1];return[Math.cos(t)*x+Math.sin(t)*y,-Math.sin(t)*x+Math.cos(t)*y,p[2]-a[2]];};
+    for(let i=0;i<count;i++){const a=local(mesh,i,tilt),b=local(reference,i,-18*Math.PI/180);assert.ok(Math.hypot(...a.map((v,k)=>v-b[k]))<=.071,shape+' bounded per-vertex felt displacement '+i);}
     if(shape==='circle'&&squash===1)assert.ok(pairs.some(([a,b],i)=>Math.abs(distance(mesh,a,b)-expected[i])>.005),'cuff actually flexes; rigid pose alone is insufficient');
   }
 });
@@ -187,5 +193,31 @@ test('crown contact is deterministic through interrupted concave shape morphs', 
     for(let i=0;i<after.vertices.length;i+=6) assert.ok(Math.hypot(...[0,1,2].map(k=>after.vertices[i+k]-before.vertices[i+k]))<.003);
     assertClear(after,timeline.contour,timeline.profile,1,`${from}/${to}/${next}/crown`);
     timeline.finish();assert.deepEqual(await nextPending,{finished:true});
+  }
+});
+
+
+test('beret felt has a closed oriented shell with a real lined head aperture', () => {
+  for (const shape of MATERIAL_SHAPE_NAMES) {
+    const mesh=beretGeometry(createDesign({body:{shape}}).body,createAccessory('beret'));
+    const edges=new Map();
+    for(let i=0;i<mesh.indices.length;i+=3)for(let j=0;j<3;j++){
+      const a=mesh.indices[i+j],b=mesh.indices[i+(j+1)%3],key=Math.min(a,b)+':'+Math.max(a,b);
+      const e=edges.get(key)??[0,0];e[0]++;e[1]+=a<b?1:-1;edges.set(key,e);
+    }
+    for(const [key,[count,orientation]]of edges){assert.equal(count,2,shape+' sealed edge '+key);assert.equal(orientation,0,shape+' consistent winding '+key);}
+    const outerCount=1061,skinCount=1025;
+    assert.equal(mesh.vertices.length/6,outerCount+skinCount);
+    for(let i=0;i<skinCount;i++){
+      const outer=point(mesh,i),inner=point(mesh,i+outerCount);
+      near(Math.hypot(...outer.map((v,k)=>v-inner[k])),.006,shape+' finite felt thickness');
+      const n=Array.from(mesh.vertices.subarray(i*6+3,i*6+6));
+      const ni=Array.from(mesh.vertices.subarray((i+outerCount)*6+3,(i+outerCount)*6+6));
+      near(n.reduce((sum,v,k)=>sum+v*ni[k],0),-1,shape+' inward lining normal');
+    }
+    // Every rim bridge links adjacent outer/inner boundary points; no triangle
+    // spans the head aperture as a fake solid bottom disk.
+    const bridgeStart=1152+(15*64*6+64*3);
+    for(let i=bridgeStart;i<mesh.bandIndexCount;i++)assert.ok(mesh.indices[i]<64||(mesh.indices[i]>=outerCount&&mesh.indices[i]<outerCount+64));
   }
 });

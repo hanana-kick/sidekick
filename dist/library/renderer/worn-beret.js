@@ -166,6 +166,10 @@ function makeWornBeret(contour, scales, shape) {
             const a = stem + ring * 12 + i, b = stem + ring * 12 + (i + 1) % 12;
             indices.push(a, a + 12, b, b, a + 12, b + 12);
         }
+    for (let i = 1; i < 11; i++) {
+        indices.push(stem, stem + i, stem + i + 1);
+        indices.push(stem + 24, stem + 24 + i + 1, stem + 24 + i);
+    }
     const output = new Float32Array(vertices);
     for (let i = 0; i < indices.length; i += 3) {
         const a = indices[i] * 6, b = indices[i + 1] * 6, c = indices[i + 2] * 6;
@@ -264,7 +268,7 @@ function flexibleFelt(contour, scales, shape, co, si, px, py) {
             maxY = Math.max(maxY, vertices[(start + j) * 6 + 1]);
         }
         const section = [];
-        for (const level of (shape === 'softBoom' ? [minY, cy, maxY] : [cy]))
+        for (const level of (['softBoom', 'square', 'bun', 'arch', 'flower', 'softBurst'].includes(shape) ? [minY, cy, maxY] : [cy]))
             for (const { a, b, low, high } of edges) {
                 if (level >= low && level < high) {
                     const t = (level - a[1]) / (b[1] - a[1]);
@@ -319,6 +323,32 @@ function flexibleFelt(contour, scales, shape, co, si, px, py) {
     cache.set(key, vertices);
     return vertices;
 }
+/** Felt is a shell, not a one-sided surface. Keep the head aperture open while
+ * lining the crown and joining both skins around its turned lower edge. */
+function linedFelt(outer, mesh) {
+    const skinCount = 16 * SEGMENTS + 1, offset = outer.length / 6, thickness = .006;
+    const vertices = new Float32Array(outer.length + skinCount * 6);
+    vertices.set(outer);
+    for (let i = 0; i < skinCount; i++)
+        for (let k = 0; k < 3; k++) {
+            vertices[(offset + i) * 6 + k] = outer[i * 6 + k] - outer[i * 6 + 3 + k] * thickness;
+            vertices[(offset + i) * 6 + 3 + k] = -outer[i * 6 + 3 + k];
+        }
+    const band = Array.from(mesh.indices.subarray(0, mesh.bandIndexCount));
+    // Interior felt uses the cuff material, making the opening read as a lined
+    // cavity even when the outer skin is back-facing from a low camera.
+    const skinIndexCount = 15 * SEGMENTS * 6 + SEGMENTS * 3;
+    for (let i = 0; i < skinIndexCount; i += 3)
+        band.push(mesh.indices[i] + offset, mesh.indices[i + 2] + offset, mesh.indices[i + 1] + offset);
+    for (let i = 0; i < SEGMENTS; i++) {
+        const j = (i + 1) % SEGMENTS;
+        band.push(i, j, offset + i, j, offset + j, offset + i);
+    }
+    const indices = new Uint16Array(band.length + mesh.indices.length - mesh.bandIndexCount);
+    indices.set(band);
+    indices.set(mesh.indices.subarray(mesh.bandIndexCount), band.length);
+    return { ...mesh, vertices, indices, bandIndexCount: band.length, crownIndexCount: mesh.indices.length - mesh.bandIndexCount };
+}
 export function wornBeret(contour, scales, shape, rotation = [0, 0, 0]) {
     const ref = referenceHat();
     const tilt = (shape === 'heart' ? -18 : shape === 'triangle' || shape === 'pixelTriangle' ? -14 : shape === 'boom' ? -32 : shape === 'square' || shape === 'bun' ? -42 : -30) * Math.PI / 180;
@@ -335,7 +365,8 @@ export function wornBeret(contour, scales, shape, rotation = [0, 0, 0]) {
     const insertion = shape === 'heart' ? ref.support[1] : shape === 'triangle' || shape === 'pixelTriangle' ? .13 : shape === 'boom' ? .11 : shape === 'square' || shape === 'bun' ? .115 : shape === 'softBoom' ? .075 : deeplySeated ? .100 : .055;
     const px = sx - ref.support[0], py = sy - insertion;
     const pivot = [co * px - si * py, si * px + co * py, 0];
-    const vertices = new Float32Array(flexibleFelt(contour, scales, shape, co, si, px, py)), matrix = transform([0, 0, 0], rotation);
+    const lined = linedFelt(flexibleFelt(contour, scales, shape, co, si, px, py), ref.mesh);
+    const vertices = lined.vertices, matrix = transform([0, 0, 0], rotation);
     for (let i = 0; i < vertices.length; i += 6)
         for (const offset of [0, 3]) {
             const x = vertices[i + offset], y = -vertices[i + offset + 2], z = vertices[i + offset + 1];
@@ -346,5 +377,5 @@ export function wornBeret(contour, scales, shape, rotation = [0, 0, 0]) {
             vertices[i + offset + 1] = si * rx + co * rz + (offset === 0 ? pivot[1] : 0);
             vertices[i + offset + 2] = -ry;
         }
-    return { ...ref.mesh, vertices, seating: -insertion };
+    return { ...lined, vertices, seating: -insertion };
 }
