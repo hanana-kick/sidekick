@@ -43,12 +43,12 @@ test('viewport resize clamps, scrolling keeps fixed coordinates, pointer passes 
   await page.setViewportSize({ width: 390, height: 700 });
   await page.waitForFunction(() => document.getElementById('bot').position.x <= 210);
   const result = await page.evaluate(async () => {
-    const bot = document.getElementById('bot'); await bot.moveTo({ x: 10, y: 10 }); window.scrollTo(0, 200);
-    const rect = bot.getBoundingClientRect(), target = document.elementFromPoint(30, 30);
-    bot.interaction = 'box'; const interactiveTarget = document.elementFromPoint(30, 30);
+    const bot = document.getElementById('bot'); await bot.moveTo({ x: 10, y: 100 }); window.scrollTo(0, 200);
+    const rect = bot.getBoundingClientRect(), target = document.elementFromPoint(30, 120);
+    bot.interaction = 'box'; const interactiveTarget = document.elementFromPoint(30, 120);
     return { rect: { x: rect.x, y: rect.y }, passThrough: target !== bot, boxTarget: interactiveTarget === bot, width: bot.offsetWidth };
   });
-  assert.deepEqual(result.rect, { x: 10, y: 10 }); assert.equal(result.passThrough, true); assert.equal(result.boxTarget, true); assert.equal(result.width, 180);
+  assert.deepEqual(result.rect, { x: 10, y: 100 }); assert.equal(result.passThrough, true); assert.equal(result.boxTarget, true); assert.equal(result.width, 180);
 });
 
 test('actual worker asset swap, pause, play/stop and disconnection settle commands', async t => {
