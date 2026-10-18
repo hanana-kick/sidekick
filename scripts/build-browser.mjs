@@ -20,9 +20,26 @@ export async function buildBrowser({ libraryDirectory = resolve(root, 'dist/libr
     name: 'sidekick-published-worker-url',
     load(id) {
       if (resolve(id) !== resolve(libraryDirectory, 'runtime/create-worker.js')) return null;
-      return format === 'iife'
-        ? `const scriptURL = typeof document === 'undefined' ? undefined : document.currentScript?.src; export function createRenderWorker() { if (!scriptURL) throw new Error('Sidekick worker script URL is unavailable'); return new Worker(new URL('./sidekick.worker.js', scriptURL), { type: 'module', name: 'sidekick-render' }); }`
-        : `export function createRenderWorker() { return new Worker(new URL('./sidekick.worker.js', import.meta.url), { type: 'module', name: 'sidekick-render' }); }`;
+      const source = format === 'iife' ? 'scriptURL' : 'import.meta.url';
+      return `${format === 'iife' ? "const scriptURL = typeof document === 'undefined' ? undefined : document.currentScript?.src;" : ''}
+        export function createRenderWorker() {
+          const source = ${source};
+          if (!source) throw new Error('Sidekick worker script URL is unavailable');
+          const url = new URL('./sidekick.worker.js', source);
+          const options = { type: 'module', name: 'sidekick-render' };
+          if (url.origin === globalThis.location?.origin) return new Worker(url, options);
+          // Worker entry URLs must be same-origin. A local Blob imports the CORS-enabled CDN module.
+          const bootstrap = URL.createObjectURL(new Blob(['import ' + JSON.stringify(url.href) + ';'], { type: 'text/javascript' }));
+          let worker;
+          const release = () => URL.revokeObjectURL(bootstrap);
+          try { worker = new Worker(bootstrap, options); } catch (error) { release(); throw error; }
+          worker.addEventListener('message', release, { once: true });
+          worker.addEventListener('error', release, { once: true });
+          const terminate = worker.terminate.bind(worker);
+          worker.terminate = () => { release(); terminate(); };
+          return worker;
+        }`;
+
     },
   });
   for (const [format, filename] of [['esm', 'sidekick.js'], ['iife', 'sidekick.iife.js']]) {

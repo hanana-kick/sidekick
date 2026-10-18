@@ -1,0 +1,28 @@
+name: Verify published CDN bundles
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Existing immutable release version, including v prefix'
+        required: true
+        default: 'v0.2.8'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - name: Load real CDN bundles from a different origin in Chromium
+        run: xvfb-run -a node --test tests/cdn-browser.test.mjs
+        env:
+          SIDEKICK_HEADED: '1'
+          SIDEKICK_CDN_BASE: https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@${{ inputs.version }}/dist/browser
+          SIDEKICK_CDN_PEERS: https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@${{ inputs.version }}/cdn/react-19.3.1

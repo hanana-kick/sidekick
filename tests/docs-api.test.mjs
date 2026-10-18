@@ -53,3 +53,17 @@ test('README leads with public HTTPS Git installation and a reproducible release
   assert.doesNotMatch(readme, /비공개|git\+ssh:|credential helper|COMMIT_SHA/);
   assert.match(readme, /npm 레지스트리에는 발행하지 않았으므로/);
 });
+
+test('CDN guide pins current browser bundles and one shared React peer graph', () => {
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const base = `https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v${manifest.version}/`;
+  for (const file of ['sidekick.js', 'sidekick.iife.js', 'sidekick-react.js']) {
+    assert.ok(readme.includes(base + 'dist/browser/' + file), file);
+  }
+  for (const file of ['react.js', 'react-dom-client.js']) {
+    assert.ok(readme.includes(base + 'cdn/react-19.3.1/' + file), file);
+  }
+  assert.match(readme, /worker-src 'self' blob:/);
+  assert.match(readme, /0\.2\.7.*변경하지/);
+});

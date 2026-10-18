@@ -17,22 +17,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 버전을 고정하려면 릴리스 태그를 지정합니다.
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.2.7
+npm install https://github.com/hanana-kick/sidekick.git#v0.2.8
 ```
 
-빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.2.4`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.2.8`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
 
 npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. ESM과 일반 `<script>`용 JS, 전용 렌더링 worker를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
 
 ### GitHub Release에서 다운로드
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases)를 엽니다.
-2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.2.7.zip` 또는 `hanana-kick-sidekick-0.2.7.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
+2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.2.8.zip` 또는 `hanana-kick-sidekick-0.2.8.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
 3. 일반 HTML 사이트에서는 브라우저 ZIP을 풀고 아래 파일을 사이트의 정적 파일 디렉터리에 복사합니다. 동봉된 `START-HERE.txt`를 읽고 `esm.html`, `classic.html`, `react.html` 중 원하는 예제를 열면 됩니다. 예제의 `/vendor/sidekick/`은 **사용자 사이트의 경로**입니다. 배포 경로에 맞게 바꾸세요.
 
 | 빌드된 파일 | 용도 | 필요한 파일·의존성 |
 | --- | --- | --- |
-| `sidekick-browser-0.2.7.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
+| `sidekick-browser-0.2.8.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
 | `sidekick.js` | 브라우저 ESM. `import`와 `<script type="module">` 사용 | `sidekick.worker.js`를 같은 디렉터리에 유지 |
 | `sidekick.iife.js` | 일반 classic `<script>`. API는 `window.Sidekick` | `sidekick.worker.js`를 같은 디렉터리에 유지. `type="module"` 사용 안 함 |
 | `sidekick-react.js` | React 19용 ESM 컴포넌트 | `sidekick-element.js`·`sidekick-fallback.js`·`sidekick.worker.js`를 같은 디렉터리에 유지하고 `react` peer를 제공 |
@@ -40,7 +40,7 @@ npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.co
 | `sidekick-fallback.js` | worker를 사용할 수 없을 때 React 요소가 불러오는 렌더러 | 직접 import하지 않음. 나머지 파일과 같은 버전 사용 |
 | `sidekick.worker.js` | OffscreenCanvas 전용 worker | 브라우저 진입 파일 옆에 배치. 별도 script 태그로 불러오지 않음 |
 | `vendor/react.js`, `vendor/react-dom-client.js` | 브라우저 ZIP의 선택적 React 19/ReactDOM ESM | 아래 빌드 없는 React 예제용. import map으로 연결하며 React를 이미 제공하는 앱에는 불필요 |
-| `hanana-kick-sidekick-0.2.7.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
+| `hanana-kick-sidekick-0.2.8.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
 | `SHA256SUMS` | ZIP과 tarball의 다운로드 무결성 확인 | 같은 Release의 체크섬 파일 |
 
 ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보관하세요. **GitHub Release 자산은 다운로드한 뒤 본인 사이트에서 제공하세요.** 다운로드 URL은 브라우저 JS 호스팅용 URL이 아니며 자산 응답의 MIME·CORS 동작이 정적 호스팅과 다릅니다. 아래 예제의 `src`/`import`는 내려받은 파일을 제공하는 사이트 경로를 사용합니다.
@@ -52,7 +52,7 @@ ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보�
 Release에서 받은 tarball을 사용할 프로젝트에서 설치합니다. 이 명령은 Sidekick 소스를 컴파일하거나 Studio를 빌드하지 않습니다.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.2.7.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.2.8.tgz
 ```
 
 React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 마운트하는 `react-dom`도 사용자가 같은 버전으로 준비합니다. 코어만 쓰는 프로젝트에는 React가 필요 없습니다.
@@ -68,6 +68,71 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 | `@hanana-kick/sidekick/react` | React 컴포넌트 `SidekickAvatar`, props/ref 타입 |
 
 패키지 모듈은 ESM이며 실행용 모듈/타입은 `dist/library/`, 즉시 사용 가능한 브라우저 번들은 `dist/browser/`입니다. `dist/src/`는 내부 테스트용입니다. bare import 이름은 브라우저가 직접 해석하지 못하므로 패키지 import에는 번들러 또는 import map을 사용하세요. 아래 HTML 예제는 실제 파일 URL을 사용하여 이 설정이 필요 없습니다.
+
+## CDN으로 빌드 없이 사용하기
+
+현재 CDN 권장 버전은 **0.2.8**입니다. 아래 URL은 GitHub 태그에 커밋된 **빌드 완료 JS**를 jsDelivr가 제공하므로 소스 빌드, npm 설치, npm 계정이 필요 없습니다. `main`, `latest`, 버전 범위 대신 **정확한 태그**를 고정하세요. 이전 `v0.2.7` 파일은 변경하지 않았습니다. 0.2.7도 같은 CDN 경로로 다운로드할 수 있지만, 다른 출처의 페이지에서는 worker 생성이 막혀 메인 스레드로 폴백하므로 신규 CDN 사용에는 0.2.8을 사용하세요.
+
+### 일반 HTML / classic script
+
+```html
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.2.8/dist/browser/sidekick.iife.js"></script>
+<sidekick-avatar shape="ghostish" head-accessory="beret"
+  eyes-accessory="glasses" neck-accessory="bowtie"
+  left-smile="1" right-smile="1"
+  style="display:block;width:240px;height:240px"></sidekick-avatar>
+```
+
+### ESM
+
+```html
+<sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
+<script type="module">
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.2.8/dist/browser/sidekick.js';
+  console.log(createDesign());
+</script>
+```
+
+ESM과 classic은 같은 요소를 자동 등록합니다. 한 페이지에서는 둘 중 하나만 사용하세요.
+
+### React: 브라우저에서 빌드 없이 실행
+
+React와 ReactDOM은 동일한 19.3.1의 미리 빌드된 ESM을 제공합니다. import map은 모든 모듈 스크립트보다 먼저 선언하세요. JSX 변환 없이 `createElement`를 사용합니다.
+
+```html
+<div id="root"></div>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.2.8/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.2.8/cdn/react-19.3.1/react-dom-client.js"
+  }
+}
+</script>
+<script type="module">
+  import { createElement } from 'react';
+  import { createRoot } from 'react-dom/client';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.2.8/dist/browser/sidekick-react.js';
+  createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
+    shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
+    neckAccessory: 'bowtie', leftSmile: 1, rightSmile: 1,
+    style: { width: 240, height: 240 }
+  }));
+</script>
+```
+
+기존 React 앱에서는 앱의 React 인스턴스를 그대로 사용하세요. 위 import map으로 별도 React를 중복 로딩하지 말고, npm/GitHub 설치 후 `@hanana-kick/sidekick/react`를 import하는 방식이 적절합니다.
+
+### Worker, CORS, CSP와 자체 호스팅
+
+- CDN JS 응답은 JavaScript MIME 및 `Access-Control-Allow-Origin: *`가 필요합니다. jsDelivr가 이를 제공합니다. GitHub Release 다운로드 URL을 `script src`에 넣지 마세요.
+- 0.2.8은 CDN과 페이지의 출처가 다르면 로컬 Blob module worker에서 CDN의 `sidekick.worker.js`를 정적으로 import합니다. 실제 렌더링은 계속 OffscreenCanvas worker에서 수행합니다. Blob URL은 시작 완료/오류/종료 시 해제합니다.
+- CSP가 있으면 `worker-src 'self' blob:` 및 `script-src`의 `https://cdn.jsdelivr.net`을 허용해야 합니다. 위 inline 예제와 import map에는 사이트 정책에 맞는 nonce/hash도 필요합니다. 전체 CSP를 무조건 완화하거나 `unsafe-inline`을 추가할 필요는 없습니다.
+- worker/WebGL2/OffscreenCanvas가 지원되지 않거나 CSP가 worker를 차단하면 기존 메인 스레드 렌더러로 폴백합니다. HTTPS로 제공하세요. HTTP 로컬 개발은 localhost를 사용하세요.
+- 자가 호스팅은 브라우저 ZIP의 **전체 여섯 JS 파일**을 같은 디렉터리에 유지합니다. React는 같은 버전의 `sidekick-element.js`, `sidekick-fallback.js`를 지연 로딩합니다. worker 파일이나 chunk만 다른 버전으로 교체하면 안 됩니다.
+- 버전 태그의 배포물은 수정하지 않습니다. 수정은 새 patch 버전으로 배포합니다. jsDelivr는 처음 요청된 파일을 장기 보관하므로 삭제를 되돌리기 수단으로 간주하지 마세요.
+
+CDN 공식 동작과 캐시 정책: [jsDelivr GitHub 배포 문서](https://github.com/jsdelivr/jsdelivr#github).
 
 ## HTML에서 바로 사용하기
 
