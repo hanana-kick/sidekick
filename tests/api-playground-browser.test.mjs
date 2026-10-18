@@ -234,6 +234,11 @@ test('shared custom-element brand stays identical across pages and compact viewp
     for (const route of ['api-playground.html', '']) {
       await page.goto(`${base}/${route}`);
       await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
+      await page.evaluate(() => document.fonts.ready);
+      await page.waitForFunction(() => { const d = document.querySelector('.brand-avatar').diagnostics; return d.frames > 0 && !d.running && d.revision === d.acknowledgedRevision; });
+      const frames = await page.locator('.brand-avatar').evaluate(a => a.diagnostics.frames);
+      await page.waitForTimeout(200);
+      assert.equal(await page.locator('.brand-avatar').evaluate(a => a.diagnostics.frames), frames, 'Paused header does not keep drawing');
       const brand = await page.locator('.brand').evaluate(link => {
         const avatar = link.querySelector('sidekick-avatar');
         const text = getComputedStyle(link), box = link.getBoundingClientRect();
