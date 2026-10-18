@@ -14,7 +14,7 @@ async function pageFor(t, options = {}) {
   const page = await browser.newPage({ viewport: { width: 900, height: 800 }, ...options });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   t.after(async () => { await page.close(); assert.deepEqual(errors, []); });
-  await page.goto(`${base}/api-playground.html`); await page.waitForFunction(() => document.getElementById('bot')?.ready);
+  await page.goto(`${base}/api-playground.html`); await page.waitForFunction(() => document.getElementById('bot')?.ready && document.getElementById('status').textContent.includes('준비'));
   if (process.env.SIDEKICK_SCREENSHOTS) { await mkdir(process.env.SIDEKICK_SCREENSHOTS, { recursive: true }); await page.screenshot({ path: `${process.env.SIDEKICK_SCREENSHOTS}/movement-playground.png` }); }
   return page;
 }

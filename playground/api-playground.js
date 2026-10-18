@@ -148,6 +148,7 @@ async function initialize() {
   $('zoom').value = String(studioSession.scene.zoom);
   const point = center(); void bot.moveTo(point, { duration: 0, travel: 'none' });
   $('target-x').value = String(point.x); $('target-y').value = String(point.y); $('entrance-x').value = String(point.x); $('entrance-y').value = String(point.y);
+  bot.setAttribute('data-configured', '');
   initialized = true; initializing = false;
   refresh(); telemetry(); $('status').textContent = '준비되었습니다. 값을 설정하고 실행해 보세요.';
 }
