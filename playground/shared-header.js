@@ -11,6 +11,9 @@ export function mountSiteHeader(host, activePage, base = './') {
     expression: 'smile', 'zoom': '2', paused: '', interaction: 'none', 'tracking-mode': 'off',
     'aria-hidden': 'true', tabindex: '-1',
   })) avatar.setAttribute(name, value);
+  // Keep renderer failure text from overflowing the compact logo slot.
+  avatar.addEventListener('sidekick-error', event => { if (!event.detail?.recoverable) avatar.style.visibility = 'hidden'; });
+  avatar.addEventListener('sidekick-ready', () => { avatar.style.visibility = ''; });
   const name = doc.createElement('span'); name.textContent = 'sidekick';
   brand.append(avatar, name);
   const nav = doc.createElement('nav'); nav.className = 'product-nav';

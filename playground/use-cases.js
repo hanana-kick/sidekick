@@ -22,8 +22,8 @@ function renderCode(kind, source) { codes[kind] = source; $(`code-${kind}`).text
 renderCode('viewport', common + `// Small transparent canvas; DOM is fixed to the viewport.\nbot.style.width = '128px'; bot.style.height = '128px';\n${exampleSource('dockInViewport')}\nawait dockInViewport(bot);\nconst controller = new AbortController();\nwindow.addEventListener('resize', () => dockInViewport(bot), { signal: controller.signal });\n// Optional natural exit:\n// await bot.exit({ to: 'right' });\n// On unmount: controller.abort(); bot.remove();`);
 renderCode('section', common + `const section = document.querySelector('#section-area');\nsection.style.position = 'relative'; section.style.overflow = 'hidden';\nbot.placement = 'inline';\nbot.style.position = 'absolute'; bot.style.left = '0'; bot.style.top = '0';\n// Put the bot inside section BEFORE initialization. Its DOM origin is the anchor.\n${exampleSource('sectionDestination')}\n// Queue destinations until the preceding flight is finished to avoid\n// outward inertia on abrupt reversal near a container boundary.\nawait bot.moveTo(sectionDestination(bot, section, { x: 200, y: 100 }));\n// A resize requires re-clamping the current position to the new section size.\n// The container scrolls with the document; no scroll listener is needed.`);
 function refreshAnchorCode() {
-  const options = { alignX: $('align-x').value, alignY: $('align-y').value, x: Number($('offset-x').value), y: Number($('offset-y').value) };
-  renderCode('anchor', common + `const target = document.querySelector('#anchor-target');\nawait bot.moveToElement(target, ${JSON.stringify(options, null, 2)});\n// Samples the target's current DOM rectangle on each call.\n// Target and bot use the same alignment point, then x/y offsets.`);
+  const options = { alignX: $('align-x').value, alignY: $('align-y').value, x: Number($('offset-x').value), y: Number($('offset-y').value), anchor: $('anchor-follow').checked };
+  renderCode('anchor', common + `const target = document.querySelector('#anchor-target');\nawait bot.moveToElement(target, ${JSON.stringify(options, null, 2)});\n// anchor: true keeps following the target DOM through scroll/layout changes.\n// anchor: false samples its position once.\n// bot.detachAnchor(); // release at the current position`);
   return options;
 }
 refreshAnchorCode();
@@ -32,20 +32,30 @@ function stop() {
   revision++;
   if (active) { active.controller.abort(); active.observer?.disconnect(); active.intersection?.disconnect(); active.bot.remove(); }
   active = null;
-  $('demo-toolbar').hidden = true;
+  $('anchor-status').textContent = 'DOM 연결 대기';
   for (const button of document.querySelectorAll('[data-start]')) button.setAttribute('aria-pressed', 'false');
-  for (const button of document.querySelectorAll('#viewport-return,#viewport-exit,[data-section],#anchor-move,#task-submit,#event-success')) button.disabled = true;
+  for (const button of document.querySelectorAll('#viewport-return,#viewport-exit,[data-section],#anchor-move,#anchor-detach,#task-submit,#event-success')) button.disabled = true;
   $('demo-status').textContent = '예제가 종료되었습니다.';
 }
 async function activate(kind) {
   stop(); const token = revision;
+  for (const panel of document.querySelectorAll('section.case')) panel.hidden = panel.id !== `case-${kind}`;
+  for (const button of document.querySelectorAll('[data-start]')) button.setAttribute('aria-pressed', String(button.dataset.start === kind));
+  $('demo-status').removeAttribute('data-error');
+  $('scroll-description').textContent = kind === 'viewport' ? '화면 오른쪽 아래의 봇은 같은 자리에 남습니다. 상단 메뉴로 다른 예제를 바로 선택할 수 있습니다.' : kind === 'section' ? '섹션 안의 봇은 섹션과 함께 위로 올라갑니다. 화면에 고정된 봇과의 차이입니다.' : kind === 'anchor' ? 'DOM 연결을 유지한 봇은 기준 카드와 함께 스크롤됩니다. 연결을 해제하면 현재 화면 위치에 남습니다.' : '이벤트 반응 예제의 봇은 작업 카드에 연결되어 있습니다. 예제로 돌아가 결과를 바꿔 보세요.';
   const controller = new AbortController();
   const bot = document.createElement('sidekick-avatar'); bot.id = 'demo-bot'; bot.className = 'demo-bot';
   bot.setAttribute('placement', kind === 'section' ? 'inline' : 'viewport');
   bot.setAttribute('interaction', 'none');
   const entry = active = { kind, bot, controller, busy: false, pending: null };
   $('demo-status').textContent = `${labels[kind]} 준비 중…`;
-  const ready = new Promise(resolve => { bot.addEventListener('sidekick-ready', resolve, { once: true, signal: controller.signal }); controller.signal.addEventListener('abort', resolve, { once: true }); });
+  const ready = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('렌더러 초기화 시간이 초과되었습니다. 예제를 다시 선택해 주세요.')), 12000);
+    const finish = () => { clearTimeout(timer); resolve(); };
+    bot.addEventListener('sidekick-ready', finish, { once: true, signal: controller.signal });
+    bot.addEventListener('sidekick-error', event => { if (!event.detail.recoverable) { clearTimeout(timer); reject(new Error('이 브라우저에서 WebGL 렌더러를 시작할 수 없습니다. 하드웨어 가속 또는 WebGL 지원을 확인해 주세요. 사용 코드는 계속 볼 수 있습니다.')); } }, { signal: controller.signal });
+    controller.signal.addEventListener('abort', finish, { once: true });
+  });
   (kind === 'section' ? $('section-area') : document.body).append(bot);
   if (!bot.ready) await ready;
   if (token !== revision) return;
@@ -76,15 +86,17 @@ async function activate(kind) {
     section.addEventListener('pointercancel', () => { down = null; }, { signal, passive: true });
   } else {
     const target = $(kind === 'anchor' ? 'anchor-target' : 'event-target');
-    await bot.moveToElement(target, { alignX: 'center', alignY: 'center', duration: 0 });
+    bot.movementBounds = 'none';
+    await bot.moveToElement(target, { ...(kind === 'anchor' ? refreshAnchorCode() : { alignX: 'right', alignY: 'center', anchor: true }), duration: 0 });
+    if (kind === 'anchor') $('anchor-status').textContent = $('anchor-follow').checked ? '연결 중 · 카드를 옮기거나 페이지를 스크롤해 보세요.' : '한 번 이동 · 이후 DOM을 따라가지 않습니다.';
     if (kind === 'events') connectTaskEvents(bot, target, $('demo-form'), $('event-status'), signal);
   }
   if (token !== revision) return;
   bot.setAttribute('data-configured', '');
   $('demo-status').textContent = `${labels[kind]} 활성화 · Studio 봇 준비 완료`;
-  $('active-label').textContent = labels[kind]; $('demo-toolbar').hidden = false;
+  $('stop-demo').disabled = false;
   document.querySelector(`[data-start="${kind}"]`).setAttribute('aria-pressed', 'true');
-  const selectors = { viewport: '#viewport-return,#viewport-exit', section: '[data-section]', anchor: '#anchor-move', events: '#task-submit,#event-success' };
+  const selectors = { viewport: '#viewport-return,#viewport-exit', section: '[data-section]', anchor: '#anchor-move,#anchor-detach', events: '#task-submit,#event-success' };
   for (const button of document.querySelectorAll(selectors[kind])) button.disabled = false;
 }
 async function sectionMove(point) {
@@ -98,8 +110,8 @@ async function sectionMove(point) {
     }
   } finally { entry.busy = false; }
 }
-function handleError(error) { $('demo-status').textContent = `실행할 수 없습니다: ${error.message}`; }
-for (const button of document.querySelectorAll('[data-start]')) button.addEventListener('click', () => { void activate(button.dataset.start).catch(handleError); });
+function handleError(error) { $('demo-status').textContent = `실행할 수 없습니다: ${error.message}`; $('demo-status').setAttribute('data-error', ''); }
+for (const button of document.querySelectorAll('[data-start]')) button.addEventListener('click', () => { void activate(button.dataset.start).catch(handleError); document.querySelector(`#case-${button.dataset.start}`).scrollIntoView({ block: 'start', behavior: 'instant' }); });
 $('stop-demo').addEventListener('click', stop);
 $('viewport-return').addEventListener('click', () => { if (active?.kind === 'viewport') void dockInViewport(active.bot).catch(handleError); });
 $('viewport-exit').addEventListener('click', () => { if (active?.kind === 'viewport') void active.bot.exit({ to: 'right' }).catch(handleError); });
@@ -109,11 +121,11 @@ for (const button of document.querySelectorAll('[data-section]')) button.addEven
   const fraction = { left: 0, center: .5, right: 1 }[button.dataset.section];
   void sectionMove({ x: (section.clientWidth - bot.offsetWidth) * fraction, y: (section.clientHeight - bot.offsetHeight) / 2 }).catch(handleError);
 });
-for (const id of ['align-x', 'align-y', 'offset-x', 'offset-y']) $(id).addEventListener('input', refreshAnchorCode);
+for (const id of ['align-x', 'align-y', 'offset-x', 'offset-y', 'anchor-follow']) $(id).addEventListener('input', refreshAnchorCode);
 $('anchor-move').addEventListener('click', () => {
   if (active?.kind !== 'anchor') return;
   if (!$('offset-x').checkValidity() || !$('offset-y').checkValidity() || $('offset-x').value === '' || $('offset-y').value === '') { $('demo-status').textContent = '오프셋은 -500 ~ 500 사이 숫자를 입력하세요.'; return; }
-  void alignWithElement(active.bot, $('anchor-target'), refreshAnchorCode()).catch(handleError);
+  void alignWithElement(active.bot, $('anchor-target'), refreshAnchorCode()).then(() => { $('anchor-status').textContent = active?.bot.elementAnchor ? '연결 중 · DOM 위치를 계속 따라갑니다.' : '한 번 이동 완료 · DOM 연결 없음'; }).catch(handleError);
 });
 $('event-success').addEventListener('click', () => { if (active?.kind === 'events') $('event-target').dispatchEvent(new CustomEvent('demo-task', { detail: { state: 'success' } })); });
 // Inactive form never navigates away, even when Enter is pressed in a field.
@@ -124,3 +136,10 @@ for (const button of document.querySelectorAll('[data-copy]')) button.addEventLi
 });
 window.addEventListener('pagehide', stop);
 document.addEventListener('visibilitychange', () => { if (active) active.bot.paused = document.hidden || active.visible === false || session.scene.paused; });
+
+$('anchor-detach').addEventListener('click', () => { if (active?.kind !== 'anchor') return; active.bot.detachAnchor(); $('anchor-status').textContent = '연결 해제 · 현재 화면 위치에 머뭅니다.'; });
+$('anchor-shift').addEventListener('click', () => $('anchor-target').classList.toggle('shifted'));
+for (const button of document.querySelectorAll('[data-scroll-demo]')) button.addEventListener('click', () => $('scroll-demo').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' }));
+$('back-to-demo').addEventListener('click', () => document.querySelector('section.case:not([hidden])').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+// Show a real example immediately; the selector is also the retry control.
+void activate('viewport').catch(handleError);

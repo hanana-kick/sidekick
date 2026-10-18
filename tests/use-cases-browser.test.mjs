@@ -7,7 +7,7 @@ import { createAppServer } from '../scripts/serve.mjs';
 let browser, server, base;
 before(async () => {
   server = createAppServer(); await new Promise(resolve => server.listen(0,'127.0.0.1',resolve)); base=`http://127.0.0.1:${server.address().port}`;
-  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined), headless:true,args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage'] });
+  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined), headless: process.env.SIDEKICK_HEADED !== '1',args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage'] });
 });
 after(async()=>{await browser?.close();if(server)await new Promise(resolve=>server.close(resolve));});
 async function setup(t,viewport={width:1280,height:900}) {
@@ -52,4 +52,51 @@ test('natural section flights queue rapid taps without clipping through any edge
  await page.waitForFunction(()=>{const b=document.querySelector('#demo-bot');return b.position.x<22&&b.movementState.phase==='idle';},{},{timeout:15000});
  const samples=await page.evaluate(()=>window.sectionSamples);assert.ok(samples.length>3);assert.ok(samples.every(Boolean));
  if(process.env.SIDEKICK_SCREENSHOTS){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/use-cases-desktop.png`,fullPage:true});}
+});
+
+for (const viewport of [{width:1280,height:900},{width:390,height:844},{width:320,height:640}]) {
+ test(`sequential visible walkthrough ${viewport.width}: choose, move, scroll, bind, submit, read code`, async t => {
+  const name=`usecase-walkthrough-${viewport.width}`;
+  const out=process.env.SIDEKICK_SCREENSHOTS;
+  if(out)await mkdir(out,{recursive:true});
+  const context=await browser.newContext({viewport,reducedMotion:'no-preference',...(out?{recordVideo:{dir:`${out}/videos`,size:viewport}}:{})});
+  const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  t.after(async()=>{await context.close();assert.deepEqual(errors,[]);});
+  const shot=async step=>{if(out)await page.screenshot({path:`${out}/${name}-${step}.png`});};
+  await page.goto(`${base}/use-cases.html`);await page.waitForSelector('#demo-bot[data-configured]');
+  await shot('01-open');
+  assert.equal(await page.locator('section.case:visible').count(),1);
+  const fixed=await page.locator('#demo-bot').boundingBox();
+  await page.locator('#case-viewport [data-scroll-demo]').click();
+  await page.waitForTimeout(750);await shot('02-scroll-fixed');
+  const still=await page.locator('#demo-bot').boundingBox();assert.ok(Math.abs(still.y-fixed.y)<1);
+  await start(page,'section');await page.locator('#back-to-demo').click();await page.waitForTimeout(700);
+  await page.locator('[data-section="right"]').click();
+  await page.waitForFunction(()=>document.querySelector('#demo-bot').movementState.phase==='idle');
+  await shot('03-section-right');
+  const section=await page.locator('#section-area').boundingBox(),bot=await page.locator('#demo-bot').boundingBox();
+  assert.ok(bot.x>=section.x&&bot.x+bot.width<=section.x+section.width+1);
+  await start(page,'anchor');await page.locator('#case-anchor').scrollIntoViewIfNeeded();
+  await page.locator('#anchor-shift').click();await page.waitForTimeout(1100);await shot('04-anchor-follow');
+  const delta=await page.evaluate(()=>{const b=document.querySelector('#demo-bot').getBoundingClientRect(),a=document.querySelector('#anchor-target').getBoundingClientRect();return Math.abs(b.x+b.width/2-a.x-a.width/2);});assert.ok(delta<2);
+  await page.locator('#anchor-detach').click();await page.locator('#anchor-shift').click();await page.waitForTimeout(1000);await shot('05-anchor-detach');
+  assert.equal(await page.locator('#demo-bot').evaluate(b=>b.elementAnchor),null);
+  await start(page,'events');await page.locator('#task-submit').click();await shot('06-task-pending');
+  await page.waitForFunction(()=>document.querySelector('#event-status').textContent==='작업 완료');await page.waitForTimeout(400);await shot('07-task-success');
+  await page.selectOption('#task-result','error');await page.locator('#task-submit').click();await page.waitForFunction(()=>document.querySelector('#event-status').textContent.includes('작업 실패'));await shot('08-task-error');
+  await page.locator('#case-events summary').click();await page.locator('#code-events').scrollIntoViewIfNeeded();await shot('09-code');
+  assert.match(await page.locator('#code-events').textContent(),/function connectTaskEvents/);
+  assert.ok(await page.locator('[data-start="viewport"]').isVisible());
+ });
+}
+test('unsupported renderer reports a recoverable UI message instead of waiting forever',async t=>{
+ const page=await setup(t);await page.reload();
+ await page.evaluate(()=>{const bot=document.querySelector('#demo-bot');bot.dispatchEvent(new CustomEvent('sidekick-error',{detail:{message:'WebGL unavailable',recoverable:false}}));});
+ // Exercise initialization failure before the renderer can become ready.
+ await page.addInitScript(()=>{HTMLCanvasElement.prototype.getContext=function(){return null;};window.Worker=undefined;});
+ await page.reload();await page.waitForSelector('#demo-status[data-error]');
+ assert.match(await page.locator('#demo-status').textContent(),/WebGL/);
+ await page.locator('[data-start="anchor"]').click();await page.waitForSelector('#demo-status[data-error]');
+ await page.locator('#case-anchor summary').click();assert.ok((await page.locator('#code-anchor').textContent()).includes('moveToElement'));
+ await page.locator('#stop-demo').click();assert.equal(await page.locator('#demo-bot').count(),0);
 });
