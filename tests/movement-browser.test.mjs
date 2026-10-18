@@ -100,5 +100,10 @@ test('moveToElement viewport bounds and retarget preserve movement semantics',as
   const second=bot.moveToElement(target,{alignX:'right',alignY:'bottom'});const after=bot.movementState.velocity;target.remove();
   return {first:await first,second:await second,velocity,after,max:{x:innerWidth-bot.offsetWidth,y:innerHeight-bot.offsetHeight}};
  });
- assert.equal(result.first.finished,false);assert.equal(result.second.finished,true);assert.deepEqual(result.second.position,result.max);assert.deepEqual(result.velocity,result.after);
+ assert.equal(result.first.finished,false);assert.equal(result.second.finished,true);assert.deepEqual(result.second.position,result.max);// moveTo samples elapsed time since the previous RAF before retargeting.
+ // Speed can increase during that interval; it must not reset or reverse.
+ assert.ok(Math.hypot(result.velocity.x,result.velocity.y)>0);
+ assert.ok(Math.hypot(result.after.x,result.after.y)>=Math.hypot(result.velocity.x,result.velocity.y));
+ assert.ok(result.velocity.x*result.after.x+result.velocity.y*result.after.y>0);
+ assert.ok(Math.abs(result.velocity.x*result.after.y-result.velocity.y*result.after.x)<1e-6);
 });
