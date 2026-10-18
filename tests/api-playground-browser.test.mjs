@@ -235,7 +235,10 @@ test('shared custom-element brand stays identical across pages and compact viewp
       await page.goto(`${base}/${route}`);
       await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
       await page.evaluate(() => document.fonts.ready);
-      await page.waitForFunction(() => { const d = document.querySelector('.brand-avatar').diagnostics; return d.frames > 0 && !d.running && d.revision === d.acknowledgedRevision; });
+      // A no-op resize may advance the command revision without emitting a frame.
+      // Capture explicitly synchronizes the renderer; then count actual draws.
+      await page.locator('.brand-avatar').evaluate(a => a.capturePixelsAsync());
+      await page.waitForFunction(() => document.querySelector('.brand-avatar').diagnostics.frames > 0);
       const frames = await page.locator('.brand-avatar').evaluate(a => a.diagnostics.frames);
       await page.waitForTimeout(200);
       assert.equal(await page.locator('.brand-avatar').evaluate(a => a.diagnostics.frames), frames, 'Paused header does not keep drawing');
