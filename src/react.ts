@@ -15,7 +15,7 @@ export type SidekickAvatarRef = SidekickElement;
 export type SidekickEventHandler<K extends keyof SidekickEventMap> = (event: SidekickEventMap[K]) => void;
 
 /** React 19 wrapper. The ref is published after the custom element has upgraded. */
-export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement>, 'onError' | 'onTransitionEnd' | 'children' | 'dangerouslySetInnerHTML'> {
+export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement>, 'onError' | 'children' | 'dangerouslySetInnerHTML'> {
   ref?: Ref<SidekickElement>;
   placement?: SidekickAttributes['placement'];
   positionX?: number;
@@ -25,7 +25,7 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
   moveEasing?: MotionOptions['easing'];
   onMoveEnd?: SidekickEventHandler<'sidekick-move-end'>;
   onPlayEnd?: SidekickEventHandler<'sidekick-play-end'>;
-  onTransitionEnd?: SidekickEventHandler<'sidekick-transition-end'>;
+  onAssetTransitionEnd?: SidekickEventHandler<'sidekick-transition-end'>;
   design?: AvatarDesign;
   shape?: MaterialShapeName;
   bodyColor?: string;
@@ -95,7 +95,7 @@ const attributeProps = {
   shapeDuration: 'shape-duration', shapeEasing: 'shape-easing', motionDuration: 'motion-duration', motionEasing: 'motion-easing', time: 'time',
 } as const satisfies Partial<Record<keyof SidekickAvatarProps, string>>;
 const eventProps = {
-  onMoveEnd: 'sidekick-move-end', onPlayEnd: 'sidekick-play-end', onTransitionEnd: 'sidekick-transition-end',
+  onMoveEnd: 'sidekick-move-end', onPlayEnd: 'sidekick-play-end', onAssetTransitionEnd: 'sidekick-transition-end',
   onReady: 'sidekick-ready', onDesignChange: 'sidekick-design-change', onMotionEnd: 'sidekick-motion-end',
   onShapeEnd: 'sidekick-shape-end', onCameraChange: 'sidekick-camera-change', onActivate: 'sidekick-activate', onError: 'sidekick-error',
 } as const;

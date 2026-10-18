@@ -227,7 +227,7 @@ test('React cameraZoom overrides object zoom and removal restores object/default
 
 test('React forwards placement coordinates and custom completion events without resetting an unchanged command', async t => {
   const moves = [], transitions = [], ref = React.createRef();
-  const props = { ref, placement: 'viewport', positionX: 12, positionY: 30, moveDuration: 200, moveEasing: 'linear', movementBounds: 'none', onMoveEnd: e => moves.push(e.detail), onTransitionEnd: e => transitions.push(e.detail) };
+  const props = { ref, placement: 'viewport', positionX: 12, positionY: 30, moveDuration: 200, moveEasing: 'linear', movementBounds: 'none', onMoveEnd: e => moves.push(e.detail), onAssetTransitionEnd: e => transitions.push(e.detail) };
   const f = await fixture(t, props);
   assert.equal(f.avatar.getAttribute('placement'), 'viewport'); assert.equal(f.avatar.getAttribute('position-x'), '12'); assert.equal(f.avatar.getAttribute('move-duration'), '200');
   assert.equal(f.avatar.getAttribute('body-color'), null, 'wrapper preserves canonical element default');

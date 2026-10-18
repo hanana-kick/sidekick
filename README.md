@@ -919,7 +919,7 @@ Both HTML entry pages include static Open Graph and Twitter card tags with the c
 | `move-easing` | `moveEasing` | `smooth` 기본 / `linear` |
 | 이벤트 `sidekick-move-end` | `onMoveEnd` | `{ finished, position: { x, y } }` |
 | 이벤트 `sidekick-play-end` | `onPlayEnd` | `{ finished }` 재생 구간 완료/취소 |
-| 이벤트 `sidekick-transition-end` | `onTransitionEnd` | `{ finished }` 도형·표정·장식 묶음 전환 완료/취소 |
+| 이벤트 `sidekick-transition-end` | `onAssetTransitionEnd` | `{ finished }` 도형·표정·장식 묶음 전환 완료/취소 |
 
 `position-x/y`를 함께 변경하면 한 attribute transaction으로 처리합니다. 직접 메서드 호출의 옵션 기본 시간은 400ms이며 `move-duration` attribute는 선언형 변경에만 적용됩니다. 초기 배치를 즉시 하려면 move-duration을 생략하세요.
 
@@ -987,4 +987,4 @@ export function Companion() {
 }
 ```
 
-React SSR은 기존처럼 안전하며 ref는 클라이언트 등록 후 게시됩니다. 선언형 position props는 값이 바뀔 때만 반영되므로 일반적인 부모 rerender가 명령형 이동을 되돌리지 않습니다. React의 `onTransitionEnd` prop은 여기서는 Sidekick 묶음 전환 이벤트이며 네이티브 CSS transition 이벤트가 아닙니다. 공개 타입 `AvatarPlacement`, `AvatarPosition`, `MovementBounds`, `MoveResult`, `PlayOptions`, `AssetTransitionTarget`은 메인/`register` 엔트리에서 가져올 수 있습니다.
+React SSR은 기존처럼 안전하며 ref는 클라이언트 등록 후 게시됩니다. 선언형 position props는 값이 바뀔 때만 반영되므로 일반적인 부모 rerender가 명령형 이동을 되돌리지 않습니다. React의 `onAssetTransitionEnd`는 Sidekick 묶음 전환 이벤트입니다. 기존 네이티브 CSS `onTransitionEnd`와 구분됩니다. 공개 타입 `AvatarPlacement`, `AvatarPosition`, `MovementBounds`, `MoveResult`, `PlayOptions`, `AssetTransitionTarget`은 메인/`register` 엔트리에서 가져올 수 있습니다.

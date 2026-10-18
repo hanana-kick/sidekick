@@ -14,7 +14,7 @@ const attributeProps = {
     shapeDuration: 'shape-duration', shapeEasing: 'shape-easing', motionDuration: 'motion-duration', motionEasing: 'motion-easing', time: 'time',
 };
 const eventProps = {
-    onMoveEnd: 'sidekick-move-end', onPlayEnd: 'sidekick-play-end', onTransitionEnd: 'sidekick-transition-end',
+    onMoveEnd: 'sidekick-move-end', onPlayEnd: 'sidekick-play-end', onAssetTransitionEnd: 'sidekick-transition-end',
     onReady: 'sidekick-ready', onDesignChange: 'sidekick-design-change', onMotionEnd: 'sidekick-motion-end',
     onShapeEnd: 'sidekick-shape-end', onCameraChange: 'sidekick-camera-change', onActivate: 'sidekick-activate', onError: 'sidekick-error',
 };
