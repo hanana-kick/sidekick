@@ -9,7 +9,7 @@ const bot = $('bot');
 let storage; try { storage = localStorage; } catch {}
 const studioSession = loadStudioSession(storage);
 $('studio-session-status').textContent = studioSession.message;
-let initialized = false, initializing = false, gesture = null, selectedAction = null, code = '', execution = 0;
+let initialized = false, initializing = false, gesture = null, selectedAction = null, code = '', lastAction = null, lastCode = '', execution = 0;
 const samples = [];
 const number = value => Math.round(value * 100) / 100;
 const numeric = id => {
@@ -52,6 +52,13 @@ function renderCode(action) {
   selectedAction = action;
   code = codeForAction(action, $('code-format').value, studioSession.scene);
   $('invocation').textContent = code; $('copy-status').textContent = '';
+}
+function renderLastCode(action) {
+  lastAction = action;
+  lastCode = codeForAction(action, $('code-format').value, studioSession.scene);
+  $('last-invocation').textContent = lastCode;
+  $('last-copy-status').textContent = '';
+  $('last-execution').hidden = false;
 }
 function refresh() {
   const kind = $('action-kind').value;
@@ -99,7 +106,7 @@ function report(kind, result) {
   while ($('result-log').children.length > 12) $('result-log').lastElementChild.remove();
 }
 async function run(action) {
-  const id = ++execution; renderCode(action);
+  const id = ++execution; renderLastCode(action);
   $('status').textContent = '실행 중…';
   try {
     const promise = executeAction(bot, action, createAccessory); telemetry();
@@ -110,22 +117,24 @@ async function run(action) {
   } catch (error) { report('error', error.message); if (id === execution) $('status').textContent = error.message; }
 }
 $('execute').onclick = () => { try { void run(readAction()); } catch (error) { $('status').textContent = error.message; } };
-const cancelMove = () => { $('action-kind').value = 'movement'; refresh(); void run({ method: 'cancelMove', args: [] }); };
+const cancelMove = () => void run({ method: 'cancelMove', args: [] });
 $('cancel').onclick = cancelMove; $('cancel-preview').onclick = cancelMove;
 $('cancel-transition').onclick = () => void run({ method: 'cancelTransition', args: [] });
 for (const input of document.querySelectorAll('#action-panel input, #action-panel select')) input.addEventListener('input', refresh);
-$('code-format').onchange = () => { if (selectedAction) renderCode(selectedAction); };
+$('code-format').onchange = () => { if (selectedAction) renderCode(selectedAction); if (lastAction) renderLastCode(lastAction); };
 $('diagnostics').addEventListener('toggle', () => { if ($('diagnostics').open) telemetry(); });
 $('clear-log').onclick = () => $('result-log').replaceChildren();
-$('copy').onclick = async () => {
-  const copied = code;
-  try { await navigator.clipboard.writeText(copied); $('copy-status').textContent = copied === code ? '코드를 복사했습니다.' : '이전 코드를 복사했습니다. 변경된 코드를 다시 복사하세요.'; }
-  catch { const range = document.createRange(); range.selectNodeContents($('invocation')); const selection = getSelection(); selection?.removeAllRanges(); selection?.addRange(range); $('copy-status').textContent = '선택된 코드를 직접 복사하세요.'; }
-};
+function copyCode(sourceId, statusId, getCode) { return async () => {
+  const copied = getCode();
+  try { await navigator.clipboard.writeText(copied); $(statusId).textContent = copied === getCode() ? '코드를 복사했습니다.' : '이전 코드를 복사했습니다. 변경된 코드를 다시 복사하세요.'; }
+  catch { const range = document.createRange(); range.selectNodeContents($(sourceId)); const selection = getSelection(); selection?.removeAllRanges(); selection?.addRange(range); $(statusId).textContent = '선택된 코드를 직접 복사하세요.'; }
+}; }
+$('copy').onclick = copyCode('invocation', 'copy-status', () => code);
+$('copy-last').onclick = copyCode('last-invocation', 'last-copy-status', () => lastCode);
 // Controls, links, selectable code and the header never become destination clicks.
-const excluded = target => target instanceof Element && Boolean(target.closest('button,input,select,textarea,label,a,summary,pre,[contenteditable],.card,.app-header,.flight-toolbar,details'));
+const excluded = event => event.composedPath().some(target => target instanceof Element && Boolean(target.closest('button,input,select,textarea,label,a,summary,pre,[contenteditable],[role=button],[role=combobox],.card,.app-header,.flight-toolbar,details')));
 document.addEventListener('pointerdown', event => {
-  if (!initialized || !event.isPrimary || event.button !== 0 || excluded(event.target) || getSelection()?.toString()) { gesture = null; return; }
+  if (!initialized || !event.isPrimary || event.button !== 0 || excluded(event) || getSelection()?.toString()) { gesture = null; return; }
   gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, scrollX, scrollY, time: performance.now() };
 });
 window.addEventListener('pointermove', event => { if (gesture?.id === event.pointerId && Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 8) gesture = null; }, { passive: true });
@@ -133,9 +142,11 @@ window.addEventListener('pointercancel', () => { gesture = null; }, { passive: t
 window.addEventListener('scroll', () => { gesture = null; }, { passive: true });
 window.addEventListener('pointerup', event => {
   const tap = gesture; gesture = null;
-  if (!tap || tap.id !== event.pointerId || excluded(event.target) || getSelection()?.toString() || performance.now() - tap.time > 600 || scrollX !== tap.scrollX || scrollY !== tap.scrollY || Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 8) return;
+  if (!tap || tap.id !== event.pointerId || excluded(event) || getSelection()?.toString() || performance.now() - tap.time > 600 || scrollX !== tap.scrollX || scrollY !== tap.scrollY || Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 8) return;
   const point = viewportPoint({ x: event.clientX - bot.offsetWidth / 2, y: event.clientY - bot.offsetHeight / 2 });
-  $('action-kind').value = 'movement'; $('move-method').value = 'moveTo'; $('target-x').value = String(point.x); $('target-y').value = String(point.y); refresh(); void run(readAction());
+  // Page navigation is a separate invocation, never an edit to the user's draft.
+  try { void run({ method: 'moveTo', args: [point, movementOptions()] }); }
+  catch (error) { $('status').textContent = error.message; }
 }, { passive: true });
 bot.addEventListener('sidekick-move-progress', event => telemetry(event.detail));
 for (const name of ['move-end', 'play-end', 'transition-end', 'enter-end', 'exit-end']) bot.addEventListener(`sidekick-${name}`, event => { report(`sidekick-${name}`, event.detail); telemetry(); });
@@ -157,4 +168,4 @@ window.addEventListener('resize', () => { gesture = null; /* The avatar viewport
 const preference = matchMedia('(prefers-reduced-motion: reduce)');
 function showPreference() { $('motion-preference').textContent = preference.matches ? '운영체제의 모션 줄이기 설정이 켜져 있어 이동이 즉시 적용됩니다.' : '운영체제의 모션 줄이기 설정을 존중합니다.'; }
 preference.addEventListener('change', showPreference); showPreference(); refresh();
-$('install-code').textContent = `npm install github:hanana-kick/sidekick#v0.6.0\n\n<!-- HTML: Studio에서 설정한 봇으로 시작 -->\n<sidekick-avatar id="bot" placement="viewport"\n  style="width:180px;height:180px;pointer-events:none">\n</sidekick-avatar>\n<script type="module">\n  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.6.0/dist/browser/sidekick.js';\n  const scene = ${JSON.stringify(studioSession.scene, null, 2)};\n  const bot = document.querySelector('#bot');\n  bot.design = scene.design;\n  bot.setActivity(scene.activity);\n  bot.bodyOrientation = scene.bodyOrientation;\n  bot.zoom = scene.zoom;\n  bot.trackingMode = scene.trackingMode;\n  bot.paused = scene.paused;\n  bot.lookAt({ space: 'view', ...scene.gaze });\n  bot.seek(scene.time);\n  await bot.motion.to(scene.motion, { duration: 0 });\n  // 위 호출 코드를 이 위치에 넣으세요.\n</script>`;
+$('install-code').textContent = `npm install github:hanana-kick/sidekick#v0.6.1\n\n<!-- HTML: Studio에서 설정한 봇으로 시작 -->\n<sidekick-avatar id="bot" placement="viewport"\n  style="width:180px;height:180px;pointer-events:none">\n</sidekick-avatar>\n<script type="module">\n  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.6.1/dist/browser/sidekick.js';\n  const scene = ${JSON.stringify(studioSession.scene, null, 2)};\n  const bot = document.querySelector('#bot');\n  bot.design = scene.design;\n  bot.setActivity(scene.activity);\n  bot.bodyOrientation = scene.bodyOrientation;\n  bot.zoom = scene.zoom;\n  bot.trackingMode = scene.trackingMode;\n  bot.paused = scene.paused;\n  bot.lookAt({ space: 'view', ...scene.gaze });\n  bot.seek(scene.time);\n  await bot.motion.to(scene.motion, { duration: 0 });\n  // 위 호출 코드를 이 위치에 넣으세요.\n</script>`;

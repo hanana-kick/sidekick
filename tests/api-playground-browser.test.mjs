@@ -34,10 +34,10 @@ async function fill(page, id, value) { await reveal(page, id); await page.locato
 async function select(page, id, value) { await reveal(page, id); await page.locator(`#${id}`).selectOption(value); }
 async function calls(page) { return page.evaluate(() => window.apiCalls); }
 async function lastCall(page) { return page.evaluate(() => window.apiCalls.at(-1)); }
-async function codeCalls(page) {
-  return page.evaluate(async () => {
+async function codeCalls(page, codeId = 'invocation') {
+  return page.evaluate(async codeId => {
     const { createAccessory } = await import('/browser/sidekick.js');
-    const source = document.getElementById('invocation').textContent.replace(/^import\s.*?;\s*$/gm, '');
+    const source = document.getElementById(codeId).textContent.replace(/^import\s.*?;\s*$/gm, '');
     const records = [];
     const avatar = new Proxy({}, {
       get: (_, method) => (...args) => { records.push({ method, args }); return Promise.resolve({ finished: true }); },
@@ -47,7 +47,7 @@ async function codeCalls(page) {
     const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
     await new AsyncFunction('document', 'createAccessory', source)(fakeDocument, createAccessory);
     return records;
-  });
+  }, codeId);
 }
 async function executeAndCompare(page) {
   const expected = await codeCalls(page);
@@ -132,13 +132,17 @@ test('blank page taps center and clamp the bot; control taps, selections and swi
   assert.equal((await calls(page)).length, count);
 });
 
-test('cancel controls invoke only their API and update the generated code', async t => {
+test('cancel controls preserve configured code and show the actual invocation separately', async t => {
   const page = await pageFor(t);
   for (const [id, method] of [['cancel', 'cancelMove'], ['cancel-preview', 'cancelMove'], ['cancel-transition', 'cancelTransition']]) {
     if (id === 'cancel-transition') await select(page, 'action-kind', 'assets');
+    const draft = await page.locator('#invocation').textContent();
+    const kind = await page.locator('#action-kind').inputValue();
     await page.locator(`#${id}`).click();
+    assert.equal(await page.locator('#action-kind').inputValue(), kind);
+    assert.equal(await page.locator('#invocation').textContent(), draft);
     assert.deepEqual(await lastCall(page), { method, args: [] });
-    assert.deepEqual(await codeCalls(page), [{ method, args: [] }]);
+    assert.deepEqual(await codeCalls(page, 'last-invocation'), [{ method, args: [] }]);
   }
 });
 
@@ -270,5 +274,28 @@ test('generated JavaScript reproduces preview state on a fresh real avatar', asy
       return { preview: snapshot(document.getElementById('bot')), fresh: snapshot(document.getElementById('fresh-code-avatar')) };
     });
     assert.deepEqual(states.fresh, states.preview, `${kind}: copied code reproduces the complete public state`);
+  }
+});
+
+test('background clicks preserve selected task, all fields and copied code on desktop and touch', async t => {
+  for (const mobile of [false, true]) {
+    const page = await pageFor(t, mobile ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : {});
+    await fill(page, 'target-x', -37); await fill(page, 'target-y', 81); await select(page, 'move-method', 'moveBy');
+    await select(page, 'action-kind', 'expression'); await select(page, 'expression', 'smile'); await fill(page, 'expression-duration', 720);
+    const snapshot = () => page.locator('#action-panel input,#action-panel select').evaluateAll(elements => elements.map(e => [e.id, e.value, e.checked]));
+    const before = await snapshot(), draft = await page.locator('#invocation').textContent();
+    await page.locator('#free-space').scrollIntoViewIfNeeded(); const point = await blankPoint(page);
+    if (mobile) await page.touchscreen.tap(point.x, point.y); else await page.mouse.click(point.x, point.y);
+    assert.deepEqual(await snapshot(), before); assert.equal(await page.locator('#invocation').textContent(), draft);
+    const actual = await lastCall(page); assert.equal(actual.method, 'moveTo');
+    assert.deepEqual(await codeCalls(page, 'last-invocation'), [actual]);
+    await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async value => { window.copiedCode = value; } } }));
+    await reveal(page, 'copy-last'); await page.locator('#copy-last').click();
+    assert.equal(await page.evaluate(() => window.copiedCode), await page.locator('#last-invocation').textContent());
+    await page.locator('#copy').click(); assert.equal(await page.evaluate(() => window.copiedCode), draft);
+    await page.locator('#execute').focus(); await page.keyboard.press('Enter');
+    assert.equal((await lastCall(page)).method, 'setExpression'); assert.deepEqual(await snapshot(), before);
+    await select(page, 'action-kind', 'movement'); assert.equal(await page.locator('#move-method').inputValue(), 'moveBy'); assert.equal(await page.locator('#target-x').inputValue(), '-37');
+    await select(page, 'action-kind', 'expression'); assert.equal(await page.locator('#expression-duration').inputValue(), '720');
   }
 });

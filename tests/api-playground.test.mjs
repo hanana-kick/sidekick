@@ -205,3 +205,41 @@ test('controller copy follows format changes, and telemetry does not overwrite c
   assert.equal(f.$('invocation').textContent, code);
   for (const id of ['speed-plot', 'acceleration-plot']) assert.doesNotMatch(f.$(id).getAttribute('points'), /NaN|Infinity/);
 });
+
+test('page movement and stop commands preserve every draft and keep execution code separate', async t => {
+  const f = await controllerFixture(t);
+  f.input('move-method', 'moveBy'); f.input('target-x', -37); f.input('target-y', 81);
+  f.input('action-kind', 'expression'); f.input('expression', 'smile'); f.input('expression-duration', 720);
+  const draft = f.$('invocation').textContent;
+  const snapshot = () => [...f.w.document.querySelectorAll('#action-panel input,#action-panel select')].map(e => [e.id,e.value,e.checked]);
+  const before = snapshot();
+  f.pointer('pointerdown', 700, 500); f.pointer('pointerup', 700, 500);
+  assert.deepEqual(snapshot(), before); assert.equal(f.$('invocation').textContent, draft);
+  assert.equal(f.bot.calls.at(-1).method, 'moveTo');
+  assert.match(f.$('last-invocation').textContent, /moveTo/);
+  for (const id of ['cancel', 'cancel-preview', 'cancel-transition']) {
+    f.$(id).click(); assert.deepEqual(snapshot(), before); assert.equal(f.$('invocation').textContent, draft);
+    assert.match(f.$('last-invocation').textContent, new RegExp(id === 'cancel-transition' ? 'cancelTransition' : 'cancelMove'));
+  }
+  f.$('execute').click(); assert.equal(f.bot.calls.at(-1).method, 'setExpression');
+  assert.equal(f.$('last-invocation').textContent, draft);
+  f.input('action-kind', 'movement'); assert.equal(f.$('move-method').value, 'moveBy'); assert.equal(f.$('target-x').value, '-37');
+  f.input('action-kind', 'expression'); assert.equal(f.$('expression-duration').value, '720');
+});
+
+test('shadow controls are excluded and invalid background movement has a visible error without losing the draft', async t => {
+  const f = await controllerFixture(t);
+  const host = f.w.document.createElement('div'); f.w.document.body.append(host);
+  const shadow = host.attachShadow({ mode: 'open' }); shadow.innerHTML = '<button>Control</button>';
+  for (const type of ['pointerdown','pointerup']) {
+    const event = new f.w.Event(type, { bubbles: true, composed: true });
+    Object.assign(event, { clientX: 700, clientY: 500, isPrimary: true, pointerId: 1, button: 0 });
+    shadow.querySelector('button').dispatchEvent(event);
+  }
+  assert.equal(f.bot.calls.length, 0);
+  f.input('duration', -1); f.input('action-kind', 'activity');
+  const draft = f.$('invocation').textContent;
+  f.pointer('pointerdown', 700, 500); f.pointer('pointerup', 700, 500);
+  assert.equal(f.bot.calls.length, 0); assert.equal(f.$('invocation').textContent, draft);
+  assert.match(f.$('status').textContent, /유효한 범위/);
+});
