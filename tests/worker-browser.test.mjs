@@ -14,7 +14,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
 
-async function pageFor(t, { entry = 'native', csp = '', failWorker = '', contextLoss = false, touch = false } = {}) {
+async function pageFor(t, { entry = 'native', csp = '', failWorker = '', contextLoss = false, touch = false, auditGpu = false } = {}) {
   const page = await browser.newPage({ viewport: { width: 1000, height: 800 }, reducedMotion: 'no-preference', hasTouch: touch }), errors = [];
   page.on('pageerror', error => errors.push(error.message));
   t.after(async () => { await page.close(); assert.deepEqual(errors, [], 'No uncaught page exceptions'); });
@@ -29,6 +29,25 @@ async function pageFor(t, { entry = 'native', csp = '', failWorker = '', context
     };
     document.addEventListener('sidekick-error', event => audit.errors.push(event.detail));
   }, { failWorker });
+  if (auditGpu) await page.route('**/src/runtime/render-worker.js', async route => {
+    const response = await route.fetch(), code = await response.text();
+    const prefix = `globalThis.gpuAudit = { contexts: 0, raf: 0, draws: 0, uploads: 0, uploadBytes: 0, clears: 0 };
+const originalRAF = globalThis.requestAnimationFrame.bind(globalThis);
+globalThis.requestAnimationFrame = callback => originalRAF(now => { gpuAudit.raf++; callback(now); });
+const originalContext = OffscreenCanvas.prototype.getContext;
+OffscreenCanvas.prototype.getContext = function(kind, ...args) {
+  const gl = originalContext.call(this, kind, ...args);
+  if(kind === 'webgl2' && gl) {
+    gpuAudit.contexts++;
+    for(const [method, counter] of [['drawElements','draws'],['bufferData','uploads'],['bufferSubData','uploads'],['clear','clears']]) {
+      const original = gl[method].bind(gl);
+      gl[method] = (...args) => { gpuAudit[counter]++; if(counter === 'uploads') { const source = args[method === 'bufferData' ? 1 : 2]; gpuAudit.uploadBytes += typeof source === 'number' ? source : source?.byteLength ?? 0; } return original(...args); };
+    }
+  }
+  return gl;
+};\n`;
+    await route.fulfill({ response, body: prefix + code });
+  });
   if (contextLoss) await page.route('**/src/runtime/render-worker.js', async route => {
     const response = await route.fetch(), code = await response.text();
     // Test-only worker instrumentation exercises the real OffscreenCanvas WebGL context.
@@ -365,4 +384,45 @@ for (const failWorker of ['', 'constructor']) test(`${failWorker ? 'fallback' : 
     { type: 'sidekick-body-orientation-change', detail: { bodyOrientation: { yaw: 0, pitch: 0, roll: 0 } } },
   ]);
   assert.deepEqual(result.oldAPI, [], 'Removed camera API is not retained as aliases');
+});
+
+test('worker WebGL performs zero RAF/draw/upload work fully outside and resumes from partial visibility', async t => {
+  const page = await pageFor(t, { auditGpu: true });
+  const worker = page.workers()[0];
+  const gpu = () => worker.evaluate(() => ({ ...gpuAudit }));
+  await page.locator('#avatar').evaluate(avatar => { avatar.style.position = 'fixed'; avatar.style.left = '0px'; avatar.setActivity('idle'); });
+  await page.waitForFunction(() => document.getElementById('avatar').diagnostics.running);
+  const initial = await gpu(); await page.waitForTimeout(250); const active = await gpu();
+  assert.equal(active.contexts, 1); assert.ok(active.raf > initial.raf && active.draws > initial.draws);
+  assert.equal(await page.evaluate(() => workerAudit.mainContexts), 0);
+
+  // Exactly touching the viewport edge has no visible area, despite
+  // IntersectionObserver's isIntersecting potentially being true there.
+  await page.locator('#avatar').evaluate(avatar => { avatar.style.left = `${innerWidth}px`; });
+  await page.waitForFunction(() => !document.getElementById('avatar').diagnostics.running);
+  await page.waitForTimeout(100);
+  const outside = await gpu(); await page.waitForTimeout(300);
+  assert.deepEqual(await gpu(), outside, 'Fully unseen: zero worker RAF callbacks, GL draws, clears and uploads');
+  const oldSize = await page.locator('#avatar').evaluate(avatar => [avatar.diagnostics.width, avatar.diagnostics.height]);
+  for (const width of [350, 370, 390]) {
+    await page.locator('#avatar').evaluate((avatar, width) => { avatar.style.width = `${width}px`; }, width);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  }
+  assert.deepEqual(await gpu(), outside, 'Hidden layout changes do not draw or upload');
+  assert.deepEqual(await page.locator('#avatar').evaluate(avatar => [avatar.diagnostics.width, avatar.diagnostics.height]), oldSize, 'Hidden resize keeps old framebuffer until needed');
+
+  // One pixel is enough to become visible. The pending latest size applies once.
+  await page.locator('#avatar').evaluate(avatar => { avatar.style.left = `${innerWidth - 1}px`; });
+  await page.waitForFunction(() => { const avatar = document.getElementById('avatar'); return avatar.diagnostics.running && avatar.diagnostics.width === Math.round(390 * Math.min(devicePixelRatio, 2)); });
+  const resumed = await gpu(); assert.ok(resumed.draws > outside.draws);
+  await page.locator('#avatar').evaluate(avatar => { avatar.paused = true; });
+  await page.waitForFunction(() => !document.getElementById('avatar').diagnostics.running);
+  const paused = await gpu(); await page.waitForTimeout(200); assert.deepEqual(await gpu(), paused, 'Explicit pause remains demand-only');
+  await page.locator('#avatar').evaluate(avatar => { avatar.style.left = `${innerWidth + 50}px`; });
+  await page.waitForTimeout(100);
+  await page.locator('#avatar').evaluate(avatar => { avatar.style.left = '0px'; });
+  await page.waitForTimeout(150);
+  assert.equal(await page.locator('#avatar').evaluate(avatar => avatar.paused), true);
+  assert.equal(await page.locator('#avatar').evaluate(avatar => avatar.diagnostics.running), false, 'Visibility return must not clear explicit pause');
+  t.diagnostic(JSON.stringify({ initial, active, outside, resumed, paused, methodology: 'Actual dedicated-worker RAF and WebGL2 calls; polling evaluations are test instrumentation, not renderer scheduling.' }));
 });

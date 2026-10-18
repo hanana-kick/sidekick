@@ -343,3 +343,31 @@ test('zoom-only worker state redraws once without restarting demand-only frames'
  f.engine.command({kind:'state',state:{travel:{direction:[0,0],strength:0,lift:0,bank:0}}});f.step();
  assert.equal(f.draws.at(-1).activity,'idle'); assert.deepEqual(f.draws.at(-1).pose.gaze,before.gaze);f.engine.dispose();
  });
+
+test('inactive resize bursts defer framebuffer work and resume at the final dimensions', () => {
+  const f = fixture({ activity: 'idle' });
+  f.engine.command({ kind: 'state', state: { active: false } });
+  const before = f.draws.length, resizes = f.renderer.resizes;
+  for (let width = 210; width <= 410; width += 10) f.engine.command({ kind: 'resize', width, height: 123, dpr: 2 });
+  f.step(30000);
+  assert.equal(f.callbacks.size, 0); assert.equal(f.draws.length, before);
+  assert.equal(f.renderer.resizes, resizes, 'No offscreen framebuffer reallocations');
+  assert.equal(f.engine.snapshot.width, 200, 'Diagnostics report actual backing size, not unrendered target');
+  f.engine.command({ kind: 'state', state: { active: true } }); f.step();
+  assert.equal(f.renderer.resizes, resizes + 1);
+  assert.equal(f.engine.snapshot.width, 820); assert.equal(f.engine.snapshot.height, 246);
+  f.engine.dispose();
+});
+
+test('explicit hidden capture applies a pending resize without waking animation', () => {
+  const f = fixture({ activity: 'idle' });
+  f.engine.command({ kind: 'state', state: { active: false } });
+  f.engine.command({ kind: 'resize', width: 321, height: 213, dpr: 1 });
+  const frames = f.draws.length, resizes = f.renderer.resizes;
+  f.engine.command({ kind: 'capture', request: 99 });
+  const captured = f.events.at(-1);
+  assert.equal(captured.kind, 'pixels');
+  assert.deepEqual([captured.image.width, captured.image.height], [321, 213]);
+  assert.equal(f.draws.length, frames + 1); assert.equal(f.renderer.resizes, resizes + 1);
+  assert.equal(f.callbacks.size, 0); f.engine.dispose();
+});

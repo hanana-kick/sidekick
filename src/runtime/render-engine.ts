@@ -57,6 +57,7 @@ export class RenderEngine {
   private idleDrawElapsed = 0;
   private rendererDelta = 0;
   private dirty = true;
+  private resizePending = false;
   private disposed = false;
   private frames = 0;
   private revision = 0;
@@ -157,7 +158,10 @@ export class RenderEngine {
       case 'resize': {
         const { width, height, dpr } = command;
         if (width === this.state.width && height === this.state.height && dpr === this.state.dpr) { this.notify({ kind: 'frame', snapshot: this.snapshot }, this.revision); return; }
-        Object.assign(this.state, { width, height, dpr }); this.renderer.resize(width, height, dpr); break;
+        Object.assign(this.state, { width, height, dpr });
+        // Hidden layout changes do not need GPU framebuffer reallocations. Keep
+        // only the latest size; the next visible draw or explicit capture applies it.
+        this.resizePending = true; break;
       }
       case 'reset-tracking': this.tracking.reset(); this.velocity = [0, 0]; this.timeline.pose.gaze = [...this.state.gaze]; break;
       case 'flush': this.render(true); this.notify({ kind: 'complete', request: command.request, result: { finished: true }, snapshot: this.snapshot }); return;
@@ -228,6 +232,10 @@ export class RenderEngine {
   }
   private render(force = false): void {
     if (this.disposed || (!force && !this.dirty && !this.animated())) return;
+    if (this.resizePending) {
+      this.renderer.resize(this.state.width, this.state.height, this.state.dpr);
+      this.resizePending = false;
+    }
     const shape = this.shape.snapshot;
     const travel = this.state.reduced ? undefined : this.state.travel;
     const tracked = this.tracking.compose(this.timeline.pose);
