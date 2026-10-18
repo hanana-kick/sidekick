@@ -117,11 +117,11 @@ x = 536 * scale
 y = (630 * scale - (box[3] - box[1])) // 2 - box[1]
 draw.text((x, y), 'Sidekick', font=typeface, fill='#24242c')
 assert x + box[2] <= 1160 * scale, str(box)
-# Keep the social canvas unchanged; center the complete artwork at 36% of its original size (20% larger than the approved small preview).
+# Keep the social canvas unchanged; center the complete artwork at 44% of its original size.
 art_bounds = ImageChops.difference(card, Image.new('RGB', card.size, '#ffffff')).getbbox()
 assert art_bounds is not None
 art = card.crop(art_bounds)
-art = art.resize((round(art.width * .36), round(art.height * .36)), Image.Resampling.LANCZOS)
+art = art.resize((round(art.width * .44), round(art.height * .44)), Image.Resampling.LANCZOS)
 card = Image.new('RGB', (1200 * scale, 630 * scale), '#ffffff')
 card.paste(art, ((card.width - art.width) // 2, (card.height - art.height) // 2))
 card.resize((1200, 630), Image.Resampling.LANCZOS).save(Path(output) / 'og-sidekick.png', optimize=True)
