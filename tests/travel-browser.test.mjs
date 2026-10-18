@@ -95,3 +95,49 @@ test('flight preserves a persistent activity and current expression', async t =>
   const result = await page.evaluate(async () => { const playing = bot.play('thinking'); await bot.setExpression('both', 'smile', { duration: 0 }); const before = bot.design.eyes; await bot.moveTo({ x: 400, y: 200 }, { duration: 350 }); const activity = bot.activity, after = bot.design.eyes; bot.stop(); await playing; return { activity, before, after }; });
   assert.equal(result.activity, 'thinking'); assert.deepEqual(result.after, result.before);
 });
+
+for (const fallback of [false, true]) test(`adaptive inertial distance-scaled flight and smooth stop (${fallback ? 'fallback' : 'worker'})`, async t => {
+  const page = await fixture(t);
+  await page.setViewportSize({ width: 1200, height: 650 });
+  if (fallback) {
+    await page.evaluate(() => { bot.remove(); Object.defineProperty(HTMLCanvasElement.prototype, 'transferControlToOffscreen', { value: undefined, configurable: true }); document.body.append(bot); });
+    await page.waitForFunction(() => bot.ready);
+  }
+  const results = await page.evaluate(async () => {
+    const results = [];
+    for (const distance of [50, 200, 800]) {
+      await bot.moveTo({ x: 50, y: 250 }, { duration: 0 });
+      const samples = [];
+      const observe = e => samples.push({ time: performance.now(), ...e.detail });
+      bot.addEventListener('sidekick-move-progress', observe);
+      const start = performance.now(), result = await bot.moveBy({ x: distance, y: 0 }, { duration: 1000 });
+      const elapsed = performance.now() - start;
+      bot.removeEventListener('sidekick-move-progress', observe);
+      await bot.capturePixelsAsync();
+      results.push({ distance, elapsed, result, samples, peak: Math.max(...samples.map(s => s.speed)), travel: bot.diagnostics.travel });
+    }
+    await bot.moveTo({ x: 50, y: 250 }, { duration: 0 });
+    window.adaptiveStop = bot.moveTo({ x: 850, y: 250 }, { duration: 1000 });
+    return results;
+  });
+  for (const result of results) {
+    assert.equal(result.result.finished, true);
+    assert.ok(result.elapsed >= 700 && result.elapsed < 2600, `elapsed ${result.elapsed}`);
+    assert.ok(result.peak >= Math.max(80, result.distance) * 0.98 && result.peak <= Math.max(80, result.distance) + 0.01);
+    assert.equal(result.travel.strength, 0);
+    assert.deepEqual(result.result.position, { x: 50 + result.distance, y: 250 });
+  }
+  assert.ok(results[2].peak > results[1].peak && results[1].peak > results[0].peak);
+  assert.ok(results[2].elapsed > results[1].elapsed && results[1].elapsed > results[0].elapsed, 'farther takes longer even with a higher speed ceiling');
+  for (const result of results) assert.ok(result.samples.every(s => Math.abs(s.acceleration.x) <= 2200.001));
+  await page.waitForFunction(() => bot.movementState.progress > 0.3 && bot.movementState.phase !== 'idle');
+  const stop = await page.evaluate(async () => {
+    const before = bot.movementState; bot.cancelMove(); const immediate = bot.movementState;
+    const result = await adaptiveStop; await bot.capturePixelsAsync();
+    return { before, immediate, result, final: bot.movementState, travel: bot.diagnostics.travel };
+  });
+  assert.ok(stop.immediate.speed > 0); assert.equal(stop.result.finished, false);
+  assert.ok(stop.final.position.x > stop.before.position.x); assert.equal(stop.final.speed, 0); assert.equal(stop.travel.strength, 0);
+  if (process.env.SIDEKICK_SCREENSHOTS) await writeFile(`${process.env.SIDEKICK_SCREENSHOTS}/adaptive-${fallback ? 'fallback' : 'worker'}-distances.json`, JSON.stringify({ results, stop }, null, 2));
+  await saveTrace(page, `adaptive-${fallback ? 'fallback' : 'worker'}`);
+});

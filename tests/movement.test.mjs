@@ -426,3 +426,43 @@ test('early oblique retargets converge across display rates without perpendicula
     f.states.forEach(finiteState);
   }
 });
+
+test('adaptive natural speed ceilings compensate distance without changing acceleration or total-time physics', async () => {
+  const rows = [];
+  for (const distance of [50, 200, 800, 2000]) {
+    const f = fixture(); f.state.max = 10000;
+    const result = f.controller.to({ x: distance, y: 0 }, { duration: 1000 });
+    advance(f, 25, 120); close(f.controller.state.speed, 45, 1e-6); close(f.controller.state.acceleration.x, 1800, 1e-6);
+    finish(f, { hz: 120 }); assert.equal((await result).finished, true);
+    rows.push({ distance, duration: f.now, peak: Math.max(...f.states.map(s => s.speed)) });
+    assert.ok(f.states.every(s => s.acceleration.x <= 1800 + 1e-6 && s.acceleration.x >= -2200 - 1e-6));
+  }
+  for (let i = 1; i < rows.length; i++) {
+    assert.ok(rows[i].duration > rows[i - 1].duration, 'farther travel must still take longer');
+    assert.ok(rows[i].peak > rows[i - 1].peak, 'farther travel reaches a higher peak speed');
+  }
+  assert.ok(rows[3].peak > 900, 'old arbitrary900px/s ceiling must not constrain long flight');
+});
+
+test('adaptive shorter retarget decelerates from current velocity instead of applying its lower ceiling instantly', async () => {
+  const f = fixture(); f.state.max = 10000;
+  const first = f.controller.to({ x: 2000, y: 0 }, { duration: 1000 }); advance(f, 500, 120);
+  const before = f.controller.state;
+  const next = f.controller.to({ x: before.position.x + 50, y: 0 }, { duration: 1000 });
+  assert.equal((await first).finished, false); close(f.controller.state.speed, before.speed);
+  advance(f, 525, 120); assert.ok(f.controller.state.speed > 80); assert.ok(f.controller.state.speed < before.speed);
+  close(before.speed - f.controller.state.speed, 2200 * .025, 1e-6);
+  finish(f); assert.equal((await next).finished, true);
+});
+
+test('physical attitude smoothing bounds frame-to-frame bank without altering the acceleration trace', async () => {
+  const f = fixture(), result = f.controller.to({ x: 800, y: 0 }, { duration: 1000 });
+  let previous = neutral;
+  while (f.callbacks.size && f.now < 4000) {
+    f.at(f.now + 1000 / 120); const p = f.presentations.at(-1) ?? neutral;
+    assert.ok(Math.abs(p.bank - previous.bank) < .023, 'instant acceleration switch must not cause a body-bank snap');
+    assert.ok(Math.abs(p.strength - previous.strength) < .11);
+    boundedPresentation(p); previous = p;
+  }
+  assert.equal((await result).finished, true);
+});

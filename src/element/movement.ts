@@ -133,7 +133,7 @@ export class AvatarMovement {
       return new Promise(resolve => {
         const distance = Math.hypot(to.x - this.point.x, to.y - this.point.y);
         this.track = { kind: 'physical', to, start: now, last: now, accumulator: 0,
-          maxSpeed: timing.maxSpeed || Math.max(80, Math.min(900, distance / Math.max(0.1, duration / 1000))),
+          maxSpeed: timing.maxSpeed || Math.max(80, Math.min(100000, distance / Math.max(0.1, duration / 1000))),
           acceleration: timing.acceleration, deceleration: timing.deceleration, initialDistance: Math.max(distance, 1), stopping: false, resolve };
         this.progress = 0; this.phase = Math.hypot(this.velocity.x, this.velocity.y) > 0.1 ? 'flight' : 'takeoff';
         this.report(); this.schedule();
@@ -342,10 +342,14 @@ export class AvatarMovement {
     this.progress = Math.max(this.progress, Math.min(0.999, 1 - Math.hypot(track.to.x - this.point.x, track.to.y - this.point.y) / track.initialDistance));
     const targetHeading = speed > 1 ? direction(this.velocity.x, this.velocity.y) : this.presentation.direction;
     const heading = turn(this.presentation.direction, targetHeading, 1 - Math.exp(-24 * elapsed));
-    const strength = Math.min(1, speed / 100);
+    // Attitude is a damped presentation layer, not a force on the trajectory.
+    // A speed/acceleration step must not turn into a one-frame head nod.
+    const attitudeBlend = 1 - Math.exp(-12 * elapsed);
+    const targetStrength = smooth(Math.min(1, speed / 160));
+    const strength = this.presentation.strength + (targetStrength - this.presentation.strength) * attitudeBlend;
     // Banking changes sign under braking; it is derived from physical acceleration.
     const bank = Math.max(-0.12, Math.min(0.12, -this.acceleration.x / Math.max(track.acceleration, track.deceleration) * 0.12));
-    if (!arrived) this.present({ direction: heading, strength, lift: 0.06 * strength, bank });
+    if (!arrived) this.present({ direction: heading, strength, lift: 0.06 * strength, bank: this.presentation.bank + (bank - this.presentation.bank) * attitudeBlend });
     if (this.track !== track) return;
     if (arrived) {
       if (!track.stopping) this.progress = 1;
