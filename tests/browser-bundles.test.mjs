@@ -83,7 +83,7 @@ test('packed ESM and classic releases are standalone and expose the complete aut
     assert.equal(typeof esm.cropPixels, 'function');
     assert.equal(typeof esm.resolveSidekickAttributes, 'function');
     const classicSceneVersion = runInNewContext('Sidekick.parseScene(Sidekick.serializeScene(Sidekick.createScene())).sceneVersion', context);
-    assert.equal(classicSceneVersion, 2);
+    assert.equal(classicSceneVersion, 3);
     esm.defineSidekick(); context.Sidekick.defineSidekick();
     console.log('Standalone API parity passed: ' + Object.keys(esm).length + ' exports');
   `]);
