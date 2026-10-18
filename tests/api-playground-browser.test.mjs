@@ -19,6 +19,7 @@ async function pageFor(t, options = {}) {
   t.after(async () => { await page.close(); assert.deepEqual(errors, []); });
   await page.goto(`${base}/api-playground.html`);
   await page.waitForFunction(() => document.getElementById('bot')?.ready && document.getElementById('invocation').textContent.includes('moveTo'));
+  assert.equal(await page.locator('#bot').evaluate(bot => bot.trackingMode), 'eyes-and-body', 'API demo uses the real body-and-eye default');
   return page;
 }
 async function position(page) { return page.locator('#bot').evaluate(bot => bot.position); }
