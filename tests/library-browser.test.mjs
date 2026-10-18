@@ -1023,7 +1023,7 @@ test('React omitted tracking props and Studio defaults, reset and exports use ey
   assert.equal(await studio.locator('#flat').evaluate(element => element.trackingMode), 'eyes-and-body');
   await studio.locator('#json-tab').click();
   const scene = JSON.parse(await studio.locator('#design-json').inputValue());
-  assert.equal(scene.sceneVersion, 2); assert.equal(scene.trackingMode, 'eyes-and-body'); assert.equal('mouseTracking' in scene, false);
+  assert.equal(scene.sceneVersion, 3); assert.equal(scene.trackingMode, 'eyes-and-body'); assert.equal('mouseTracking' in scene, false);
   assert.match(await studio.locator('#api-example').textContent(), /tracking-mode="eyes-and-body"/);
   assert.match(await studio.locator('#react-example').textContent(), /trackingMode=\{"eyes-and-body"\}/);
 });

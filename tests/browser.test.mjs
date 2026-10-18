@@ -149,7 +149,7 @@ test('rotating 180 degrees hides body-surface eye ink', async t => {
     const a = document.getElementById('flat'); a.paused = true; a.setActivity('still');
     a.design = window.fixtureAPI.createDesign();
     const ink = async () => { const { pixels } = (await a.capturePixelsAsync()); let n = 0; for (let i = 0; i < pixels.length; i += 4) if (pixels[i] === 36 && pixels[i + 1] === 36 && pixels[i + 2] === 44 && pixels[i + 3] === 255) n++; return n; };
-    a.setView(0); const front = (await ink()); a.setView(Math.PI); return { front, back: (await ink()) };
+    a.setBodyOrientation({ yaw: 0, pitch: 0 }); const front = (await ink()); a.setBodyOrientation({ yaw: 180, pitch: 0 }); return { front, back: (await ink()) };
   });
   assert.ok(result.front > 200); assert.equal(result.back, 0);
 });
@@ -252,7 +252,7 @@ test('surface eye capsules follow body roll and stay in the body pass across cat
     for (const shape of cases) {
       a.design = createDesign({ body: { shape, color: '#c0b080' }, eyes: { color: '#ff00ff' } });
       for (const [yaw, pitch, roll] of [[0, 0, 0], [0, 0, 0.45], [0, 0, -0.6], [0.35, 0.18, 0.45], [-0.35, -0.15, -0.6]]) {
-        a.setView(yaw, pitch); await a.motion.to({ body: { rotation: [0, 0, roll] } }, { duration: 0 });
+        a.setBodyOrientation({ yaw: yaw * 180 / Math.PI, pitch: pitch * 180 / Math.PI }); await a.motion.to({ body: { rotation: [0, 0, roll] } }, { duration: 0 });
         checks.push({ shape, yaw, pitch, roll, groups: (await components()), drawCalls: a.diagnostics.drawCalls });
       }
     }
@@ -278,7 +278,7 @@ test('curated eyes and independent expressions cannot protrude beyond the body s
     const checks = [];
     for (const shape of ['square', 'triangle', 'puffy', 'pixelTriangle', 'verySunny', 'clover4Leaf', 'burst', 'cookie9Sided']) {
       for (const yaw of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
-        a.design = createDesign({ body: { shape } }); a.setView(yaw);
+        a.design = createDesign({ body: { shape } }); a.setBodyOrientation({ yaw: yaw * 180 / Math.PI, pitch: 0 });
         const base = (await a.capturePixelsAsync());
         for (const [left, right] of [['smile', 'neutral'], ['blink', 'smile'], ['blink', 'blink']]) {
           a.design = createDesign({ body: { shape }, eyes: { left: { weights: window.fixtureAPI.eyeExpressionWeights(left) }, right: { weights: window.fixtureAPI.eyeExpressionWeights(right) } } });
@@ -428,7 +428,7 @@ test('representative catalog shapes and curated accessories remain transparent a
       const accessory = createAccessory(preset, { slot });
       a.design = createDesign({ body: { shape }, accessories: [accessory] });
       for (const yaw of [0, Math.PI / 2, Math.PI]) {
-        a.setView(yaw); const { pixels, width, height } = (await a.capturePixelsAsync()); let border = 0, visible = 0;
+        a.setBodyOrientation({ yaw: yaw * 180 / Math.PI, pitch: 0 }); const { pixels, width, height } = (await a.capturePixelsAsync()); let border = 0, visible = 0;
         for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) { const alpha = pixels[(y * width + x) * 4 + 3]; if (alpha) { visible++; if (x === 0 || y === 0 || x === width - 1 || y === height - 1) border++; } }
         checks.push({ shape, preset, slot, yaw, border, visible });
       }
@@ -815,7 +815,7 @@ test('Studio JSON export uses applied design rather than an invalid unsaved draf
   await page.locator('#design-json').fill('{invalid'); await page.locator('#import-json').click();
   const pending = page.waitForEvent('download'); await page.locator('#export-json').click(); const download = await pending;
   const exported = JSON.parse(await readFile(await download.path(), 'utf8'));
-  assert.equal(download.suggestedFilename(), 'sidekick.scene.json'); assert.equal(exported.sceneVersion, 2); assert.equal(exported.design.version, 7); assert.equal(exported.design.body.color, '#a4b8c9');
+  assert.equal(download.suggestedFilename(), 'sidekick.scene.json'); assert.equal(exported.sceneVersion, 3); assert.equal(exported.design.version, 7); assert.equal(exported.design.body.color, '#a4b8c9');
   assert.equal(await page.locator('#design-json').inputValue(), '{invalid');
 });
 
