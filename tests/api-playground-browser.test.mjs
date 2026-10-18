@@ -189,6 +189,7 @@ test('short portrait and landscape viewports retain a complete canvas and scroll
 test('natural controls drive physical telemetry and keep a trace through controlled braking', async t => {
   const page = await pageFor(t);
   await recordMoves(page);
+  await page.locator('#physical-mode').check();
   await page.locator('#max-speed').fill('240'); await page.locator('#acceleration').fill('600'); await page.locator('#deceleration').fill('900');
   await page.evaluate(() => {
     window.physicalTrace = [];
@@ -222,4 +223,21 @@ test('natural controls drive physical telemetry and keep a trace through control
     await page.screenshot({ path: `${process.env.SIDEKICK_SCREENSHOTS}/api-inertial-telemetry.png` });
     await writeFile(`${process.env.SIDEKICK_SCREENSHOTS}/api-inertial-telemetry-trace.json`, JSON.stringify(trace, null, 2));
   }
+});
+
+test('default playground uses paced natural flight and physical limits are explicit opt-in', async t => {
+  const page = await pageFor(t, { reducedMotion: 'reduce' });
+  await recordMoves(page);
+  assert.equal(await page.locator('#physical-mode').isChecked(), false);
+  assert.equal(await page.locator('#physical-options').isVisible(), false);
+  await page.locator('#duration').fill('1000');
+  await page.locator('[data-dx="120"]').first().click();
+  const call = await page.evaluate(() => window.moveCalls.at(-1));
+  assert.deepEqual(call.options, { duration: 1000, travel: 'natural' });
+  assert.doesNotMatch(await page.locator('#invocation').textContent(), /maxSpeed|acceleration|deceleration/);
+  await page.locator('#physical-mode').check();
+  assert.equal(await page.locator('#physical-options').isVisible(), true);
+  assert.match(await page.locator('#invocation').textContent(), /maxSpeed: 320, acceleration: 900, deceleration: 1200/);
+  await page.locator('#physical-mode').uncheck();
+  assert.doesNotMatch(await page.locator('#invocation').textContent(), /maxSpeed|acceleration|deceleration/);
 });

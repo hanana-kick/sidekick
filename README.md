@@ -919,18 +919,18 @@ Both HTML entry pages include static Open Graph and Twitter card tags with the c
 | `position-x` | `positionX` | CSS px x 좌표, 기본 `0` |
 | `position-y` | `positionY` | CSS px y 좌표, 기본 `0` |
 | `movement-bounds` | `movementBounds` | `viewport` 기본 / `none`; inline에서는 미적용 |
-| `move-duration` | `moveDuration` | 0–60000ms, 기본 `0` (즉시). natural에서는 속도 힌트, none에서는 정확한 이동 시간 |
+| `move-duration` | `moveDuration` | 0–60000ms, 기본 `0` (즉시). 기본 natural은 착륙을 포함한 이동 시간. 물리 제한을 명시한 natural에서는 속도 힌트 |
 | `move-easing` | `moveEasing` | `smooth` 기본 / `linear`; `none`에만 적용 |
 | `move-travel` | `moveTravel` | `natural` 기본: 관성 기반 가속·비행·감속 / `none`: 시간 기반 DOM 보간 |
-| `move-max-speed` | `moveMaxSpeed` | natural의 최고 속도, CSS px/s, 1–100000. 생략 시 거리와 move-duration으로 계산 |
-| `move-acceleration` | `moveAcceleration` | natural의 가속 한도, CSS px/s², 1–100000. 기본 `1800` |
-| `move-deceleration` | `moveDeceleration` | natural의 감속 한도, CSS px/s², 1–100000. 기본 `2200` |
+| `move-max-speed` | `moveMaxSpeed` | 명시하면 물리 제한 모드. 최고 속도 CSS px/s, 1–100000. 세 물리 옵션을 모두 생략하면 시간 기반 자연 비행 |
+| `move-acceleration` | `moveAcceleration` | 명시하면 물리 제한 모드. 가속 한도 CSS px/s², 1–100000. 물리 모드 내부 기본 `1800` |
+| `move-deceleration` | `moveDeceleration` | 명시하면 물리 제한 모드. 감속 한도 CSS px/s², 1–100000. 물리 모드 내부 기본 `2200` |
 | 이벤트 `sidekick-move-progress` | `onMoveProgress` | `MovementState`: `{ phase, progress, position, velocity, acceleration, speed }` |
 | 이벤트 `sidekick-move-end` | `onMoveEnd` | `{ finished, position: { x, y } }` |
 | 이벤트 `sidekick-play-end` | `onPlayEnd` | `{ finished }` 재생 구간 완료/취소 |
 | 이벤트 `sidekick-transition-end` | `onAssetTransitionEnd` | `{ finished }` 도형·표정·장식 묶음 전환 완료/취소 |
 
-`position-x/y`를 함께 변경하면 한 attribute transaction으로 처리합니다. 직접 메서드 호출은 `MoveOptions`를 사용하며 기본 duration은 400ms, travel은 natural입니다. `move-*` attribute/React prop은 선언형 좌표 변경에만 적용됩니다. 초기 배치를 즉시 하려면 move-duration을 생략하세요. 선언형 자연 비행에는 `move-duration="1000" move-max-speed="320" move-acceleration="900" move-deceleration="1200"`처럼 양수 duration과 물리 옵션을 함께 지정할 수 있습니다. 최고 속도가 있어도 duration이 0이면 즉시 적용됩니다.
+`position-x/y`를 함께 변경하면 한 attribute transaction으로 처리합니다. 직접 메서드 호출은 `MoveOptions`를 사용하며 기본 duration은 400ms, travel은 natural입니다. `move-*` attribute/React prop은 선언형 좌표 변경에만 적용됩니다. 초기 배치를 즉시 하려면 move-duration을 생략하세요. 선언형 기본 자연 비행은 `move-duration="1000" move-travel="natural"`만 지정합니다. React는 `moveDuration={1000} moveTravel="natural"`입니다. `move-max-speed`, `move-acceleration`, `move-deceleration` 중 하나라도 숫자로 지정하면 물리 제한 모드로 바뀝니다. React의 대응 prop도 같은 규칙입니다. 최고 속도가 있어도 duration이 0이면 즉시 적용됩니다.
 
 ### 메서드와 실제 완료의 의미
 
@@ -958,24 +958,26 @@ Both HTML entry pages include static Open Graph and Twitter card tags with the c
 
 취소가 장식 교체 중간 이전이면 이전 장식을 유지하고, 교체 이후면 새 장식을 유지합니다. 취소한 fade는 제거하여 캐릭터가 투명한 채 남지 않습니다. 취소된 도형은 현재 윤곽에서 멈추지만 design에는 요청했던 목표가 남습니다. 최신 shape/expression/equipment setter나 attribute 변경은 해당 묶음 전환을 취소합니다. 색상만 바꿀 때는 `updateDesign`을 사용하세요(진행 중인 묶음 전환은 취소됩니다).
 
-`paused` 또는 OS 모션 줄이기는 이동 목표/윤곽/표정/fade를 즉시 적용하고 비행 포즈를 0으로 정리합니다. 이 경우 이륙·착륙·취소 후 180ms 정리를 기다리지 않습니다. 활동 재생 구간은 벽시계 시간이므로 일시 정지해도 경과합니다. 백그라운드 탭은 브라우저가 RAF/타이머를 지연시킬 수 있습니다. 자연 비행은 고정 1/240초 간격으로 적분하고, 탭 복귀 시 한 프레임의 따라잡기를 최대 100ms로 제한합니다. 오래 숨겨진 시간만큼 순간 이동하지 않으며 실제 완료까지 더 오래 걸릴 수 있습니다. `travel: 'none'`과 활동 재생 구간은 벽시계 시간 기준입니다. 화면 밖에서 렌더가 중지된 윤곽 모프의 Promise는 실제 재개/완료 또는 취소를 기다립니다. 미연결 상태의 move/transition은 설정을 즉시 적용하고, play는 `finished: false`를 반환합니다.
+`paused` 또는 OS 모션 줄이기는 이동 목표/윤곽/표정/fade를 즉시 적용하고 비행 포즈를 0으로 정리합니다. 이 경우 이륙·착륙·취소 후 180ms 정리를 기다리지 않습니다. 활동 재생 구간은 벽시계 시간이므로 일시 정지해도 경과합니다. 백그라운드 탭은 브라우저가 RAF/타이머를 지연시킬 수 있습니다. 물리 제한 자연 비행은 고정 1/240초 간격으로 적분합니다. 시간 기반 자연 비행과 물리 제한 자연 비행 모두 탭 복귀 시 한 프레임의 따라잡기를 최대 100ms로 제한합니다. 오래 숨겨진 시간만큼 순간 이동하지 않으며 실제 완료까지 더 오래 걸릴 수 있습니다. `travel: 'none'`과 활동 재생 구간은 벽시계 시간 기준입니다. 화면 밖에서 렌더가 중지된 윤곽 모프의 Promise는 실제 재개/완료 또는 취소를 기다립니다. 미연결 상태의 move/transition은 설정을 즉시 적용하고, play는 `finished: false`를 반환합니다.
 
 ### 자연스러운 방향성 비행과 실제 가속도
 
-`moveTo()`·`moveBy()`는 기본적으로 `travel: 'natural'`을 사용합니다. DOM 좌표가 실제 속도·가속도 적분으로 움직이며, 몸의 기울기만으로 가속을 흉내 내지 않습니다. 정지 상태에서 가속하고, 목표까지 남은 거리와 감속 한도로 제동 거리를 계산해 도착 전에 감속합니다. 방향 전환도 기존 속도에서 이어지므로 관성에 따라 곡선 경로나 잠깐의 역방향 이동이 생길 수 있습니다. 최고 속도는 목표 속력의 상한이며, 더 낮은 최고 속도로 재지정해도 현재 속도를 즉시 잘라내지 않고 감속합니다.
+`moveTo()`·`moveBy()`는 기본적으로 `travel: 'natural'`을 사용합니다. 물리 제한 옵션을 생략하면 **시간 기반 자연 비행**입니다. 같은 duration이라면 먼 목적지일수록 더 빠르게 이동하며, 위치·속도·가속도가 연속인 곡선으로 출발하고 감속합니다. 종료 시 속도와 가속도가 0이 되며 착륙 포즈 정리까지 duration에 포함합니다. 단순히 몸만 끄덕여 가속을 표현하지 않습니다. 이동 중 목적지가 바뀌면 현재 위치·속도·가속도에서 새 경로로 이어집니다.
+
+**물리 제한 모드**는 `maxSpeed`, `acceleration`, `deceleration` 중 하나 이상을 숫자로 직접 지정할 때 선택됩니다. 이 모드에서는 거리·현재 속도·가속/감속 한도로 도착 시간이 결정됩니다. 제동 거리와 관성에 따라 곡선 경로나 잠깐의 역방향 이동이 생길 수 있습니다. 지정한 최고 속도보다 현재 속도가 높아도 즉시 잘라내지 않고 감속합니다.
 
 | `MoveOptions` 필드 | 의미 / 기본값 |
 | --- | --- |
 | `travel` | `'natural'` 기본 / `'none'` |
-| `maxSpeed` | 자연 비행의 최고 속도, CSS px/s. 1–100000. 생략 시 `거리 / max(0.1, duration / 1000)`을 80–900 px/s로 제한 |
-| `acceleration` | 자연 비행의 가속 한도, CSS px/s². 1–100000, 기본 `1800` |
-| `deceleration` | 자연 비행의 감속 한도, CSS px/s². 1–100000, 기본 `2200`; 도착·반전·cancelMove 제동에 사용 |
-| `duration` | 0–60000ms, 직접 메서드 기본 `400`. natural에서 maxSpeed 생략 시 속도 힌트이며 실제 완료 시간은 보장하지 않음. `0`은 두 모드 모두 즉시 적용 |
+| `maxSpeed` | 명시하면 물리 제한 모드. 최고 속도 CSS px/s, 1–100000. 물리 모드에서 생략 시 `거리 / max(0.1, duration / 1000)`을 80–900 px/s로 제한 |
+| `acceleration` | 명시하면 물리 제한 모드. 가속 한도 CSS px/s², 1–100000. 물리 모드 내부 기본 `1800` |
+| `deceleration` | 명시하면 물리 제한 모드. 감속 한도 CSS px/s², 1–100000. 물리 모드 내부 기본 `2200` |
+| `duration` | 0–60000ms, 직접 메서드 기본 `400`. 기본 natural에서는 착륙까지 포함한 이동 시간. 물리 제한 모드에서 maxSpeed 생략 시 속도 힌트. `0`은 항상 즉시 적용 |
 | `easing` | `'smooth'` 기본 / `'linear'`. `travel: 'none'`의 시간 기반 보간에만 적용 |
 
-자연 비행에서는 거리·현재 속도·가속/감속 한도가 소요 시간을 결정합니다. `maxSpeed`를 명시하면 양수 duration과 easing은 경로 속도에 영향을 주지 않습니다. 짧은 거리에서는 최고 속도에 도달하기 전에 감속할 수 있습니다. 정확히 정해진 시간에 이동을 끝내야 한다면 `travel: 'none'`을 쓰세요. 이전 버전의 15% 이륙·70% 이동·15% 착륙 시간 분할은 자연 비행에 적용되지 않습니다.
+시간 기반 자연 비행은 별도의 모드 문자열을 필요로 하지 않습니다. `{ duration: 1000, travel: 'natural' }`만 전달하세요. 물리 제한 모드에서는 양수 duration이 실제 완료 시간을 보장하지 않으며 maxSpeed가 있으면 속도에도 영향을 주지 않습니다. 두 자연 비행 모두 Easing을 무시합니다. 배경 탭·프레임 지연으로 실제 벽시계 완료 시각은 늦어질 수 있습니다.
 
-시선·yaw/pitch는 실제 진행 방향을, 몸의 기울기는 실제 가속과 감속을 따라갑니다. 180도 뒤집거나 카메라 설정을 바꾸지 않습니다. 떠오름은 작은 캔버스 안의 런타임 포즈이며 `position`·bounds·진행 이벤트의 좌표에는 포함하지 않습니다. 위치가 목표에 도착하고 속도가 0이 된 뒤 180ms 동안 포즈를 정리해야 `finished: true`가 됩니다.
+시선·yaw/pitch는 진행 방향을 따라가고 몸은 비행 방향으로 기울어집니다. 카메라 설정을 바꾸지 않습니다. 떠오름은 작은 캔버스 안의 런타임 포즈이며 `position`·bounds·진행 이벤트의 좌표에는 포함하지 않습니다. 물리 제한 모드만 도착 후 별도 180ms 포즈 정리를 거쳐 `finished: true`가 됩니다.
 
 비행은 일시적인 런타임 오프셋입니다. 활동·표정·수동 포즈·카메라의 저장 상태를 덮어쓰지 않으며 `play()`의 타이머도 계속 갑니다. 착륙 후에는 **그 시점에 활성화된 활동**으로 이어집니다. 비행 도중 끝난 유한 재생을 다시 시작하거나, 이륙 전의 오래된 활동을 복원하지 않습니다. 비행 중 활동/표정을 바꿔도 현재 이동의 위치·속도·목표는 유지됩니다.
 
@@ -985,7 +987,7 @@ import type { MoveOptions, MovementState } from '@hanana-kick/sidekick';
 
 const bot = document.querySelector('sidekick-avatar')!;
 const options: MoveOptions = {
-  travel: 'natural', maxSpeed: 320, acceleration: 900, deceleration: 1200,
+  duration: 1000, travel: 'natural', // 물리 제한을 생략하면 시간 기반 자연 비행
 };
 // 활동은 비행과 동시에 계속 재생됩니다. stop()으로 활동만 중단합니다.
 const playback = bot.play('speaking');
@@ -1008,8 +1010,8 @@ console.log(state.phase, state.progress, state.position, state.velocity, state.a
 
 | 필드 | 의미 |
 | --- | --- |
-| `phase` | `idle`, `takeoff`, `flight`, `landing`, `braking`, `settling`. 자연 비행의 phase는 물리 상태를 나타내며 고정 시간 분할이 아님 |
-| `progress` | natural은 남은 거리 기반 0–1 진행 표시이며 완료 시간 예측이 아님. 목표 변경 시 다시 시작. none은 duration 대비 경과 비율. 정상 완료 후 1 |
+| `phase` | `idle`, `takeoff`, `flight`, `landing`, `braking`, `settling`. 자연 비행의 현재 가속·이동·감속·취소 단계를 나타냄 |
+| `progress` | 기본 natural과 none은 duration 대비 경과 비율. 물리 제한 natural은 남은 거리 기반으로 완료 시간 예측이 아님. 목표 변경 시 다시 시작, 정상 완료 후 1 |
 | `position` | 현재 DOM 좌표 `{ x, y }`, CSS px |
 | `velocity` | 실제 DOM 이동 속도 `{ x, y }`, CSS px/s. 오른쪽·아래가 양수 |
 | `acceleration` | 실제 속도 변화 `{ x, y }`, CSS px/s². 설정한 가속 한도와 구분 |
@@ -1017,11 +1019,11 @@ console.log(state.phase, state.progress, state.position, state.velocity, state.a
 
 상태는 복사본이며 읽거나 변경해도 실제 이동을 제어하지 않습니다. `takeoff`에서도 DOM이 가속하며 움직이고, `landing`은 목표를 향한 감속, `braking`은 cancelMove의 제동을 나타냅니다. `settling`은 속도·가속도가 0인 상태에서 비행 포즈만 정리하는 구간입니다. 진행 이벤트는 시작·애니메이션 샘플·크기 변경·취소·완료 시 발생합니다. UI에는 필요한 값만 반영하고, 완료/취소 확정에는 Promise 또는 `sidekick-move-end`를 사용하세요. 프레임별 이벤트를 스크린 리더의 live 영역에 계속 출력하지 않는 것이 좋습니다.
 
-`cancelMove()`는 자연 비행의 현재 속도를 deceleration으로 줄입니다. 호출한 지점에서 즉시 멈추지 않으며 대략 `속력² / (2 × 감속도)`만큼 더 이동할 수 있습니다. 속도가 0이 되면 `settling`에서 180ms 동안 방향·기울기·떠오름을 정리한 뒤 원래 이동 Promise와 `sidekick-move-end`를 `finished: false`로 완료합니다. 제동 중 새 목표를 요청해도 남은 속도에서 자연스럽게 이어집니다. `cancelMove()` 자체는 Promise를 반환하지 않습니다. `travel: 'none'`은 위치 이동을 즉시 중단하고, 남은 비행 포즈가 있다면 정리합니다. 일시 정지·모션 줄이기·연결 해제는 제동과 포즈 정리를 기다리지 않고 즉시 처리합니다.
+`cancelMove()`는 기본 시간 기반 자연 비행에서 현재 속도·가속도를 이어받아 120–240ms 동안 부드럽게 제동합니다. 물리 제한 모드에서는 현재 속도를 deceleration으로 줄입니다. 두 모드 모두 호출한 지점에서 즉시 멈추지는 않습니다. 물리 제한 모드는 대략 `속력² / (2 × 감속도)`만큼 더 이동할 수 있으며, 속도가 0이 되면 `settling`에서 180ms 동안 방향·기울기·떠오름을 정리한 뒤 원래 이동 Promise와 `sidekick-move-end`를 `finished: false`로 완료합니다. 제동 중 새 목표를 요청해도 남은 속도에서 자연스럽게 이어집니다. `cancelMove()` 자체는 Promise를 반환하지 않습니다. `travel: 'none'`은 위치 이동을 즉시 중단하고, 남은 비행 포즈가 있다면 정리합니다. 일시 정지·모션 줄이기·연결 해제는 제동과 포즈 정리를 기다리지 않고 즉시 처리합니다.
 
 `movement-bounds="viewport"`에서는 전체 캔버스 박스가 뷰포트를 벗어나지 않습니다. 벽에 닿은 축의 바깥 방향 속도만 0으로 만들며 다른 축은 계속 움직일 수 있습니다. 경계에 의해 속도가 잘리는 순간은 일반적인 가속 한도 예외입니다. `inline`이나 `movement-bounds="none"`에는 이런 제한이 없으므로 컨테이너 경계·제동 거리·방향 전환 시 여유 공간은 앱에서 관리하세요. 목적지만 컨테이너 안으로 제한해도 관성 경로와 제동 위치까지 제한되지는 않습니다.
 
-API playground에서는 최고 속도·가속도·감속도와 실제 velocity/acceleration을 비교할 수 있습니다. 최근 6초 그래프는 속력과 가속도의 크기를 각각 독립 축으로 표시합니다. 무대 클릭/터치는 드래그·스크롤·길게 누르기와 구분되며, 모바일에서도 고정 미리보기의 이동 중지 버튼을 사용할 수 있습니다. 활동 재생 구간의 `0`은 playground에서만 계속 반복을 뜻하며, 실제 API 호출에서는 duration을 생략합니다.
+API playground 기본값은 시간 기반 자연 비행이며 생성 코드에 duration과 travel만 전달합니다. “고급: 속도·가속도 제한 사용”을 켜면 물리 제한 모드로 바뀌며 세 제한값을 코드에 전달합니다. 실제 velocity/acceleration과 비교하며 차이를 체험할 수 있습니다. 최근 6초 그래프는 속력과 가속도의 크기를 각각 독립 축으로 표시합니다. 무대 클릭/터치는 드래그·스크롤·길게 누르기와 구분되며, 모바일에서도 고정 미리보기의 이동 중지 버튼을 사용할 수 있습니다. 활동 재생 구간의 `0`은 playground에서만 계속 반복을 뜻하며, 실제 API 호출에서는 duration을 생략합니다.
 
 ### CDN HTML에서 명령 API 사용
 
@@ -1071,7 +1073,7 @@ API playground에서는 최고 속도·가속도·감속도와 실제 velocity/a
   function flyTo(localX, localY) {
     const x = Math.max(0, Math.min(stage.clientWidth - bot.offsetWidth, localX - bot.offsetWidth / 2));
     const y = Math.max(0, Math.min(stage.clientHeight - bot.offsetHeight, localY - bot.offsetHeight / 2));
-    void bot.moveTo({ x, y }, { duration: 1000, travel: 'natural', maxSpeed: 320, acceleration: 900, deceleration: 1200 });
+    void bot.moveTo({ x, y }, { duration: 1000, travel: 'natural' });
   }
   stage.addEventListener('pointerup', event => {
     if (!event.isPrimary || event.button !== 0) return;

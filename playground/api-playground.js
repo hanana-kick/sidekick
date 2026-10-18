@@ -4,6 +4,7 @@ const $ = id => document.getElementById(id);
 const bot = $('bot'), stage = $('movement-stage');
 const method = $('move-method'), xInput = $('target-x'), yInput = $('target-y');
 const durationInput = $('duration'), easingInput = $('easing'), travelInput = $('travel');
+const physicalMode = $('physical-mode');
 const maxSpeedInput = $('max-speed'), accelerationInput = $('acceleration'), decelerationInput = $('deceleration');
 const invocation = $('invocation'), log = $('result-log');
 let alternate = false, initialized = false, gesture = null, resizeFrame = 0;
@@ -38,6 +39,7 @@ function readOptions() {
   if (!durationInput.checkValidity() || durationInput.value === '') throw new RangeError('이동 시간은 0–10000ms로 입력하세요.');
   const duration = Number(durationInput.value), travel = travelInput.value;
   if (travel === 'none') return { duration, easing: easingInput.value, travel };
+  if (!physicalMode.checked) return { duration, travel };
   for (const input of [maxSpeedInput, accelerationInput, decelerationInput]) {
     if ((input !== maxSpeedInput && input.value === '') || !input.checkValidity()) throw new RangeError('최고 속도·가속도·감속도는 1–100000 사이 숫자로 입력하세요. 최고 속도만 비워 둘 수 있습니다.');
   }
@@ -56,11 +58,17 @@ function previewCommand() {
   $('x-label').textContent = method.value === 'moveBy' ? 'ΔX · CSS px' : 'X · viewport px';
   $('y-label').textContent = method.value === 'moveBy' ? 'ΔY · CSS px' : 'Y · viewport px';
   const natural = travelInput.value === 'natural';
-  $('physical-options').hidden = !natural;
+  const physical = natural && physicalMode.checked;
+  $('physical-mode-control').hidden = !natural;
+  $('physical-options').hidden = !physical;
+  for (const input of [maxSpeedInput, accelerationInput, decelerationInput]) input.disabled = !physical;
+  easingInput.disabled = natural;
   $('cancel').textContent = natural ? '감속해서 멈추기' : '이동 중지';
-  $('duration-label').textContent = natural ? '기준 시간 · ms' : '이동 시간 · ms';
+  $('duration-label').textContent = physical ? '속도 계산 기준 시간 · ms' : '이동 시간 · ms';
   $('timing-help').textContent = natural
-    ? '실제 위치에 가속·감속을 적용합니다. 최고 속도를 비우면 기준 시간으로 속도를 정하고, 입력하면 양수 기준 시간은 무시합니다. 0ms는 즉시 이동입니다. Easing은 none에서만 적용됩니다.'
+    ? physical
+      ? '속도·가속도 한도로 비행합니다. 최고 속도를 입력하면 양수 기준 시간은 무시합니다. 최고 속도를 비우면 기준 시간으로 속도를 계산하지만 실제 도착 시간은 달라집니다. 0ms는 즉시 이동입니다.'
+      : '설정한 시간에 맞춰 부드럽게 가속하고 감속합니다. 먼 목적지일수록 더 빠르게 날아갑니다. 속도·가속도 제한은 보내지 않으며, Easing은 none 전용입니다. 0ms는 즉시 이동입니다.'
     : 'none은 정확한 시간과 Easing으로 위치를 보간합니다. 가속·감속 옵션과 비행 자세는 사용하지 않습니다.';
   try { setCode(movementCommand().code); }
   catch { setCode('// 유효한 좌표와 이동 옵션을 입력하면 호출 코드가 표시됩니다.'); }
@@ -122,7 +130,7 @@ function move() {
 }
 function moveTo(point) { method.value = 'moveTo'; xInput.value = String(point.x); yInput.value = String(point.y); previewCommand(); move(); }
 function moveBy(point) { method.value = 'moveBy'; xInput.value = String(point.x); yInput.value = String(point.y); previewCommand(); move(); }
-for (const input of [method, xInput, yInput, durationInput, easingInput, travelInput, maxSpeedInput, accelerationInput, decelerationInput]) input.addEventListener('input', previewCommand);
+for (const input of [method, xInput, yInput, durationInput, easingInput, travelInput, physicalMode, maxSpeedInput, accelerationInput, decelerationInput]) input.addEventListener('input', previewCommand);
 $('move').onclick = move;
 for (const input of [xInput, yInput, durationInput, maxSpeedInput, accelerationInput, decelerationInput]) input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); move(); } });
 for (const button of document.querySelectorAll('[data-dx]')) button.onclick = () => moveBy({ x: Number(button.dataset.dx), y: Number(button.dataset.dy) });

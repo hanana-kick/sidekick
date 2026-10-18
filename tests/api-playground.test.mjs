@@ -148,6 +148,7 @@ test('copy, asset transition, options and result log controls stay wired', async
 
 test('natural playground controls generate physical options and validate their full ranges', async t => {
   const f = fixture(t);
+  f.$('physical-mode').checked = true; f.$('physical-mode').dispatchEvent(new f.w.Event('input'));
   f.input('travel', 'natural'); f.input('duration', 1500); f.input('max-speed', 240); f.input('acceleration', 700); f.input('deceleration', 1100);
   f.$('move').click(); await flush();
   assert.deepEqual(JSON.parse(JSON.stringify(f.bot.calls.at(-1).options)), { duration: 1500, travel: 'natural', maxSpeed: 240, acceleration: 700, deceleration: 1100 });
@@ -176,4 +177,21 @@ test('physical telemetry displays signed vectors, magnitudes and state-backed tr
     const points = f.$(id).getAttribute('points'); assert.ok(points.length); assert.doesNotMatch(points, /NaN|Infinity/);
   }
   await flush();
+});
+
+
+test('default natural flight sends duration without hidden physical limits', async t => {
+  const f = fixture(t);
+  assert.equal(f.$('physical-mode').checked, false);
+  assert.equal(f.$('physical-options').hidden, true);
+  f.input('duration', 1500); f.input('max-speed', -1);
+  f.$('move').click(); await flush();
+  assert.deepEqual(JSON.parse(JSON.stringify(f.bot.calls.at(-1).options)), { duration: 1500, travel: 'natural' });
+  assert.doesNotMatch(f.$('invocation').textContent, /maxSpeed|acceleration|deceleration/);
+  assert.match(f.$('timing-help').textContent, /먼 목적지/);
+  f.$('physical-mode').checked = true; f.$('physical-mode').dispatchEvent(new f.w.Event('input'));
+  assert.equal(f.$('physical-options').hidden, false);
+  f.$('physical-mode').checked = false; f.$('physical-mode').dispatchEvent(new f.w.Event('input'));
+  assert.equal(f.$('physical-options').hidden, true);
+  assert.equal(f.$('max-speed').disabled, true);
 });
