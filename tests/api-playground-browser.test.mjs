@@ -299,3 +299,19 @@ test('background clicks preserve selected task, all fields and copied code on de
     await select(page, 'action-kind', 'expression'); assert.equal(await page.locator('#expression-duration').inputValue(), '720');
   }
 });
+
+test('element-relative action displays executable matching code without losing its draft',async t=>{
+ const page=await pageFor(t);
+ await select(page,'move-method','moveToElement');await fill(page,'target-selector','#action-panel');
+ await select(page,'align-x','center');await select(page,'align-y','bottom');await fill(page,'target-x',12);await fill(page,'target-y',-16);
+ const before=await page.locator('#invocation').textContent();assert.match(before,/moveToElement\(document.querySelector\('#action-panel'\)/);assert.match(before,/alignX: 'center'/);
+ await page.locator('#execute').click();await page.waitForFunction(()=>document.getElementById('status').textContent==='적용되었습니다.');
+ assert.equal(await page.locator('#invocation').textContent(),before);
+ const result=await page.evaluate(()=>{
+  const bot=document.getElementById('bot'),target=document.getElementById('action-panel').getBoundingClientRect();
+  return {position:bot.position,expected:{x:Math.max(0,Math.min(innerWidth-bot.offsetWidth,target.left+(target.width-bot.offsetWidth)/2+12)),y:Math.max(0,Math.min(innerHeight-bot.offsetHeight,target.bottom-bot.offsetHeight-16))}};
+ });
+ assert.ok(Math.abs(result.position.x-result.expected.x)<.1);assert.ok(Math.abs(result.position.y-result.expected.y)<.1);
+ await fill(page,'target-selector','#missing-element');assert.equal(await page.locator('#execute').isDisabled(),true);
+ assert.match(await page.locator('#invocation').textContent(),/엘리먼트가 없습니다/);
+});
