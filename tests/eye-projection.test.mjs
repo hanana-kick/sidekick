@@ -147,3 +147,55 @@ test('displayed profile eye calibration overrides the persisted target without c
  assert.equal(effective.anchor.uv[1],design.eyes.anchor.uv[1]+runtime.eyes.offsetY);
  assert.deepEqual(design,original,'geometry resolution never rewrites baseline, weights, targets, or scale');
 });
+
+test('extreme gaze translates both eyes together without collapsing or tilting their spacing', () => {
+ for(const shape of MATERIAL_SHAPE_NAMES) for(const squash of [.88,1,1.12]) {
+  const design=createDesign({body:{shape}}), neutral=projectEyes(design,transform(),[0,0],[0,0],squash);
+  for(const gaze of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1],[-100,100],[100,-100]]) {
+   const result=projectEyes(design,transform(),[0,0],gaze,squash);
+   for(const axis of [0,1]) near(result.left.localCenter[axis]-neutral.left.localCenter[axis],result.right.localCenter[axis]-neutral.right.localCenter[axis],`${shape} conjugate axis ${axis}`,1e-12);
+   assert.deepEqual(result.size,neutral.size);
+   for(const side of ['left','right']) assert.ok(result[side].localCenter.every(Number.isFinite));
+  }
+ }
+});
+
+test('heart extreme gaze moves both eyes and clamps to the same bounded endpoint',()=>{
+ const design=createDesign({body:{shape:'heart'}}), neutral=projectEyes(design,transform());
+ for(const direction of [-1,1]) {
+  const end=projectEyes(design,transform(),[0,0],[direction,0]);
+  for(const side of ['left','right']) assert.ok((end[side].localCenter[0]-neutral[side].localCenter[0])*direction>.005,`${side} must track rather than freeze`);
+  assert.deepEqual(projectEyes(design,transform(),[0,0],[direction*1e6,0]),end);
+ }
+});
+
+test('extreme gaze keeps the full smile and blink envelopes inside every catalog outline',()=>{
+ for(const shape of MATERIAL_SHAPE_NAMES) for(const squash of [.88,1,1.12]) {
+  const design=createDesign({body:{shape}}),outline=shapeContour({kind:'material',name:shape}),stretch=1/Math.sqrt(squash);
+  for(const gaze of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]]) {
+   const eyes=projectEyes(design,transform(),[0,0],gaze,squash);
+   for(const side of ['left','right']) {
+    const state=design.eyes[side], radius=eyes.size[0]*state.targets.smile.radius, halfStroke=Math.min(...eyes.size)*state.targets.smile.thickness/2;
+    const halfWidth=Math.max(eyes.size[0]/2,radius+halfStroke),bottom=-Math.max(eyes.size[1]/2,halfStroke),top=Math.max(eyes.size[1]/2,radius+halfStroke);
+    for(let i=0;i<=8;i++) for(const[x,y]of[[-halfWidth+(2*halfWidth)*i/8,bottom],[-halfWidth+2*halfWidth*i/8,top],[-halfWidth,bottom+(top-bottom)*i/8],[halfWidth,bottom+(top-bottom)*i/8]]) {
+      assert.ok(contourSignedDistance(outline,(eyes[side].localCenter[0]+x)/(.59*stretch),(eyes[side].localCenter[1]+y)/(.59*squash))>=.0049,`${shape} ${side} ${gaze}`);
+    }
+   }
+  }
+ }
+});
+
+test('morphing and camera rotation retain conjugate gaze in the displayed shape frame',async()=>{
+ const {buildMorph}=await import('../dist/src/core/morph.js');
+ for(const[from,to]of[['circle','heart'],['heart','boom'],['boom','pixelTriangle']]) {
+  const morph=buildMorph(shapeContour({kind:'material',name:from}),shapeContour({kind:'material',name:to}));
+  const design=createDesign({body:{shape:to}});
+  for(let step=0;step<=20;step++) {
+   const outline=morph.sample(step/20),neutral=projectEyes(design,transform(),[0,0],[0,0],1,outline);
+   for(const gaze of [[-1,-1],[1,1]]) for(const rotation of [[0,0,0],[.3,.6,.2]]) {
+    const eyes=projectEyes(design,transform([0,0,0],rotation),[0,0],gaze,1,outline);
+    for(const axis of [0,1]) near(eyes.left.localCenter[axis]-neutral.left.localCenter[axis],eyes.right.localCenter[axis]-neutral.right.localCenter[axis],`${from}→${to} conjugate morph`,1e-12);
+   }
+  }
+ }
+});

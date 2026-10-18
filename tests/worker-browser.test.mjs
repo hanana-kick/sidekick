@@ -258,3 +258,43 @@ test('real wheel zoom during concurrent shape, eye and body motion preserves eve
   assert.equal(result.shape, 'heart'); assert.equal(result.pose.eyes.left.smile, 1); assert.deepEqual(result.pose.rotation, [.2, .3, .4]);
   assert.equal(result.camera.yaw, before.camera.yaw); assert.equal(result.camera.pitch, before.camera.pitch); assert.equal(result.camera.roll, before.camera.roll); assert.ok(result.camera.zoom > 1);
 });
+
+for (const failWorker of ['', 'constructor']) test(`${failWorker || 'worker'}: far pointer preserves paired eye motion on concave heart`, async t => {
+ const page=await pageFor(t,{failWorker});
+ const result=await page.evaluate(async()=>{
+  const avatar=document.getElementById('avatar'); avatar.paused=true;
+  await avatar.updateDesign({body:{shape:'heart',color:'#ffcc37'},eyes:{color:'#111111'},accessories:[]});
+  const samples=[];
+  function centers(image) {
+   // Two connected ink components, independent of row orientation/readback origin.
+   const {pixels,width,height}=image, ink=new Uint8Array(width*height),groups=[];
+   for(let i=0;i<ink.length;i++)ink[i]=pixels[i*4+3]>200&&pixels[i*4]<50&&pixels[i*4+1]<50&&pixels[i*4+2]<50?1:0;
+   for(let start=0;start<ink.length;start++)if(ink[start]) {
+    const queue=[start];ink[start]=0;let x=0,y=0;
+    for(let k=0;k<queue.length;k++){const p=queue[k];x+=p%width;y+=Math.floor(p/width);for(const q of[p-1,p+1,p-width,p+width])if(q>=0&&q<ink.length&&ink[q]&&Math.abs(q%width-p%width)<=1){ink[q]=0;queue.push(q);}}
+    if(queue.length>8)groups.push({x:x/queue.length,y:y/queue.length,count:queue.length});
+   }
+   return groups.sort((a,b)=>a.x-b.x);
+  }
+  for(const mode of ['eyes','eyes-and-body']) {
+   avatar.trackingMode=mode;
+   for(const dx of [0,-100000,100000,0]) {
+    const rect=avatar.getBoundingClientRect();
+    document.dispatchEvent(new PointerEvent('pointermove',{clientX:rect.x+rect.width/2+dx,clientY:rect.y+rect.height/2,pointerType:'mouse',bubbles:true}));
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const image=await avatar.capturePixelsAsync();
+    samples.push({mode,dx,eyes:centers(image),gaze:avatar.pose.gaze});
+   }
+  }
+  return {backend:avatar.diagnostics.backend,samples};
+ });
+ assert.equal(result.backend,failWorker?'main':'worker');
+ for(const sample of result.samples){assert.equal(sample.eyes.length,2,JSON.stringify(sample));assert.equal(sample.gaze[0],Math.sign(sample.dx));}
+ const [neutral,left,right,restored]=result.samples;
+ const spacing=s=>s.eyes[1].x-s.eyes[0].x;
+ for(const sample of[left,right]) {
+  assert.ok(Math.abs(spacing(sample)-spacing(neutral))<1.5,'gaze must not collapse eye spacing');
+  for(let eye=0;eye<2;eye++)assert.ok((sample.eyes[eye].x-neutral.eyes[eye].x)*Math.sign(sample.dx)>1,'both eyes must follow');
+ }
+ for(let eye=0;eye<2;eye++)assert.ok(Math.abs(restored.eyes[eye].x-neutral.eyes[eye].x)<1,'return to neutral');
+});
