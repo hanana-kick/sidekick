@@ -957,17 +957,33 @@ test('scene editor renders OG preset, exports full-size PNG and roundtrips compo
     assert.equal(pngBytes.readUInt32BE(16),1200); assert.equal(pngBytes.readUInt32BE(20),630);
     assert.equal(await page.locator('sidekick-avatar').count(),1, 'temporary export renderer is removed');
     const canvasRect=await page.locator('.composition-preview canvas').boundingBox();
-    await page.mouse.move(canvasRect.x+canvasRect.width*.24,canvasRect.y+canvasRect.height*.5);await page.mouse.down();await page.mouse.move(canvasRect.x+canvasRect.width*.29,canvasRect.y+canvasRect.height*.55);await page.mouse.up();
+    const characterBefore = { x: await rangeValue(page, 'scene-characterX'), y: await rangeValue(page, 'scene-characterY') };
+    const textBefore = { x: await rangeValue(page, 'scene-textX'), y: await rangeValue(page, 'scene-textY') };
+    const dragDelta = { x: 5, y: 5 };
+    await page.mouse.move(canvasRect.x + canvasRect.width * characterBefore.x / 100, canvasRect.y + canvasRect.height * characterBefore.y / 100);
+    await page.mouse.down();
+    await page.mouse.move(canvasRect.x + canvasRect.width * (characterBefore.x + dragDelta.x) / 100, canvasRect.y + canvasRect.height * (characterBefore.y + dragDelta.y) / 100);
+    await page.mouse.up();
     const jsonPending=page.waitForEvent('download'); await page.locator('#export-composition-json').click();
     const json=await jsonPending, doc=JSON.parse(await readFile(await json.path(),'utf8'));
     assert.equal(doc.compositionVersion,1); assert.equal(doc.composition.text,'Sidekick\nHello');
     assert.equal(doc.avatar.design.body.shape,'ghostish');
+    for (const axis of ['x', 'y']) {
+      const actual = doc.composition['character' + axis.toUpperCase()];
+      const expected = Math.max(0, Math.min(100, characterBefore[axis] + dragDelta[axis]));
+      assert.ok(Math.abs(actual - expected) < .25, 'character drag ' + axis + ': expected ' + expected + ', got ' + actual);
+      assert.ok(Math.abs(actual - characterBefore[axis]) > 4, 'character position must actually change');
+      assert.equal(doc.composition['text' + axis.toUpperCase()], textBefore[axis], 'character drag leaves text position unchanged');
+    }
     await page.locator('#scene-text').fill('Changed');
     await page.locator('#scene-panel input[type=file]').setInputFiles({name:'scene.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(doc))});
     await page.waitForFunction(()=>document.querySelector('#scene-text')?.value==='Sidekick\nHello');
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await page.waitForFunction(() => document.querySelector('.composition-status')?.textContent.includes('정지 프레임'));
     if(screenshots)await page.screenshot({path:`${screenshots}/scene-editor-desktop.png`});
     await page.setViewportSize({width:390,height:844});
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    await page.waitForFunction(() => document.querySelector('.composition-status')?.textContent.includes('정지 프레임'));
     if(screenshots)await page.screenshot({path:`${screenshots}/scene-editor-mobile.png`});
   } finally { await page.close(); }
 });
