@@ -7,7 +7,7 @@ import type { Mat4 } from '../core/math.js';
 import { viewPoint } from './eye-projection.js';
 
 interface ClothMesh { points: Vec3[]; indices: number[]; mainIndexCount: number }
-interface Ring { center: Vec3; width: number; thickness: number; fold: number }
+interface Ring { center: Vec3; width: number; thickness: number; fold: number; twist?: number }
 const SIDES = 8;
 const WRAP_RINGS = 40;
 const CLEARANCE = .002;
@@ -22,8 +22,9 @@ function ribbon(mesh: ClothMesh, rings: readonly Ring[], vertical = false): void
     const across: Vec2 = vertical ? [1, 0] : [-dy / length, dx / length];
     for (let j = 0; j < SIDES; j++) {
       const angle = j / SIDES * Math.PI * 2, u = Math.cos(angle), v = Math.sin(angle);
-      mesh.points.push([ring.center[0] + across[0] * ring.width * u, ring.center[1] + across[1] * ring.width * u,
-        ring.center[2] + ring.thickness * v + ring.fold * (u * u - .5)]);
+      const twist = ring.twist ?? 0, c = Math.cos(twist), s = Math.sin(twist);
+      mesh.points.push([ring.center[0] + across[0] * ring.width * u * c - ring.thickness * v * s, ring.center[1] + across[1] * ring.width * u,
+        ring.center[2] + ring.width * u * s + ring.thickness * v * c + ring.fold * (u * u - .5)]);
     }
   }
   for (let i = 0; i < rings.length - 1; i++) for (let j = 0; j < SIDES; j++) {
@@ -131,7 +132,7 @@ function wrap(mesh: ClothMesh, sections: readonly number[][], size: number, prec
           radius = Math.min(radius, (support + padding) / cosine);
         }
       }
-      radius += thickness[j]! > 0 ? .014 * size + .003 : thickness[j]! < 0 ? -.004 * size : 0;
+      radius += thickness[j]! > 0 ? (.014 + .014 * Math.pow(Math.abs(Math.sin(angle)), 8)) * size + .003 : thickness[j]! < 0 ? -.004 * size : j === 4 ? .004 * size * Math.pow(Math.abs(Math.sin(angle)), 8) : 0;
       const x = radius * Math.sin(angle), z = radius * Math.cos(angle);
       mesh.points.push([x, size * (.095 * fittedHeight - .015), z]);
     }
@@ -184,6 +185,18 @@ export function drapedScarf(center: Vec3, size: number, contour: ShapeContour, s
     return wrapSupports(sectionChart, perimeterSection(contour, scales, pivot, pose, size, y, precise), y, size, precise);
   });
   const initial = empty(), centers = wrap(initial, sections, size, precise);
+  // The upper seam touches the inflated body instead of inheriting the convex
+  // envelope's clearance. The cloth below remains broad and softly tensioned.
+  if (precise) for (let ring = 0; ring < WRAP_RINGS; ring++) {
+    const point = initial.points[ring * SIDES]!;
+    const px = (point[0] + pivot[0]) / scales[0], py = (point[1] + pivot[1]) / scales[1];
+    const d = contourSignedDistanceExact(contour, px, py);
+    if (d > 0) {
+      const z = Math.sqrt(d / (d + VOLUME_CURVATURE * (px * px + py * py))) * scales[2];
+      const t = Math.min(1, d / .015), contact = t * t * (3 - 2 * t);
+      point[2] += (Math.sign(point[2]) * Math.max(0, z - .001) - point[2]) * contact;
+    }
+  }
   const [joinX, joinY, joinZ] = centers[2]!;
   const tails = empty();
   for (const [offset, length, drift, phase] of [[-.058, .32, -.035, 0], [.060, .38, .020, 1]] as const) {
@@ -191,6 +204,7 @@ export function drapedScarf(center: Vec3, size: number, contour: ShapeContour, s
       const v = i / 12;
       return { center: [joinX + size * (offset + drift * v + .008 * Math.sin(Math.PI * v)), joinY + size * (.015 - length * v),
         joinZ + size * (.018 + .008 * phase + .030 * v + .014 * Math.sin(Math.PI * v))],
+        twist: (phase ? -.42 : .38) * Math.sin(Math.PI * v / 2),
         width: size * (.067 - .009 * v + .003 * Math.sin(Math.PI * v)), thickness: .010 * size, fold: size * (.010 + .008 * Math.sin(Math.PI * v + phase)) };
     }), true);
   }

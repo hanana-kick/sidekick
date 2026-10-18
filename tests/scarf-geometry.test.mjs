@@ -153,11 +153,11 @@ test('broad fitted wrap and free tail folds preserve thin cloth volume', () => {
     for (let ring = 0; ring < 40; ring++) {
       near(point(mesh, ring * 8)[1] - point(mesh, ring * 8 + 4)[1], .190 * size);
       const a = point(mesh, ring * 8 + 2), b = point(mesh, ring * 8 + 6);
-      near(Math.hypot(...a.map((value, k) => value - b[k])), .018 * size + .003);
+      near(Math.hypot(...a.map((value, k) => value - b[k])), (.018 + .014 * Math.pow(Math.abs(Math.sin(ring * Math.PI / 20)), 8)) * size + .003);
     }
     for (const start of [320, 426]) for (let ring = 0; ring < 13; ring++) {
       const a = point(mesh, start + ring * 8 + 2), b = point(mesh, start + ring * 8 + 6);
-      near(a[2] - b[2], .020 * size, 1e-7);
+      near(Math.hypot(...a.map((value, k) => value - b[k])), .020 * size, 1e-7);
       if (ring) {
         const v = ring / 12, before = (ring - 1) / 12;
         near(center(mesh, start, ring)[2] - center(mesh, start, ring - 1)[2], size * (.030 / 12 + .014 * (Math.sin(Math.PI * v) - Math.sin(Math.PI * before))));
@@ -301,6 +301,22 @@ test('cloth follows changing body sections rather than an extruded hoop, with br
     for (const start of [320, 426]) {
       const width = point(mesh, start)[0] - point(mesh, start + 4)[0];
       assert.ok(width > .12 * size, `${shape}: narrow cord-like end`);
+    }
+  }
+});
+
+test('hanging cloth twists gently without losing thickness or gravity drape', () => {
+  for (const shape of MATERIAL_SHAPE_NAMES) {
+    const profile = resolveShapeProfile(shape), size = accessoryMountProfile(accessory, profile).scale;
+    const mesh = catalogAccessoryGeometry(createDesign({ body: { shape } }).body, accessory);
+    for (const start of [320, 426]) {
+      const rootAcross = point(mesh, start).map((v, k) => v - point(mesh, start + 4)[k]);
+      const tipAcross = point(mesh, start + 12 * 8).map((v, k) => v - point(mesh, start + 12 * 8 + 4)[k]);
+      near(rootAcross[2], 0, 1e-7);
+      assert.ok(Math.abs(tipAcross[2]) > .04 * size, `${shape}: tail collapses to a wafer edge-on`);
+      assert.ok(Math.abs(tipAcross[0]) > .10 * size, `${shape}: over-twisted tail loses its broad front`);
+      const front = point(mesh, start + 12 * 8 + 2), back = point(mesh, start + 12 * 8 + 6);
+      near(Math.hypot(...front.map((v, k) => v - back[k])), .020 * size, 1e-7);
     }
   }
 });

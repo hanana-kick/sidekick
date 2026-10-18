@@ -37,62 +37,83 @@ function radial(section, cx, angle) {
     return radius;
 }
 /**
- * A hat is an open garment, not an object resting on the tallest triangle.
- * Horizontal sections define its fitted opening; the upper body occupies the
- * opaque crown. Hidden penetration at the inner turned hem is intentional.
+ * Family-specific tilted supports put a lobe or point inside a compact crown.
+ * The asymmetric free hem hangs below the support instead of enlarging the
+ * hat to a full-body cross-section. Concealed inner seam overlap is intentional.
  */
 function makeWornBeret(contour, scales, shape) {
     const mesh = bodyGeometry(contour), v = mesh.vertices, points = [];
+    const tilt = (shape === 'heart' ? -18 : shape === 'triangle' || shape === 'pixelTriangle' ? -10 : shape === 'boom' ? -32 : -20) * Math.PI / 180;
+    const co = Math.cos(tilt), si = Math.sin(tilt);
     let top = -Infinity, bottom = Infinity;
     for (let i = 0; i < v.length; i += 6) {
         const p = [v[i] * scales[0], v[i + 1] * scales[1], v[i + 2] * scales[2]];
+        const x = p[0], y = p[1];
+        p[0] = co * x + si * y;
+        p[1] = -si * x + co * y;
         points.push(p);
         top = Math.max(top, p[1]);
         bottom = Math.min(bottom, p[1]);
     }
-    const height = top - bottom, bandHeight = height * .055;
-    let cut = top - height * .255;
-    const lobe = shape === 'heart';
+    const hanger = shape === 'triangle' || shape === 'pixelTriangle' || shape === 'boom';
+    const crownLift = hanger ? .025 : shape === 'circle' ? .12 : .065;
+    const slouch = shape === 'triangle' || shape === 'pixelTriangle' ? .12 : .085;
+    const height = top - bottom, bandHeight = height * .030;
+    const insertion = shape === 'triangle' || shape === 'pixelTriangle' ? .18 : shape === 'boom' ? .115 : shape === 'heart' ? .12 : .085;
+    const cut = top - height * insertion;
+    const lobe = shape === 'heart', pointed = shape === 'boom';
+    const supportX = points.reduce((a, b) => a[1] > b[1] ? a : b)[0];
+    const minX = lobe ? .025 : pointed ? supportX - .16 : -Infinity;
+    const maxX = pointed ? supportX + .24 : Infinity;
+    // Deduplicate mesh edges once; section samples only visit their Y interval.
+    const edges = [], seen = new Set();
+    for (let i = 0; i < mesh.indices.length; i += 3)
+        for (let j = 0; j < 3; j++) {
+            const ai = mesh.indices[i + j], bi = mesh.indices[i + (j + 1) % 3];
+            const a = points[ai], b = points[bi];
+            if (Math.max(a[1], b[1]) < cut - .15)
+                continue;
+            const key = Math.min(ai, bi) + ':' + Math.max(ai, bi);
+            if (seen.has(key))
+                continue;
+            seen.add(key);
+            if (Math.abs(a[1] - b[1]) > 1e-10)
+                edges.push({ a, b, low: Math.min(a[1], b[1]), high: Math.max(a[1], b[1]) });
+        }
     const sectionAt = (y) => {
         const result = [];
-        for (let i = 0; i < mesh.indices.length; i += 3) {
-            const triangle = [points[mesh.indices[i]], points[mesh.indices[i + 1]], points[mesh.indices[i + 2]]];
-            for (let j = 0; j < 3; j++) {
-                const a = triangle[j], b = triangle[(j + 1) % 3];
-                if ((a[1] <= y && b[1] > y) || (b[1] <= y && a[1] > y)) {
-                    const t = (y - a[1]) / (b[1] - a[1]);
-                    result.push([a[0] + (b[0] - a[0]) * t, a[2] + (b[2] - a[2]) * t]);
-                }
+        for (const { a, b, low, high } of edges) {
+            if (y < low || y >= high)
+                continue;
+            const t = (y - a[1]) / (b[1] - a[1]);
+            result.push([a[0] + (b[0] - a[0]) * t, a[2] + (b[2] - a[2]) * t]);
+        }
+        let section = hull(result);
+        for (const [edge, sign] of [[minX, 1], [maxX, -1]]) {
+            if (!Number.isFinite(edge))
+                continue;
+            const clipped = [];
+            for (let i = 0; i < section.length; i++) {
+                const a = section[i], b = section[(i + 1) % section.length];
+                const insideA = sign * (a[0] - edge) >= 0, insideB = sign * (b[0] - edge) >= 0;
+                if (insideA)
+                    clipped.push(a);
+                if (insideA !== insideB)
+                    clipped.push([edge, a[1] + (b[1] - a[1]) * (edge - a[0]) / (b[0] - a[0])]);
             }
+            section = clipped;
         }
-        const section = hull(result);
-        if (!lobe)
-            return section;
-        const clipped = [];
-        for (let i = 0; i < section.length; i++) {
-            const a = section[i], b = section[(i + 1) % section.length];
-            if (a[0] >= .025)
-                clipped.push(a);
-            if ((a[0] < .025) !== (b[0] < .025))
-                clipped.push([.025, a[1] + (b[1] - a[1]) * (.025 - a[0]) / (b[0] - a[0])]);
-        }
-        return clipped;
+        return section;
     };
-    const fullWidth = Math.max(...points.map(p => p[0])) - Math.min(...points.map(p => p[0]));
-    if (!lobe)
-        for (let i = 0; i < 5; i++) {
-            const section = sectionAt(cut), width = Math.max(...section.map(p => p[0])) - Math.min(...section.map(p => p[0]));
-            if (width >= fullWidth * .64 || cut <= top - height * .36)
-                break;
-            cut -= height * .025;
-        }
     const base = sectionAt(cut), cx = (Math.min(...base.map(p => p[0])) + Math.max(...base.map(p => p[0]))) / 2;
-    const bandEnvelope = hull([...base, ...sectionAt(cut + bandHeight), ...points.filter(p => p[1] >= cut && p[1] <= cut + bandHeight && (!lobe || p[0] >= .025)).map((p) => [p[0], p[2]])]);
+    const bandEnvelope = hull([...base, ...sectionAt(cut + bandHeight), ...points.filter(p => p[1] >= cut && p[1] <= cut + bandHeight && (p[0] >= minX && p[0] <= maxX)).map((p) => [p[0], p[2]])]);
     const bandRadius = Array.from({ length: SEGMENTS }, (_, i) => radial(bandEnvelope, cx, i / SEGMENTS * Math.PI * 2));
     const baseRadius = Array.from({ length: SEGMENTS }, (_, i) => radial(base, cx, i / SEGMENTS * Math.PI * 2));
     const radiusX = Math.max(...baseRadius), pad = .008;
-    const fullnessScale = Math.max(1, Math.min(1.40, (top - cut) / radiusX * 1.05));
+    const fullnessScale = 1;
     const vertices = [], indices = [];
+    const sections = Array.from({ length: 81 }, (_, i) => sectionAt(cut - .15 + (top + .16 - cut) * i / 80));
+    const atHeight = (y) => sections[Math.max(0, Math.min(80, Math.floor((y - cut + .15) / (top + .16 - cut) * 80)))];
     // A turned lower hem, a broad dark cuff, then the asymmetric felt crown.
     const rings = [
         { y: cut + .010, puff: -.005, blend: 1, shift: 0 },
@@ -101,20 +122,25 @@ function makeWornBeret(contour, scales, shape) {
         { y: cut + bandHeight, puff: .012, blend: 1, shift: 0 },
         ...Array.from({ length: 12 }, (_, j) => {
             const t = j / 11;
-            return { y: cut + bandHeight + .008 + (top + .075 - cut - bandHeight) * t,
-                puff: .055 + radiusX * .34 * Math.sin(Math.PI * t), blend: Math.sqrt(Math.max(0, 1 - t * t)) * (1 + .12 * Math.sin(Math.PI * t)), shift: -.105 * t };
+            return { y: cut + bandHeight + .008 + (top + crownLift - cut - bandHeight) * t,
+                puff: .025 + radiusX * .19 * Math.sin(Math.PI * t), blend: Math.sqrt(Math.max(0, 1 - t * t)) * (1 + .05 * Math.sin(Math.PI * t)), shift: -slouch * Math.sin(Math.PI * t * (hanger ? 1 : .5)) };
         }),
     ];
+    const cuffEdge = [];
     for (let ring = 0; ring < rings.length; ring++) {
-        const r = rings[ring], section = sectionAt(r.y), center = cx + r.shift;
+        const r = rings[ring], center = cx + r.shift;
         for (let i = 0; i < SEGMENTS; i++) {
             const a = i / SEGMENTS * Math.PI * 2;
-            const body = radial(section, center, a);
-            const authored = baseRadius[i] * r.blend * fullnessScale + r.puff;
-            const radius = ring < 4 ? Math.max(body, bandRadius[i]) + r.puff : Math.max(body + pad, authored);
+            const actualY = r.y - (hanger ? .13 : .065) * Math.pow(Math.max(0, -Math.cos(a)), 2) * (1 - (ring / (rings.length - 1)) ** 2);
+            const body = radial(atHeight(actualY), center, a);
+            const authored = (hanger ? Math.max(baseRadius[i], .085) : baseRadius[i]) * r.blend * fullnessScale + r.puff;
+            const radius = ring < 4 ? Math.max(body, bandRadius[i], cuffEdge[i] ?? 0) + (ring === 0 ? r.puff : Math.max(r.puff, .025))
+                : Math.max(body + (hanger ? .022 : pad), authored, (cuffEdge[i] + .033) * Math.max(0, 1 - ((ring - 4) / 11) ** 2));
+            if (ring < 4)
+                cuffEdge[i] = radius - (ring === 0 ? r.puff : Math.max(r.puff, .025));
             // Low-frequency felt fullness, not high-frequency folds or a rigid disk.
             const fullness = ring < 4 ? 0 : .006 * Math.sin(a * 2 + .4) * Math.sin((ring - 3) / (rings.length - 3) * Math.PI);
-            vertices.push(center + (radius + fullness) * Math.cos(a), r.y + (ring > 3 ? -.018 * Math.cos(a) * (ring - 3) / (rings.length - 3) : 0), (radius + fullness) * Math.sin(a), 0, 0, 0);
+            vertices.push(center + (radius + fullness) * Math.cos(a), actualY, (radius + fullness) * Math.sin(a), 0, 0, 0);
         }
     }
     for (let ring = 0; ring < rings.length - 1; ring++)
@@ -123,7 +149,7 @@ function makeWornBeret(contour, scales, shape) {
             indices.push(a, c, b, b, c, d);
         }
     const cap = vertices.length / 6;
-    vertices.push(cx - .105, top + .081, 0, 0, 1, 0);
+    vertices.push(cx - (hanger ? 0 : slouch), top + crownLift + .006, 0, 0, 1, 0);
     for (let i = 0; i < SEGMENTS; i++)
         indices.push((rings.length - 1) * SEGMENTS + i, cap, (rings.length - 1) * SEGMENTS + (i + 1) % SEGMENTS);
     // Small fabric stem, part of the same mesh and draw range.
@@ -131,7 +157,7 @@ function makeWornBeret(contour, scales, shape) {
     for (let ring = 0; ring < 3; ring++)
         for (let i = 0; i < 12; i++) {
             const a = i / 12 * Math.PI * 2, radius = ring === 2 ? .002 : .012;
-            vertices.push(cx - .105 - ring * .004 + radius * Math.cos(a), top + .08 + ring * .019, radius * Math.sin(a), 0, 0, 0);
+            vertices.push(cx - (hanger ? 0 : slouch) - ring * .004 + radius * Math.cos(a), top + crownLift + .005 + ring * .014, radius * Math.sin(a), 0, 0, 0);
         }
     for (let ring = 0; ring < 2; ring++)
         for (let i = 0; i < 12; i++) {
@@ -153,8 +179,15 @@ function makeWornBeret(contour, scales, shape) {
         for (let k = 3; k < 6; k++)
             output[i + k] /= n || 1;
     }
+    // Return from the intentionally inclined wearing plane into body space.
+    for (let i = 0; i < output.length; i += 6)
+        for (const off of [0, 3]) {
+            const x = output[i + off], y = output[i + off + 1];
+            output[i + off] = co * x - si * y;
+            output[i + off + 1] = si * x + co * y;
+        }
     const bandIndexCount = 3 * SEGMENTS * 6;
-    return { mesh: { vertices: output, indices: new Uint16Array(indices), bandIndexCount, crownIndexCount: indices.length - bandIndexCount, seating: cut - top }, pivot: [cx, cut, 0] };
+    return { mesh: { vertices: output, indices: new Uint16Array(indices), bandIndexCount, crownIndexCount: indices.length - bandIndexCount, seating: cut - top }, pivot: [co * cx - si * cut, si * cx + co * cut, 0] };
 }
 // Shape morphs own short-lived contours; WeakMap entries disappear with them.
 // Breathing/squash and explicitly animated cap poses reuse the fitted garment.

@@ -59,20 +59,27 @@ test('worn beret has bounded geometry, independent cuff material and finite unit
   assert.equal(beretBandColor('#b84742'), '#843330');
 });
 
-test('all 35 berets embrace a substantial upper body region instead of resting on its summit', () => {
+test('all 35 berets keep a compact inclined wearing region and connected cuff', () => {
   for (const shape of MATERIAL_SHAPE_NAMES) for (const squash of [.88, 1, 1.12]) {
     const body = createDesign({body:{shape}}).body, contour = shapeContour({kind:'material',name:shape}), profile = resolveShapeProfile(shape);
     const mesh = beretGeometry(body, createAccessory('beret'), squash, contour, profile);
     const top = Math.max(...contour.points.map(p => p[1])) * .59 * squash;
     const bottom = Math.min(...contour.points.map(p => p[1])) * .59 * squash;
+    const width = (Math.max(...contour.points.map(p=>p[0])) - Math.min(...contour.points.map(p=>p[0]))) * .59 / Math.sqrt(squash);
     const cuff = Array.from({length:64}, (_, i) => point(mesh, 64 + i));
-    const y = cuff[0][1];
-    assert.ok(top - y > (top - bottom) * .22, shape + ': substantial insertion depth');
-    assert.ok(Math.max(...Array.from({length:mesh.vertices.length/6}, (_, i)=>point(mesh,i)[1])) > top, shape + ': crown encloses summit');
+    const points = Array.from({length:mesh.vertices.length/6}, (_, i)=>point(mesh,i));
+    assert.ok(Math.min(...cuff.map(p=>p[1])) < top - (top-bottom)*.04, shape + ': support enters opening');
+    assert.ok(Math.max(...points.map(p=>p[1])) > top-.06*squash, shape + ': crown reaches selected upper support');
     assert.ok(mesh.vertices.every(Number.isFinite), shape);
-    assert.ok(Math.max(...cuff.map(p=>p[0]))-Math.min(...cuff.map(p=>p[0])) > .18, shape + ': broad opening');
-    assert.ok(mesh.seating < -.15 * squash, shape + ': negative seating means worn');
-    near(Math.max(...cuff.map(p=>p[1]))-Math.min(...cuff.map(p=>p[1])), 0, 'continuous level cuff');
+    const span = Math.max(...points.map(p=>p[0])) - Math.min(...points.map(p=>p[0]));
+    assert.ok(span < width*.91, shape + ': no oversized full-head cap');
+    assert.ok(span > width*.25, shape + ': visible intentional garment');
+    assert.ok(mesh.seating < -.04 * squash, shape + ': support is inside crown');
+    assert.ok(Math.max(...cuff.map(p=>p[1]))-Math.min(...cuff.map(p=>p[1])) > .015, shape + ': inclined asymmetric hem');
+    for (let i=0;i<64;i++) {
+      const cuffTop=point(mesh,3*64+i), crownBottom=point(mesh,4*64+i);
+      assert.ok(Math.hypot(...cuffTop.map((v,k)=>v-crownBottom[k])) < .15, shape + ': joined cuff/crown');
+    }
   }
 });
 
@@ -81,7 +88,7 @@ test('heart beret embraces the right lobe and preserves the opposite lobe', () =
   const cuff=Array.from({length:64},(_,i)=>point(mesh,64+i));
   assert.ok(Math.min(...cuff.map(p=>p[0])) > 0);
   assert.ok(Math.max(...cuff.map(p=>p[0])) > .3);
-  assert.ok(cuff[0][1] < .35);
+  assert.ok(Math.min(...cuff.map(p=>p[1])) < .38);
 });
 
 test('obsolete arbitrary placement cannot pull fitted garment off the body', () => {
