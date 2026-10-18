@@ -60,10 +60,35 @@ python3 scripts/crown-qa/compose.py /workspace/shared/crown-fit-qa/candidate-5-r
   --label 'Crown fit candidate 5' --baseline /workspace/shared/crown-fit-qa/baseline
 ```
 
-No angular scan has been run for candidate 5. To run that separately after visual approval:
+Candidate 5's completed angular scan is saved in `/workspace/shared/crown-fit-qa/candidate-5-grid`. Reproduce it separately:
 
 ```sh
 SOURCE=/workspace/shared/crown-fit-qa/candidate-5-source \
 OUT=/workspace/shared/crown-fit-qa/candidate-5-grid SIZE=192 STEP=15 \
   node --import tsx scripts/crown-qa/visibility-grid.mjs
 ```
+
+## Bounded activity sampling
+
+```sh
+SOURCE=/workspace/shared/crown-fit-qa/candidate-5-source \
+OUT=/workspace/shared/crown-fit-qa/candidate-5-activities SIZE=192 \
+  node --import tsx scripts/crown-qa/activity-grid.mjs
+```
+
+Exact coverage: 35 shapes × six public activities (`still`, `idle`, `thinking`, `listening`, `speaking`, `celebrating`) × 13 timestamps (`0, 0.5, …, 6` seconds) × two viewpoints `(0, -30)` and `(45, 15)` = 5,460 sampled cases and 16,380 native passes. Each activity/view sequence starts with a fresh renderer, first-frame delta 0, then advances chronologically at 60fps with delta `1/60` and reduced motion disabled. State is preserved throughout the sequence. The full matrix makes 151,620 production renderer calls, but native visibility/culling is measured only at the 13 selected timestamps.
+
+The output includes raw compressed per-case metrics, source hashes, exact sample frames/timestamps, warm-up counts, independent sequence counts, and 0.5-second sample-to-sample crown-mask changes. Those sample changes are ordinary motion diagnostics; they do not prove dense per-frame continuity. SIGINT/SIGTERM saves an explicitly incomplete result, as in the static harness.
+
+## Targeted high-resolution culling review
+
+`visibility-grid.mjs` also accepts `CASES_FILE`, a JSON array of exact `{shape, camera}` cases. The run checks unique keys and counts this explicit list rather than claiming full angular coverage. `DETAIL_PIXELS=1` records up to 32 discrepancy coordinates and IDs/depths per case.
+
+```sh
+SOURCE=/workspace/shared/crown-fit-qa/candidate-5-source \
+OUT=/workspace/shared/crown-fit-qa/candidate-5-flags-768 \
+CASES_FILE=/workspace/shared/crown-fit-qa/candidate-5-grid/flagged-cases.json SIZE=768 \
+  node --import tsx scripts/crown-qa/visibility-grid.mjs
+```
+
+All 128 flagged candidate-5 low-resolution cases were rechecked at 768px. Remaining individual-pixel details are in `/workspace/shared/crown-fit-qa/candidate-5-residual-pixels`. The static grid's `unchanged-related-source-hashes.json` records exact baseline/candidate SHA256s for the beret, scarf, cloth-clearance, catalog accessory, and WebGL renderer files. Their byte identity does not by itself certify unchanged behavior through shared callers; independent rendering parity tests cover that separately.
