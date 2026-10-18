@@ -123,7 +123,10 @@ for (const fallback of [false, true]) test(`adaptive inertial distance-scaled fl
   for (const result of results) {
     assert.equal(result.result.finished, true);
     assert.ok(result.elapsed >= 700 && result.elapsed < 2600, `elapsed ${result.elapsed}`);
-    assert.ok(result.peak >= Math.max(80, result.distance) * 0.98 && result.peak <= Math.max(80, result.distance) + 0.01);
+    const cap = 1.5 * Math.max(80, result.distance);
+    // 800px starts braking before reaching its 1200 px/s ceiling; sampled physical
+    // peaks must not be confused with the automatic ceiling itself.
+    assert.ok(result.peak >= cap * (result.distance >= 800 ? 0.90 : 0.98) && result.peak <= cap + 0.01);
     assert.equal(result.travel.strength, 0);
     assert.deepEqual(result.result.position, { x: 50 + result.distance, y: 250 });
   }
