@@ -263,7 +263,9 @@ sidekick-avatar { display: block; width: 100%; height: 100%; min-width: 0; min-h
 .shape-tile[aria-pressed="true"] .shape-tile-check { opacity: 1; }
 
 @media (max-width: 519px) and (max-height: 560px) {
-  .workspace { grid-template-rows: minmax(96px, 32%) minmax(0, 1fr); }
+  /* Reserve room for the canvas between the stage controls and scene footer,
+     even when the always-visible product navigation adds a second header row. */
+  .workspace { grid-template-rows: minmax(144px, 32%) minmax(0, 1fr); }
   .stage-header h1 { font-size: 12px; }
   .stage { gap: 4px; padding-block: 6px; }
   .preview-hint { display: none; }
