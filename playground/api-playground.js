@@ -83,7 +83,10 @@ function telemetry(detail = bot.movementState) {
   const movement = detail ?? { phase: 'idle', progress: 0 }, position = bot.position;
   const velocity = movement.velocity ?? { x: 0, y: 0 }, acceleration = movement.acceleration ?? { x: 0, y: 0 };
   const speed = movement.speed ?? Math.hypot(velocity.x, velocity.y), magnitude = Math.hypot(acceleration.x, acceleration.y);
-  $('phase').textContent = bot.presenceState === 'hidden' ? 'hidden' : movement.phase;
+  const phase = bot.presenceState === 'hidden' ? 'hidden' : movement.phase;
+  if ($('phase').textContent !== phase) $('phase').textContent = phase;
+  // Hidden diagnostics must not add per-frame layout/graph work to the avatar.
+  if (!$('diagnostics').open) return;
   const progress = Math.max(0, Math.min(1, movement.progress)); $('progress').value = progress; $('progress-value').textContent = `${Math.round(progress * 100)}%`;
   $('position').textContent = `x ${number(position.x)} · y ${number(position.y)}`; $('activity-state').textContent = bot.activity;
   $('speed').textContent = `${number(speed)} px/s`; $('velocity').textContent = `x ${number(velocity.x)} · y ${number(velocity.y)}`;
@@ -112,6 +115,7 @@ $('cancel').onclick = cancelMove; $('cancel-preview').onclick = cancelMove;
 $('cancel-transition').onclick = () => void run({ method: 'cancelTransition', args: [] });
 for (const input of document.querySelectorAll('#action-panel input, #action-panel select')) input.addEventListener('input', refresh);
 $('code-format').onchange = () => { if (selectedAction) renderCode(selectedAction); };
+$('diagnostics').addEventListener('toggle', () => { if ($('diagnostics').open) telemetry(); });
 $('clear-log').onclick = () => $('result-log').replaceChildren();
 $('copy').onclick = async () => {
   const copied = code;

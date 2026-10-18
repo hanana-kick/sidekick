@@ -199,6 +199,7 @@ test('controller copy follows format changes, and telemetry does not overwrite c
   f.$('code-format').value = 'react'; f.$('code-format').dispatchEvent(new f.w.Event('change'));
   f.$('copy').click(); await Promise.resolve(); assert.equal(copied, f.$('invocation').textContent); assert.match(copied, /SidekickAvatar/);
   const code = f.$('invocation').textContent;
+  f.$('diagnostics').open = true;
   f.bot.dispatchEvent(new f.w.CustomEvent('sidekick-move-progress', { detail: { phase: 'braking', progress: .6, velocity: { x: -30, y: 40 }, acceleration: { x: 120, y: -160 }, speed: 50 } }));
   assert.equal(f.$('speed').textContent, '50 px/s'); assert.equal(f.$('acceleration-value').textContent, '200 px/s²');
   assert.equal(f.$('invocation').textContent, code);
