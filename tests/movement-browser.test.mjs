@@ -167,7 +167,7 @@ for (const fallback of [false, true]) test(`settled anchor pursues moving target
  const page=await browser.newPage({viewport:{width:900,height:800},reducedMotion:'no-preference'});
  t.after(()=>page.close());
  if(fallback) await page.addInitScript(()=>{window.Worker=class{constructor(){throw new Error('test fallback');}};});
- await page.goto(`${base}/api-playground.html`);await page.waitForFunction(()=>document.getElementById('bot')?.ready);
+ await page.goto(`${base}/api-playground.html`);await page.waitForFunction(()=>document.getElementById('bot')?.hasAttribute('data-configured'));
  const result=await page.evaluate(async()=>{
   const bot=document.getElementById('bot');bot.placement='viewport';bot.movementBounds='none';bot.trackingMode='off';
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -181,9 +181,10 @@ for (const fallback of [false, true]) test(`settled anchor pursues moving target
   // CSS-transform-only target reentry must wake the 4Hz observer without a scroll event.
   target.style.transform='translateX(-1000px)';await wait(350);const waking=bot.position;
   await wait(2500);const returned=bot.position;
-  const mode=bot.diagnostics.mode;bot.detachAnchor();target.remove();
+  const mode=bot.diagnostics.backend;bot.detachAnchor();target.remove();
   return {origin,chasing,settled,sleeping,still,waking,returned,events,mode};
  });
+ assert.equal(result.mode,fallback?'main':'worker');
  assert.ok(result.chasing.x>result.origin.x && result.chasing.x<400,JSON.stringify(result));
  assert.ok(Math.abs(result.settled.x-600)<.6,JSON.stringify(result));
  assert.ok(result.sleeping.x>=900 && result.sleeping.x<1400,JSON.stringify(result));
