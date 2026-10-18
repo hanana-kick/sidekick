@@ -565,3 +565,16 @@ test('short and long default flights share launch traces; braking is set by rema
   for (const row of rows.slice(1)) assert.deepEqual(row.launch, rows[0].launch);
   close(rows[2].peak, rows[3].peak, .01);
 });
+
+test('bound destination updates retain flight promise, inertia and completion count', async () => {
+ const f=fixture();const pending=f.controller.to({x:700,y:200},physics);
+ advance(f,200);const before=f.controller.state;
+ f.controller.followTarget({x:900,y:300});
+ assert.deepEqual(f.controller.state.velocity,before.velocity);
+ assert.deepEqual(f.controller.state.acceleration,before.acceleration);
+ finish(f);const result=await pending;
+ assert.equal(result.finished,true);assert.deepEqual(result.position,{x:900,y:300});assert.equal(f.events.length,1);
+ f.controller.followTarget({x:500,y:400});assert.deepEqual(f.controller.position,{x:500,y:400});
+ assert.equal(f.events.length,1);assert.equal(f.callbacks.size,0);
+ const count=f.points.length;f.controller.followTarget({x:500,y:400});assert.equal(f.points.length,count);
+});

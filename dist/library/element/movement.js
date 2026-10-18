@@ -179,6 +179,23 @@ export class AvatarMovement {
             return;
         this.reset();
     }
+    /** Update a bound destination without replacing its promise or resetting inertia.
+     * Once idle, follow layout exactly without synthetic movement events. */
+    followTarget(point) {
+        const to = this.host.constrain(validatePosition(point)), track = this.track;
+        if (track?.kind === 'physical' && !track.stopping) {
+            track.to = to;
+            return;
+        }
+        if (track?.kind === 'travel') {
+            track.to = to;
+            return;
+        }
+        if (track && !(track.kind === 'settling' && track.finished))
+            return;
+        if (Math.abs(to.x - this.point.x) > 0.001 || Math.abs(to.y - this.point.y) > 0.001)
+            this.write(to);
+    }
     /** Disconnect must not leave a detached element scheduling a presentation-only landing. */
     disconnect() { this.cancel(true); }
     /** Clamp both current point and remaining target after viewport/element resizing, without restarting the clock. */

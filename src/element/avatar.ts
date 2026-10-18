@@ -1,3 +1,5 @@
+import { observeElementAnchor } from './element-anchor.js';
+import type { ElementAnchorState } from './element-anchor.js';
 import { resolveElementTarget } from './element-target.js';
 import type { MoveToElementOptions } from './element-target.js';
 import { AvatarPresence } from './presence.js';
@@ -83,9 +85,25 @@ export class SidekickAvatar extends HTMLElementBase {
     presentation: travel => { this.travelPresentation = travel; this.send({ kind: 'state', state: { travel } }); },
     requestFrame: callback => requestAnimationFrame(callback), cancelFrame: id => cancelAnimationFrame(id),
   });
+  private anchorRevision = 0;
+  private anchorState: ElementAnchorState | null = null;
+  private anchorCleanup?: () => void;
+  /** Logical binding only: no reparenting, CSS positioning, or canvas changes. */
+  get elementAnchor(): ElementAnchorState | null { return this.anchorState ? { ...this.anchorState } : null; }
+  detachAnchor(): void { this.anchorRevision++; this.anchorCleanup?.(); this.anchorCleanup = undefined; this.anchorState = null; }
+  private attachAnchor(state: ElementAnchorState): void {
+    this.detachAnchor(); this.anchorState = state;
+    this.anchorCleanup = observeElementAnchor(this.ownerDocument, () => {
+      if (this.anchorState !== state) return;
+      let point: AvatarPosition;
+      try { point = resolveElementTarget(this, this.position, state.target, { x: state.x, y: state.y, alignX: state.alignX, alignY: state.alignY }).position; }
+      catch { this.detachAnchor(); return; }
+      return () => { if (this.anchorState === state) this.movement.followTarget(point); };
+    });
+  }
   private presenceHidden = false;
   private presence = new AvatarPresence({
-    assertViewport: () => { if (this.placement !== 'viewport' || !this.connected) throw new Error('enter/exit require a connected avatar with placement="viewport"'); },
+    assertViewport: () => { if (this.placement !== 'viewport' || !this.connected) throw new Error('enter/exit require a connected avatar with placement="viewport"'); this.detachAnchor(); },
     position: () => this.position,
     geometry: () => { const rect = this.getBoundingClientRect(), view = this.ownerDocument.defaultView!; return { width: rect.width, height: rect.height, viewportWidth: view.innerWidth, viewportHeight: view.innerHeight, offsetX: rect.left - this.position.x, offsetY: rect.top - this.position.y }; },
     constrain: point => this.constrainPosition(point, true),
@@ -104,14 +122,17 @@ export class SidekickAvatar extends HTMLElementBase {
   /** Inline: offset from normal layout. Viewport: layout viewport top-left, CSS pixels. */
   get position(): AvatarPosition { return this.movement.position; }
   get movementState(): MovementState { return this.movement.state; }
-  moveTo(position: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { const target = this.constrainPosition(validatePosition(position), true); validateMoveOptions(options); const revision = this.presence.reveal(); if (!this.presence.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.to(target, options).then(result => { if (result.finished) this.presence.recovered(revision); return result; }); }
+  moveTo(position: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { const target = this.constrainPosition(validatePosition(position), true); validateMoveOptions(options); this.detachAnchor(); const revision = this.presence.reveal(); if (!this.presence.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.to(target, options).then(result => { if (result.finished) this.presence.recovered(revision); return result; }); }
   /** Sample the target's viewport border-box and align matching anchors, then move with inertia. */
   moveToElement(target: Element, options: MoveToElementOptions = {}): Promise<MoveResult> {
     const resolved = resolveElementTarget(this, this.position, target, options);
-    return this.moveTo(resolved.position, resolved.options);
+    const expectedRevision = this.anchorRevision + 1;
+    const result = this.moveTo(resolved.position, resolved.options);
+    if (options.anchor && this.anchorRevision === expectedRevision) this.attachAnchor({ target, x: options.x ?? 0, y: options.y ?? 0, alignX: options.alignX ?? 'left', alignY: options.alignY ?? 'top' });
+    return result;
   }
-  moveBy(delta: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { validatePosition(delta); validateMoveOptions(options); const revision = this.presence.reveal(); if (!this.presence.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.by(delta, options, point => this.constrainPosition(point, true)).then(result => { if (result.finished) this.presence.recovered(revision); return result; }); }
-  cancelMove(): void { const revision = this.presence.interrupt(); if (this.presence.owns(revision)) this.movement.cancel(); }
+  moveBy(delta: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { validatePosition(delta); validateMoveOptions(options); this.detachAnchor(); const revision = this.presence.reveal(); if (!this.presence.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.by(delta, options, point => this.constrainPosition(point, true)).then(result => { if (result.finished) this.presence.recovered(revision); return result; }); }
+  cancelMove(): void { this.detachAnchor(); const revision = this.presence.interrupt(); if (this.presence.owns(revision)) this.movement.cancel(); }
   private constrainPosition(point: AvatarPosition, presenceTarget = false): AvatarPosition {
     if (!presenceTarget && this.presence?.bypassBounds) return { ...point };
     if (this.placementState !== 'viewport' || this.boundsState === 'none' || !this.connected) return { ...point };
@@ -401,7 +422,7 @@ export class SidekickAvatar extends HTMLElementBase {
     this.initializeRenderer();
   }
   disconnectedCallback(): void {
-    this.connected = false;
+    this.connected = false; this.detachAnchor();
     this.presence.cancel(); this.playback.disconnect(); this.movement.disconnect();
     this.ownerDocument.defaultView?.removeEventListener('resize', this.onViewportResize);
     this.connected = false; this.readyState = false; this.cancelInput(); this.detachMouseTracking(); this.clearDrag();

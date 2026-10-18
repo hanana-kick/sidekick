@@ -13,7 +13,11 @@ export function resolveElementTarget(avatar, position, target, options = {}) {
         if (typeof key !== 'string' || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value'))
             throw new TypeError('moveToElement options require ordinary data properties');
     }
-    const { x = 0, y = 0, alignX = 'left', alignY = 'top', ...moveOptions } = options;
+    const { x = 0, y = 0, alignX = 'left', alignY = 'top', anchor = false, ...moveOptions } = options;
+    if (typeof anchor !== 'boolean')
+        throw new TypeError('anchor must be a boolean');
+    if (anchor && (target === avatar || avatar.contains(target)))
+        throw new TypeError('anchor target cannot be the avatar or its descendant');
     validatePosition({ x, y });
     validateMoveOptions(moveOptions);
     if (typeof alignX !== 'string' || typeof alignY !== 'string' || !Object.hasOwn(horizontal, alignX) || !Object.hasOwn(vertical, alignY))

@@ -72,6 +72,9 @@ export declare class AvatarMovement {
     cancel(immediate?: boolean): void;
     /** Internal presence staging: hidden relocation, no synthetic successful movement event. */
     relocate(point: AvatarPosition): void;
+    /** Update a bound destination without replacing its promise or resetting inertia.
+     * Once idle, follow layout exactly without synthetic movement events. */
+    followTarget(point: AvatarPosition): void;
     /** Disconnect must not leave a detached element scheduling a presentation-only landing. */
     disconnect(): void;
     /** Clamp both current point and remaining target after viewport/element resizing, without restarting the clock. */

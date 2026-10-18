@@ -5,6 +5,8 @@ export type HorizontalAlignment = 'left' | 'center' | 'right';
 export type VerticalAlignment = 'top' | 'center' | 'bottom';
 /** Align matching points of the target and avatar border-boxes, then add CSS-pixel offsets. */
 export interface MoveToElementOptions extends MoveOptions {
+  /** Keep the matching border-box anchors aligned after arrival. Default false. */
+  anchor?: boolean;
   x?: number;
   y?: number;
   alignX?: HorizontalAlignment;
@@ -22,7 +24,9 @@ export function resolveElementTarget(avatar: HTMLElement, position: AvatarPositi
     const descriptor = Object.getOwnPropertyDescriptor(options, key)!;
     if (typeof key !== 'string' || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) throw new TypeError('moveToElement options require ordinary data properties');
   }
-  const { x = 0, y = 0, alignX = 'left', alignY = 'top', ...moveOptions } = options;
+  const { x = 0, y = 0, alignX = 'left', alignY = 'top', anchor = false, ...moveOptions } = options;
+  if (typeof anchor !== 'boolean') throw new TypeError('anchor must be a boolean');
+  if (anchor && (target === avatar || avatar.contains(target))) throw new TypeError('anchor target cannot be the avatar or its descendant');
   validatePosition({ x, y }); validateMoveOptions(moveOptions);
   if (typeof alignX !== 'string' || typeof alignY !== 'string' || !Object.hasOwn(horizontal, alignX) || !Object.hasOwn(vertical, alignY)) throw new TypeError('alignX must be left, center or right; alignY must be top, center or bottom');
   const view = avatar.ownerDocument.defaultView;

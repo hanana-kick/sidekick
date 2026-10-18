@@ -87,3 +87,4 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
 /** A stable SSR host; configuration and renderer registration happen only on the client. */
 export declare function SidekickAvatar(props: SidekickAvatarProps): ReactElement;
 export type { MoveToElementOptions, HorizontalAlignment, VerticalAlignment } from './element/element-target.js';
+export type { ElementAnchorState } from './element/element-anchor.js';

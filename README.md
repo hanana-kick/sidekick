@@ -944,7 +944,9 @@ Both HTML entry pages include static Open Graph and Twitter card tags with the c
 | 메서드 | 의미 |
 | --- | --- |
 | `moveTo({ x, y }, options?: MoveOptions)` | 현재 화면 좌표부터 이동. `Promise<MoveResult>` |
-| `moveToElement(target, options?: MoveToElementOptions)` | 대상 엘리먼트와 같은 정렬점을 맞추고 X/Y 오프셋 적용 |
+| `moveToElement(target, options?: MoveToElementOptions)` | 대상 엘리먼트와 같은 정렬점을 맞추고 X/Y 오프셋 적용. `anchor: true`이면 지속 연결 |
+| `elementAnchor` | 현재 `{ target, x, y, alignX, alignY }` 읽기 전용 스냅샷 또는 `null` |
+| `detachAnchor()` | 현재 위치를 유지하며 지속 연결 해제. 진행 중인 최초 이동은 계속됨 |
 | `moveBy({ x, y }, options?)` | 현재 진행 중인 좌표 기준 상대 이동 |
 | `cancelMove()` | 자연 비행은 현재 속도에서 감속한 뒤 포즈를 180ms 정리하고 `finished: false`. none은 위치 이동을 즉시 중단 |
 | `position` | 실제 DOM 좌표 `{ x, y }`의 복사본, 읽기 전용 |
@@ -1194,6 +1196,7 @@ await avatar.enter({ x: 240, y: 120 }, { from: 'top', maxSpeed: 1350 });
 const target = document.querySelector('#message');
 if (target) {
   await bot.moveToElement(target, {
+    anchor: true,    // false (기본값): 한 번 이동 / true: 도착 후 계속 연결
     alignX: 'center', // left (기본값) | center | right
     alignY: 'bottom', // top (기본값) | center | bottom
     x: 12, y: -16,   // 기본값 0. 화면 기준 오른쪽 / 아래쪽이 양수
@@ -1215,14 +1218,18 @@ export function Example() {
     <SidekickAvatar ref={bot} placement="viewport" />
     <button ref={target} onClick={() => {
       if (target.current) void bot.current?.moveToElement(target.current, {
-        alignX: 'center', alignY: 'center', x: 0, y: -100,
+        anchor: true, alignX: 'center', alignY: 'center', x: 0, y: -100,
       });
     }}>이 버튼을 기준으로 이동</button>
   </>;
 }
 ```
 
-- `getBoundingClientRect()`를 호출 시점에 한 번 읽습니다. 페이지 스크롤과 대상의 CSS transform이 반영됩니다. 대상 이동·스크롤·리사이즈를 계속 추적하지 않습니다. 다시 맞추려면 다시 호출하세요. 이동 도중 대상이 제거되어도 이미 계산한 목적지로 이동합니다.
+- `anchor: false`(기본값)는 호출 시점의 위치로 한 번 이동합니다. 이후 스크롤·레이아웃 변화는 따라가지 않습니다.
+- `anchor: true`는 선택한 정렬점과 오프셋을 계속 유지합니다. 최초 이동 중에는 같은 이동 요청의 목적지만 갱신하여 속도·가속도·Promise를 보존합니다. 도착 후에는 관성 없이 DOM 위치 변화에 바로 맞춥니다. 중첩 스크롤, 리사이즈, 레이아웃 변화, CSS/WAAPI transform을 반영합니다. 대상이 계속 움직이면 최초 이동 완료가 늦어질 수 있습니다.
+- 봇의 부모 DOM이나 CSS positioning은 바꾸지 않습니다. absolute/fixed/inline 배치는 그대로 두고 봇 자신의 이동 오프셋만 갱신합니다. `detachAnchor()`는 연결만 해제하고 진행 중인 최초 이동은 마지막 목적지까지 계속합니다. 이동까지 멈추려면 `cancelMove()`를 사용하세요.
+- 다른 `moveTo / moveBy / moveToElement`, `cancelMove / enter / exit`, 봇 연결 해제 시 기존 앵커를 해제합니다. 대상 제거·다른 문서로 이동·지원하지 않는 조상 transform 변경 시 연결을 해제하며, 진행 중인 최초 이동은 마지막 유효 목적지까지 계속합니다. 봇 자신과 자손을 지속 앵커 대상으로 삼는 순환 배치는 거부합니다.
+- 활성 앵커들은 문서당 하나의 RAF에서 레이아웃을 읽고 그 다음 위치를 씁니다. 정지한 위치에는 다시 쓰지 않지만, observer가 감지하지 못하는 transform-only 애니메이션까지 추적하기 위해 연결 중에는 프레임별 측정 비용이 있습니다. 문서가 숨겨지면 중지하고 마지막 연결 해제 시 루프를 제거합니다. 필요한 동안만 연결하세요.
 - `inline`과 `viewport` 모두 현재 봇의 화면 위치를 기준으로 좌표를 변환합니다. 봇 자체의 CSS transform은 측정된 크기에 반영됩니다. 봇 자체의 CSS zoom은 지원하지 않으며 transform: scale()을 사용하세요. 봇 조상에 transform/rotate/scale/perspective/CSS zoom이 있으면 좌표 단위가 달라지므로 명시적으로 오류를 냅니다. 이 경우 봇을 변환 없는 body 바로 아래에 배치하세요.
 - 같은 문서에 연결된 HTML/SVG Element를 받습니다. 연결되지 않은 대상, 다른 문서, 잘못된 옵션은 현재 이동을 취소하거나 봇을 표시하기 전에 동기적으로 거부합니다. 크기 0인 대상도 유효한 좌표 기준점입니다.
 - `MoveOptions`의 자연 가속·제동, 중단, reduced-motion 설정을 그대로 사용합니다. `movementBounds="viewport"`이면 화면 제한이 정렬보다 우선하므로 화면 밖 대상에 정확하게 맞추려면 `movementBounds="none"`을 명시하세요.
@@ -1234,7 +1241,7 @@ export function Example() {
 
 - **화면 고정**: `placement="viewport"`인 작은 봇 DOM이 스크롤과 무관하게 화면에 남습니다. 전체 화면을 덮는 캔버스는 만들지 않습니다.
 - **섹션 안 이동**: `position: relative` 컨테이너 안에 `placement="inline"`, `position: absolute; left: 0; top: 0`인 봇을 놓습니다. 그 DOM 위치가 이동의 원점입니다. 컨테이너의 실제 `clientWidth/Height`에서 봇 크기를 빼 목적지를 제한합니다. 이 예제는 급반전 관성으로 경계를 넘지 않도록 이동을 순차 실행하고 가장 최근의 대기 목적지를 사용합니다. `overflow: hidden`은 마지막 시각적 안전장치이며 resize 시 현재 위치를 다시 제한합니다.
-- **엘리먼트 정렬**: 실제 `Element`를 `moveToElement`에 전달해 동일한 가로·세로 정렬점끼리 맞추고 CSS px 오프셋을 더합니다. 매 호출 시 DOM 위치를 읽으므로 스크롤 후 다시 호출해 새 위치로 이동할 수 있습니다. 자동으로 계속 따라붙는 앵커 제약은 아닙니다.
+- **엘리먼트 정렬**: 실제 `Element`를 `moveToElement`에 전달해 동일한 가로·세로 정렬점끼리 맞추고 CSS px 오프셋을 더합니다. 기본값은 호출 시점의 위치로 한 번 이동합니다. `anchor: true`이면 도착 후에도 스크롤과 레이아웃 변화에 맞춰 계속 연결되며 `detachAnchor()`로 해제합니다.
 - **이벤트 반응**: form submit / CustomEvent → thinking → success의 smile·celebrating 또는 error의 still 상태를 연결합니다. 타이머는 전송 없는 로컬 작업 시뮬레이션입니다. 실제 서비스에서는 요청 결과 이벤트로 교체하세요. 새 결과가 오면 오래된 결과를 무시하며 AbortController로 리스너와 타이머를 정리합니다.
 
 한 번에 한 예제만 활성화하여 불필요한 렌더러를 만들지 않습니다. 예제 종료·전환 시 인스턴스를 제거하고, 보이지 않는 섹션과 숨겨진 페이지의 렌더링을 일시 정지합니다. Studio 설정은 읽기만 하며 실험 동작은 원본에 저장하지 않습니다. 페이지의 코드 조각은 등록·초기화된 `#demo-bot`에 적용하는 예제이며, 설치·HTML·React 초기화 코드는 API playground에서 복사할 수 있습니다.

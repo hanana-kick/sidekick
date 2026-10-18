@@ -1,3 +1,4 @@
+import type { ElementAnchorState } from './element-anchor.js';
 import type { MoveToElementOptions } from './element-target.js';
 import type { EnterOptions, ExitOptions, PresenceResult, PresenceState } from './presence.js';
 import type { PlayOptions, AssetTransitionTarget } from './playback.js';
@@ -35,6 +36,13 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private measureMovementBox;
     private travelPresentation?;
     private movement;
+    private anchorRevision;
+    private anchorState;
+    private anchorCleanup?;
+    /** Logical binding only: no reparenting, CSS positioning, or canvas changes. */
+    get elementAnchor(): ElementAnchorState | null;
+    detachAnchor(): void;
+    private attachAnchor;
     private presenceHidden;
     private presence;
     get presenceState(): PresenceState;

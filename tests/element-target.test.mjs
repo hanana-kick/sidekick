@@ -35,3 +35,26 @@ test('Playground source and executable action use the actual Element', () => {
  assert.match(actionSource(action),/^await avatar.moveToElement\(document.querySelector\('#target'\)/);
  assert.throws(()=>executeAction(bot,{method:'moveToElement',args:['#missing',{}]}),/찾을/);dom.window.close();
 });
+
+test('anchor is validated separately from movement options', () => {
+ const {dom,bot,target}=fixture();
+ assert.deepEqual(resolveElementTarget(bot,{x:0,y:0},target,{anchor:true,x:1}).options,{});
+ for(const anchor of ['true',null,1]) assert.throws(()=>resolveElementTarget(bot,{x:0,y:0},target,{anchor}),/boolean/);
+ assert.throws(()=>resolveElementTarget(bot,{x:0,y:0},bot,{anchor:true}),/descendant/);
+ const child=dom.window.document.createElement('span');bot.append(child);
+ assert.throws(()=>resolveElementTarget(bot,{x:0,y:0},child,{anchor:true}),/descendant/);
+ dom.window.close();
+});
+
+test('shared anchor scheduler reads before writes, suspends hidden, removes final loop', async () => {
+ const {observeElementAnchor}=await import('../dist/src/element/element-anchor.js');
+ const callbacks=new Map(),listeners=new Map(),order=[];let id=0;
+ const document={hidden:false,defaultView:{requestAnimationFrame:callback=>{callbacks.set(++id,callback);return id;},cancelAnimationFrame:id=>callbacks.delete(id)},addEventListener:(name,callback)=>listeners.set(name,callback),removeEventListener:name=>listeners.delete(name)};
+ const a=observeElementAnchor(document,()=>{order.push('read-a');return()=>order.push('write-a');});
+ const b=observeElementAnchor(document,()=>{order.push('read-b');return()=>order.push('write-b');});
+ assert.equal(callbacks.size,1);const [key,tick]=[...callbacks][0];callbacks.delete(key);tick();
+ assert.deepEqual(order,['read-a','read-b','write-a','write-b']);assert.equal(callbacks.size,1);
+ document.hidden=true;listeners.get('visibilitychange')();assert.equal(callbacks.size,0);
+ document.hidden=false;listeners.get('visibilitychange')();assert.equal(callbacks.size,1);
+ a();assert.equal(callbacks.size,1);b();assert.equal(callbacks.size,0);assert.equal(listeners.size,0);
+});

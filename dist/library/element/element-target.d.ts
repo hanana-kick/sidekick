@@ -3,6 +3,8 @@ export type HorizontalAlignment = 'left' | 'center' | 'right';
 export type VerticalAlignment = 'top' | 'center' | 'bottom';
 /** Align matching points of the target and avatar border-boxes, then add CSS-pixel offsets. */
 export interface MoveToElementOptions extends MoveOptions {
+    /** Keep the matching border-box anchors aligned after arrival. Default false. */
+    anchor?: boolean;
     x?: number;
     y?: number;
     alignX?: HorizontalAlignment;

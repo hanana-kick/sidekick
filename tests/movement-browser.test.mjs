@@ -107,3 +107,57 @@ test('moveToElement viewport bounds and retarget preserve movement semantics',as
  assert.ok(result.velocity.x*result.after.x+result.velocity.y*result.after.y>0);
  assert.ok(Math.abs(result.velocity.x*result.after.y-result.velocity.y*result.after.x)<1e-6);
 });
+
+for (const placement of ['viewport','inline']) test(`persistent element binding follows nested scroll, layout and transforms (${placement})`, async t => {
+ const page=await pageFor(t,{reducedMotion:'reduce'});
+ const result=await page.evaluate(async placement=>{
+  const bot=document.getElementById('bot');bot.placement=placement;bot.movementBounds='none';
+  const scroller=document.createElement('div');scroller.style.cssText='position:absolute;left:50px;top:200px;width:300px;height:180px;overflow:auto';
+  scroller.innerHTML='<div style="height:700px;padding-top:200px"><div id="anchor-target" style="width:140px;height:60px"></div></div>';document.body.append(scroller);
+  const target=scroller.querySelector('#anchor-target');
+  const frame=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  const error=()=>{const b=bot.getBoundingClientRect(),a=target.getBoundingClientRect();return Math.max(Math.abs(b.right-a.right-9),Math.abs(b.bottom-a.bottom+12));};
+  await bot.moveToElement(target,{anchor:true,alignX:'right',alignY:'bottom',x:9,y:-12});
+  const errors=[error()];scroller.scrollTop=100;await frame();errors.push(error());
+  target.style.width='220px';target.style.marginLeft='37px';await frame();errors.push(error());
+  target.style.transform='translate(52px,30px) rotate(12deg)';await frame();errors.push(error());
+  const animation=target.animate([{transform:'translate(52px,30px)'},{transform:'translate(120px,70px)'}],{duration:180,fill:'forwards'});
+  await animation.finished;await frame();errors.push(error());
+  const state=bot.elementAnchor;state.x=5000;await frame();errors.push(error());
+  bot.detachAnchor();const frozen=bot.position;target.style.marginTop='90px';scroller.scrollTop=150;await frame();
+  const detached=bot.elementAnchor===null&&JSON.stringify(frozen)===JSON.stringify(bot.position);
+  await bot.moveToElement(target,{anchor:true});target.remove();await frame();const removed=bot.elementAnchor===null;
+  scroller.remove();return {errors,detached,removed};
+ },placement);
+ assert.ok(result.errors.every(error=>error<.1),JSON.stringify(result));assert.ok(result.detached);assert.ok(result.removed);
+});
+
+test('binding replacement, validation atomicity and public movement/presence teardown', async t=>{
+ const page=await pageFor(t,{reducedMotion:'reduce'});
+ const result=await page.evaluate(async()=>{
+  const bot=document.getElementById('bot');bot.movementBounds='none';
+  const target=document.createElement('div');target.style.cssText='position:fixed;left:310px;top:300px;width:100px;height:100px';document.body.append(target);
+  await bot.moveToElement(target,{anchor:true});
+  try{bot.moveToElement(target,{anchor:'yes'});}catch{}
+  const atomic=bot.elementAnchor?.target===target;
+  await bot.moveBy({x:10,y:0});const by=bot.elementAnchor===null;
+  await bot.moveToElement(target,{anchor:true});bot.cancelMove();const cancel=bot.elementAnchor===null;
+  await bot.moveToElement(target,{anchor:true});await bot.exit({to:'right'});const exit=bot.elementAnchor===null;
+  await bot.enter({x:100,y:100});await bot.moveToElement(target,{anchor:true});bot.remove();const disconnected=bot.elementAnchor===null;
+  return {atomic,by,cancel,exit,disconnected};
+ });assert.ok(Object.values(result).every(Boolean),JSON.stringify(result));
+});
+
+test('moving anchored target preserves one natural-flight completion', async t=>{
+ const page=await pageFor(t);
+ const result=await page.evaluate(async()=>{
+  const bot=document.getElementById('bot');bot.movementBounds='none';await bot.moveTo({x:0,y:0},{duration:0});
+  const target=document.createElement('div');target.style.cssText='position:fixed;left:600px;top:300px;width:100px;height:100px';document.body.append(target);
+  const completions=[];bot.addEventListener('sidekick-move-end',event=>completions.push(event.detail));
+  const pending=bot.moveToElement(target,{anchor:true,maxSpeed:1000});await new Promise(r=>setTimeout(r,90));
+  target.style.left='400px';target.style.top='250px';const result=await pending;
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  const b=bot.getBoundingClientRect(),a=target.getBoundingClientRect();
+  bot.detachAnchor();target.remove();return {result,completions,error:Math.hypot(b.left-a.left,b.top-a.top)};
+ });assert.equal(result.result.finished,true);assert.equal(result.completions.length,1);assert.ok(result.error<.1,JSON.stringify(result));
+});

@@ -297,3 +297,5 @@ export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
 }
 
 export type { MoveToElementOptions, HorizontalAlignment, VerticalAlignment } from './element/element-target.js';
+
+export type { ElementAnchorState } from './element/element-anchor.js';
