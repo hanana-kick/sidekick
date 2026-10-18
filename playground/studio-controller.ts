@@ -67,7 +67,7 @@ export class StudioController {
       }
     } catch { storageError = true; }
     this.state = {
-      design, camera: createCamera(), duration: 450, easing: 'smooth', activity: 'idle', paused: false, trackingMode: 'off',
+      design, camera: createCamera(), duration: 450, easing: 'smooth', activity: 'idle', paused: false, trackingMode: 'eyes-and-body',
       movedFace: false, gaze: { x: 0, y: 0 }, time: 0, motion: {}, motionDuration: 400, motionEasing: 'smooth', interaction: 'box', background: 'checker', jsonDraft: recovery?.raw ?? serializeScene(createScene({ design, interaction: 'box' })),
       jsonError: recovery?.error ?? '', warnings, recovery, recoverySaved: false,
       status: recovery ? '저장된 원본을 보존했습니다. JSON에서 수정하거나 내려받으세요.' : storageError ? '브라우저 저장소를 읽을 수 없습니다. JSON으로 내보내세요.' : '디자인 변경은 이 브라우저에 저장됩니다.',
@@ -213,12 +213,12 @@ export class StudioController {
     this.importGeneration++;
     const avatar = this.avatar;
     if (avatar) {
-      avatar.paused = false; avatar.trackingMode = 'off'; avatar.resetTracking(); avatar.interaction = 'box'; avatar.motion.cancel();
+      avatar.paused = false; avatar.trackingMode = 'eyes-and-body'; avatar.resetTracking(); avatar.interaction = 'box'; avatar.motion.cancel();
       this.watch(avatar.motion.to({ body: { rotation: [0, 0, 0] }, face: { uv: [0, 0] }, eyes: { openness: 1, left: { weights: { smile: 0, blink: 0 } }, right: { weights: { smile: 0, blink: 0 } } } }, { duration: 0 }));
       avatar.lookAt({ space: 'view', x: 0, y: 0 }); avatar.resetCamera(); avatar.seek(0); avatar.setActivity('idle');
       avatar.design = defaultStudioDesign(); this.watch(avatar.setShape('square', { duration: 0 }));
     }
-    this.update({ duration: 450, easing: 'smooth', paused: false, trackingMode: 'off', activity: 'idle', movedFace: false, gaze: { x: 0, y: 0 }, time: 0, motion: {}, motionDuration: 400, motionEasing: 'smooth', interaction: 'box', warnings: [], camera: createCamera() });
+    this.update({ duration: 450, easing: 'smooth', paused: false, trackingMode: 'eyes-and-body', activity: 'idle', movedFace: false, gaze: { x: 0, y: 0 }, time: 0, motion: {}, motionDuration: 400, motionEasing: 'smooth', interaction: 'box', warnings: [], camera: createCamera() });
     this.commit(defaultStudioDesign(), '기본 디자인으로 초기화했습니다.');
   };
   exportScene = (): SidekickScene => this.scene();

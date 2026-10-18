@@ -11,7 +11,7 @@ test('scene envelope round-trips design, all runtime controls and target poses',
   assert.deepEqual(migrateScene(serializeScene(scene)), { scene, warnings: [], legacyDesign: false });
   const legacy = migrateScene(serializeDesign(scene.design));
   assert.equal(legacy.legacyDesign, true); assert.deepEqual(legacy.scene.design, scene.design);
-  assert.deepEqual(legacy.scene.camera, { yaw: 0, pitch: 0, roll: 0, zoom: 1 }); assert.equal(legacy.scene.trackingMode, 'off');
+  assert.deepEqual(legacy.scene.camera, { yaw: 0, pitch: 0, roll: 0, zoom: 1 }); assert.equal(legacy.scene.trackingMode, 'eyes-and-body');
   scene.design.body.color = '#aabbcc'; assert.notEqual(legacy.scene.design.body.color, scene.design.body.color);
 });
 

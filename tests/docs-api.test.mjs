@@ -206,3 +206,12 @@ test('header and CDN examples use the canonical case-sensitive bowTie preset', a
   }
   assert.ok(checked > 0);
 });
+
+
+test('README states the eyes-and-body default and explicit legacy opt-out', () => {
+  const trackingRow = cells.find(row => row[0] === '`tracking-mode`');
+  assert.ok(trackingRow.some(cell => cell.includes('`eyes-and-body`(기본)')));
+  assert.match(readme, /기본값은 `eyes-and-body`입니다/);
+  assert.match(readme, /`bot\.mouseTracking = false`는 명시적인 `mouse-tracking="false"`/);
+  assert.doesNotMatch(readme, /마우스 추적 꺼짐으로 돌아갑니다/);
+});

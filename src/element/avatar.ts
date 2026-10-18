@@ -143,7 +143,7 @@ export class SidekickAvatar extends HTMLElementBase {
   private manualGaze: Vec2 = [0, 0];
   private pausedState = false;
   private interactionState: 'none' | 'box' = 'none';
-  private trackingModeState: TrackingMode = 'off';
+  private trackingModeState: TrackingMode = 'eyes-and-body';
   private trackedGaze?: Vec2;
   private trackingDocument?: Document;
   private acceptedAttributes = new Map<string, string>();
@@ -258,7 +258,7 @@ export class SidekickAvatar extends HTMLElementBase {
   get mouseTracking(): boolean { return this.trackingModeState !== 'off'; }
   set mouseTracking(value: boolean) {
     if (typeof value !== 'boolean') throw new TypeError('mouseTracking must be a boolean');
-    this.reflectAttribute('mouse-tracking', value ? '' : null);
+    this.reflectAttribute('mouse-tracking', value ? '' : 'false');
   }
   get trackingMode(): TrackingMode { return this.trackingModeState; }
   set trackingMode(value: TrackingMode) { this.reflectAttribute('tracking-mode', parseTrackingMode(value)); }

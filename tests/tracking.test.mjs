@@ -13,7 +13,7 @@ const fixture = () => bareAvatarFixture(SidekickAvatar, RenderEngine);
 test('canonical tracking modes, legacy aliases and declarative precedence are strict', async () => {
   assert.deepEqual(TRACKING_MODES, ['off', 'eyes', 'eyes-and-body']); assert.ok(Object.isFrozen(TRACKING_MODES));
   const resolve = values => resolveSidekickAttributes(new Map(Object.entries(values)));
-  assert.equal(resolve({}).trackingMode, 'off');
+  assert.equal(resolve({}).trackingMode, 'eyes-and-body');
   for (const legacy of ['', 'true', '1']) assert.equal(resolve({ 'mouse-tracking': legacy }).trackingMode, 'eyes');
   for (const legacy of ['false', '0']) assert.equal(resolve({ 'mouse-tracking': legacy }).trackingMode, 'off');
   for (const mode of TRACKING_MODES) for (const legacy of ['true', 'false']) {
@@ -23,17 +23,22 @@ test('canonical tracking modes, legacy aliases and declarative precedence are st
   for (const mode of ['', 'true', 'body', 'EYES', 'eyes-body']) assert.throws(() => resolve({ 'tracking-mode': mode }));
   assert.throws(() => resolve({ 'tracking-mode': 'eyes', 'mouse-tracking': 'yes' }));
   const { avatar } = fixture();
+  assert.equal(avatar.trackingMode, 'eyes-and-body'); assert.equal(avatar.mouseTracking, true);
   avatar.mouseTracking = true; assert.equal(avatar.trackingMode, 'eyes');
   avatar.trackingMode = 'eyes-and-body'; avatar.mouseTracking = false;
   assert.equal(avatar.trackingMode, 'eyes-and-body'); assert.equal(avatar.mouseTracking, true);
+  assert.equal(avatar.getAttribute('mouse-tracking'), 'false');
   avatar.removeAttribute('tracking-mode'); await Promise.resolve(); assert.equal(avatar.trackingMode, 'off');
   assert.throws(() => { avatar.trackingMode = 'body'; }); assert.equal(avatar.trackingMode, 'off');
   avatar.setAttribute('tracking-mode', 'eyes-and-body'); avatar.setAttribute('camera-yaw', 'bad'); await Promise.resolve();
   assert.equal(avatar.trackingMode, 'off');
   avatar.setAttribute('camera-yaw', '10'); await Promise.resolve(); assert.equal(avatar.trackingMode, 'eyes-and-body');
+  avatar.removeAttribute('tracking-mode'); avatar.removeAttribute('mouse-tracking'); await Promise.resolve();
+  assert.equal(avatar.trackingMode, 'eyes-and-body'); assert.equal(avatar.mouseTracking, true);
 });
 
-test('scene v2 stores one canonical mode and migrates complete v1 boolean scenes', () => {
+test('scene v2 defaults to eyes-and-body and preserves explicit and legacy tracking choices', () => {
+  assert.equal(createScene().trackingMode, 'eyes-and-body');
   for (const mode of TRACKING_MODES) {
     const scene = createScene({ trackingMode: mode, mouseTracking: mode === 'off' });
     assert.equal(scene.sceneVersion, 2); assert.equal(scene.trackingMode, mode); assert.equal('mouseTracking' in scene, false);
@@ -49,6 +54,18 @@ test('scene v2 stores one canonical mode and migrates complete v1 boolean scenes
   assert.throws(() => createScene({ trackingMode: 'eyes', mouseTracking: 'false' }));
   assert.throws(() => parseScene({ ...createScene(), mouseTracking: true }));
   assert.throws(() => parseScene({ ...createScene(), sceneVersion: 1 }));
+});
+
+test('a fresh element follows the pointer with both eyes and body without tracking configuration', () => {
+  const { avatar, connect, move } = fixture(); const runtime = connect();
+  assert.equal(avatar.trackingMode, 'eyes-and-body');
+  assert.equal(avatar.hasAttribute('tracking-mode'), false); assert.equal(avatar.hasAttribute('mouse-tracking'), false);
+  move(900, -900);
+  for (let n = 0; n < 200; n++) runtime.advanceTracking(.016);
+  assert.deepEqual(avatar.gazeTarget, [1, 1]);
+  const rendered = runtime.tracking.compose(avatar.pose);
+  assert.ok(rendered.rotation[1] > .2); assert.ok(Math.abs(rendered.rotation[0]) > .1);
+  assert.deepEqual(avatar.pose.rotation, [0, 0, 0]);
 });
 
 test('body tracking is bounded, continuous through retargeting and never changes authored pose', () => {

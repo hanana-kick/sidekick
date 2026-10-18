@@ -194,6 +194,11 @@ for (const subpath of ['/react', '/browser/sidekick-react.js']) test(`server imp
     assert.equal(typeof original.setDesign, 'function');
     assert.equal(original.design.body.shape, 'heart');
     assert.equal(original.design.body.color, '#123456');
+    assert.equal(original.trackingMode, 'eyes-and-body');
+    for (const [trackingProps, expected] of [[{ mouseTracking: false }, 'off'], [{ mouseTracking: true }, 'eyes'], [{ trackingMode: 'off', mouseTracking: true }, 'off'], [{ trackingMode: 'eyes' }, 'eyes'], [{}, 'eyes-and-body']]) {
+      await act(async () => root.render(React.createElement(React.StrictMode, null, React.createElement(SidekickAvatar, { ...props, ...trackingProps, ref }))));
+      assert.equal(ref.current, original); assert.equal(original.trackingMode, expected);
+    }
     assert.equal(errors.length, 1);
     assert.match(errors[0], /WebGL/);
     await act(async () => root.unmount()); assert.equal(ref.current, null);

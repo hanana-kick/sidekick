@@ -460,7 +460,7 @@ const design = createDesign({
 | `activity` | `activity` | `Activity` | `idle` / `thinking` / `listening` / `speaking` / `celebrating` / `still`. 기본 `idle` |
 | `paused` | `paused` | `boolean` | 기본 `false`. 반복 모션 일시 정지 |
 | `interaction` | `interaction` | `'none' \| 'box'` | 기본 `none`. `box`는 드래그/클릭/키보드 활성화 |
-| `tracking-mode` | `trackingMode` | `TrackingMode` | `off`(기본), `eyes`, `eyes-and-body`. 눈만 또는 눈과 몸 추적 |
+| `tracking-mode` | `trackingMode` | `TrackingMode` | `off`, `eyes`, `eyes-and-body`(기본). 눈만 또는 눈과 몸 추적 |
 | `mouse-tracking` | `mouseTracking` | `boolean` | 이전 눈 추적 별칭. `true` → `eyes`, `false` → `off`. 명시적인 `tracking-mode`가 우선 |
 | `camera` | `camera` | `CameraPreset \| Partial<CameraState>` | HTML은 `front` / `three-quarter` / `side`, 기본 `front`. React는 `{yaw,pitch,roll,zoom}` 부분 객체도 허용 |
 | `camera-yaw` | `cameraYaw` | `number` | -360~360도. camera 프리셋의 yaw, 없으면 0 |
@@ -512,7 +512,7 @@ React의 `camera={{ yaw: 35 }}`는 `camera-yaw` 속성으로 연결됩니다. �
 
 ### 변경·제거·오류 규칙
 
-- boolean은 네이티브 HTML boolean과 달리 문자열 `"false"`도 해석합니다. `mouse-tracking`, `mouse-tracking=""`, `mouse-tracking="true"`, `mouse-tracking="1"`이 켜짐입니다. `="false"`, `="0"` 또는 속성 제거는 꺼짐입니다. 단, `tracking-mode`가 있으면 그 모드가 우선합니다. `paused`도 같은 boolean 표기를 사용합니다. React에서는 `{true}` / `{false}`를 사용하세요. React의 `false`는 명시적인 꺼짐 값이며 prop 생략과 다릅니다. `null`, `"TRUE"`, `"yes"` 등은 지원하지 않습니다.
+- boolean은 네이티브 HTML boolean과 달리 문자열 `"false"`도 해석합니다. `mouse-tracking`, `mouse-tracking=""`, `mouse-tracking="true"`, `mouse-tracking="1"`이 켜짐입니다. `="false"`, `="0"`은 꺼짐입니다. `mouse-tracking`을 제거하면 `tracking-mode`가 없는 경우 기본 `eyes-and-body`로 돌아갑니다. 단, `tracking-mode`가 있으면 그 모드가 우선합니다. `paused`도 같은 boolean 표기를 사용하며 속성을 제거하면 꺼집니다. React에서는 `{true}` / `{false}`를 사용하세요. React의 `false`는 명시적인 꺼짐 값이며 prop 생략과 다릅니다. `null`, `"TRUE"`, `"yes"` 등은 지원하지 않습니다.
 - 지원하는 속성에 잘못된 도형 이름·프리셋·JSON·숫자 범위·색상 형식을 넣으면 오류입니다. 관찰하지 않는 임의 HTML 속성은 브라우저의 일반 속성으로 남으며 라이브러리 설정에 적용되지 않습니다. 색상 축약 `#fff`, CSS 색상명, `NaN`, `Infinity`는 지원하지 않습니다. 값을 생략하려면 빈 문자열 대신 속성을 제거하세요.
 - React의 `undefined`/생략 및 HTML `removeAttribute()`는 그 입력의 덮어쓰기만 해제합니다. `design` 아래 입력이 있으면 그것을 사용합니다. 슬롯을 반드시 비우려면 `none`, 장비 배열을 반드시 비우려면 `[]`를 지정하세요.
 - 같은 JavaScript 작업 안에서 바꾼 여러 속성은 다음 마이크로태스크에서 묶어 검증·적용합니다. 잘못된 배치는 이전 유효 런타임 상태를 유지하고 `sidekick-error`를 발생시킵니다. 원래 입력 문자열은 DOM에 남아 있으므로 오류 속성을 고치거나 제거해야 합니다.
@@ -534,7 +534,7 @@ bot.setAttribute('head-accessory', 'none'); // design에 모자가 있어도 해
 
 ## 마우스 추적과 드래그
 
-`tracking-mode` / `trackingMode`는 전체 추적 동작을 하나의 값으로 선택합니다. 기본값은 `off`입니다.
+`tracking-mode` / `trackingMode`는 전체 추적 동작을 하나의 값으로 선택합니다. 기본값은 `eyes-and-body`입니다. 속성이나 React prop을 생략해도 눈과 몸이 마우스를 따라봅니다.
 
 - `off`: 마우스를 추적하지 않고 마지막 `lookAt()` 또는 `gaze-x`/`gaze-y`의 명시적 시선으로 돌아갑니다.
 - `eyes`: 눈만 마우스를 따라봅니다. 기존 몸체 포즈와 모션은 그대로입니다.
@@ -548,7 +548,7 @@ bot.trackingMode = mode;
 // React: <SidekickAvatar trackingMode="eyes-and-body" />
 ```
 
-이전 `mouse-tracking` / `mouseTracking`도 지원합니다. 이름 있는 모드가 없을 때 `true`는 `eyes`, `false`는 `off`로 해석합니다. 둘을 함께 쓰면 `tracking-mode`가 항상 우선하며, 해당 속성을 제거하면 남아 있는 `mouse-tracking` 설정이 다시 적용됩니다. `bot.mouseTracking`을 읽으면 두 추적 모드 모두 `true`입니다. 이름 있는 모드를 사용한 뒤 끄려면 `bot.trackingMode = 'off'`를 사용하세요.
+이전 `mouse-tracking` / `mouseTracking`도 지원합니다. 이름 있는 모드가 없을 때 `true`는 `eyes`, `false`는 `off`로 해석합니다. 둘을 함께 쓰면 `tracking-mode`가 항상 우선하며, 해당 속성을 제거하면 남아 있는 `mouse-tracking` 설정이 다시 적용됩니다. 둘 다 없으면 기본 `eyes-and-body`로 돌아갑니다. `bot.mouseTracking = false`는 명시적인 `mouse-tracking="false"`를 남겨 이전처럼 추적을 끕니다. `bot.mouseTracking`을 읽으면 두 추적 모드 모두 `true`입니다. 이름 있는 모드를 사용한 뒤 끄려면 `bot.trackingMode = 'off'`를 사용하세요.
 
 문서 전체의 마우스를 추적하며 터치·펜 입력은 무시합니다. 모드 변경·끄기·창 이탈·포커스 상실 시 현재 위치에서 부드럽게 돌아오고, 숨김·연결 해제 중에는 추적 리스너를 제거합니다. 연결 해제 시 보이지 않는 몸 레이어를 초기화하고 다시 연결되면 새 포인터 입력을 기다립니다. 드래그 중에는 추적 입력을 멈춰 카메라 조작과 경쟁하지 않습니다. 모션 줄이기는 몸 추적을 억제하고 기존 오프셋만 부드럽게 해제합니다. `paused`에서는 몸 추적을 현재 위치에 멈추며 눈 시선은 즉시 반영합니다. 다만 추적을 끄거나 눈만 모드로 바꿀 때는 몸 레이어만 부드럽게 해제하고 활동·기본 포즈의 시간은 멈춘 채 유지합니다.
 
@@ -632,7 +632,7 @@ const checked = parseScene(json);
 const { scene: imported, warnings, legacyDesign } = migrateScene(oldOrSceneJson);
 ```
 
-`createScene()`는 `design`, `camera`, `activity`, `paused`, `trackingMode`, `interaction`, `renderStyle`, `gaze: {x,y}`, `time`, `motion`, `shapeDuration`, `shapeEasing`, `motionDuration`, `motionEasing`을 기본값과 함께 채웁니다. `parseScene()`은 완전한 envelope를 엄격히 검증합니다. 이전 `sceneVersion: 1`의 `mouseTracking` boolean은 `eyes` / `off`로 가져오고, 저장할 때는 `sceneVersion: 2`와 `trackingMode` 하나만 사용합니다. `createScene({ mouseTracking: true })`도 이전 호출 호환용으로 지원하며 명시적 `trackingMode`가 우선합니다. 임의 기하값·알 수 없는 키·잘못된 장비 id 모션·지원하지 않는 버전을 거부합니다. `migrateScene()`은 이전 디자인 파일도 받아 기본 런타임 설정을 붙입니다.
+`createScene()`의 기본 추적 모드는 `eyes-and-body`이며, `design`, `camera`, `activity`, `paused`, `trackingMode`, `interaction`, `renderStyle`, `gaze: {x,y}`, `time`, `motion`, `shapeDuration`, `shapeEasing`, `motionDuration`, `motionEasing`을 기본값과 함께 채웁니다. `parseScene()`은 완전한 envelope를 엄격히 검증합니다. 이전 `sceneVersion: 1`의 `mouseTracking` boolean은 `eyes` / `off`로 가져오고, 저장할 때는 `sceneVersion: 2`와 `trackingMode` 하나만 사용합니다. `createScene({ mouseTracking: true })`도 이전 호출 호환용으로 지원하며 명시적 `trackingMode`가 우선합니다. 임의 기하값·알 수 없는 키·잘못된 장비 id 모션·지원하지 않는 버전을 거부합니다. `migrateScene()`은 이전 디자인 파일도 받아 기본 런타임 설정을 붙입니다.
 
 Studio 가져오기·초기화는 `resetTracking()`으로 이전 실시간 추적 오프셋을 즉시 지워 새 장면에 남지 않게 합니다. 일반 모드 변경은 위에 설명한 부드러운 복귀를 유지합니다.
 
@@ -807,7 +807,7 @@ npm run pack:release   # 커밋된 깨끗한 checkout에서 release/에 ZIP·tar
 
 데스크톱은 미리보기와 설정을 나란히 배치합니다. 모바일 세로 화면은 미리보기를 고정하고 아래 설정만 스크롤하며 짧은 가로 화면은 나란히 배치합니다. `100dvh`와 safe-area를 사용합니다. 탭·슬라이더·토글은 shadcn/Radix의 키보드 동작을 유지합니다. 글꼴은 로컬 번들에 포함합니다. 미리보기의 체크무늬·밝은색·어두운색은 DOM 배경이며 PNG에 포함하지 않습니다.
 
-자동 저장은 디자인만 이 브라우저의 `sidekick.design.v7`에 저장합니다. 파일 내보내기는 별도로 장면 envelope를 사용하여 카메라·추적·전환 설정까지 포함합니다. 저장된 v7이 없으면 v6→v1 순서로 읽고 변환하되 이전 키의 원본을 보존합니다. 잘못된 원본은 JSON 탭에 열고, 첫 편집 시 `.recovery` 백업이 성공해야 새 파일을 저장합니다. 저장소가 막혔다면 JSON 내보내기를 사용하세요. 초기화하면 기본 square+베레모, 정면 카메라, 마우스 추적 꺼짐으로 돌아갑니다.
+자동 저장은 디자인만 이 브라우저의 `sidekick.design.v7`에 저장합니다. 파일 내보내기는 별도로 장면 envelope를 사용하여 카메라·추적·전환 설정까지 포함합니다. 저장된 v7이 없으면 v6→v1 순서로 읽고 변환하되 이전 키의 원본을 보존합니다. 잘못된 원본은 JSON 탭에 열고, 첫 편집 시 `.recovery` 백업이 성공해야 새 파일을 저장합니다. 저장소가 막혔다면 JSON 내보내기를 사용하세요. 초기화하면 기본 square+베레모, 정면 카메라, 눈과 몸 마우스 추적으로 돌아갑니다.
 
 UI 구성은 `components.json`과 `playground/components/ui/`, 저장·명령·복구는 `studio-controller.ts`에 있습니다. React 재렌더와 탭 전환은 하나의 안정된 요소를 유지하며 진행 중 모프나 카메라를 재설정하지 않습니다. [공식 shadcn/ui Vite 설치](https://ui.shadcn.com/docs/installation/vite) 방식으로 생성한 실제 소스를 사용합니다.
 

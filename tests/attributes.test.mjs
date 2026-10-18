@@ -45,7 +45,8 @@ test('the boolean contract accepts explicit false and rejects ambiguous spelling
   for (const text of ['', 'true', '1']) assert.equal(parseBooleanAttribute(text), true);
   for (const text of [null, 'false', '0']) assert.equal(parseBooleanAttribute(text), false);
   for (const text of ['yes', 'off', 'FALSE', ' ', 'null']) assert.throws(() => parseBooleanAttribute(text));
-  assert.equal(resolve({}).mouseTracking, false);
+  assert.equal(resolve({}).mouseTracking, true);
+  assert.equal(resolve({}).trackingMode, 'eyes-and-body');
   assert.equal(new Set(SIDEKICK_ATTRIBUTES).size, SIDEKICK_ATTRIBUTES.length);
 });
 
@@ -110,12 +111,13 @@ test('paused, activity, interaction and tracking properties remain synchronous',
   assert.throws(() => { a.mouseTracking = 'false'; });
 });
 
-test('false and removal disable booleans; invalid text leaves prior runtime state', async t => {
+test('explicit false disables booleans; removal restores defaults and invalid text stays atomic', async t => {
   const a = avatar(t); a.setAttribute('paused', 'false'); a.setAttribute('mouse-tracking', '0'); await flush();
   assert.equal(a.paused, false); assert.equal(a.mouseTracking, false);
   a.setAttribute('paused', ''); a.setAttribute('mouse-tracking', 'true'); await flush(); assert.equal(a.paused, true); assert.equal(a.mouseTracking, true);
   a.setAttribute('paused', 'maybe'); a.setAttribute('mouse-tracking', 'false'); await flush(); assert.equal(a.paused, true); assert.equal(a.mouseTracking, true);
   a.removeAttribute('paused'); await flush(); assert.equal(a.paused, false); assert.equal(a.mouseTracking, false);
+  a.removeAttribute('mouse-tracking'); await flush(); assert.equal(a.trackingMode, 'eyes-and-body');
 });
 
 test('shape timing changes affect the next target and unrelated edits keep running clocks', async t => {
@@ -152,7 +154,7 @@ test('global mouse tracking ignores touch/drag and restores manual gaze without 
 });
 
 test('tracking listeners detach exactly once across disabled, hidden and reconnect cycles', t => {
-  const a = avatar(t); a.paused = true;
+  const a = avatar(t); a.paused = true; a.mouseTracking = false;
   const added = new Set(), originalAdd = document.addEventListener.bind(document), originalRemove = document.removeEventListener.bind(document);
   document.addEventListener = (name, listener, ...rest) => { if (name === 'pointermove') { assert.equal(added.has(listener), false); added.add(listener); } return originalAdd(name, listener, ...rest); };
   document.removeEventListener = (name, listener, ...rest) => { if (name === 'pointermove') added.delete(listener); return originalRemove(name, listener, ...rest); };

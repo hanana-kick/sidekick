@@ -31,7 +31,7 @@ class MockAvatar extends HTMLElement {
   current = createDesign();
   cameraValue = createCamera();
   paused = false;
-  trackingMode: 'off' | 'eyes' | 'eyes-and-body' = 'off';
+  trackingMode: 'off' | 'eyes' | 'eyes-and-body' = 'eyes-and-body';
   get mouseTracking() { return this.trackingMode !== 'off'; }
   resetTracking() {}
   interaction: 'none' | 'box' = 'none';
@@ -157,7 +157,7 @@ test('tracking mode choices survive UI edits, round-trip in scenes and reset wit
   await f.click(f.node('animation-tab'));
   const eyes = f.node('mouse-tracking'), body = f.node('tracking-eyes-and-body'), off = f.node('tracking-off');
   assert.equal(eyes.getAttribute('data-slot'), 'toggle-group-item');
-  assert.equal(off.getAttribute('aria-checked'), 'true'); assert.equal(avatar.trackingMode, 'off');
+  assert.equal(body.getAttribute('aria-checked'), 'true'); assert.equal(avatar.trackingMode, 'eyes-and-body');
   await f.click(eyes);
   assert.equal(avatar.trackingMode, 'eyes'); assert.equal(f.controller.getSnapshot().trackingMode, 'eyes');
   await f.click(body);
@@ -170,8 +170,8 @@ test('tracking mode choices survive UI edits, round-trip in scenes and reset wit
   await f.click(f.node('animation-tab')); await f.click(off);
   assert.equal(avatar.trackingMode, 'off'); assert.equal(off.getAttribute('aria-checked'), 'true');
   await f.click(body); await f.click(f.node('reset'));
-  assert.equal(avatar.trackingMode, 'off'); assert.equal(f.controller.getSnapshot().trackingMode, 'off');
-  assert.equal(off.getAttribute('aria-checked'), 'true'); assert.equal(avatar.connections, 1);
+  assert.equal(avatar.trackingMode, 'eyes-and-body'); assert.equal(f.controller.getSnapshot().trackingMode, 'eyes-and-body');
+  assert.equal(body.getAttribute('aria-checked'), 'true'); assert.equal(avatar.connections, 1);
   assert.equal('trackingMode' in JSON.parse(f.storage.values.get(STORAGE_KEY)!), false);
 });
 
@@ -464,7 +464,7 @@ test('scene import and Studio reset clear transient tracking from the actual ren
     assert.equal(controller.importJSON(serializeScene(scene)), true);
     assert.deepEqual(rendered(), [.1, -.2, .3]); assert.equal(avatar.trackingMode, 'eyes-and-body');
     await avatar.motion.to({ body: { rotation: [0, 0, 0] } }, { duration: 0 });
-    tilt(); controller.reset(); assert.deepEqual(rendered(), [0, 0, 0]); assert.equal(avatar.trackingMode, 'off');
+    tilt(); controller.reset(); assert.deepEqual(rendered(), [0, 0, 0]); assert.equal(avatar.trackingMode, 'eyes-and-body');
   } finally { unbind(); avatar.disconnectedCallback(); }
 });
 

@@ -197,8 +197,8 @@ test('packed root import registers a bare element with real default pixels and n
   assert.equal(result.registered, true); assert.deepEqual(result.design, result.defaults);
   assert.ok(result.width >= 200 && result.height >= 200); assert.equal(result.corner, 0);
   assert.ok(result.opaque > 10000); assert.ok(result.body > 10000); assert.ok(result.eyes > 100);
-  assert.equal(result.role, 'img'); assert.equal(result.tabindex, -1); assert.equal(result.tracking, false);
-  assert.equal(result.listeners, 0); assert.equal(result.aliasReady, true);
+  assert.equal(result.role, 'img'); assert.equal(result.tabindex, -1); assert.equal(result.tracking, true);
+  assert.equal(result.listeners, 1); assert.equal(result.aliasReady, true);
   if (screenshots) await page.screenshot({ path: `${screenshots}/library-vanilla-consumer.png` });
 });
 
@@ -453,15 +453,28 @@ test('paused and mouse-tracking support explicit false/zero/removal and live dec
     element.setAttribute('shape', 'heart'); element.setAttribute('expression', 'smile');
     return results;
   });
-  for (const item of states) assert.deepEqual([item.paused, item.tracking], ['', 'true', '1'].includes(item.value) ? [true, true] : [false, false]);
+  for (const item of states) assert.deepEqual([item.paused, item.tracking], ['', 'true', '1'].includes(item.value) ? [true, true] : [false, item.value === null]);
   await page.waitForFunction(() => window.declarativeEnds.some(event => event.type === 'sidekick-shape-end' && event.detail.finished) && window.declarativeEnds.some(event => event.type === 'sidekick-motion-end' && event.detail.finished));
   const completed = await stateOf(page); assert.equal(completed.design.body.shape, 'heart'); assert.deepEqual(completed.design.eyes.left.weights, { smile: 1, blink: 0 });
 });
 
-test('mouse tracking is opt-in, bounded, ignores touch, preserves camera, and returns to explicit gaze when disabled', async t => {
+test('bare elements follow with eyes and body by default in a real browser', async t => {
+  const page = await pageFor(t, 'vanilla', { reducedMotion: 'no-preference' });
+  await page.locator('#bare').evaluate(element => {
+    element.setActivity('still');
+    document.dispatchEvent(new PointerEvent('pointermove', { clientX: 9000, clientY: -9000, pointerType: 'mouse' }));
+  });
+  await page.waitForFunction(() => document.getElementById('bare').diagnostics.renderedRotation?.[1] > .2);
+  const state = await page.locator('#bare').evaluate(element => ({ mode: element.trackingMode, gaze: element.pose.gaze, rotation: element.pose.rotation,
+    attributes: [element.getAttribute('tracking-mode'), element.getAttribute('mouse-tracking')] }));
+  assert.deepEqual(state, { mode: 'eyes-and-body', gaze: [1, 1], rotation: [0, 0, 0], attributes: [null, null] });
+});
+
+test('legacy mouse tracking remains explicit, bounded, ignores touch and restores manual gaze when disabled', async t => {
   const page = await pageFor(t);
   const result = await page.locator('#bare').evaluate(async element => {
     const move = (x, y, pointerType = 'mouse') => document.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y, pointerType, bubbles: true }));
+    element.mouseTracking = false;
     element.lookAt({ space: 'view', x: 0.2, y: -0.3 }); element.setCamera({ yaw: 25, pitch: 4, roll: -5 });
     // Pointer events are coalesced until the next frame. A fresh capture orders
     // each input (or ignored input) before inspecting the acknowledged pose.
@@ -979,7 +992,7 @@ test('named tracking precedence, viewport leave, reduced-motion changes and reco
   assert.equal(rounds.mode, 'off'); assert.equal(rounds.enabled, false); assert.equal(rounds.listeners.globalPointer, 0); assert.equal(rounds.listeners.globalTrackingExit, 0);
 });
 
-test('React named tracking mode and Studio body choice export the same canonical behavior', async t => {
+test('React omitted tracking props and Studio defaults, reset and exports use eyes-and-body', async t => {
   const page = await pageFor(t, 'react');
   await page.evaluate(() => window.renderConsumer({ trackingMode: 'eyes-and-body', mouseTracking: false }));
   let state = await page.locator('#react-avatar').evaluate(element => ({ mode: element.trackingMode, enabled: element.mouseTracking }));
@@ -987,8 +1000,15 @@ test('React named tracking mode and Studio body choice export the same canonical
   await page.evaluate(() => window.renderConsumer({ trackingMode: 'off', mouseTracking: true }));
   state = await page.locator('#react-avatar').evaluate(element => ({ mode: element.trackingMode, enabled: element.mouseTracking }));
   assert.deepEqual(state, { mode: 'off', enabled: false });
+  await page.evaluate(() => window.renderConsumer({ trackingMode: undefined, mouseTracking: undefined }));
+  state = await page.locator('#react-avatar').evaluate(element => ({ mode: element.trackingMode, enabled: element.mouseTracking }));
+  assert.deepEqual(state, { mode: 'eyes-and-body', enabled: true });
   const studio = await pageFor(t, 'studio');
-  await studio.locator('#animation-tab').click(); await studio.locator('#tracking-eyes-and-body').click();
+  assert.equal(await studio.locator('#flat').evaluate(element => element.trackingMode), 'eyes-and-body');
+  await studio.locator('#animation-tab').click();
+  await studio.locator('#tracking-off').click();
+  assert.equal(await studio.locator('#flat').evaluate(element => element.trackingMode), 'off');
+  await studio.locator('#reset').click();
   assert.equal(await studio.locator('#flat').evaluate(element => element.trackingMode), 'eyes-and-body');
   await studio.locator('#json-tab').click();
   const scene = JSON.parse(await studio.locator('#design-json').inputValue());

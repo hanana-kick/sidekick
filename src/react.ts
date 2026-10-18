@@ -69,6 +69,7 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
   interaction?: 'none' | 'box';
   /** Legacy eyes-only alias; trackingMode takes precedence when supplied. */
   mouseTracking?: boolean;
+  /** Defaults to eyes-and-body when neither tracking prop is supplied. */
   trackingMode?: TrackingMode;
   renderStyle?: RenderStyle;
   shapeDuration?: number;
