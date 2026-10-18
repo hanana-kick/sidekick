@@ -109,7 +109,7 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
         const canvas = document.querySelector('.composition-preview canvas');
         return canvas?.width === 1200 && canvas?.height === 630 && document.querySelector('.composition-status')?.textContent.includes('정지 프레임');
       }, undefined, { timeout: 20000 });
-      assert.equal(await page.locator('sidekick-avatar').count(), 1, 'Scene preview reuses the mounted renderer');
+      assert.equal(await page.locator('sidekick-avatar:not(.brand-avatar)').count(), 1, 'Scene preview reuses the mounted renderer');
       await page.waitForLoadState('networkidle');
       assert.deepEqual(errors, [], 'No browser or console errors'); assert.deepEqual(failures, [], 'No failed resources');
       for (const request of requests.filter(request => !/^(?:data|blob):/.test(request.url))) {

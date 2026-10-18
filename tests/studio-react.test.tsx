@@ -109,7 +109,7 @@ test('Studio exposes its active destination and the API playground in the top-le
 test('React uses genuine shadcn controls, correct tab relationships and named slider thumbs', async t => {
   const f = await fixture(t);
   assert.ok(f.container.querySelector('[data-slot="button"]')); assert.ok(f.container.querySelector('[data-slot="toggle-group"]'));
-  assert.equal(f.container.querySelectorAll('sidekick-avatar').length, 1);
+  assert.equal(f.container.querySelectorAll('sidekick-avatar:not(.brand-avatar)').length, 1);
   for (const tab of f.container.querySelectorAll('[role="tab"]')) {
     const panel = f.node(tab.getAttribute('aria-controls')!);
     assert.equal(panel.getAttribute('aria-labelledby'), tab.id);
@@ -429,7 +429,7 @@ test('narrow-phone source constrains the shell column and preserves the compact 
   assert.match(shell, /position: fixed; inset: 0/);
   assert.match(shell, /grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(shell, /width: 100%; max-width: 100%; min-width: 0/);
-  assert.match(css, /\.app-header\s*\{[^}]*min-width: 0/);
+  assert.match(readFileSync(new URL('../playground/shared-header.css', import.meta.url), 'utf8'), /\.app-header\s*\{[^}]*min-width: 0/);
   assert.match(css, /\.workspace\s*\{[^}]*min-width: 0/);
   assert.match(css, /@media \(max-width: 359px\)[\s\S]*?#export-json\s*\{[^}]*width: 32px/);
   const compactName = css.match(/#export-json > span\s*\{([^}]+)\}/s)![1]!;

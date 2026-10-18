@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { JSDOM } from 'jsdom';
 
 const html = await readFile(new URL('../api-playground.html', import.meta.url), 'utf8');
-const script = (await readFile(new URL('../playground/api-playground.js', import.meta.url), 'utf8')).replace(/^import[^\n]+\n/, '');
+const script = (await readFile(new URL('../playground/api-playground.js', import.meta.url), 'utf8')).replace(/^import[^\n]+\n/gm, '');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 function fixture(t) {
   const dom = new JSDOM(html, { url: 'https://sidekick.test/api-playground.html', runScripts: 'outside-only', pretendToBeVisual: true });
@@ -13,6 +13,7 @@ function fixture(t) {
   Object.defineProperties(w, { innerWidth: { value: 1280, writable: true }, innerHeight: { value: 900, writable: true } });
   w.matchMedia = () => ({ matches: false, addEventListener() {} });
   w.ResizeObserver = class { observe() {} };
+  w.mountSiteHeader = () => {};
   w.createAccessory = preset => ({ preset });
   const bounds = { x: 428, y: 146, left: 428, top: 146, right: 1256, bottom: 786, width: 828, height: 640 };
   $('movement-stage').getBoundingClientRect = () => bounds;
@@ -176,4 +177,30 @@ test('physical telemetry displays signed vectors, magnitudes and state-backed tr
     const points = f.$(id).getAttribute('points'); assert.ok(points.length); assert.doesNotMatch(points, /NaN|Infinity/);
   }
   await flush();
+});
+
+test('both pages share a paused native avatar brand and accessible navigation', async t => {
+  const { mountSiteHeader } = await import('../playground/shared-header.js');
+  const dom = new JSDOM('<div id="header"></div>', { url: 'https://sidekick.test/nested/' });
+  t.after(() => dom.window.close());
+  const host = dom.window.document.getElementById('header');
+  for (const page of ['studio', 'api']) {
+    const cleanup = mountSiteHeader(host, page, '/nested/');
+    const avatar = host.querySelector('sidekick-avatar');
+    assert.equal(avatar.getAttribute('shape'), 'ghostish');
+    assert.equal(avatar.getAttribute('body-color'), '#FFCC37');
+    assert.equal(avatar.getAttribute('head-accessory'), 'beret');
+    assert.equal(avatar.getAttribute('eyes-accessory'), 'glasses');
+    assert.equal(avatar.getAttribute('neck-accessory'), 'bowtie');
+    assert.equal(avatar.getAttribute('expression'), 'smile');
+    assert.equal(avatar.getAttribute('aria-hidden'), 'true');
+    assert.ok(avatar.hasAttribute('paused'));
+    assert.equal(avatar.getAttribute('interaction'), 'none');
+    assert.equal(avatar.getAttribute('tracking-mode'), 'off');
+    assert.equal(host.querySelectorAll('[aria-current="page"]').length, 1);
+    assert.equal(host.querySelector('[aria-current="page"]').textContent, page === 'api' ? 'API playground' : 'Studio');
+    assert.equal(host.querySelector('.brand').href, 'https://sidekick.test/nested/');
+    assert.equal(host.querySelector('#api-playground-link').href, 'https://sidekick.test/nested/api-playground.html');
+    cleanup(); assert.equal(host.childElementCount, 0);
+  }
 });

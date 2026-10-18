@@ -223,3 +223,39 @@ test('natural controls drive physical telemetry and keep a trace through control
     await writeFile(`${process.env.SIDEKICK_SCREENSHOTS}/api-inertial-telemetry-trace.json`, JSON.stringify(trace, null, 2));
   }
 });
+
+test('shared custom-element brand stays identical across pages and compact viewports', async t => {
+  const page = await pageFor(t);
+  const directory = process.env.SIDEKICK_SCREENSHOTS;
+  if (directory) await mkdir(directory, { recursive: true });
+  for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }, { width: 320, height: 480 }]) {
+    await page.setViewportSize(viewport);
+    let reference;
+    for (const route of ['api-playground.html', '']) {
+      await page.goto(`${base}/${route}`);
+      await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
+      const brand = await page.locator('.brand').evaluate(link => {
+        const avatar = link.querySelector('sidekick-avatar');
+        const text = getComputedStyle(link), box = link.getBoundingClientRect();
+        return { font: text.fontFamily, size: text.fontSize, weight: text.fontWeight, text: link.textContent,
+          width: box.width, height: box.height, paused: avatar.paused, tracking: avatar.trackingMode,
+          canvasWidth: avatar.getBoundingClientRect().width, shape: avatar.design.body.shape };
+      });
+      assert.ok(brand.paused); assert.equal(brand.tracking, 'off'); assert.equal(brand.shape, 'ghostish');
+      assert.ok(brand.canvasWidth <= 44);
+      if (reference) assert.deepEqual(brand, reference); else reference = brand;
+      const layout = await page.evaluate(() => {
+        const header = document.querySelector('.app-header').getBoundingClientRect();
+        const preview = document.querySelector('.preview-panel, .previews').getBoundingClientRect();
+        return { overflow: document.documentElement.scrollWidth > innerWidth,
+          headerBottom: header.bottom, previewTop: preview.top, previewHeight: preview.height,
+          links: [...document.querySelectorAll('.app-header a')].map(a => { const r = a.getBoundingClientRect(); return [r.left, r.right, r.width, r.height]; }) };
+      });
+      assert.equal(layout.overflow, false);
+      assert.ok(layout.previewTop >= layout.headerBottom - 1);
+      assert.ok(layout.previewHeight > 60, JSON.stringify(layout));
+      for (const [left, right, width, height] of layout.links) assert.ok(left >= 0 && right <= viewport.width + 1 && width > 0 && height > 0);
+      if (directory) await page.screenshot({ path: `${directory}/shared-header-${route ? 'api' : 'studio'}-${viewport.width}x${viewport.height}.png` });
+    }
+  }
+});

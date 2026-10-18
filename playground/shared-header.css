@@ -1,0 +1,41 @@
+@import '@fontsource-variable/geist';
+
+/* Shared dimensions and typography prevent page navigation from changing identity. */
+.app-header {
+  display: flex; align-items: center; gap: 20px; min-width: 0;
+  min-height: 70px; padding: 10px 24px; background: #fff;
+  border-bottom: 1px solid #e2e8f0; color: #0f172a;
+  font-family: 'Geist Variable', system-ui, sans-serif;
+}
+.site-header-brand { display: contents; }
+.app-header .brand {
+  display: inline-flex; align-items: center; flex-shrink: 0; gap: 7px;
+  font-size: 20px; line-height: 1; font-weight: 650; letter-spacing: -.7px;
+  color: inherit; text-decoration: none;
+}
+.app-header .brand-avatar {
+  display: block; width: 44px; height: 44px; flex: 0 0 44px;
+  pointer-events: none; contain: layout paint; overflow: hidden;
+}
+.app-header .product-nav {
+  display: flex; align-items: center; flex-shrink: 0; gap: 4px;
+  margin-left: auto; padding: 3px; border: 1px solid #e2e8f0; border-radius: 10px;
+}
+.app-header .product-nav a {
+  padding: 7px 12px; border-radius: 7px; color: #475569;
+  font-size: 12px; line-height: 1.4; text-decoration: none; white-space: nowrap;
+}
+.app-header .product-nav a[aria-current='page'] { background: #0f172a; color: #fff; }
+.app-header .product-nav a:hover:not([aria-current='page']) { background: #f1f5f9; color: #0f172a; }
+.app-header a:focus-visible { outline: 2px solid #64748b; outline-offset: 3px; }
+@media (max-width: 760px) {
+  .app-header { gap: 8px; min-height: 66px; padding: 8px 14px; flex-wrap: wrap; }
+  .app-header .brand { font-size: 17px; gap: 4px; letter-spacing: -.5px; }
+  .app-header .brand-avatar { width: 36px; height: 36px; flex-basis: 36px; }
+  .app-header .product-nav a { padding: 7px 9px; font-size: 12px; }
+  .studio-shell .app-header .product-nav { order: 3; width: 100%; justify-content: center; border: 0; border-top: 1px solid #e2e8f0; border-radius: 0; padding: 6px 0 0; margin-top: 0; }
+}
+@media (max-width: 359px) {
+  .app-header { padding-inline: 10px; gap: 4px; }
+  .app-header .product-nav a { padding-inline: 7px; }
+}

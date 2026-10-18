@@ -676,7 +676,7 @@ test('curated rounded volume tapers continuously toward its silhouette', async t
 
 test('shadcn Studio keeps one transparent preview, real silhouette buttons and color-only appearance', async t => {
   const page = await pageFor(t);
-  assert.equal(await page.locator('sidekick-avatar').count(), 1);
+  assert.equal(await page.locator('sidekick-avatar:not(.brand-avatar)').count(), 1);
   assert.equal(await selectedShape(page), 'square');
   assert.equal((await designOf(page)).version, 7);
   assert.equal(await page.locator('#material-shape button[data-shape]').count(), 35);
@@ -955,7 +955,7 @@ test('scene editor renders OG preset, exports full-size PNG and roundtrips compo
     const pngPending=page.waitForEvent('download'); await page.locator('#export-composition-png').click();
     const png=await pngPending, pngBytes=await readFile(await png.path());
     assert.equal(pngBytes.readUInt32BE(16),1200); assert.equal(pngBytes.readUInt32BE(20),630);
-    assert.equal(await page.locator('sidekick-avatar').count(),1, 'temporary export renderer is removed');
+    assert.equal(await page.locator('sidekick-avatar:not(.brand-avatar)').count(),1, 'temporary export renderer is removed');
     const canvasRect=await page.locator('.composition-preview canvas').boundingBox();
     const characterBefore = { x: await rangeValue(page, 'scene-characterX'), y: await rangeValue(page, 'scene-characterY') };
     const textBefore = { x: await rangeValue(page, 'scene-textX'), y: await rangeValue(page, 'scene-textY') };

@@ -1,5 +1,6 @@
+import { mountSiteHeader } from './shared-header.js';
 import { createElement, memo, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { ArrowDownToLine, CircleHelp, Copy, FileJson, FileUp, ImageDown, Move, Pause, Play, RotateCcw, Sparkles } from 'lucide-react';
+import { ArrowDownToLine, CircleHelp, Copy, FileJson, FileUp, ImageDown, Move, Pause, Play, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -156,6 +157,12 @@ function JSONPanel({ state, controller }: { state: StudioState; controller: Stud
   </FieldGroup>;
 }
 
+function SiteHeaderBrand() {
+  const host = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => host.current ? mountSiteHeader(host.current, 'studio', ASSET_BASE) : undefined, []);
+  return <div className="site-header-brand" ref={host} />;
+}
+
 export function StudioApp({ controller }: { controller: StudioController }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [tab, setTab] = useState(state.recovery ? 'json' : 'appearance'), [resetKey, setResetKey] = useState(0);
@@ -166,8 +173,7 @@ export function StudioApp({ controller }: { controller: StudioController }) {
   function reset(): void { controller.reset(); setResetKey(key => key + 1); }
   async function exportPNG(): Promise<void> { try { download(await controller.snapshot(), 'sidekick.png'); controller.report('투명 PNG를 내보냈습니다.'); } catch (error) { controller.report(String(error), true); } }
   return <div className="studio-shell">
-    <header className="app-header"><a className="brand" href={ASSET_BASE} aria-label="Sidekick Studio 홈"><Sparkles aria-hidden="true" /><span>sidekick</span></a>
-      <nav className="product-nav" aria-label="Sidekick 페이지"><a href={ASSET_BASE} aria-current="page">Studio</a><a id="api-playground-link" href={`${ASSET_BASE}api-playground.html`}>API playground</a></nav>
+    <header className="app-header"><SiteHeaderBrand />
       <div className="header-actions"><Button id="reset" variant="ghost" onClick={reset} aria-label="디자인 초기화"><RotateCcw data-icon="inline-start" /><span className="action-label">초기화</span></Button><Button id="export-png" variant="outline" onClick={() => void exportPNG()} aria-label="PNG 저장"><ImageDown data-icon="inline-start" /><span className="action-label">PNG 저장</span></Button><Button id="export-json" onClick={() => { download(new Blob([controller.exportJSON()], { type: 'application/json' }), 'sidekick.scene.json'); controller.report('장면 JSON을 내보냈습니다.'); }}><FileJson data-icon="inline-start" /><span>JSON 내보내기</span></Button></div>
     </header>
     <main className="workspace">

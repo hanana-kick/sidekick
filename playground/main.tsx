@@ -10,3 +10,5 @@ const controller = new StudioController(storage);
 const root = document.getElementById('root');
 if (!root) throw new Error('Studio root is missing.');
 createRoot(root).render(<StudioApp controller={controller} />);
+
+import './shared-header.css';
