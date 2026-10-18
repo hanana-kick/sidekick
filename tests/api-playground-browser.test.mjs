@@ -38,8 +38,8 @@ test('stage targets the avatar center, bounds edge taps and shows copyable exact
   const page = await pageFor(t, { reducedMotion: 'reduce' });
   await recordMoves(page);
   await page.locator('#duration').fill('850');
-  await page.locator('#easing').selectOption('linear');
   await page.locator('#travel').selectOption('none');
+  await page.locator('#easing').selectOption('linear');
   const stage = await page.locator('#movement-stage').boundingBox();
   const target = { x: stage.x + stage.width * .7, y: stage.y + stage.height * .35 };
   await page.mouse.click(target.x, target.y);
@@ -80,7 +80,8 @@ test('movement telemetry follows phases; stop movement and stop activity remain 
   assert.equal(await page.locator('#bot').evaluate(bot => bot.activity), 'speaking');
   assert.match(await page.locator('#result-log').textContent(), /"finished": false/);
   assert.match(await page.locator('#invocation').textContent(), /avatar.cancelMove\(\)/);
-  assert.ok((await page.evaluate(() => window.phases)).includes('settling'));
+  assert.ok((await page.evaluate(() => window.phases)).includes('braking'));
+  assert.equal((await page.locator('#bot').evaluate(bot => bot.movementState)).speed, 0);
   await page.locator('[data-dx="-120"]').click();
   await page.waitForFunction(() => document.getElementById('phase').textContent === 'flight');
   await page.locator('#stop').click();
