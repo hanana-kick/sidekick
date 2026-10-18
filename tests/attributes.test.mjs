@@ -251,3 +251,12 @@ test('disconnect marks the host inactive before cancellation listeners can resta
   a.remove();
   assert.deepEqual(await playing, { finished: false }); assert.deepEqual(await restarted, { finished: false });
 });
+
+test('moving the host recalculates gaze toward a stationary mouse without changing camera', async t => {
+  const a = avatar(t); a.mouseTracking = true;
+  a.getBoundingClientRect = () => ({ left: a.position.x, top: 0, width: 200, height: 200 });
+  pointer(100, 100); assert.deepEqual(a.gazeTarget, [0, 0]); const camera = a.camera;
+  await a.moveTo({ x: 100, y: 0 }, { duration: 0 }); a.flushInput();
+  assert.deepEqual(a.gazeTarget, [-1, 0]); assert.deepEqual(a.camera, camera);
+  a.resetTracking(); await a.moveTo({ x: 0, y: 0 }, { duration: 0 }); a.flushInput(); assert.deepEqual(a.gazeTarget, [0, 0]);
+});

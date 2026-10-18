@@ -61,7 +61,7 @@ export class SidekickAvatar extends HTMLElementBase {
   private movement = new AvatarMovement({
     now: () => performance.now(), immediate: () => this.paused || this.reduced || !this.connected,
     constrain: point => this.constrainPosition(point),
-    render: point => { this.style.setProperty('--sidekick-x', `${point.x}px`); this.style.setProperty('--sidekick-y', `${point.y}px`); },
+    render: point => { this.style.setProperty('--sidekick-x', `${point.x}px`); this.style.setProperty('--sidekick-y', `${point.y}px`); if (this.lastTrackedPointer && this.trackingDocument && !this.gesturing) { this.pendingPointer = { ...this.lastTrackedPointer }; this.queueInput(); } },
     complete: result => this.emit('sidekick-move-end', result),
     requestFrame: callback => requestAnimationFrame(callback), cancelFrame: id => cancelAnimationFrame(id),
   });
@@ -101,6 +101,7 @@ export class SidekickAvatar extends HTMLElementBase {
   private requests = new Map<number, { kind: 'motion' | 'shape' | 'capture' | 'snapshot' | 'barrier'; resolve: (value: unknown) => void; reject: (reason: Error) => void }>();
   private inputFrame = 0;
   private pendingResize = false;
+  private lastTrackedPointer?: { x: number; y: number };
   private pendingPointer?: { x: number; y: number };
   private pendingDrag?: { x: number; y: number };
   private pendingZoom?: number;
@@ -248,7 +249,7 @@ export class SidekickAvatar extends HTMLElementBase {
   set trackingMode(value: TrackingMode) { this.reflectAttribute('tracking-mode', parseTrackingMode(value)); }
   /** Clear transient cursor reaction immediately, for explicit scene resets/imports. */
   resetTracking(): void {
-    this.pendingPointer = undefined; this.trackedGaze = undefined;
+    this.lastTrackedPointer = undefined; this.pendingPointer = undefined; this.trackedGaze = undefined;
     this.gazeTarget = [...this.manualGaze]; this.currentPose.gaze = [...this.manualGaze];
     this.syncState(); this.send({ kind: 'reset-tracking' }); this.poseRevision = this.bridge?.revision ?? 0;
   }
@@ -621,13 +622,13 @@ export class SidekickAvatar extends HTMLElementBase {
     this.restoreManualTracking();
   }
   private updateTrackingBody(): void { this.syncState(); }
-  private restoreManualTracking(): void { this.pendingPointer = undefined; this.trackedGaze = undefined; this.setGazeTarget(this.manualGaze); }
+  private restoreManualTracking(): void { this.lastTrackedPointer = undefined; this.pendingPointer = undefined; this.trackedGaze = undefined; this.setGazeTarget(this.manualGaze); }
   private onTrackingBlur = (): void => { this.clearDrag(); this.restoreManualTracking(); };
   private onTrackingLeave = (event: PointerEvent): void => { if (event.pointerType && event.pointerType !== 'mouse') return; this.restoreManualTracking(); };
   private onTrackingOut = (event: PointerEvent): void => { if (event.relatedTarget === null) this.onTrackingLeave(event); };
   private onTrackedPointerMove = (event: PointerEvent): void => {
     if (!this.trackingDocument || !this.mouseTracking || this.gesturing || (event.pointerType && event.pointerType !== 'mouse')) return;
-    this.pendingPointer = { x: event.clientX, y: event.clientY }; this.queueInput();
+    this.lastTrackedPointer = { x: event.clientX, y: event.clientY }; this.pendingPointer = { ...this.lastTrackedPointer }; this.queueInput();
   };
   private get gesturing(): boolean { return this.pointers.size > 0 || this.wheelGesture; }
   private clearDrag(): void {

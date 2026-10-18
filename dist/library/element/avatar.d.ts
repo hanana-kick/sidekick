@@ -55,6 +55,7 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private requests;
     private inputFrame;
     private pendingResize;
+    private lastTrackedPointer?;
     private pendingPointer?;
     private pendingDrag?;
     private pendingZoom?;
