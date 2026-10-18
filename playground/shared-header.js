@@ -8,7 +8,7 @@ export function mountSiteHeader(host, activePage, base = './') {
   for (const [name, value] of Object.entries({
     class: 'brand-avatar', shape: 'ghostish', 'body-color': '#FFCC37',
     'head-accessory': 'beret', 'eyes-accessory': 'glasses', 'neck-accessory': 'bowTie',
-    expression: 'smile', paused: '', interaction: 'none', 'tracking-mode': 'off',
+    expression: 'smile', 'camera-zoom': '2', paused: '', interaction: 'none', 'tracking-mode': 'off',
     'aria-hidden': 'true', tabindex: '-1',
   })) avatar.setAttribute(name, value);
   const name = doc.createElement('span'); name.textContent = 'sidekick';
