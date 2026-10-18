@@ -868,7 +868,10 @@ test('Studio keyboard tabs, named slider thumbs and Select Escape retain accessi
 });
 
 test('Studio camera degree controls, presets, API and orbit stay synchronized without changing body pose', async t => {
-  const page = await pageFor(t); await page.locator('#flat').evaluate(a => { a.paused = true; a.setActivity('still'); });
+  const page = await pageFor(t);
+  // Isolate camera edits from the independent, default-on pointer gaze layer.
+  await tab(page, '애니메이션'); await page.locator('#tracking-off').click();
+  await page.locator('#flat').evaluate(a => { a.paused = true; a.setActivity('still'); });
   const initial = await page.locator('#flat').evaluate(a => ({ pose: a.pose, design: a.design }));
   await tab(page, '카메라'); await setRange(page, 'view-yaw', 52); await setRange(page, 'view-pitch', -23); await setRange(page, 'view-roll', 17);
   assert.deepEqual(await page.locator('#flat').evaluate(a => a.camera), { yaw: 52, pitch: -23, roll: 17, zoom: 1 });

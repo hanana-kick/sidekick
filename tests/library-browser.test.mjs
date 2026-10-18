@@ -112,6 +112,9 @@ async function pageFor(t, entry = 'vanilla', options = {}, url = entryURL(entry)
   });
   await page.goto(url);
   await assertAvatarReady(page, entry, diagnostics);
+  // Listener audits count document-wide registrations. Keep the decorative
+  // second avatar out of each target's lifecycle assertions; #bare stays bare.
+  if (entry === 'vanilla') await page.locator('#configured').evaluate(element => { element.trackingMode = 'off'; });
   if (entry === 'studio') await page.evaluate(async () => { window.libraryAPI = await import('/src/index.js'); });
   await settle(page);
   return page;
@@ -464,7 +467,12 @@ test('bare elements follow with eyes and body by default in a real browser', asy
     element.setActivity('still');
     document.dispatchEvent(new PointerEvent('pointermove', { clientX: 9000, clientY: -9000, pointerType: 'mouse' }));
   });
-  await page.waitForFunction(() => document.getElementById('bare').diagnostics.renderedRotation?.[1] > .2);
+  // Eye and body springs have independent settling times. Observe both exact
+  // endpoints rather than sampling the eyes when the body merely crosses .2.
+  await page.waitForFunction(() => {
+    const element = document.getElementById('bare');
+    return element.diagnostics.renderedRotation?.[1] > .2 && element.pose.gaze.every(value => value === 1) && !element.diagnostics.running;
+  });
   const state = await page.locator('#bare').evaluate(element => ({ mode: element.trackingMode, gaze: element.pose.gaze, rotation: element.pose.rotation,
     attributes: [element.getAttribute('tracking-mode'), element.getAttribute('mouse-tracking')] }));
   assert.deepEqual(state, { mode: 'eyes-and-body', gaze: [1, 1], rotation: [0, 0, 0], attributes: [null, null] });
@@ -885,7 +893,8 @@ test('Studio JSON file import applies a complete scene and export round-trips it
   const legacy = { ...scene.design, body: { shape: 'puffy', color: '#81b5a1' } };
   await input.setInputFiles(file(legacy)); await page.waitForFunction(() => document.getElementById('flat').design.body.shape === 'puffy');
   const migrated = await stateOf(page, '#flat'); assert.deepEqual(migrated.design, legacy); assert.deepEqual(migrated.camera, { yaw: 0, pitch: 0, roll: 0, zoom: 1 });
-  assert.equal(migrated.mouseTracking, false); assert.equal(migrated.paused, false); assert.equal(migrated.activity, 'idle');
+  assert.equal(migrated.mouseTracking, true); assert.equal(migrated.paused, false); assert.equal(migrated.activity, 'idle');
+  assert.equal(await page.locator('#flat').evaluate(element => element.trackingMode), 'eyes-and-body');
 });
 
 test('Studio PNG download contains the tightly cropped transparent image at its actual alpha dimensions', async t => {
