@@ -255,3 +255,19 @@ for (const entry of ['classic', 'esm', 'react']) {
     }
   });
 }
+
+for (const entry of ['classic', 'esm', 'react']) test(`CDN ${entry} exposes rendered natural travel and live phase state`, async t => {
+  const { page } = await pageFor(t, entry);
+  const result = await page.evaluate(async () => {
+    const avatar = document.getElementById('avatar'), phases = [];
+    avatar.addEventListener('sidekick-move-progress', event => phases.push(event.detail.phase));
+    const before = await avatar.capturePixelsAsync();
+    const result = await avatar.moveTo({ x: 180, y: 100 }, { duration: 450, travel: 'natural' });
+    const after = await avatar.capturePixelsAsync();
+    return { result, phases, state: avatar.movementState, travel: avatar.diagnostics.travel, sizes: [before.width, before.height, after.width, after.height], activity: avatar.activity };
+  });
+  assert.equal(result.result.finished, true); assert.deepEqual(result.result.position, { x: 180, y: 100 });
+  assert.ok(result.phases.includes('takeoff')); assert.ok(result.phases.includes('flight')); assert.ok(result.phases.includes('landing'));
+  assert.equal(result.state.phase, 'idle'); assert.equal(result.travel.strength, 0); assert.equal(result.activity, 'still');
+  assert.deepEqual(result.sizes.slice(0,2), result.sizes.slice(2));
+});
