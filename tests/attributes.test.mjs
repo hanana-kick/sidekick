@@ -289,3 +289,11 @@ test('invalid physical attributes keep a batched position change atomic until re
   assert.deepEqual(a.position, { x: 20, y: 30 }); assert.equal(errors.length, 1);
   a.setAttribute('move-acceleration', '900'); await flush(); assert.deepEqual(a.position, { x: 100, y: 30 });
 });
+
+test('movement attributes keep paced defaults unless a physical limit is authored', () => {
+  const defaults = resolve({ 'move-duration': '1000' }).moveOptions;
+  assert.equal(defaults.duration, 1000);
+  assert.equal(defaults.maxSpeed, undefined); assert.equal(defaults.acceleration, undefined); assert.equal(defaults.deceleration, undefined);
+  const physical = resolve({ 'move-duration': '1000', 'move-acceleration': '900' }).moveOptions;
+  assert.equal(physical.acceleration, 900); assert.equal(physical.maxSpeed, undefined); assert.equal(physical.deceleration, undefined);
+});
