@@ -1,0 +1,965 @@
+{
+  "comparison": "v34 to v35, only 32 unaffected shapes, camera keyed not filename",
+  "cases": [
+    {
+      "shape": "circle",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "circle",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "circle",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "circle",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "circle",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "square",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "square",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "square",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "square",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "square",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "slanted",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "slanted",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "slanted",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "slanted",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "slanted",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "arch",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "arch",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "arch",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "arch",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "arch",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "fan",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "fan",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "fan",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "fan",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "fan",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "arrow",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "arrow",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "arrow",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "arrow",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "arrow",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "semiCircle",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "semiCircle",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "semiCircle",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "semiCircle",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "semiCircle",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "oval",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "oval",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "oval",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "oval",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "oval",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "pill",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "pill",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "pill",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "pill",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "pill",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "triangle",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "triangle",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "triangle",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "triangle",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "triangle",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "diamond",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "diamond",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "diamond",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "diamond",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "diamond",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "clamShell",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "clamShell",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "clamShell",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "clamShell",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "clamShell",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "gem",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "gem",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "gem",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "gem",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "gem",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "verySunny",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "verySunny",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "verySunny",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "verySunny",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "verySunny",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "sunny",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "sunny",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "sunny",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "sunny",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "sunny",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "cookie4Sided",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "cookie4Sided",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "cookie4Sided",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "cookie4Sided",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "cookie4Sided",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "cookie6Sided",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "cookie6Sided",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "cookie6Sided",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "cookie6Sided",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "cookie6Sided",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "cookie7Sided",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "cookie7Sided",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "cookie7Sided",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "cookie7Sided",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "cookie7Sided",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "cookie9Sided",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "cookie9Sided",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "cookie9Sided",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "cookie9Sided",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "cookie9Sided",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "cookie12Sided",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "cookie12Sided",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "cookie12Sided",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "cookie12Sided",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "cookie12Sided",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "ghostish",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "ghostish",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "ghostish",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "ghostish",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "ghostish",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "clover4Leaf",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "clover4Leaf",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "clover4Leaf",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "clover4Leaf",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "clover4Leaf",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "clover8Leaf",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "clover8Leaf",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "clover8Leaf",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "clover8Leaf",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "clover8Leaf",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "burst",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "burst",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "burst",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "burst",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "burst",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "softBurst",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "softBurst",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "softBurst",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "softBurst",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "softBurst",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "boom",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "boom",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "boom",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "boom",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "boom",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "softBoom",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "softBoom",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "softBoom",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "softBoom",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "softBoom",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "puffy",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "puffy",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "puffy",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "puffy",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "puffy",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "puffyDiamond",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "puffyDiamond",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "puffyDiamond",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "puffyDiamond",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "puffyDiamond",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "pixelCircle",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "pixelCircle",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "pixelCircle",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "pixelCircle",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "pixelCircle",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "bun",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "bun",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "bun",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "bun",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "bun",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    },
+    {
+      "shape": "heart",
+      "yaw": 0,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "heart",
+      "yaw": 45,
+      "pitch": 15,
+      "identical": true
+    },
+    {
+      "shape": "heart",
+      "yaw": 90,
+      "pitch": 0,
+      "identical": true
+    },
+    {
+      "shape": "heart",
+      "yaw": 0,
+      "pitch": -60,
+      "identical": true
+    },
+    {
+      "shape": "heart",
+      "yaw": 0,
+      "pitch": 60,
+      "identical": true
+    }
+  ]
+}

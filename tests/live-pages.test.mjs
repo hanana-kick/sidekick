@@ -92,7 +92,7 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
           twitterImage: content('meta[name="twitter:image"]') };
       });
       assert.equal(social.url, customHTTPS); assert.match(social.title ?? '', /Sidekick/);
-      assert.equal(social.imageURL, new URL('og-sidekick.png', customHTTPS).href);
+      assert.equal(social.imageURL, new URL('og-sidekick.png?v=d9188df94ec2', customHTTPS).href);
       assert.equal(social.twitterImage, social.imageURL); assert.equal(social.twitter, 'summary_large_image');
       assert.equal(social.status, 200); assert.match(social.type ?? '', /image\/png/);
       assert.equal(social.width, 1200); assert.equal(social.height, 630);

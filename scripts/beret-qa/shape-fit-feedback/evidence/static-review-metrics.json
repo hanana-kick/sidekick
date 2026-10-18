@@ -1,0 +1,4708 @@
+{
+  "matrix": "static-review",
+  "cases": 175,
+  "shapeCounts": {
+    "circle": 5,
+    "square": 5,
+    "slanted": 5,
+    "arch": 5,
+    "fan": 5,
+    "arrow": 5,
+    "semiCircle": 5,
+    "oval": 5,
+    "pill": 5,
+    "triangle": 5,
+    "diamond": 5,
+    "clamShell": 5,
+    "pentagon": 5,
+    "gem": 5,
+    "verySunny": 5,
+    "sunny": 5,
+    "cookie4Sided": 5,
+    "cookie6Sided": 5,
+    "cookie7Sided": 5,
+    "cookie9Sided": 5,
+    "cookie12Sided": 5,
+    "ghostish": 5,
+    "clover4Leaf": 5,
+    "clover8Leaf": 5,
+    "burst": 5,
+    "softBurst": 5,
+    "boom": 5,
+    "softBoom": 5,
+    "flower": 5,
+    "puffy": 5,
+    "puffyDiamond": 5,
+    "pixelCircle": 5,
+    "pixelTriangle": 5,
+    "bun": 5,
+    "heart": 5
+  },
+  "counts": {
+    "zeroCrown": 1
+  },
+  "maxima": {
+    "cullMissing": 0.0,
+    "cullIdMismatch": 0.0,
+    "depthTie": 0.0,
+    "worldMaxVertexStep": 0.0,
+    "meshMaxVertexStep": 0.0,
+    "garmentXorFraction": 0.0
+  },
+  "worst": {
+    "cullMissing": [
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": 60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 59637,
+        "band": 1027,
+        "crown": 24923,
+        "hatOnly": 25978,
+        "occluded": 0,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1015,
+          6
+        ],
+        "crownComponents": [
+          24923
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": -60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 80831,
+        "band": 1110,
+        "crown": 3074,
+        "hatOnly": 26137,
+        "occluded": 21348,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1110
+        ],
+        "crownComponents": [
+          3074
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 90,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 68294,
+        "band": 1634,
+        "crown": 7288,
+        "hatOnly": 16235,
+        "occluded": 6175,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1634
+        ],
+        "crownComponents": [
+          7288
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 45,
+          "pitch": 15,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 84509,
+        "band": 1969,
+        "crown": 10966,
+        "hatOnly": 14174,
+        "occluded": 898,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1969
+        ],
+        "crownComponents": [
+          10965
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 101773,
+        "band": 2181,
+        "crown": 12399,
+        "hatOnly": 15049,
+        "occluded": 152,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2181
+        ],
+        "crownComponents": [
+          12399
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": 60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 56037,
+        "band": 1122,
+        "crown": 25122,
+        "hatOnly": 26267,
+        "occluded": 0,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1116
+        ],
+        "crownComponents": [
+          25122
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": -60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 78190,
+        "band": 903,
+        "crown": 3140,
+        "hatOnly": 26461,
+        "occluded": 22330,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          903
+        ],
+        "crownComponents": [
+          3140
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 90,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 75188,
+        "band": 1729,
+        "crown": 5595,
+        "hatOnly": 19646,
+        "occluded": 11728,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1729
+        ],
+        "crownComponents": [
+          5595
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 45,
+          "pitch": 15,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 78480,
+        "band": 2114,
+        "crown": 9503,
+        "hatOnly": 16090,
+        "occluded": 4056,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2113
+        ],
+        "crownComponents": [
+          9503
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 85204,
+        "band": 2360,
+        "crown": 12477,
+        "hatOnly": 15316,
+        "occluded": 121,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2360
+        ],
+        "crownComponents": [
+          12477
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    ],
+    "cullIdMismatch": [
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": 60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 59637,
+        "band": 1027,
+        "crown": 24923,
+        "hatOnly": 25978,
+        "occluded": 0,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1015,
+          6
+        ],
+        "crownComponents": [
+          24923
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": -60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 80831,
+        "band": 1110,
+        "crown": 3074,
+        "hatOnly": 26137,
+        "occluded": 21348,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1110
+        ],
+        "crownComponents": [
+          3074
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 90,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 68294,
+        "band": 1634,
+        "crown": 7288,
+        "hatOnly": 16235,
+        "occluded": 6175,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1634
+        ],
+        "crownComponents": [
+          7288
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 45,
+          "pitch": 15,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 84509,
+        "band": 1969,
+        "crown": 10966,
+        "hatOnly": 14174,
+        "occluded": 898,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1969
+        ],
+        "crownComponents": [
+          10965
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 101773,
+        "band": 2181,
+        "crown": 12399,
+        "hatOnly": 15049,
+        "occluded": 152,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2181
+        ],
+        "crownComponents": [
+          12399
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": 60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 56037,
+        "band": 1122,
+        "crown": 25122,
+        "hatOnly": 26267,
+        "occluded": 0,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1116
+        ],
+        "crownComponents": [
+          25122
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": -60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 78190,
+        "band": 903,
+        "crown": 3140,
+        "hatOnly": 26461,
+        "occluded": 22330,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          903
+        ],
+        "crownComponents": [
+          3140
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 90,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 75188,
+        "band": 1729,
+        "crown": 5595,
+        "hatOnly": 19646,
+        "occluded": 11728,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1729
+        ],
+        "crownComponents": [
+          5595
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 45,
+          "pitch": 15,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 78480,
+        "band": 2114,
+        "crown": 9503,
+        "hatOnly": 16090,
+        "occluded": 4056,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2113
+        ],
+        "crownComponents": [
+          9503
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 85204,
+        "band": 2360,
+        "crown": 12477,
+        "hatOnly": 15316,
+        "occluded": 121,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2360
+        ],
+        "crownComponents": [
+          12477
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    ],
+    "depthTie": [
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": 60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 59637,
+        "band": 1027,
+        "crown": 24923,
+        "hatOnly": 25978,
+        "occluded": 0,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1015,
+          6
+        ],
+        "crownComponents": [
+          24923
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": -60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 80831,
+        "band": 1110,
+        "crown": 3074,
+        "hatOnly": 26137,
+        "occluded": 21348,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1110
+        ],
+        "crownComponents": [
+          3074
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 90,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 68294,
+        "band": 1634,
+        "crown": 7288,
+        "hatOnly": 16235,
+        "occluded": 6175,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1634
+        ],
+        "crownComponents": [
+          7288
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 45,
+          "pitch": 15,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 84509,
+        "band": 1969,
+        "crown": 10966,
+        "hatOnly": 14174,
+        "occluded": 898,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1969
+        ],
+        "crownComponents": [
+          10965
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 101773,
+        "band": 2181,
+        "crown": 12399,
+        "hatOnly": 15049,
+        "occluded": 152,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2181
+        ],
+        "crownComponents": [
+          12399
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": 60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 56037,
+        "band": 1122,
+        "crown": 25122,
+        "hatOnly": 26267,
+        "occluded": 0,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1116
+        ],
+        "crownComponents": [
+          25122
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": -60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 78190,
+        "band": 903,
+        "crown": 3140,
+        "hatOnly": 26461,
+        "occluded": 22330,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          903
+        ],
+        "crownComponents": [
+          3140
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 90,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 75188,
+        "band": 1729,
+        "crown": 5595,
+        "hatOnly": 19646,
+        "occluded": 11728,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1729
+        ],
+        "crownComponents": [
+          5595
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 45,
+          "pitch": 15,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 78480,
+        "band": 2114,
+        "crown": 9503,
+        "hatOnly": 16090,
+        "occluded": 4056,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2113
+        ],
+        "crownComponents": [
+          9503
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 85204,
+        "band": 2360,
+        "crown": 12477,
+        "hatOnly": 15316,
+        "occluded": 121,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2360
+        ],
+        "crownComponents": [
+          12477
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    ],
+    "worldMaxVertexStep": [
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": 60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 59637,
+        "band": 1027,
+        "crown": 24923,
+        "hatOnly": 25978,
+        "occluded": 0,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1015,
+          6
+        ],
+        "crownComponents": [
+          24923
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": -60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 80831,
+        "band": 1110,
+        "crown": 3074,
+        "hatOnly": 26137,
+        "occluded": 21348,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1110
+        ],
+        "crownComponents": [
+          3074
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 90,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 68294,
+        "band": 1634,
+        "crown": 7288,
+        "hatOnly": 16235,
+        "occluded": 6175,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1634
+        ],
+        "crownComponents": [
+          7288
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 45,
+          "pitch": 15,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 84509,
+        "band": 1969,
+        "crown": 10966,
+        "hatOnly": 14174,
+        "occluded": 898,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1969
+        ],
+        "crownComponents": [
+          10965
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 101773,
+        "band": 2181,
+        "crown": 12399,
+        "hatOnly": 15049,
+        "occluded": 152,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2181
+        ],
+        "crownComponents": [
+          12399
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": 60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 56037,
+        "band": 1122,
+        "crown": 25122,
+        "hatOnly": 26267,
+        "occluded": 0,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1116
+        ],
+        "crownComponents": [
+          25122
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": -60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 78190,
+        "band": 903,
+        "crown": 3140,
+        "hatOnly": 26461,
+        "occluded": 22330,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          903
+        ],
+        "crownComponents": [
+          3140
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 90,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 75188,
+        "band": 1729,
+        "crown": 5595,
+        "hatOnly": 19646,
+        "occluded": 11728,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1729
+        ],
+        "crownComponents": [
+          5595
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 45,
+          "pitch": 15,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 78480,
+        "band": 2114,
+        "crown": 9503,
+        "hatOnly": 16090,
+        "occluded": 4056,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2113
+        ],
+        "crownComponents": [
+          9503
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 85204,
+        "band": 2360,
+        "crown": 12477,
+        "hatOnly": 15316,
+        "occluded": 121,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2360
+        ],
+        "crownComponents": [
+          12477
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    ],
+    "meshMaxVertexStep": [
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": 60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 59637,
+        "band": 1027,
+        "crown": 24923,
+        "hatOnly": 25978,
+        "occluded": 0,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1015,
+          6
+        ],
+        "crownComponents": [
+          24923
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": -60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 80831,
+        "band": 1110,
+        "crown": 3074,
+        "hatOnly": 26137,
+        "occluded": 21348,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1110
+        ],
+        "crownComponents": [
+          3074
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 90,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 68294,
+        "band": 1634,
+        "crown": 7288,
+        "hatOnly": 16235,
+        "occluded": 6175,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1634
+        ],
+        "crownComponents": [
+          7288
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 45,
+          "pitch": 15,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 84509,
+        "band": 1969,
+        "crown": 10966,
+        "hatOnly": 14174,
+        "occluded": 898,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1969
+        ],
+        "crownComponents": [
+          10965
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 101773,
+        "band": 2181,
+        "crown": 12399,
+        "hatOnly": 15049,
+        "occluded": 152,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2181
+        ],
+        "crownComponents": [
+          12399
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": 60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 56037,
+        "band": 1122,
+        "crown": 25122,
+        "hatOnly": 26267,
+        "occluded": 0,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1116
+        ],
+        "crownComponents": [
+          25122
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": -60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 78190,
+        "band": 903,
+        "crown": 3140,
+        "hatOnly": 26461,
+        "occluded": 22330,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          903
+        ],
+        "crownComponents": [
+          3140
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 90,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 75188,
+        "band": 1729,
+        "crown": 5595,
+        "hatOnly": 19646,
+        "occluded": 11728,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1729
+        ],
+        "crownComponents": [
+          5595
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 45,
+          "pitch": 15,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 78480,
+        "band": 2114,
+        "crown": 9503,
+        "hatOnly": 16090,
+        "occluded": 4056,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2113
+        ],
+        "crownComponents": [
+          9503
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 85204,
+        "band": 2360,
+        "crown": 12477,
+        "hatOnly": 15316,
+        "occluded": 121,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2360
+        ],
+        "crownComponents": [
+          12477
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    ],
+    "garmentXorFraction": [
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": 60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 59637,
+        "band": 1027,
+        "crown": 24923,
+        "hatOnly": 25978,
+        "occluded": 0,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1015,
+          6
+        ],
+        "crownComponents": [
+          24923
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": -60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 80831,
+        "band": 1110,
+        "crown": 3074,
+        "hatOnly": 26137,
+        "occluded": 21348,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1110
+        ],
+        "crownComponents": [
+          3074
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 90,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 68294,
+        "band": 1634,
+        "crown": 7288,
+        "hatOnly": 16235,
+        "occluded": 6175,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1634
+        ],
+        "crownComponents": [
+          7288
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 45,
+          "pitch": 15,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 84509,
+        "band": 1969,
+        "crown": 10966,
+        "hatOnly": 14174,
+        "occluded": 898,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1969
+        ],
+        "crownComponents": [
+          10965
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "square",
+        "camera": {
+          "yaw": 0,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 101773,
+        "band": 2181,
+        "crown": 12399,
+        "hatOnly": 15049,
+        "occluded": 152,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2181
+        ],
+        "crownComponents": [
+          12399
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.09149395443941362,
+              0
+            ]
+          ]
+        ],
+        "target": -0.09149395443941362,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": 60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 56037,
+        "band": 1122,
+        "crown": 25122,
+        "hatOnly": 26267,
+        "occluded": 0,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1116
+        ],
+        "crownComponents": [
+          25122
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0.8660253882408142,
+          0,
+          0,
+          -0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": -60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 78190,
+        "band": 903,
+        "crown": 3140,
+        "hatOnly": 26461,
+        "occluded": 22330,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          903
+        ],
+        "crownComponents": [
+          3140
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 90,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 75188,
+        "band": 1729,
+        "crown": 5595,
+        "hatOnly": 19646,
+        "occluded": 11728,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          1729
+        ],
+        "crownComponents": [
+          5595
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          6.123234262925839e-17,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          6.123234262925839e-17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 45,
+          "pitch": 15,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 78480,
+        "band": 2114,
+        "crown": 9503,
+        "hatOnly": 16090,
+        "occluded": 4056,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2113
+        ],
+        "crownComponents": [
+          9503
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          0.7071067690849304,
+          0,
+          -0.7071067690849304,
+          0,
+          0.1830126941204071,
+          0.9659258127212524,
+          0.1830126941204071,
+          0,
+          0.6830126643180847,
+          -0.258819043636322,
+          0.6830126643180847,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "shape": "circle",
+        "camera": {
+          "yaw": 0,
+          "pitch": 0,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 85204,
+        "band": 2360,
+        "crown": 12477,
+        "hatOnly": 15316,
+        "occluded": 121,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [
+          2360
+        ],
+        "crownComponents": [
+          12477
+        ],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.08139511157008347,
+              0
+            ]
+          ]
+        ],
+        "target": -0.08139511157008347,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    ]
+  },
+  "flagExamples": {
+    "zeroCrown": [
+      {
+        "shape": "puffy",
+        "camera": {
+          "yaw": 0,
+          "pitch": -60,
+          "roll": 0,
+          "zoom": 1.5
+        },
+        "activity": "still",
+        "time": 0,
+        "frame": 0,
+        "body": 76567,
+        "band": 0,
+        "crown": 0,
+        "hatOnly": 27671,
+        "occluded": 27671,
+        "cullMissing": 0,
+        "cullIdMismatch": 0,
+        "depthTie": 0,
+        "bandComponents": [],
+        "crownComponents": [],
+        "worldMaxVertexStep": 0,
+        "worldRmsVertexStep": 0,
+        "delta": 0.03333333333333333,
+        "reduced": true,
+        "seats": [
+          [
+            "beret",
+            [
+              -0.06367880118938983,
+              0
+            ]
+          ]
+        ],
+        "target": -0.06367880118938983,
+        "bodyModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "hatModel": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          -0.8660253882408142,
+          0,
+          0,
+          0.8660253882408142,
+          0.5,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    ]
+  }
+}

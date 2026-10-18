@@ -1,0 +1,59 @@
+[
+  {
+    "path": [
+      "flower",
+      "triangle",
+      "square"
+    ],
+    "baseline": {
+      "n": 192,
+      "median": 14.032255999999961,
+      "p95": 34.0471520000001
+    },
+    "candidate": {
+      "n": 192,
+      "median": 13.653505999999652,
+      "p95": 28.233024999999998
+    },
+    "medianChangePercent": -2.699138328151296,
+    "p95ChangePercent": -17.07669117228978
+  },
+  {
+    "path": [
+      "heart",
+      "boom",
+      "pixelTriangle"
+    ],
+    "baseline": {
+      "n": 192,
+      "median": 14.11274400000093,
+      "p95": 27.56741300000067
+    },
+    "candidate": {
+      "n": 192,
+      "median": 14.910648000000947,
+      "p95": 27.16701599999942
+    },
+    "medianChangePercent": 5.65378355902979,
+    "p95ChangePercent": -1.4524286337685655
+  },
+  {
+    "path": [
+      "clover8Leaf",
+      "heart",
+      "circle"
+    ],
+    "baseline": {
+      "n": 192,
+      "median": 13.214136999997208,
+      "p95": 26.066020000000208
+    },
+    "candidate": {
+      "n": 192,
+      "median": 13.156211999999869,
+      "p95": 33.64458899999954
+    },
+    "medianChangePercent": -0.43835628461663667,
+    "p95ChangePercent": 29.074515403576285
+  }
+]

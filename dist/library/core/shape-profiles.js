@@ -103,40 +103,40 @@ const BOW_TIE_FITS = {
 /** Stable local wearing centers from the approved catalog poses. Interpolate the
  * selected support, never reselect a distant highest lobe during motion. */
 const BERET_SUPPORT_CENTERS = {
-    circle: [0.003202529778314901, -3.408608748279169e-19],
-    square: [0.01698021042221885, 9.03718438524266e-20],
-    slanted: [0.15131850032469543, 0],
-    arch: [-0.0006363198558349243, -3.2798878618709565e-19],
-    fan: [-0.13691568770238066, -7.869729787895053e-19],
-    arrow: [-0.16759627229074692, 8.479900073282299e-19],
-    semiCircle: [0.11204471670398031, 7.939232344393971e-19],
-    oval: [0.10196462791259484, 0],
-    pill: [0.03092929908453868, -3.2006515187642577e-19],
-    triangle: [-0.08168667311281547, 2.217964919140647e-19],
+    circle: [0.004596015671502911, 0],
+    square: [-0.025, 0],
+    slanted: [0.035, 0],
+    arch: [0.002067339314523273, 0],
+    fan: [-0.1759169844193554, 0],
+    arrow: [-0.16759627229074692, 0],
+    semiCircle: [0.09184907839413926, 0],
+    oval: [0.025, 0],
+    pill: [0.04162347957437888, 0],
+    triangle: [-0.05830468228063125, 0],
     diamond: [-0.2044561623254606, 4.035150652910108e-19],
-    clamShell: [0.13212157836080554, -6.593341704956034e-20],
-    pentagon: [-0.1486249841882227, 1.7960405363770694e-18],
-    gem: [-0.15716927568393765, -9.107437206215163e-19],
-    verySunny: [0.12239394240649157, -5.571137503122266e-20],
-    sunny: [0.1286347947880976, -2.55821629257413e-19],
-    cookie4Sided: [0.0880737026036468, -2.527842009648267e-19],
-    cookie6Sided: [0.09810189892676709, 0],
-    cookie7Sided: [0.12295294063978661, 3.2980421308812113e-19],
-    cookie9Sided: [0.0628533293487154, 9.786378438514157e-20],
+    clamShell: [0.159748112279751, 0],
+    pentagon: [-0.05, 0],
+    gem: [-0.13745434594416545, 0],
+    verySunny: [-0.08495, 0],
+    sunny: [-0.08714, 0],
+    cookie4Sided: [0.1170019455796487, 0],
+    cookie6Sided: [-0.005492934142114092, 0],
+    cookie7Sided: [-0.048269063932298406, 0],
+    cookie9Sided: [-0.03, 0],
     cookie12Sided: [-0.0038804988258414282, 0],
-    ghostish: [-0.015860021663018888, -3.213071536617154e-19],
-    clover4Leaf: [0.0834524132552072, 5.905549700049544e-19],
+    ghostish: [-0.00826846543776016, 0],
+    clover4Leaf: [0.10643363465837054, 0],
     clover8Leaf: [-0.054168759097783216, -3.166000527301816e-19],
-    burst: [0.0004603794263204446, 3.7307929238811236e-19],
-    softBurst: [0.05220442273490473, 9.344051706624409e-20],
+    burst: [0.0004603794263204446, 0],
+    softBurst: [0.058, 0],
     boom: [-0.0774359305907004, -1.70229848100482e-19],
-    softBoom: [-0.0708967251958692, 1.5886921443561396e-19],
-    flower: [-0.028443306685688674, -1.342607280417208e-19],
-    puffy: [0.1877238140890791, 4.749466135876582e-19],
-    puffyDiamond: [-0.21016602516730368, -2.272240719380594e-20],
-    pixelCircle: [0.09263332113088871, 0],
-    pixelTriangle: [-0.14357151603117985, -1.512080572535778e-19],
-    bun: [0.006347941750584402, 1.2575182321572059e-19],
+    softBoom: [-0.0708967251958692, 0],
+    flower: [0.01, 0],
+    puffy: [-0.055, 0],
+    puffyDiamond: [-0.1420218633683929, 0],
+    pixelCircle: [-0.055, 0],
+    pixelTriangle: [-0.42, 0],
+    bun: [-0.035, 0],
     heart: [0.002082470543027959, 5.073613683801476e-19],
 };
 /** Authored curl limits preserve the reviewed neutral garments. These values
@@ -145,23 +145,62 @@ const BERET_SUPPORT_CENTERS = {
  * switch winners abruptly during morphs. Final cloth contact is still checked
  * against actual triangles; these values alone are not collision guarantees. */
 const BERET_DRAPE_LIMITS = {
-    verySunny: 0, burst: 0,
-    softBurst: .025914255728539178, softBoom: .0735820627175312,
+    verySunny: .7, burst: 0,
+    softBurst: 1, softBoom: .0735820627175312,
     puffyDiamond: .42053994400183065, pixelCircle: .11545256551201084,
     pixelTriangle: .9000745129671436, heart: .8313476587534501,
+};
+/** Authored compact shell, aperture, free hem and support angle. Flower keeps a smooth .72 shell with a roomy aperture; placement aligns
+ * its two petal contacts without forcing an undulating cuff or crown. Accepted legacy fits remain exactly neutral. */
+const BERET_FIT_PROFILES = {
+    circle: [0.85, 1, 1, -20],
+    square: [0.82, 1, 1, -22],
+    slanted: [0.82, 1, 1, -22],
+    arch: [0.85, 1, 1, -20],
+    fan: [0.82, 1, 1, -25],
+    arrow: [0.75, 0.35, 0.5, -30],
+    semiCircle: [0.82, 1, 1, -25],
+    oval: [0.82, 1, 1, -30],
+    pill: [0.82, 1, 1, -25],
+    triangle: [0.72, 0.25, 1, -10],
+    clamShell: [0.78, 0.8, 1, -25],
+    pentagon: [0.82, 1, 0, 0],
+    gem: [0.82, 1, 1, -25],
+    verySunny: [0.72, 1, 0.65, -5],
+    sunny: [0.75, 1, 0.65, -5],
+    cookie4Sided: [0.82, 1, 1, -25],
+    cookie6Sided: [0.82, 1, 1, -30],
+    cookie7Sided: [0.82, 1, 1, -25],
+    cookie9Sided: [0.82, 1, 1, -20],
+    ghostish: [0.85, 1, 1, -20],
+    clover4Leaf: [0.82, 1, 1, -25],
+    burst: [0.72, 1, 1, -30],
+    softBurst: [0.8, 1, 1.5, 10],
+    softBoom: [0.75, 0.4, 1, -30],
+    puffy: [0.85, 1, 1, 0],
+    puffyDiamond: [0.72, 0.3, 0.6, -20],
+    pixelCircle: [0.82, 1, 1, -15],
+    bun: [0.78, 0.5, 0.7, -24],
+    heart: [0.72, 0.08, 0, -38],
+    flower: [0.72, 1, 0, -11],
+    boom: [0.72, 0, 0.7, -32],
+    pixelTriangle: [0.72, 1, 0, -23],
 };
 /** A complete fit record is built independently for each accessory and shape. */
 function defaults(shape, depth, eyes, beretU, beretTilt, beretScale = 1, haloHeight = 0.22, glassesScale = 1) {
     const [width, height, spacing, offsetY] = eyes;
     const [mouthY, neckY, size, leftEarV, rightEarV, earSize, mouthTilt, neckTilt] = LOWER_ACCESSORY_FITS[shape];
     const tie = BOW_TIE_FITS[shape];
+    const fit = BERET_FIT_PROFILES[shape];
     const front = (y, scale, tilt = 0) => ({ anchor: { region: 'face', uv: [0, Math.atan(y) / 0.9], offset: 0 }, rotation: [tilt, 0, 0], scale });
     return immutable({
+        beretApertureX: shape === 'pentagon' ? .73 : shape === 'flower' ? .82 : shape === 'pixelTriangle' ? .87 : 1, beretApertureZ: shape === 'flower' ? 1.08 : 1,
+        beretFitSize: fit?.[0] ?? .72, beretFitOpening: fit?.[1] ?? 0, beretWrapStrength: fit?.[2] ?? 0,
         beretDrapeLimit: BERET_DRAPE_LIMITS[shape] ?? 1,
         beretFitTransition: 0,
-        beretDrapeStrength: shape === 'softBoom' ? .12 : shape === 'pixelCircle' ? .12 : shape === 'puffyDiamond' ? .40 : shape === 'verySunny' ? .60 : shape === 'softBurst' ? .90 : 1,
-        beretFitRoom: ['heart', 'flower', 'pixelTriangle', 'burst', 'pixelCircle', 'puffyDiamond', 'verySunny', 'softBurst', 'softBoom', 'boom'].includes(shape) ? 1 : 0,
-        beretFitTilt: (shape === 'cookie6Sided' ? -40 : shape === 'heart' ? -40 : shape === 'flower' ? -46 : shape === 'pixelTriangle' ? 15 : shape === 'triangle' ? -14 : shape === 'boom' ? -32 : shape === 'square' || shape === 'bun' ? -42 : -30) * Math.PI / 180,
+        beretDrapeStrength: fit && (fit[2] > 0 || ['pentagon', 'flower', 'pixelTriangle'].includes(shape)) ? 0 : shape === 'softBoom' ? .12 : shape === 'pixelCircle' ? .12 : shape === 'puffyDiamond' ? .40 : shape === 'verySunny' ? .60 : shape === 'softBurst' ? .90 : 1,
+        beretFitRoom: fit ? 1 : ['heart', 'flower', 'pixelTriangle', 'burst', 'pixelCircle', 'puffyDiamond', 'verySunny', 'softBurst', 'softBoom', 'boom'].includes(shape) ? 1 : 0,
+        beretFitTilt: (fit?.[3] ?? (shape === 'cookie6Sided' ? -40 : shape === 'heart' ? -40 : shape === 'flower' ? -46 : shape === 'pixelTriangle' ? 15 : shape === 'triangle' ? -14 : shape === 'boom' ? -32 : shape === 'square' || shape === 'bun' ? -42 : -30)) * Math.PI / 180,
         beretFitCenter: BERET_SUPPORT_CENTERS[shape], scarfFit: SCARF_SUPPORT_FITS[shape], depth, eyes: { width, height, spacing, offsetY },
         // Historical calibration fields exist only for validating legacy imports.
         mounts: { head: { uv: [0, 0], offset: 0 }, face: { uv: [0, 0], offset: 0 } },
@@ -274,7 +313,7 @@ function parseProfile(value, shape, path) {
     const profile = record(value, path, ['depth', 'mounts', 'eyes']);
     const mounts = record(profile.mounts, `${path}.mounts`, ['head', 'face']);
     const eyes = Object.hasOwn(profile, 'eyes') ? parseEyes(profile.eyes, `${path}.eyes`) : { ...DEFAULT_SHAPE_PROFILES[shape].eyes };
-    return { beretDrapeLimit: DEFAULT_SHAPE_PROFILES[shape].beretDrapeLimit, beretFitTransition: 0, beretDrapeStrength: DEFAULT_SHAPE_PROFILES[shape].beretDrapeStrength, beretFitRoom: DEFAULT_SHAPE_PROFILES[shape].beretFitRoom, beretFitCenter: DEFAULT_SHAPE_PROFILES[shape].beretFitCenter, beretFitTilt: DEFAULT_SHAPE_PROFILES[shape].beretFitTilt, scarfFit: DEFAULT_SHAPE_PROFILES[shape].scarfFit, depth: bounded(profile.depth, BODY_DEPTH_RANGE, `${path}.depth`), eyes, accessories: DEFAULT_SHAPE_PROFILES[shape].accessories, mounts: { head: parseMount(mounts.head, `${path}.mounts.head`), face: parseMount(mounts.face, `${path}.mounts.face`) } };
+    return { beretApertureX: DEFAULT_SHAPE_PROFILES[shape].beretApertureX, beretApertureZ: DEFAULT_SHAPE_PROFILES[shape].beretApertureZ, beretFitSize: DEFAULT_SHAPE_PROFILES[shape].beretFitSize, beretFitOpening: DEFAULT_SHAPE_PROFILES[shape].beretFitOpening, beretWrapStrength: DEFAULT_SHAPE_PROFILES[shape].beretWrapStrength, beretDrapeLimit: DEFAULT_SHAPE_PROFILES[shape].beretDrapeLimit, beretFitTransition: 0, beretDrapeStrength: DEFAULT_SHAPE_PROFILES[shape].beretDrapeStrength, beretFitRoom: DEFAULT_SHAPE_PROFILES[shape].beretFitRoom, beretFitCenter: DEFAULT_SHAPE_PROFILES[shape].beretFitCenter, beretFitTilt: DEFAULT_SHAPE_PROFILES[shape].beretFitTilt, scarfFit: DEFAULT_SHAPE_PROFILES[shape].scarfFit, depth: bounded(profile.depth, BODY_DEPTH_RANGE, `${path}.depth`), eyes, accessories: DEFAULT_SHAPE_PROFILES[shape].accessories, mounts: { head: parseMount(mounts.head, `${path}.mounts.head`), face: parseMount(mounts.face, `${path}.mounts.face`) } };
 }
 /** Validate isolated overrides, filling only omitted legacy eyes from the registry. */
 export function parseShapeProfiles(value, path = 'body.profiles') {
@@ -293,7 +332,7 @@ export function resolveShapeProfile(shape, profiles) {
     return Object.hasOwn(map, shape) ? immutable(parseProfile(map[shape], shape, `body.profiles.${shape}`)) : DEFAULT_SHAPE_PROFILES[shape];
 }
 export function sameShapeProfile(a, b) {
-    return a.beretDrapeLimit === b.beretDrapeLimit && a.beretFitTransition === b.beretFitTransition && a.beretDrapeStrength === b.beretDrapeStrength && a.beretFitRoom === b.beretFitRoom && a.beretFitCenter.every((v, i) => v === b.beretFitCenter[i]) && a.beretFitTilt === b.beretFitTilt && a.scarfFit.every((value, i) => value === b.scarfFit[i]) && CURATED_ACCESSORY_KEYS.every(preset => { const x = a.accessories[preset], y = b.accessories[preset]; return x.scale === y.scale && x.anchor.region === y.anchor.region && x.anchor.offset === y.anchor.offset && x.anchor.uv.every((value, i) => value === y.anchor.uv[i]) && x.rotation.every((value, i) => value === y.rotation[i]); }) && a.depth === b.depth && ['width', 'height', 'spacing', 'offsetY'].every(key => a.eyes[key] === b.eyes[key]) && ['head', 'face'].every(slot => a.mounts[slot].offset === b.mounts[slot].offset && a.mounts[slot].uv.every((v, i) => v === b.mounts[slot].uv[i]));
+    return a.beretApertureX === b.beretApertureX && a.beretApertureZ === b.beretApertureZ && a.beretFitSize === b.beretFitSize && a.beretFitOpening === b.beretFitOpening && a.beretWrapStrength === b.beretWrapStrength && a.beretDrapeLimit === b.beretDrapeLimit && a.beretFitTransition === b.beretFitTransition && a.beretDrapeStrength === b.beretDrapeStrength && a.beretFitRoom === b.beretFitRoom && a.beretFitCenter.every((v, i) => v === b.beretFitCenter[i]) && a.beretFitTilt === b.beretFitTilt && a.scarfFit.every((value, i) => value === b.scarfFit[i]) && CURATED_ACCESSORY_KEYS.every(preset => { const x = a.accessories[preset], y = b.accessories[preset]; return x.scale === y.scale && x.anchor.region === y.anchor.region && x.anchor.offset === y.anchor.offset && x.anchor.uv.every((value, i) => value === y.anchor.uv[i]) && x.rotation.every((value, i) => value === y.rotation[i]); }) && a.depth === b.depth && ['width', 'height', 'spacing', 'offsetY'].every(key => a.eyes[key] === b.eyes[key]) && ['head', 'face'].every(slot => a.mounts[slot].offset === b.mounts[slot].offset && a.mounts[slot].uv.every((v, i) => v === b.mounts[slot].uv[i]));
 }
 /** Body volume, eye calibration and equipment use the same transition progress. */
 export function interpolateShapeProfile(from, to, progress) {
@@ -318,7 +357,7 @@ export function interpolateShapeProfile(from, to, progress) {
     const lipStrength = from.beretDrapeStrength * (1 - smooth(progress / .06)) + to.beretDrapeStrength * smooth((progress - .94) / .06);
     const entering = smooth(progress / .14), leaving = smooth((progress - .86) / .14);
     const fitTransition = from.beretFitTransition * (1 - entering) + entering * (1 - leaving) + to.beretFitTransition * leaving;
-    return immutable({ beretDrapeLimit: mix(from.beretDrapeLimit, to.beretDrapeLimit), beretFitTransition: fitTransition, beretDrapeStrength: lipStrength, beretFitRoom: mix(from.beretFitRoom, to.beretFitRoom), beretFitCenter: from.beretFitCenter.map((v, i) => mix(v, to.beretFitCenter[i])), beretFitTilt: mix(from.beretFitTilt, to.beretFitTilt), scarfFit: from.scarfFit.map((v, i) => mix(v, to.scarfFit[i])), depth: mix(from.depth, to.depth), eyes, mounts: { head: mount('head'), face: mount('face') }, accessories: Object.fromEntries(CURATED_ACCESSORY_KEYS.map(key => [key, equipment(key)])) });
+    return immutable({ beretApertureX: mix(from.beretApertureX, to.beretApertureX), beretApertureZ: mix(from.beretApertureZ, to.beretApertureZ), beretFitSize: mix(from.beretFitSize, to.beretFitSize), beretFitOpening: mix(from.beretFitOpening, to.beretFitOpening), beretWrapStrength: mix(from.beretWrapStrength, to.beretWrapStrength), beretDrapeLimit: mix(from.beretDrapeLimit, to.beretDrapeLimit), beretFitTransition: fitTransition, beretDrapeStrength: lipStrength, beretFitRoom: mix(from.beretFitRoom, to.beretFitRoom), beretFitCenter: from.beretFitCenter.map((v, i) => mix(v, to.beretFitCenter[i])), beretFitTilt: mix(from.beretFitTilt, to.beretFitTilt), scarfFit: from.scarfFit.map((v, i) => mix(v, to.scarfFit[i])), depth: mix(from.depth, to.depth), eyes, mounts: { head: mount('head'), face: mount('face') }, accessories: Object.fromEntries(CURATED_ACCESSORY_KEYS.map(key => [key, equipment(key)])) });
 }
 /**
  * Apply the displayed shape profile once to the global neutral eye baseline.

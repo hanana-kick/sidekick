@@ -101,7 +101,8 @@ test('all 35 berets keep a compact inclined wearing region and connected cuff', 
       supportHeight = Math.max(supportHeight, dot(p, up));
     }
     assert.ok(supportHeight >= rimHeight - 2e-6, shape + ': actual head reaches the open cavity plane');
-    assert.ok(Math.max(...cuff.map(p=>p[1]))-Math.min(...cuff.map(p=>p[1])) > .015, shape + ': inclined asymmetric hem');
+    if (shape === 'pentagon') assert.ok(Math.max(...rim.map(p=>p[1]))-Math.min(...rim.map(p=>p[1])) < 2e-6, 'Pentagon authored horizontal opening');
+    else assert.ok(Math.max(...cuff.map(p=>p[1]))-Math.min(...cuff.map(p=>p[1])) > .015, shape + ': inclined asymmetric hem');
     for (let i=0;i<64;i++) {
       const cuffTop=point(mesh,ringStart(11)+i), crownBottom=point(mesh,ringStart(12)+i);
       assert.ok(Math.hypot(...cuffTop.map((v,k)=>v-crownBottom[k])) < .15, shape + ': joined cuff/crown');
@@ -109,18 +110,26 @@ test('all 35 berets keep a compact inclined wearing region and connected cuff', 
   }
 });
 
-test('felt deformation stays near heart proportions while flexing to local support', () => {
-  const reference=beretGeometry(createDesign({body:{shape:'heart'}}).body,createAccessory('beret'));
+test('felt deformation respects authored compact sizes while flexing to local support', () => {
+  const referenceBody=createDesign({body:{shape:'heart'}}).body,referenceProfile=resolveShapeProfile('heart');
+  const neutralReference=beretGeometry(referenceBody,createAccessory('beret'));
   const pairs=[];
   const count=VERTEX_COUNT; // Both surfaces share one bounded deformation field.
   for(let i=0;i<count;i+=11) for(const offset of [1,17,64,197]) pairs.push([i,(i+offset)%count]);
   const distance=(mesh,a,b)=>Math.hypot(...[0,1,2].map(k=>mesh.vertices[a*6+k]-mesh.vertices[b*6+k]));
-  const expected=pairs.map(([a,b])=>distance(reference,a,b));
   for(const shape of MATERIAL_SHAPE_NAMES)for(const squash of [.88,1,1.12]){
+    const profile=resolveShapeProfile(shape), authoredSize=profile.beretFitSize, normalization=.72/authoredSize;
+    assert.ok(authoredSize>=.72&&authoredSize<=.85,shape+' authored compact size');
+    assert.ok(profile.beretApertureX>=.73&&profile.beretApertureX<=1&&profile.beretApertureZ>=1&&profile.beretApertureZ<=1.08,shape+' explicit authored opening bounds');
+    // Compare felt distortion against the same authored aperture, not a different
+    // garment opening. Upper crown factors remain exactly one by construction.
+    const reference=profile.beretApertureX===1&&profile.beretApertureZ===1?neutralReference:beretGeometry(referenceBody,createAccessory('beret'),1,undefined,{...referenceProfile,beretFitOpening:1,beretFitRoom:1,beretWrapStrength:0,beretDrapeStrength:0,beretApertureX:profile.beretApertureX,beretApertureZ:profile.beretApertureZ});
+    const expected=pairs.map(([a,b])=>distance(reference,a,b));
+    assert.ok(profile.beretWrapStrength>=0&&profile.beretWrapStrength<=1.5);
     const mesh=beretGeometry(createDesign({body:{shape}}).body,createAccessory('beret'),squash);
     assert.deepEqual(mesh.indices,reference.indices);
     for(let i=0;i<pairs.length;i++){
-      const delta=distance(mesh,...pairs[i])-expected[i];
+      const delta=distance(mesh,...pairs[i])*normalization-expected[i];
       assert.ok(delta>=-.141&&delta<=.141,shape+' bounded local felt deformation '+i+': '+delta);
     }
     // Pairwise distance can grow when two compressed sectors move apart.
@@ -128,18 +137,20 @@ test('felt deformation stays near heart proportions while flexing to local suppo
     // that local compression for global hat scaling.
     const tilt=wearTilt(shape);
     const local=(m,i,t,q=1)=>{const p=unsquash(point(m,i),q),a=unsquash(point(m,BASE_VERTEX_COUNT-1),q),x=p[0]-a[0],y=p[1]-a[1];return[Math.cos(t)*x+Math.sin(t)*y,-Math.sin(t)*x+Math.cos(t)*y,p[2]-a[2]];};
-    // Approved PixelTriangle sag measures .12735 in this frame; retain a
-    // tight .13 local bound alongside the unchanged 15% envelope limits.
-    for(let i=ringStart(12);i<BASE_VERTEX_COUNT;i++){const a=local(mesh,i,tilt,squash),b=local(reference,i,wearTilt('heart'));assert.ok(Math.hypot(...a.map((v,k)=>v-b[k]))<=.13,shape+' bounded per-vertex felt displacement '+i);}
+    // Preserve the existing .13 local displacement guard independently of
+    // authored opening width/depth and the unchanged envelope limits.
+    for(let i=ringStart(12);i<BASE_VERTEX_COUNT;i++){const a=local(mesh,i,tilt,squash).map(v=>v*normalization),b=local(reference,i,wearTilt('heart'));assert.ok(Math.hypot(...a.map((v,k)=>v-b[k]))<=.13,shape+' bounded per-vertex felt displacement '+i);}
     // A draped lip may move locally while the recognizable garment keeps its
     // intrinsic proportions. Measure the full wearing-frame envelope, removing
     // body squash and placement so pose cannot disguise global enlargement.
-    const actualPoints=Array.from({length:count},(_,i)=>local(mesh,i,tilt,squash));
+    const actualPoints=Array.from({length:count},(_,i)=>local(mesh,i,tilt,squash).map(v=>v*normalization));
     const referencePoints=Array.from({length:count},(_,i)=>local(reference,i,wearTilt('heart')));
     for(let k=0;k<3;k++){
       const span=ps=>Math.max(...ps.map(p=>p[k]))-Math.min(...ps.map(p=>p[k]));
       const ratio=span(actualPoints)/span(referencePoints);
-      assert.ok(ratio>=.85&&ratio<=1.15,shape+' intrinsic garment proportion '+k+': '+ratio);
+      // Explicit aperture/hem allowance retains the original normalized deformation guards.
+      const allowance=k===1?profile.beretWrapStrength*.10:profile.beretFitOpening*.05;
+      assert.ok(ratio>=.85&&ratio<=1.15+allowance,shape+' intrinsic garment proportion '+k+': '+ratio);
     }
     if(shape==='circle'&&squash===1)assert.ok(pairs.some(([a,b],i)=>Math.abs(distance(mesh,a,b)-expected[i])>.005),'cuff actually flexes; rigid pose alone is insufficient');
   }
@@ -171,7 +182,7 @@ test('displayed beret tilt and center invalidate the geometry fit cache independ
   const body = createDesign({ body: { shape: 'square' } }).body, accessory = createAccessory('beret');
   const contour = shapeContour({ kind: 'material', name: 'square' }), profile = structuredClone(resolveShapeProfile('square'));
   const baseline = beretGeometry(body, accessory, 1, contour, profile);
-  for (const mutate of [p => { p.beretFitTilt += .01; }, p => { p.beretFitCenter[0] += .01; }, p => { p.beretFitCenter[1] += .003; }, p => { p.beretFitRoom += .1; }]) {
+  for (const mutate of [p => { p.beretFitTilt += .01; }, p => { p.beretFitCenter[0] += .01; }, p => { p.beretFitCenter[1] += .003; }, p => { p.beretFitRoom += .1; }, p => { p.beretFitSize += .01; }, p => { p.beretFitOpening += .01; }, p => { p.beretWrapStrength += .01; }, p => { p.beretApertureX += .01; }, p => { p.beretApertureZ += .01; }]) {
     const changed = structuredClone(profile); mutate(changed);
     const fitted = beretGeometry(body, accessory, 1, contour, changed);
     assert.notDeepEqual(fitted.vertices, baseline.vertices, 'displayed calibration affects the fitted geometry');
@@ -349,7 +360,7 @@ test('Pentagon keeps its fit across historical short-interval joint-axis turn br
 });
 
 test('complete 181-frame joint-axis turns retain bounded runtime beret motion', () => {
-  for (const shape of ['boom', 'pentagon', 'cookie6Sided']) {
+  for (const shape of MATERIAL_SHAPE_NAMES) {
     const captured = recordGL(), renderer = new AvatarRenderer({ width: 192, height: 192, getContext: () => captured.gl });
     const design = publicDesign({ body: { shape }, accessories: [publicAccessory('beret')] });
     let previous, previousIndices;
@@ -616,4 +627,35 @@ test('authored curl limits carry the Boom cuff continuously into a Heart transit
   // The former sampled collision limiter switched full curl to zero here.
   assert.ok(step<.003, `Boom→Heart authored curl onset: ${step}`);
   for(const mesh of meshes)assert.equal(mesh.contactResolved,true);
+});
+
+ test('dense circle and burst turns do not switch hem or insertion branches',()=>{
+  for(const [shape,from,to] of [['circle',140.9765625,140.98046875],['burst',9.51171875,9.515625]]){
+    const body=createDesign({body:{shape}}).body,accessory=createAccessory('beret'),contour=shapeContour({kind:'material',name:shape}),profile=resolveShapeProfile(shape);
+    const sample=frame=>{const time=frame/30,rotation=[Math.sin(time*2)*.1,Math.sin(time*1.3)*.1,Math.sin(time*.7)*.1];return beretGeometry(body,accessory,activityFrame('idle',time,false).squash,contour,profile,rotation);};
+    const a=sample(from),b=sample(to);let max=0;for(let i=0;i<a.vertices.length;i+=6)max=Math.max(max,Math.hypot(...[0,1,2].map(k=>a.vertices[i+k]-b.vertices[i+k])));
+    assert.ok(max<.0005,shape+': dense motion '+max);for(const mesh of [a,b]){assert.equal(mesh.contactResolved,true);assert.ok(mesh.contactCorrection<=.006);}
+  }
+});
+
+test('rigid three-shape opening rings remain planar after aperture fitting',()=>{
+ for(const shape of ['pentagon','flower','pixelTriangle'])for(const squash of [.88,1,1.12]){
+  const mesh=beretGeometry(createDesign({body:{shape}}).body,createAccessory('beret'),squash),tilt=wearTilt(shape);
+  for(const ring of [6,7,8,9]){
+   const heights=ringPoints(mesh,ring).map(p=>{const q=unsquash(p,squash);return -Math.sin(tilt)*q[0]+Math.cos(tilt)*q[1];});
+   assert.ok(Math.max(...heights)-Math.min(...heights)<2e-6,`${shape} ring ${ring} must not bend`);
+  }
+ }
+});
+
+test('authored opening aspects cannot change upper crown geometry',()=>{
+ for(const shape of ['pentagon','flower','pixelTriangle']){
+  const body=createDesign({body:{shape}}).body,hat=createAccessory('beret'),profile=resolveShapeProfile(shape);
+  const fitted=beretGeometry(body,hat),neutral=beretGeometry(body,hat,1,undefined,{...profile,beretApertureX:1,beretApertureZ:1});
+  const local=(mesh,i)=>{const p=point(mesh,i),origin=point(mesh,BASE_VERTEX_COUNT-1);return p.map((v,k)=>v-origin[k]);};
+  // Rings 22 onward lie above .230 × authored size: aperture influence is zero.
+  for(let i=ringStart(22);i<BASE_VERTEX_COUNT;i++){
+   const a=local(fitted,i),b=local(neutral,i);assert.ok(Math.hypot(...a.map((v,k)=>v-b[k]))<2e-6,`${shape} upper crown vertex ${i}`);
+  }
+ }
 });

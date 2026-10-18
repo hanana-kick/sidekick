@@ -124,10 +124,10 @@ art = card.crop(art_bounds)
 art = art.resize((round(art.width * .44), round(art.height * .44)), Image.Resampling.LANCZOS)
 card = Image.new('RGB', (1200 * scale, 630 * scale), '#ffffff')
 card.paste(art, ((card.width - art.width) // 2, (card.height - art.height) // 2))
-card.resize((1200, 630), Image.Resampling.LANCZOS).save(Path(output) / 'og-sidekick.png', optimize=True)
+# The published og-sidekick.png is the owner's selected image. Never regenerate it here.
 avatar.thumbnail((780, 876), Image.Resampling.LANCZOS)
 avatar.save(Path(output) / 'og-avatar.png', optimize=True)
-print('Generated public/og-sidekick.png (1200x630), public/og-avatar.png')
+print('Generated public/og-avatar.png; selected social image preserved unchanged')
 `, pam, font, temp, output], { stdio: 'inherit' });
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });

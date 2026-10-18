@@ -366,7 +366,7 @@ export class AvatarRenderer {
       const mounted = multiply(multiply(root, frame.matrix), transform([0, 0, 0], rotation));
       const parent = multiply(mounted, transform([0, 0, 0], [0, 0, 0], Array(3).fill(accessory.scale * accessoryMountProfile(accessory, profile).scale) as Vec3));
       if (accessory.preset === 'beret' || accessory.preset === 'crown') {
-        const key = JSON.stringify([accessory.preset, activity.squash, profile.depth, profile.beretFitTilt, profile.beretFitCenter, profile.beretFitRoom, profile.beretDrapeStrength, profile.beretFitTransition, profile.beretDrapeLimit, accessoryMountProfile(accessory, profile), accessory.scale, rotation]);
+        const key = JSON.stringify([accessory.preset, activity.squash, profile.depth, profile.beretFitTilt, profile.beretFitCenter, profile.beretFitRoom, profile.beretDrapeStrength, profile.beretFitTransition, profile.beretDrapeLimit, profile.beretFitSize, profile.beretFitOpening, profile.beretWrapStrength, profile.beretApertureX, profile.beretApertureZ, accessoryMountProfile(accessory, profile), accessory.scale, rotation]);
         const mesh = this.meshes.beret;
         if (this.beretContour !== contour || this.beretKey !== key) {
           const data: BeretGeometry = beretGeometry(design.body, accessory, activity.squash, contour, profile, rotation);

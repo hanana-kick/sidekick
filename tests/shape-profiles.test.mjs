@@ -47,7 +47,7 @@ test('beret wearing tilt and center are immutable internal profile data with int
     assert.throws(() => { current.beretFitTilt = 0; });
     assert.throws(() => parseShapeProfiles({ [shape]: { ...legacy(current), beretFitTilt: 0 } }), 'wearing tilt is not a legacy customization field');
   }
-  near(resolveShapeProfile('pixelTriangle').beretFitTilt, 15 * Math.PI / 180);
+  near(resolveShapeProfile('pixelTriangle').beretFitTilt, -23 * Math.PI / 180);
   const from = resolveShapeProfile('square'), to = resolveShapeProfile('triangle'), amount = .413;
   const displayed = interpolateShapeProfile(from, to, amount);
   near(displayed.beretFitTilt, from.beretFitTilt + (to.beretFitTilt - from.beretFitTilt) * amount);
@@ -319,8 +319,8 @@ test('beret lip relaxation preserves settled profiles and has no endpoint veloci
   assert.strictEqual(interpolateShapeProfile(from, to, 1), to);
   const strength = t => interpolateShapeProfile(from, to, t).beretDrapeStrength;
   const epsilon = 1e-5;
-  assert.ok(Math.abs(strength(epsilon) - 1) / epsilon < .01);
-  assert.ok(Math.abs(strength(1 - epsilon) - 1) / epsilon < .01);
+  assert.ok(Math.abs(strength(epsilon) - from.beretDrapeStrength) / epsilon < .01);
+  assert.ok(Math.abs(strength(1 - epsilon) - to.beretDrapeStrength) / epsilon < .01);
   assert.equal(strength(.5), 0);
   assert.ok(strength(52 / 60) < .01, 'known narrow support keeps the extra curl relaxed');
   for (let i = 1; i < 1000; i++) assert.ok(strength(i / 1000) >= 0 && strength(i / 1000) <= 1);
@@ -356,4 +356,23 @@ test('authored beret curl limits interpolate without per-frame collision-branch 
     assert.ok(Math.abs(current.beretDrapeLimit-(from.beretDrapeLimit+(to.beretDrapeLimit-from.beretDrapeLimit)*progress))<1e-12);
     assert.equal(interpolateShapeProfile(current,resolveShapeProfile('flower'),0).beretDrapeLimit,current.beretDrapeLimit);
   }
+});
+
+test('authored beret size aperture and hem are internal continuous profile data',()=>{
+ const from=resolveShapeProfile('circle'),to=resolveShapeProfile('heart');
+ for(const key of ['beretFitSize','beretFitOpening','beretWrapStrength','beretApertureX','beretApertureZ']){
+   const changed=copy(from);changed[key]+=.01;assert.equal(sameShapeProfile(from,changed),false);
+   for(const t of [.1,.5,.9])near(interpolateShapeProfile(from,to,t)[key],from[key]+(to[key]-from[key])*t);
+   assert.equal(resolveShapeProfile('circle',{circle:legacy(from)})[key],from[key]);
+   assert.throws(()=>parseShapeProfiles({circle:{...legacy(from),[key]:from[key]}}));
+ }
+ for(const shape of ['diamond','cookie12Sided','clover8Leaf']){const p=resolveShapeProfile(shape);assert.equal(p.beretFitSize,.72);assert.equal(p.beretFitOpening,0);assert.equal(p.beretWrapStrength,0);}
+});
+
+test('three-shape aperture seats preserve smooth crowns and rigid opening planes',()=>{
+ const expected={pentagon:[.82,-.05,0,.73,1],flower:[.72,.01,-11,.82,1.08],pixelTriangle:[.72,-.42,-23,.87,1]};
+ for(const [shape,[size,x,degrees,apertureX,apertureZ]] of Object.entries(expected)){
+  const p=resolveShapeProfile(shape);assert.equal(p.beretFitSize,size);assert.equal(p.beretFitCenter[0],x);near(p.beretFitTilt,degrees*Math.PI/180);assert.equal(p.beretApertureX,apertureX);assert.equal(p.beretApertureZ,apertureZ);assert.equal(p.beretWrapStrength,0);assert.equal(p.beretDrapeStrength,0);
+ }
+ for(const shape of MATERIAL_SHAPE_NAMES)if(!(shape in expected)){const p=resolveShapeProfile(shape);assert.equal(p.beretApertureX,1);assert.equal(p.beretApertureZ,1);}
 });

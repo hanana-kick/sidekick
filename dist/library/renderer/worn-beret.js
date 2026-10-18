@@ -177,16 +177,29 @@ function stableSurfaceSamples(contour) {
     surfaceSamples.set(contour, samples);
     return samples;
 }
+const neutralWrapCache = new WeakMap();
 const fittedCache = new WeakMap();
 /** One positive radial coordinate map is shared by lining, rim and crown.
  * No ring can be independently displaced through its neighbours. */
-function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1, fitTransition = 0, drapeLimit = 1) {
+function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1, fitTransition = 0, drapeLimit = 1, fitSize = .72, opening = 0, wrapStrength = 0, apertureX = 1, apertureZ = 1) {
+    // Positive height-dependent affine map, shared by BOTH shell sides.
+    // Height is unchanged; every horizontal section remains an ellipse and the
+    // bottom lip stays planar. Inverse coordinates are used by analytic fitting.
+    if (![apertureX, apertureZ].every(v => Number.isFinite(v) && v > 0))
+        throw new Error('Positive aperture aspect required');
+    const apertureAt = (height) => {
+        const t = clamp((height / fitSize - .065) / .165, 0, 1), w = 1 - t * t * (3 - 2 * t);
+        return [1 + (apertureX - 1) * w, 1 + (apertureZ - 1) * w];
+    };
+    const SIZE = fitSize, minimumOpening = .95 + .25 * opening, maximumOpening = 1.10 + .10 * opening;
+    const contactFit = opening >= 1, contactProgress = clamp((opening - .8) / .2, 0, 1);
+    const contactWeight = contactProgress * contactProgress * (3 - 2 * contactProgress);
     let cache = fittedCache.get(contour);
     if (!cache) {
         cache = new Map();
         fittedCache.set(contour, cache);
     }
-    const key = [room, drapeStrength, fitTransition, drapeLimit, depth, tilt, ...rotation, ...center ?? []].join(':');
+    const key = [apertureX, apertureZ, fitSize, opening, wrapStrength, room, drapeStrength, fitTransition, drapeLimit, depth, tilt, ...rotation, ...center ?? []].join(':');
     const hit = cache.get(key);
     if (hit)
         return hit;
@@ -223,7 +236,7 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
     const px = sx + .065 * SIZE, pz = sz - .012 * SIZE;
     const edges = [];
     const seen = new Set(), n = points.length;
-    if (fitTransition < 1)
+    if (fitTransition < 1 && !contactFit)
         for (let i = 0; i < body.indices.length; i += 3)
             for (let j = 0; j < 3; j++) {
                 const a = body.indices[i + j], b = body.indices[i + (j + 1) % 3], k = Math.min(a, b) * n + Math.max(a, b);
@@ -273,8 +286,8 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
     };
     const fieldAt = (insertion) => {
         if (fitTransition === 1)
-            return Array(SEGMENTS).fill(1.10);
-        const py = top - insertion, field = Array(SEGMENTS).fill(.95);
+            return Array(SEGMENTS).fill(maximumOpening);
+        const py = top - insertion, field = Array(SEGMENTS).fill(minimumOpening);
         // Smooth support weights vanish at the vertical window boundaries.
         // Hard horizontal slices let a grazing lobe suddenly widen a whole
         // sector; this continuous field only controls bounded cloth fullness.
@@ -287,12 +300,12 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
             const x = point[0] - px, z = point[1] - pz;
             const angle = (Math.atan2(z, x) + Math.PI * 2) % (Math.PI * 2), bin = angle / (Math.PI * 2) * SEGMENTS;
             const c = Math.cos(angle), s = Math.sin(angle), r = 1 / Math.sqrt((c / (.300 * SIZE)) ** 2 + (s / (.240 * SIZE)) ** 2);
-            const required = clamp((Math.hypot(x, z) + .005) / r, .95, 1.10);
+            const required = clamp((Math.hypot(x, z) + .005) / r, minimumOpening, maximumOpening);
             for (let k = -4; k <= 4; k++) {
                 const j = (Math.floor(bin) + k + SEGMENTS) % SEGMENTS;
                 const d = Math.min(Math.abs(j - bin), SEGMENTS - Math.abs(j - bin)) / 4;
                 const w = Math.max(0, 1 - d * d) ** 2;
-                field[j] = Math.max(field[j], .95 + (required - .95) * w * verticalWeight);
+                field[j] = Math.max(field[j], minimumOpening + (required - minimumOpening) * w * verticalWeight);
             }
         }
         for (let pass = 0; pass < 6; pass++) {
@@ -303,7 +316,7 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
         // During contour morphing, adaptive body triangulation is not a stable
         // sampling lattice. Blend toward a bounded conservative cloth field.
         for (let i = 0; i < field.length; i++)
-            field[i] += (1.10 - field[i]) * fitTransition;
+            field[i] += (maximumOpening - field[i]) * fitTransition;
         return field;
     };
     const scaleAt = (field, x, z, y) => {
@@ -312,11 +325,16 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
         const h = clamp((y - .03) / .12, 0, 1), weight = 1 - h * h * (3 - 2 * h);
         return 1 + (amount - 1) * weight;
     };
-    const inner = innerBase.map((r, j) => r.map((v, k) => v + (innerSpacious[j][k] - v) * room));
+    const inner = innerBase.map((r, j) => r.map((v, k) => (v + (innerSpacious[j][k] - v) * room) * fitSize / .72));
     // Exact horizontal exterior bounds of the authored hollow shell. A body
     // point beside the hat is exterior space, not failed cavity occupancy.
-    let outerHeightBins = exteriorGeometry.get(garment.geometry);
-    if (!outerHeightBins && fitTransition < 1) {
+    let exteriorSizes = exteriorGeometry.get(garment.geometry);
+    if (!exteriorSizes) {
+        exteriorSizes = new Map();
+        exteriorGeometry.set(garment.geometry, exteriorSizes);
+    }
+    let outerHeightBins = exteriorSizes.get(fitSize);
+    if (!outerHeightBins && fitTransition < 1 && !contactFit) {
         const outerEdges = [];
         if (room) {
             const indices = garment.geometry.indices;
@@ -354,7 +372,7 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
                 list.push(edge);
             }
         }
-        exteriorGeometry.set(garment.geometry, outerHeightBins);
+        exteriorSizes.set(fitSize, outerHeightBins);
     }
     const outerBins = outerHeightBins ?? new Map();
     const exteriorCache = new Map();
@@ -377,9 +395,12 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
         return bounds;
     };
     const fits = (insertion) => {
-        const py = top - insertion, minimumField = .95, actualField = room ? fieldAt(insertion) : undefined;
+        const py = top - insertion, minimumField = minimumOpening, actualField = room ? fieldAt(insertion) : undefined;
         let lastY = NaN, s = 0, rx = 0, rz = 0, cx = 0, valid = false;
         const contains = (x, z, y) => {
+            const aperture = apertureAt(y);
+            x /= aperture[0];
+            z /= aperture[1];
             if (y !== lastY) {
                 lastY = y;
                 const cavityRoom = cavity(y, inner);
@@ -420,7 +441,7 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
         }
         // Vertices alone miss triangles passing through the opening between mesh
         // rows. Include exact body-edge sections throughout the complete inner wall.
-        const levels = new Set([0, ...[...innerBase, ...inner].map(r => r[3]).filter(y => y >= 0 && y <= insertion)]);
+        const levels = new Set([0, ...[...innerBase.map(r => r.map(v => v * fitSize / .72)), ...inner].map(r => r[3]).filter(y => y >= 0 && y <= insertion)]);
         for (let y = 0; y <= insertion; y += .004)
             levels.add(y);
         for (const p of points) {
@@ -442,7 +463,7 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
     };
     const bodySurface = new BodyTriangleBVH(points, body.indices);
     let settledInsertion = 0;
-    if (fitTransition < 1) {
+    if (fitTransition < 1 && !contactFit) {
         let lo = 0, hi = .145, coarseLo = 0;
         for (let i = 0; i < (room > 0 ? 16 : 10); i++) {
             const mid = (lo + hi) / 2;
@@ -455,16 +476,17 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
         }
         settledInsertion = coarseLo + (lo - coarseLo) * room;
     }
-    if (fitTransition < 1 && !fits(0))
+    if (fitTransition < 1 && !contactFit && !fits(0))
         settledInsertion = 0;
     let reachableInsertion = settledInsertion;
-    if (fitTransition > 0) {
+    if (fitTransition > 0 || contactWeight > 0) {
         const initialField = fieldAt(0), guidePoints = [];
         for (let i = 0; i < garment.geometry.vertices.length; i += 6) {
             const x = garment.geometry.vertices[i] * SIZE, z = garment.geometry.vertices[i + 1] * SIZE;
             const y = (garment.geometry.vertices[i + 2] + .037) * SIZE;
             const scale = scaleAt(initialField, x, z, y);
-            guidePoints.push([x * scale + px, z * scale + pz, y + top]);
+            const aperture = apertureAt(y);
+            guidePoints.push([x * scale * aperture[0] + px, z * scale * aperture[1] + pz, y + top]);
         }
         // A continuous rigid sweep finds the first physical fabric contact,
         // allowing the body through the empty aperture without skipping into
@@ -473,7 +495,8 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
         const contact = bodySurface.firstMeshHit(guidePoints, garment.geometry.indices, [0, 0, -1], .145);
         reachableInsertion = contact === undefined ? .145 : Math.max(0, contact - .0005);
     }
-    const insertion = settledInsertion + (reachableInsertion - settledInsertion) * fitTransition;
+    const legacyInsertion = settledInsertion + (reachableInsertion - settledInsertion) * fitTransition;
+    const insertion = legacyInsertion + (reachableInsertion - legacyInsertion) * contactWeight;
     const field = fieldAt(insertion), py = top - insertion;
     const motionRelaxation = Math.exp(-rotation.reduce((sum, value) => sum + value * value, 0) / (.06 * .06));
     const lipDeltas = [];
@@ -481,9 +504,9 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
         for (let j = 0; j < SEGMENTS; j++) {
             const i = (1 + 5 * SEGMENTS + j) * 6, y = (garment.geometry.vertices[i + 2] + .037) * SIZE;
             let x = garment.geometry.vertices[i] * SIZE, z = garment.geometry.vertices[i + 1] * SIZE;
-            const scale = scaleAt(field, x, z, y);
-            x = x * scale + px;
-            z = z * scale + pz;
+            const scale = scaleAt(field, x, z, y), aperture = apertureAt(y);
+            x = x * scale * aperture[0] + px;
+            z = z * scale * aperture[1] + pz;
             const p = [x, z, y + py], nearest = stableClosestPoint(p, py - .15);
             const best = (p[0] - nearest[0]) ** 2 + (p[1] - nearest[1]) ** 2 + (p[2] - nearest[2]) ** 2;
             const distance = Math.sqrt(best), factor = Math.max(0, 1 - .012 / Math.max(distance, 1e-9));
@@ -512,14 +535,50 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
                 for (let k = 0; k < 3; k++)
                     lipDeltas[j][k] = (copy[(j + 63) % 64][k] + 2 * copy[j][k] + copy[(j + 1) % 64][k]) / 4;
         }
+    const wrapKey = [apertureX, apertureZ, fitSize, opening, room, drapeStrength, fitTransition, drapeLimit, depth, tilt, ...center ?? []].join(':');
+    let neutralWraps = neutralWrapCache.get(contour);
+    if (!neutralWraps) {
+        neutralWraps = new Map();
+        neutralWrapCache.set(contour, neutralWraps);
+    }
+    const turning = rotation.some(value => value !== 0);
+    if (wrapStrength > 0 && fitTransition < 1 && turning && !neutralWraps.has(wrapKey))
+        fit(contour, depth, [0, 0, 0], tilt, center, room, drapeStrength, fitTransition, drapeLimit, fitSize, opening, wrapStrength, apertureX, apertureZ);
+    // Retain the approved resting hem throughout a turn. Only its continuous
+    // relaxation changes, so grazing support rays cannot snap individual sectors.
+    const wrapDrops = turning ? [...neutralWraps.get(wrapKey) ?? []] : [];
+    if (wrapStrength > 0 && fitTransition < 1 && !turning)
+        for (let j = 0; j < SEGMENTS; j++) {
+            const i = (1 + 5 * SEGMENTS + j) * 6;
+            const x = garment.geometry.vertices[i] * SIZE, z = garment.geometry.vertices[i + 1] * SIZE, y = (garment.geometry.vertices[i + 2] + .037) * SIZE;
+            const scale = scaleAt(field, x, z, y), aperture = apertureAt(y), start = [x * scale * aperture[0] + px, z * scale * aperture[1] + pz, top + .3], end = [x * scale * aperture[0] + px, z * scale * aperture[1] + pz, py - .10];
+            const hit = bodySurface.firstHit(start, end);
+            wrapDrops.push(hit ? clamp(start[2] + (end[2] - start[2]) * hit.fraction + .012 - (py + y), -.09, 0) : -.075);
+        }
+    if (wrapDrops.length && !turning) {
+        const support = [...wrapDrops];
+        for (let j = 0; j < SEGMENTS; j++)
+            wrapDrops[j] = Math.max(...[-3, -2, -1, 0, 1, 2, 3].map(k => support[(j + k + SEGMENTS) % SEGMENTS]));
+        for (let pass = 0; pass < 8; pass++) {
+            const copy = [...wrapDrops];
+            for (let j = 0; j < SEGMENTS; j++)
+                wrapDrops[j] = (copy[(j + 63) % 64] + 2 * copy[j] + copy[(j + 1) % 64]) / 4;
+        }
+    }
+    if (wrapDrops.length && !turning) {
+        if (neutralWraps.size >= 8)
+            neutralWraps.delete(neutralWraps.keys().next().value);
+        neutralWraps.set(wrapKey, [...wrapDrops]);
+    }
     const vertices = new Float32Array(garment.geometry.vertices.length);
     const basePoints = [], drapedPoints = [];
     for (let i = 0; i < vertices.length; i += 6) {
         let x = garment.geometry.vertices[i] * SIZE, z = garment.geometry.vertices[i + 1] * SIZE;
         const y = (garment.geometry.vertices[i + 2] + .037) * SIZE;
         const s = scaleAt(field, x, z, y);
-        x = x * s + px;
-        z = z * s + pz;
+        const aperture = apertureAt(y);
+        x = x * s * aperture[0] + px;
+        z = z * s * aperture[1] + pz;
         const q = [x, z, y + py];
         basePoints.push([...q]);
         if (room && drapeStrength === 0) {
@@ -536,6 +595,11 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
             q[0] = px + dx * scale;
             q[1] = pz + dz * scale;
             q[2] += d[2] * w;
+        }
+        if (wrapDrops.length) {
+            const a = ((Math.atan2(z - pz, x - px) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * 64, j = Math.floor(a), f = a - j;
+            const d = wrapDrops[j] * (1 - f) + wrapDrops[(j + 1) % 64] * f, t = clamp((y - .035) / .13, 0, 1);
+            q[2] += d * (1 - t * t * (3 - 2 * t)) * wrapStrength * (1 - fitTransition) * motionRelaxation;
         }
         drapedPoints.push(q);
     }
@@ -568,8 +632,8 @@ function fit(contour, depth, rotation, tilt, center, room = 0, drapeStrength = 1
     cache.set(key, result);
     return result;
 }
-export function wornBeret(contour, scales, shape, rotation = [0, 0, 0], tilt = (shape === 'cookie6Sided' ? -40 : shape === 'heart' ? -18 : shape === 'triangle' || shape === 'pixelTriangle' ? -14 : shape === 'boom' ? -32 : shape === 'square' || shape === 'bun' ? -42 : -30) * Math.PI / 180, center, room = 0, drapeStrength = 1, fitTransition = 0, drapeLimit = 1) {
-    const squash = scales[1] / .59, stretch = 1 / Math.sqrt(squash), base = fit(contour, scales[2] / stretch, rotation, tilt, center, room, drapeStrength, fitTransition, drapeLimit);
+export function wornBeret(contour, scales, shape, rotation = [0, 0, 0], tilt = (shape === 'cookie6Sided' ? -40 : shape === 'heart' ? -18 : shape === 'triangle' || shape === 'pixelTriangle' ? -14 : shape === 'boom' ? -32 : shape === 'square' || shape === 'bun' ? -42 : -30) * Math.PI / 180, center, room = 0, drapeStrength = 1, fitTransition = 0, drapeLimit = 1, fitSize = .72, opening = 0, wrapStrength = 0, apertureX = 1, apertureZ = 1) {
+    const squash = scales[1] / .59, stretch = 1 / Math.sqrt(squash), base = fit(contour, scales[2] / stretch, rotation, tilt, center, room, drapeStrength, fitTransition, drapeLimit, fitSize, opening, wrapStrength, apertureX, apertureZ);
     const vertices = new Float32Array(base.vertices);
     for (let i = 0; i < vertices.length; i += 6) {
         vertices[i] *= stretch;

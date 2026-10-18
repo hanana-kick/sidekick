@@ -1,0 +1,20 @@
+[
+  {
+    "shape": "pentagon",
+    "productionSHA256": "4e1390cc3e73356b691015f9d46ab428112f05ed0028117aa5bcc67ad6a13487",
+    "proposalSHA256": "4e1390cc3e73356b691015f9d46ab428112f05ed0028117aa5bcc67ad6a13487",
+    "identical": true
+  },
+  {
+    "shape": "flower",
+    "productionSHA256": "4d4203a36309f624c3d718f1906a7d974f72d9ccd2b501725e24fae205f9c3d5",
+    "proposalSHA256": "4d4203a36309f624c3d718f1906a7d974f72d9ccd2b501725e24fae205f9c3d5",
+    "identical": true
+  },
+  {
+    "shape": "pixelTriangle",
+    "productionSHA256": "f8b71fe3eddf6b03ae599c72245d719ec87806171ee26e3f8a84ffcd3ca8fc54",
+    "proposalSHA256": "f8b71fe3eddf6b03ae599c72245d719ec87806171ee26e3f8a84ffcd3ca8fc54",
+    "identical": true
+  }
+]

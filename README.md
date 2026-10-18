@@ -17,7 +17,7 @@ npm install https://github.com/hanana-kick/sidekick.git
 버전을 고정하려면 릴리스 태그를 지정합니다.
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.2.6
+npm install https://github.com/hanana-kick/sidekick.git#v0.2.7
 ```
 
 빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.2.4`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
@@ -27,12 +27,12 @@ npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.co
 ### GitHub Release에서 다운로드
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases)를 엽니다.
-2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.2.6.zip` 또는 `hanana-kick-sidekick-0.2.6.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
+2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.2.7.zip` 또는 `hanana-kick-sidekick-0.2.7.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
 3. 일반 HTML 사이트에서는 브라우저 ZIP을 풀고 아래 파일을 사이트의 정적 파일 디렉터리에 복사합니다. 동봉된 `START-HERE.txt`를 읽고 `esm.html`, `classic.html`, `react.html` 중 원하는 예제를 열면 됩니다. 예제의 `/vendor/sidekick/`은 **사용자 사이트의 경로**입니다. 배포 경로에 맞게 바꾸세요.
 
 | 빌드된 파일 | 용도 | 필요한 파일·의존성 |
 | --- | --- | --- |
-| `sidekick-browser-0.2.6.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
+| `sidekick-browser-0.2.7.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
 | `sidekick.js` | 브라우저 ESM. `import`와 `<script type="module">` 사용 | `sidekick.worker.js`를 같은 디렉터리에 유지 |
 | `sidekick.iife.js` | 일반 classic `<script>`. API는 `window.Sidekick` | `sidekick.worker.js`를 같은 디렉터리에 유지. `type="module"` 사용 안 함 |
 | `sidekick-react.js` | React 19용 ESM 컴포넌트 | `sidekick-element.js`·`sidekick-fallback.js`·`sidekick.worker.js`를 같은 디렉터리에 유지하고 `react` peer를 제공 |
@@ -40,7 +40,7 @@ npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.co
 | `sidekick-fallback.js` | worker를 사용할 수 없을 때 React 요소가 불러오는 렌더러 | 직접 import하지 않음. 나머지 파일과 같은 버전 사용 |
 | `sidekick.worker.js` | OffscreenCanvas 전용 worker | 브라우저 진입 파일 옆에 배치. 별도 script 태그로 불러오지 않음 |
 | `vendor/react.js`, `vendor/react-dom-client.js` | 브라우저 ZIP의 선택적 React 19/ReactDOM ESM | 아래 빌드 없는 React 예제용. import map으로 연결하며 React를 이미 제공하는 앱에는 불필요 |
-| `hanana-kick-sidekick-0.2.6.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
+| `hanana-kick-sidekick-0.2.7.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
 | `SHA256SUMS` | ZIP과 tarball의 다운로드 무결성 확인 | 같은 Release의 체크섬 파일 |
 
 ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보관하세요. **GitHub Release 자산은 다운로드한 뒤 본인 사이트에서 제공하세요.** 다운로드 URL은 브라우저 JS 호스팅용 URL이 아니며 자산 응답의 MIME·CORS 동작이 정적 호스팅과 다릅니다. 아래 예제의 `src`/`import`는 내려받은 파일을 제공하는 사이트 경로를 사용합니다.
@@ -52,7 +52,7 @@ ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보�
 Release에서 받은 tarball을 사용할 프로젝트에서 설치합니다. 이 명령은 Sidekick 소스를 컴파일하거나 Studio를 빌드하지 않습니다.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.2.6.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.2.7.tgz
 ```
 
 React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 마운트하는 `react-dom`도 사용자가 같은 버전으로 준비합니다. 코어만 쓰는 프로젝트에는 React가 필요 없습니다.
@@ -825,4 +825,4 @@ The **장면 (Scene)** tab composes the native character and editable text onto 
 - Composition positions are canvas percentages. `characterHeight` is the cropped character height as a percentage of the canvas. Text X is its left edge; Y is the center of its multiline block. Exports deliberately clip anything placed outside the canvas.
 - Scene PNG export creates a temporary independent 2048 × 2048 native renderer, captures the configured character at its saved scene time, and disposes it afterwards. It does not enlarge the low-resolution preview or resize the active character canvas. The normal renderer's 2048-pixel ceiling remains; extremely large compositions may still enlarge the resulting crop. Live pointer reaction is excluded from deterministic exports. The published OG asset is generated separately at higher native resolution.
 
-Both HTML entry pages include static Open Graph and Twitter card tags with the canonical URL `https://sidekick.hananakick.cc/` and absolute social image URL. The image is `public/og-sidekick.png` (1200 × 630). To regenerate it after geometry changes, run `node scripts/generate-og-image.mjs`; this development-only script replays production AvatarRenderer commands through native EGL/GLES and composites bundled Geist typography. It requires a C compiler, EGL/GLES, and Pillow/fontTools for the offline image composition; none are consumer/runtime dependencies. An optional `SIDEKICK_RENDERER_ROOT` selects a source worktree for generation.
+Both HTML entry pages include static Open Graph and Twitter card tags with the canonical URL `https://sidekick.hananakick.cc/` and a versioned absolute social image URL. `public/og-sidekick.png` (1200 × 630) is the exact owner-selected image, preserved independently of later character geometry changes. Builds and `node scripts/generate-og-image.mjs` do not overwrite it. That development-only script updates `public/og-avatar.png` using the native production renderer; it requires a C compiler, EGL/GLES, and Pillow/fontTools. An optional `SIDEKICK_RENDERER_ROOT` selects a source worktree. Studio's editable scene preset remains a separate starting point and is not a reconstruction of the selected static social image.

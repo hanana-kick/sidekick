@@ -1,0 +1,19 @@
+{
+  "states": 1270,
+  "failures": [],
+  "maximumCorrection": 0.0045000000000000005,
+  "provenance": {
+    "src/renderer/worn-beret.ts": "fa9ba33af6ba58b83052cf0c2ae2af82839486ca02ab5c978db9eccba4a6985a",
+    "dist/src/renderer/worn-beret.js": "a7761691539361621da9519af2b253af652f17f6a6e78f281650ba65dcce265b",
+    "src/renderer/cloth-clearance.ts": "e9e3ddd82d8d15971a15404bcb7e24c6e5d6f3c459389e6345214f61f7f62773",
+    "dist/src/renderer/cloth-clearance.js": "c968fab860e20d4b20f6b7cef91b5444984ee26a2d79cf450c81cd8a7826a9f1",
+    "src/renderer/beret-geometry.ts": "c83bbdb46692468f6da0886f89fc260712b25c57f3174a81d422d0b4cd94d9b8",
+    "dist/src/renderer/beret-geometry.js": "4a8f8598a2b112ff53ecad3047d9f748ec7c330a55ec9aa8e41b9d7c938277b8",
+    "src/core/shape-profiles.ts": "a597c71a2fe2c2e4892bd2973404085b9d12380285997950114c42315ef3cb8d",
+    "dist/src/core/shape-profiles.js": "7a333084fb67d307c4b7fdff28590f9ddab1e907d7c8f9f58ab03c636ed78882",
+    "src/core/shape-motion.ts": "60ec76022048e54e94247d85da3dc5477b90754af5931489871e1482a3aa4249",
+    "dist/src/core/shape-motion.js": "c2773bffef53bd43cd9a2a0b699a8388eadd3d967b4f628b61b65734620725c3",
+    "src/renderer/body-geometry.ts": "8b6646b4cce06ee38c16bd3e5bac6a5f18b9fcbc37195ec5e257b2d693d7577b",
+    "dist/src/renderer/body-geometry.js": "91dea40a3fc136f7bd4d3f3f90acd929c765e685b3cffb3e5807bdbc5a2cf875"
+  }
+}
