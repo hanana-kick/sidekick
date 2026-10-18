@@ -165,7 +165,7 @@ test('README HTML stage handles mouse/touch coordinates and independent stop con
   }
   pointer(300, 220, 'mouse');
   assert.deepEqual(JSON.parse(JSON.stringify(moves[0])), {
-    position: { x: 188, y: 128 }, options: { duration: 1000, travel: 'natural', maxSpeed: 320, acceleration: 900, deceleration: 1200 },
+    position: { x: 188, y: 128 }, options: { duration: 1000, travel: 'natural' },
   });
   pointer(45, 25, 'touch');
   assert.deepEqual(JSON.parse(JSON.stringify(moves[1].position)), { x: 0, y: 0 });
