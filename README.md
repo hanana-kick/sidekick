@@ -20,7 +20,7 @@ npm install https://github.com/hanana-kick/sidekick.git
 npm install https://github.com/hanana-kick/sidekick.git#v0.8.0
 ```
 
-빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.7.0`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.8.0`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
 
 npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. ESM과 일반 `<script>`용 JS, 전용 렌더링 worker를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
 
@@ -71,7 +71,7 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 
 ## CDN으로 빌드 없이 사용하기
 
-현재 CDN 권장 버전은 **0.7.0**입니다. 아래 URL은 GitHub 태그에 커밋된 **빌드 완료 JS**를 jsDelivr가 제공하므로 소스 빌드, npm 설치, npm 계정이 필요 없습니다. `main`, `latest`, 버전 범위 대신 **정확한 태그**를 고정하세요. 이전 `v0.2.7` 파일은 변경하지 않았습니다. 0.2.7도 같은 CDN 경로로 다운로드할 수 있지만, 다른 출처의 페이지에서는 worker 생성이 막혀 메인 스레드로 폴백하므로 신규 CDN 사용에는 위에 고정한 현재 버전을 사용하세요.
+현재 CDN 권장 버전은 **0.8.0**입니다. 아래 URL은 GitHub 태그에 커밋된 **빌드 완료 JS**를 jsDelivr가 제공하므로 소스 빌드, npm 설치, npm 계정이 필요 없습니다. `main`, `latest`, 버전 범위 대신 **정확한 태그**를 고정하세요. 이전 `v0.2.7` 파일은 변경하지 않았습니다. 0.2.7도 같은 CDN 경로로 다운로드할 수 있지만, 다른 출처의 페이지에서는 worker 생성이 막혀 메인 스레드로 폴백하므로 신규 CDN 사용에는 위에 고정한 현재 버전을 사용하세요.
 
 ### 일반 HTML / classic script
 
@@ -1243,5 +1243,7 @@ export function Example() {
 - **섹션 안 이동**: `position: relative` 컨테이너 안에 `placement="inline"`, `position: absolute; left: 0; top: 0`인 봇을 놓습니다. 그 DOM 위치가 이동의 원점입니다. 컨테이너의 실제 `clientWidth/Height`에서 봇 크기를 빼 목적지를 제한합니다. 이 예제는 급반전 관성으로 경계를 넘지 않도록 이동을 순차 실행하고 가장 최근의 대기 목적지를 사용합니다. `overflow: hidden`은 마지막 시각적 안전장치이며 resize 시 현재 위치를 다시 제한합니다.
 - **엘리먼트 정렬**: 실제 `Element`를 `moveToElement`에 전달해 동일한 가로·세로 정렬점끼리 맞추고 CSS px 오프셋을 더합니다. 기본값은 호출 시점의 위치로 한 번 이동합니다. `anchor: true`이면 도착 후에도 스크롤과 레이아웃 변화에 맞춰 계속 연결되며 `detachAnchor()`로 해제합니다.
 - **이벤트 반응**: form submit / CustomEvent → thinking → success의 smile·celebrating 또는 error의 still 상태를 연결합니다. 타이머는 전송 없는 로컬 작업 시뮬레이션입니다. 실제 서비스에서는 요청 결과 이벤트로 교체하세요. 새 결과가 오면 오래된 결과를 무시하며 AbortController로 리스너와 타이머를 정리합니다.
+
+상단의 고정된 예제 선택 메뉴에서 한 가지 시나리오만 표시합니다. 조작 버튼, 실제 결과, 접을 수 있는 사용 코드를 함께 두며 화면 고정과 섹션 이동은 별도의 스크롤 확인 구간에서 비교합니다. DOM 예제는 연결 유지 체크박스, 기준 카드 이동, 연결 해제를 제공합니다. WebGL 초기화 실패 시 무한 로딩 대신 오류와 재시도 가능한 예제 선택 메뉴를 표시하고 코드는 계속 볼 수 있습니다.
 
 한 번에 한 예제만 활성화하여 불필요한 렌더러를 만들지 않습니다. 예제 종료·전환 시 인스턴스를 제거하고, 보이지 않는 섹션과 숨겨진 페이지의 렌더링을 일시 정지합니다. Studio 설정은 읽기만 하며 실험 동작은 원본에 저장하지 않습니다. 페이지의 코드 조각은 등록·초기화된 `#demo-bot`에 적용하는 예제이며, 설치·HTML·React 초기화 코드는 API playground에서 복사할 수 있습니다.
