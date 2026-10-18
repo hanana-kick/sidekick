@@ -278,23 +278,39 @@ for (const failWorker of ['', 'constructor']) test(`${failWorker || 'worker'}: f
   }
   for(const mode of ['eyes','eyes-and-body']) {
    avatar.trackingMode=mode;
-   for(const dx of [0,-100000,100000,0]) {
+   for(const [dx,dy] of [[0,0],[-100000,0],[100000,0],[0,-100000],[0,100000],[-100000,-100000],[100000,100000],[-100000,100000],[100000,-100000],[0,0]]) {
     const rect=avatar.getBoundingClientRect();
-    document.dispatchEvent(new PointerEvent('pointermove',{clientX:rect.x+rect.width/2+dx,clientY:rect.y+rect.height/2,pointerType:'mouse',bubbles:true}));
+    document.dispatchEvent(new PointerEvent('pointermove',{clientX:rect.x+rect.width/2+dx,clientY:rect.y+rect.height/2+dy,pointerType:'mouse',bubbles:true}));
     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const image=await avatar.capturePixelsAsync();
-    samples.push({mode,dx,eyes:centers(image),gaze:avatar.pose.gaze});
+    samples.push({mode,dx,dy,eyes:centers(image),gaze:avatar.pose.gaze});
    }
   }
   return {backend:avatar.diagnostics.backend,samples};
  });
  assert.equal(result.backend,failWorker?'main':'worker');
- for(const sample of result.samples){assert.equal(sample.eyes.length,2,JSON.stringify(sample));assert.equal(sample.gaze[0],Math.sign(sample.dx));}
- const [neutral,left,right,restored]=result.samples;
- const spacing=s=>s.eyes[1].x-s.eyes[0].x;
- for(const sample of[left,right]) {
-  assert.ok(Math.abs(spacing(sample)-spacing(neutral))<1.5,'gaze must not collapse eye spacing');
-  for(let eye=0;eye<2;eye++)assert.ok((sample.eyes[eye].x-neutral.eyes[eye].x)*Math.sign(sample.dx)>1,'both eyes must follow');
+ for(const sample of result.samples){
+  assert.equal(sample.eyes.length,2,JSON.stringify(sample));
+  assert.equal(sample.gaze[0],Math.sign(sample.dx));
+  assert.equal(sample.gaze[1],sample.dy===0?0:-Math.sign(sample.dy));
  }
- for(let eye=0;eye<2;eye++)assert.ok(Math.abs(restored.eyes[eye].x-neutral.eyes[eye].x)<1,'return to neutral');
+ for(const mode of ['eyes','eyes-and-body']) {
+  const samples=result.samples.filter(sample=>sample.mode===mode),neutral=samples[0],restored=samples.at(-1);
+  const spacing=s=>Math.hypot(s.eyes[1].x-s.eyes[0].x,s.eyes[1].y-s.eyes[0].y);
+  for(const sample of samples.slice(1,-1)) {
+   // Body rotation naturally compresses the projected pair and changes depth;
+   // it must not collapse the pair into the one-eye-stationary configuration.
+   const ratio=spacing(sample)/spacing(neutral);
+   assert.ok(ratio>.8&&ratio<1.2,`${mode}: extreme gaze collapsed projected eye spacing`);
+   if(mode==='eyes') assert.ok(Math.abs(spacing(sample)-spacing(neutral))<1.5,'eyes-only spacing stays rigid');
+   for(let eye=0;eye<2;eye++) {
+    if(sample.dx) assert.ok((sample.eyes[eye].x-neutral.eyes[eye].x)*Math.sign(sample.dx)>.5,`${mode}: both eyes follow horizontal gaze`);
+    // Readback's vertical origin is backend-specific; compare the two eyes'
+    // direction rather than assuming top-down pixels.
+    if(sample.dy) assert.ok(Math.abs(sample.eyes[eye].y-neutral.eyes[eye].y)>.5,`${mode}: both eyes follow vertical gaze`);
+   }
+   if(sample.dy) assert.ok((sample.eyes[0].y-neutral.eyes[0].y)*(sample.eyes[1].y-neutral.eyes[1].y)>0,`${mode}: vertical gaze is conjugate`);
+  }
+  if(mode==='eyes') for(let eye=0;eye<2;eye++)assert.ok(Math.abs(restored.eyes[eye].x-neutral.eyes[eye].x)<1,'return to neutral');
+ }
 });
