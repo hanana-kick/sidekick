@@ -1,10 +1,10 @@
 # Sidekick
 
-**35개 Material 도형으로 만드는 투명 Flat 캐릭터 라이브러리.** 기본 `<sidekick-avatar>` 하나로 시작하고 HTML 속성, JavaScript API, React 래퍼 중 편한 방식으로 제어할 수 있습니다. 도형 전환, 좌우 표정, 마우스 시선 추적, 카메라 회전, 여섯 슬롯의 액세서리를 지원합니다. 코어는 프레임워크 의존성이 없는 TypeScript + Web Component + WebGL2입니다.
+**35개 Material 도형으로 만드는 투명 Flat 캐릭터 라이브러리.** 기본 `<sidekick-avatar>` 하나로 시작하고 HTML 속성, JavaScript API, React 래퍼 중 편한 방식으로 제어할 수 있습니다. 도형 전환, 좌우 표정, 마우스 시선 추적, 카메라 회전, 여섯 슬롯의 액세서리와 방향성 있는 화면 이동을 지원합니다. 코어는 프레임워크 의존성이 없는 TypeScript + Web Component + WebGL2입니다.
 
 - [설치](#설치) · [HTML](#html에서-바로-사용하기) · [React](#react에서-사용하기)
 - [전체 속성](#html-속성과-react-props) · [디자인과 액세서리](#디자인-json과-액세서리) · [애니메이션/API](#애니메이션과-명령형-api)
-- [이벤트/정리](#이벤트와-정리) · [SSR](#ssr과-브라우저-지원) · [Studio/개발](#studio와-개발)
+- [화면 이동/비행](#렌더링이동-표준-v03) · [이벤트/정리](#이벤트와-정리) · [SSR](#ssr과-브라우저-지원) · [Studio/개발](#studio와-개발)
 
 ## 설치
 
@@ -17,22 +17,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 버전을 고정하려면 릴리스 태그를 지정합니다.
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.3.0
+npm install https://github.com/hanana-kick/sidekick.git#v0.3.1
 ```
 
-빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.2.8`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.3.1`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
 
 npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. ESM과 일반 `<script>`용 JS, 전용 렌더링 worker를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
 
 ### GitHub Release에서 다운로드
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases)를 엽니다.
-2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.2.8.zip` 또는 `hanana-kick-sidekick-0.2.8.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
+2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.3.1.zip` 또는 `hanana-kick-sidekick-0.3.1.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
 3. 일반 HTML 사이트에서는 브라우저 ZIP을 풀고 아래 파일을 사이트의 정적 파일 디렉터리에 복사합니다. 동봉된 `START-HERE.txt`를 읽고 `esm.html`, `classic.html`, `react.html` 중 원하는 예제를 열면 됩니다. 예제의 `/vendor/sidekick/`은 **사용자 사이트의 경로**입니다. 배포 경로에 맞게 바꾸세요.
 
 | 빌드된 파일 | 용도 | 필요한 파일·의존성 |
 | --- | --- | --- |
-| `sidekick-browser-0.2.8.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
+| `sidekick-browser-0.3.1.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
 | `sidekick.js` | 브라우저 ESM. `import`와 `<script type="module">` 사용 | `sidekick.worker.js`를 같은 디렉터리에 유지 |
 | `sidekick.iife.js` | 일반 classic `<script>`. API는 `window.Sidekick` | `sidekick.worker.js`를 같은 디렉터리에 유지. `type="module"` 사용 안 함 |
 | `sidekick-react.js` | React 19용 ESM 컴포넌트 | `sidekick-element.js`·`sidekick-fallback.js`·`sidekick.worker.js`를 같은 디렉터리에 유지하고 `react` peer를 제공 |
@@ -40,7 +40,7 @@ npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.co
 | `sidekick-fallback.js` | worker를 사용할 수 없을 때 React 요소가 불러오는 렌더러 | 직접 import하지 않음. 나머지 파일과 같은 버전 사용 |
 | `sidekick.worker.js` | OffscreenCanvas 전용 worker | 브라우저 진입 파일 옆에 배치. 별도 script 태그로 불러오지 않음 |
 | `vendor/react.js`, `vendor/react-dom-client.js` | 브라우저 ZIP의 선택적 React 19/ReactDOM ESM | 아래 빌드 없는 React 예제용. import map으로 연결하며 React를 이미 제공하는 앱에는 불필요 |
-| `hanana-kick-sidekick-0.2.8.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
+| `hanana-kick-sidekick-0.3.1.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
 | `SHA256SUMS` | ZIP과 tarball의 다운로드 무결성 확인 | 같은 Release의 체크섬 파일 |
 
 ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보관하세요. **GitHub Release 자산은 다운로드한 뒤 본인 사이트에서 제공하세요.** 다운로드 URL은 브라우저 JS 호스팅용 URL이 아니며 자산 응답의 MIME·CORS 동작이 정적 호스팅과 다릅니다. 아래 예제의 `src`/`import`는 내려받은 파일을 제공하는 사이트 경로를 사용합니다.
@@ -52,7 +52,7 @@ ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보�
 Release에서 받은 tarball을 사용할 프로젝트에서 설치합니다. 이 명령은 Sidekick 소스를 컴파일하거나 Studio를 빌드하지 않습니다.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.2.8.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.3.1.tgz
 ```
 
 React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 마운트하는 `react-dom`도 사용자가 같은 버전으로 준비합니다. 코어만 쓰는 프로젝트에는 React가 필요 없습니다.
@@ -71,12 +71,12 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 
 ## CDN으로 빌드 없이 사용하기
 
-현재 CDN 권장 버전은 **0.2.8**입니다. 아래 URL은 GitHub 태그에 커밋된 **빌드 완료 JS**를 jsDelivr가 제공하므로 소스 빌드, npm 설치, npm 계정이 필요 없습니다. `main`, `latest`, 버전 범위 대신 **정확한 태그**를 고정하세요. 이전 `v0.2.7` 파일은 변경하지 않았습니다. 0.2.7도 같은 CDN 경로로 다운로드할 수 있지만, 다른 출처의 페이지에서는 worker 생성이 막혀 메인 스레드로 폴백하므로 신규 CDN 사용에는 0.2.8을 사용하세요.
+현재 CDN 권장 버전은 **0.3.1**입니다. 아래 URL은 GitHub 태그에 커밋된 **빌드 완료 JS**를 jsDelivr가 제공하므로 소스 빌드, npm 설치, npm 계정이 필요 없습니다. `main`, `latest`, 버전 범위 대신 **정확한 태그**를 고정하세요. 이전 `v0.2.7` 파일은 변경하지 않았습니다. 0.2.7도 같은 CDN 경로로 다운로드할 수 있지만, 다른 출처의 페이지에서는 worker 생성이 막혀 메인 스레드로 폴백하므로 신규 CDN 사용에는 위에 고정한 현재 버전을 사용하세요.
 
 ### 일반 HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.0/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.1/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowtie"
   left-smile="1" right-smile="1"
@@ -88,7 +88,7 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.0/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.1/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -104,15 +104,15 @@ React와 ReactDOM은 동일한 19.3.1의 미리 빌드된 ESM을 제공합니다
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.0/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.0/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.1/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.1/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.0/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.1/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowtie', leftSmile: 1, rightSmile: 1,
@@ -126,7 +126,7 @@ React와 ReactDOM은 동일한 19.3.1의 미리 빌드된 ESM을 제공합니다
 ### Worker, CORS, CSP와 자체 호스팅
 
 - CDN JS 응답은 JavaScript MIME 및 `Access-Control-Allow-Origin: *`가 필요합니다. jsDelivr가 이를 제공합니다. GitHub Release 다운로드 URL을 `script src`에 넣지 마세요.
-- 0.2.8은 CDN과 페이지의 출처가 다르면 로컬 Blob module worker에서 CDN의 `sidekick.worker.js`를 정적으로 import합니다. 실제 렌더링은 계속 OffscreenCanvas worker에서 수행합니다. Blob URL은 시작 완료/오류/종료 시 해제합니다.
+- 0.2.8부터 CDN과 페이지의 출처가 다르면 로컬 Blob module worker에서 CDN의 `sidekick.worker.js`를 정적으로 import합니다. 실제 렌더링은 계속 OffscreenCanvas worker에서 수행합니다. Blob URL은 시작 완료/오류/종료 시 해제합니다.
 - CSP가 있으면 `worker-src 'self' blob:` 및 `script-src`의 `https://cdn.jsdelivr.net`을 허용해야 합니다. 위 inline 예제와 import map에는 사이트 정책에 맞는 nonce/hash도 필요합니다. 전체 CSP를 무조건 완화하거나 `unsafe-inline`을 추가할 필요는 없습니다.
 - worker/WebGL2/OffscreenCanvas가 지원되지 않거나 CSP가 worker를 차단하면 기존 메인 스레드 렌더러로 폴백합니다. HTTPS로 제공하세요. HTTP 로컬 개발은 localhost를 사용하세요.
 - 자가 호스팅은 브라우저 ZIP의 **전체 여섯 JS 파일**을 같은 디렉터리에 유지합니다. React는 같은 버전의 `sidekick-element.js`, `sidekick-fallback.js`를 지연 로딩합니다. worker 파일이나 chunk만 다른 버전으로 교체하면 안 됩니다.
@@ -744,6 +744,10 @@ worker 파일은 페이지와 같은 origin에서 올바른 JavaScript MIME으�
 | `sidekick-motion-end` | `onMotionEnd` | `{ finished }` |
 | `sidekick-shape-end` | `onShapeEnd` | `{ finished }` |
 | `sidekick-activate` | `onActivate` | `{}` |
+| `sidekick-move-progress` | `onMoveProgress` | `MovementState`: phase, progress, position, velocity |
+| `sidekick-move-end` | `onMoveEnd` | `{ finished, position: { x, y } }` |
+| `sidekick-play-end` | `onPlayEnd` | `{ finished }` |
+| `sidekick-transition-end` | `onAssetTransitionEnd` | `{ finished }` |
 
 PNG의 기본 `crop: true`, `padding: 0`은 현재 캐릭터의 불투명/반투명 픽셀 전체 경계로 자릅니다. 장비도 포함하고 배경은 투명하게 유지합니다. `padding`은 0~4096의 정수 픽셀이며, 원래 캔버스 크기가 필요하면 `snapshot({ crop: false })`를 사용하세요. 완전히 비어 있으면 투명 1×1px(여백 별도)을 반환합니다. 정확한 최신 픽셀은 `await capturePixelsAsync()`로 읽습니다. 동기 `capturePixels()`는 worker 모드에서 최근 표시 프레임만 읽습니다. 두 메서드 모두 전체 캔버스 크기를 유지하며 `/core`의 `alphaBounds()`·`cropPixels()`도 사용할 수 있습니다.
 
@@ -894,7 +898,7 @@ Both HTML entry pages include static Open Graph and Twitter card tags with the c
 
 ## 렌더링·이동 표준 (v0.3)
 
-기본은 **캐릭터 크기의 투명 캔버스 + DOM 엘리먼트 이동**입니다. 전체 화면을 덮는 WebGL 캔버스는 만들지 않습니다. OffscreenCanvas 워커가 작은 표면을 렌더링하고, 메인 스레드는 CSS `translate`로 엘리먼트를 이동합니다. 이동 때문에 WebGL 해상도나 카메라, 몸체 메시를 바꾸지 않습니다. 화면 크기·DPR 변화에는 기존 ResizeObserver/해상도 제한을 그대로 적용합니다.
+기본은 **캐릭터 크기의 투명 캔버스 + DOM 엘리먼트 이동**입니다. 전체 화면을 덮는 WebGL 캔버스는 만들지 않습니다. OffscreenCanvas 워커가 작은 표면을 렌더링하고, 메인 스레드는 CSS `translate`로 엘리먼트를 이동합니다. DOM 이동 때문에 WebGL 해상도·카메라 설정·저장된 몸체 디자인을 바꾸지 않습니다. 기본 비행 동작은 작은 캔버스 안의 런타임 포즈로 합성합니다. 화면 크기·DPR 변화에는 기존 ResizeObserver/해상도 제한을 그대로 적용합니다.
 
 [이동·애니메이션 API 체험](https://sidekick.hananakick.cc/api-playground.html)에서 이동/중단/재생/에셋 전환을 직접 시험할 수 있습니다.
 
@@ -917,19 +921,23 @@ Both HTML entry pages include static Open Graph and Twitter card tags with the c
 | `movement-bounds` | `movementBounds` | `viewport` 기본 / `none`; inline에서는 미적용 |
 | `move-duration` | `moveDuration` | 선언형 좌표 변경 시간 0–60000ms, 기본 `0` |
 | `move-easing` | `moveEasing` | `smooth` 기본 / `linear` |
+| `move-travel` | `moveTravel` | `natural` 기본: 이륙·방향성 비행·착륙 / `none`: DOM 이동만 |
+| 이벤트 `sidekick-move-progress` | `onMoveProgress` | `MovementState`: `{ phase, progress, position, velocity }` |
 | 이벤트 `sidekick-move-end` | `onMoveEnd` | `{ finished, position: { x, y } }` |
 | 이벤트 `sidekick-play-end` | `onPlayEnd` | `{ finished }` 재생 구간 완료/취소 |
 | 이벤트 `sidekick-transition-end` | `onAssetTransitionEnd` | `{ finished }` 도형·표정·장식 묶음 전환 완료/취소 |
 
-`position-x/y`를 함께 변경하면 한 attribute transaction으로 처리합니다. 직접 메서드 호출의 옵션 기본 시간은 400ms이며 `move-duration` attribute는 선언형 변경에만 적용됩니다. 초기 배치를 즉시 하려면 move-duration을 생략하세요.
+`position-x/y`를 함께 변경하면 한 attribute transaction으로 처리합니다. 직접 메서드 호출의 옵션은 `{ duration: 400, easing: 'smooth', travel: 'natural' }`이며 `move-duration`·`move-easing`·`move-travel` attribute는 선언형 좌표 변경에만 적용됩니다. 초기 배치를 즉시 하려면 move-duration을 생략하세요.
 
 ### 메서드와 실제 완료의 의미
 
 | 메서드 | 의미 |
 | --- | --- |
-| `moveTo({ x, y }, { duration?, easing? })` | 현재 화면 좌표부터 이동. `Promise<MoveResult>` |
+| `moveTo({ x, y }, options?: MoveOptions)` | 현재 화면 좌표부터 이동. `Promise<MoveResult>` |
 | `moveBy({ x, y }, options?)` | 현재 진행 중인 좌표 기준 상대 이동 |
-| `cancelMove()` | 현재 좌표에서 멈춤. 이전 이동 결과 `finished: false` |
+| `cancelMove()` | DOM 이동을 현재 좌표에서 멈춤. 비행 포즈가 남으면 180ms 정리 후 `finished: false` |
+| `position` | 실제 DOM 좌표 `{ x, y }`의 복사본, 읽기 전용 |
+| `movementState` | phase·progress·position·velocity의 복사본, 읽기 전용 |
 | `play(activity, { duration? })` | 활동 루프 재생. duration은 루프 한 주기가 아닌 **재생 구간의 벽시계 ms** |
 | `stop()` | 재생 구간 취소 후 idle로 200ms 부드럽게 전환 |
 | `transitionTo({ shape?, expression?, accessories? }, options?)` | 도형/양쪽 눈 표정/전체 장식 목록을 함께 전환 |
@@ -937,7 +945,9 @@ Both HTML entry pages include static Open Graph and Twitter card tags with the c
 
 모든 timing easing은 `linear` 또는 `smooth`, duration은 0–60000ms입니다. `play`는 timing easing을 받지 않습니다. activity 값은 `idle`, `thinking`, `listening`, `speaking`, `celebrating`, `still`입니다.
 
-이동을 다시 요청하면 현재 보이는 좌표에서 새 목표로 이어지고, 이전 Promise와 이벤트는 한 번만 `finished: false`로 종료합니다. 연결 해제 시 RAF·타이머·fade를 정리하고 대기 중인 이동/재생/묶음 전환을 취소합니다. 이동은 카메라/몸체/눈의 모션과 독립적입니다.
+이동을 다시 요청하면 현재 보이는 좌표와 비행 포즈에서 새 목표로 이어지고 부드럽게 방향을 바꿉니다. 이전 Promise와 `sidekick-move-end`는 착륙을 기다리지 않고 한 번만 `finished: false`로 종료합니다. 새 이동의 완료는 새 Promise로 확인하세요. `sidekick-move-end`에는 대체된 이전 요청의 취소도 포함되므로 현재 진행 단계는 `movementState`로 확인하세요. 연결 해제 시 RAF·타이머·fade·비행 포즈를 즉시 정리하고 대기 중인 이동/재생/묶음 전환을 취소합니다.
+
+`cancelMove()`는 이동만 중단하고 `stop()`은 활동 재생만 중단합니다. 둘을 함께 멈추려면 둘 다 호출하세요. 이동 중 `play()`·`setActivity()`·표정 전환을 사용해도 이동 경로를 재시작하지 않습니다.
 
 `play(activity)`처럼 duration을 생략하면 `stop`, 다음 play/setActivity 또는 연결 해제 때까지 루프를 유지하며 Promise는 그때 `finished: false`로 종료합니다. 유한 duration이 끝나면 `finished: true`로 재생 구간을 완료하고, 이어서 idle로 200ms 블렌드합니다. 이 Promise는 idle 블렌드 종료까지 기다리는 신호가 아닙니다. 활동 변경도 마지막 표시된 활동 포즈에서 200ms 블렌드하며, 시작 시 자동 활동에는 새 효과를 추가하지 않습니다.
 
@@ -945,13 +955,57 @@ Both HTML entry pages include static Open Graph and Twitter card tags with the c
 
 취소가 장식 교체 중간 이전이면 이전 장식을 유지하고, 교체 이후면 새 장식을 유지합니다. 취소한 fade는 제거하여 캐릭터가 투명한 채 남지 않습니다. 취소된 도형은 현재 윤곽에서 멈추지만 design에는 요청했던 목표가 남습니다. 최신 shape/expression/equipment setter나 attribute 변경은 해당 묶음 전환을 취소합니다. 색상만 바꿀 때는 `updateDesign`을 사용하세요(진행 중인 묶음 전환은 취소됩니다).
 
-`paused` 또는 OS 모션 줄이기는 이동/윤곽/표정/fade를 즉시 적용합니다. 활동 재생 구간은 벽시계 시간이므로 일시 정지해도 경과합니다. 백그라운드 탭은 브라우저가 RAF/타이머를 지연시킬 수 있습니다. 화면 밖에서 렌더가 중지된 윤곽 모프의 Promise는 실제 재개/완료 또는 취소를 기다립니다. 미연결 상태의 move/transition은 설정을 즉시 적용하고, play는 `finished: false`를 반환합니다.
+`paused` 또는 OS 모션 줄이기는 이동 목표/윤곽/표정/fade를 즉시 적용하고 비행 포즈를 0으로 정리합니다. 이 경우 이륙·착륙·취소 후 180ms 정리를 기다리지 않습니다. 활동 재생 구간은 벽시계 시간이므로 일시 정지해도 경과합니다. 백그라운드 탭은 브라우저가 RAF/타이머를 지연시킬 수 있습니다. 화면 밖에서 렌더가 중지된 윤곽 모프의 Promise는 실제 재개/완료 또는 취소를 기다립니다. 미연결 상태의 move/transition은 설정을 즉시 적용하고, play는 `finished: false`를 반환합니다.
+
+### 자연스러운 방향성 비행 (v0.3.1)
+
+`moveTo()`·`moveBy()`는 기본적으로 `travel: 'natural'`을 사용합니다. `duration`은 이륙부터 착륙까지의 **전체 시간**입니다. 예를 들어 1000ms이면:
+
+1. 처음 15% (150ms): DOM 좌표를 유지하며 가볍게 떠오르고 이동 방향을 바라봅니다.
+2. 가운데 70% (700ms): 목표까지 DOM을 이동하며 화면 방향에 맞춰 시선·제한된 yaw/pitch·몸의 기울기를 합성합니다.
+3. 마지막 15% (150ms): 목표 좌표에서 살짝 내려앉고 비행 포즈를 없앱니다. 이때 이동이 `finished: true`로 끝납니다.
+
+`easing`은 가운데 이동 구간에 적용됩니다. 방향은 화면 기준이므로 왼쪽·오른쪽·위·아래·대각선으로 갈 때 포즈가 달라집니다. 180도 뒤집거나 카메라 설정을 바꾸지 않습니다. 살짝 떠오르는 효과는 캔버스 안의 포즈이며 `position`·bounds·진행 이벤트의 좌표에는 포함하지 않습니다.
+
+비행은 일시적인 런타임 오프셋입니다. 활동·표정·수동 포즈·카메라의 저장 상태를 덮어쓰지 않으며 `play()`의 타이머도 계속 갑니다. 착륙 후에는 **그 시점에 활성화된 활동**으로 이어집니다. 비행 도중 끝난 유한 재생을 다시 시작하거나, 이륙 전의 오래된 활동을 복원하지 않습니다.
+
+```ts
+import '@hanana-kick/sidekick';
+import type { MoveOptions, MovementState } from '@hanana-kick/sidekick';
+
+const bot = document.querySelector('sidekick-avatar')!;
+const options: MoveOptions = { duration: 1000, easing: 'smooth', travel: 'natural' };
+const result = await bot.moveBy({ x: 180, y: -60 }, options);
+console.log(result.finished, result.position);
+
+// 활동과 표정은 그대로 두고, 비행 포즈 없이 DOM만 이동합니다.
+await bot.moveTo({ x: 24, y: 80 }, { duration: 400, travel: 'none' });
+const state: MovementState = bot.movementState;
+console.log(state.phase, state.progress, state.position, state.velocity);
+```
+
+`travel: 'none'`은 이륙·착륙 없이 `duration` 전체를 DOM 이동에 사용합니다. 진행 중인 자연 비행을 대체했다면 직전 비행 포즈만 최대 180ms 동안 사라져 갑작스러운 자세 변화 없이 이어집니다. `duration: 0`, 같은 좌표로의 이동, 일시 정지·모션 줄이기·미연결 상태에서는 이동을 즉시 적용하며 비행 포즈를 남기지 않습니다.
+
+### 이동 상태와 취소
+
+`movementState`와 `sidekick-move-progress`의 `event.detail`은 같은 형태입니다.
+
+| 필드 | 의미 |
+| --- | --- |
+| `phase` | `idle`, `takeoff`, `flight`, `landing`, `settling` |
+| `progress` | 요청한 전체 duration 대비 경과 비율 0–1. 첫 idle은 0, 정상 완료 후 idle은 1, 취소 시에는 중단 비율 유지 |
+| `position` | 현재 DOM 좌표 `{ x, y }`, CSS px |
+| `velocity` | DOM 이동 속도 `{ x, y }`, CSS px/초. 오른쪽·아래가 양수 |
+
+상태는 복사본이며 읽거나 변경해도 실제 이동을 제어하지 않습니다. 이륙·착륙·취소 후 정리에서는 DOM이 멈춰 있으므로 속도는 0입니다. 진행 이벤트는 시작·애니메이션 샘플·크기 변경·취소·완료 시 발생합니다. UI에는 필요한 값만 반영하고, 완료/취소 확정에는 Promise 또는 `sidekick-move-end`를 사용하세요.
+
+`cancelMove()`는 호출 순간의 좌표에서 즉시 멈춥니다. 비행 포즈가 남아 있으면 `settling`으로 들어가 180ms 동안 방향·기울기·떠오름을 정리한 뒤 원래 이동 Promise와 `sidekick-move-end`를 `finished: false`로 완료합니다. 일시 정지·모션 줄이기·연결 해제는 포즈를 즉시 0으로 만듭니다. 정리할 비행 포즈가 없는 이동은 취소도 즉시 완료합니다(예: `travel: 'none'` 또는 이륙 직후). 취소 후 `progress`는 중단된 비율을 유지하며 `settling` 전용 진행률로 다시 시작하지 않습니다.
 
 ### CDN HTML에서 명령 API 사용
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.0/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.1/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { duration: 600, easing: 'smooth' });
@@ -967,24 +1021,101 @@ Both HTML entry pages include static Open Graph and Twitter card tags with the c
 
 첫 전환을 실제 애니메이션으로 보려면 `sidekick-ready` 이후 실행하세요. 준비 전 shape/expression 명령은 기존 API처럼 즉시 적용됩니다. 위 스크립트는 module이므로 HTML 파싱 후 실행됩니다. 동일한 메서드는 classic 번들로 등록한 엘리먼트에서도 사용할 수 있습니다.
 
+### 클릭·터치한 곳으로 이동하는 HTML 무대
+
+아래 무대는 `inline` 모드의 작은 144px 캔버스를 절대 배치합니다. 무대 전체를 렌더링하는 캔버스는 없습니다. 포인터 좌표를 무대 좌표로 바꾸고, 캔버스가 무대 안에 남도록 앱에서 제한합니다. 모바일 탭에는 Pointer Events를 사용합니다.
+
+```html
+<style>
+  #flight-stage { position: relative; height: 360px; overflow: hidden;
+    background: #f4f4f5; touch-action: manipulation; }
+  #flight-avatar { position: absolute; left: 0; top: 0; width: 144px; height: 144px; }
+</style>
+<div id="flight-stage" role="group" aria-label="누른 곳으로 이동하는 무대">
+  <sidekick-avatar id="flight-avatar" placement="inline" interaction="none"
+    move-duration="1000" move-travel="natural" body-color="#FFCC37"
+    aria-label="이동하는 도우미"></sidekick-avatar>
+</div>
+<button id="flight-center" type="button">가운데로 이동</button>
+<button id="flight-cancel" type="button">이동 중단</button>
+<button id="flight-play" type="button">말하기 재생</button>
+<button id="flight-stop" type="button">활동 중단</button>
+<p id="flight-status" aria-live="off">idle</p>
+<script type="module">
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.3.1/dist/browser/sidekick.js';
+  const stage = document.getElementById('flight-stage');
+  const bot = document.getElementById('flight-avatar');
+  const status = document.getElementById('flight-status');
+  function flyTo(localX, localY) {
+    const x = Math.max(0, Math.min(stage.clientWidth - bot.offsetWidth, localX - bot.offsetWidth / 2));
+    const y = Math.max(0, Math.min(stage.clientHeight - bot.offsetHeight, localY - bot.offsetHeight / 2));
+    void bot.moveTo({ x, y }, { duration: 1000, travel: 'natural' });
+  }
+  stage.addEventListener('pointerup', event => {
+    if (!event.isPrimary || event.button !== 0) return;
+    const rect = stage.getBoundingClientRect();
+    flyTo(event.clientX - rect.left, event.clientY - rect.top);
+  });
+  document.getElementById('flight-center').onclick = () => flyTo(stage.clientWidth / 2, stage.clientHeight / 2);
+  document.getElementById('flight-cancel').onclick = () => bot.cancelMove();
+  document.getElementById('flight-play').onclick = () => void bot.play('speaking', { duration: 2000 });
+  document.getElementById('flight-stop').onclick = () => bot.stop();
+  bot.addEventListener('sidekick-move-progress', event => { status.textContent = event.detail.phase; });
+  bot.addEventListener('sidekick-move-end', event => {
+    status.textContent = event.detail.finished ? '도착' : '이동 중단됨';
+  });
+</script>
+```
+
+`가운데로 이동` 버튼은 키보드로도 실행할 수 있습니다. 무대 크기를 동적으로 줄이는 앱은 새 크기에 맞춰 `moveTo()`를 호출해 다시 제한하세요. `inline`은 앱 컨테이너의 bounds를 자동 계산하지 않습니다. 이 예제의 `moveTo()`는 옵션을 직접 지정하므로 HTML timing attribute를 읽지 않습니다. 선언형으로 바꾸려면 `position-x/y`를 함께 갱신하면 됩니다.
+
 ### React: 같은 엘리먼트 API를 ref로 사용
 
 ```tsx
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { SidekickAvatar, type SidekickAvatarRef } from '@hanana-kick/sidekick/react';
 import { createAccessory } from '@hanana-kick/sidekick';
 
 export function Companion() {
   const bot = useRef<SidekickAvatarRef>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const [phase, setPhase] = useState('idle');
+  function flyTo(localX: number, localY: number) {
+    const avatar = bot.current;
+    const area = stage.current;
+    if (!avatar || !area) return;
+    const x = Math.max(0, Math.min(area.clientWidth - avatar.offsetWidth, localX - avatar.offsetWidth / 2));
+    const y = Math.max(0, Math.min(area.clientHeight - avatar.offsetHeight, localY - avatar.offsetHeight / 2));
+    void avatar.moveTo({ x, y }, { duration: 1000, travel: 'natural' });
+  }
   return <>
-    <button onClick={() => void bot.current?.moveTo({ x: 200, y: 180 }, { duration: 500 })}>이동</button>
-    <button onClick={() => void bot.current?.transitionTo({ shape: 'heart', expression: 'smile', accessories: [createAccessory('beret')] }, { duration: 600 })}>전환</button>
-    <button onClick={() => void bot.current?.play('speaking', { duration: 1200 })}>말하기</button>
-    <SidekickAvatar ref={bot} placement="viewport" positionX={24} positionY={200}
-      bodyColor="#FFCC37" style={{ width: 180, height: 180, zIndex: 1000 }}
-      onMoveEnd={event => console.log(event.detail.finished, event.detail.position)} />
+    <div ref={stage} role="group" aria-label="누른 곳으로 이동하는 무대"
+      style={{ position: 'relative', height: 360, overflow: 'hidden', background: '#f4f4f5', touchAction: 'manipulation' }}
+      onPointerUp={event => {
+        if (!event.isPrimary || event.button !== 0) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        flyTo(event.clientX - rect.left, event.clientY - rect.top);
+      }}>
+      <SidekickAvatar ref={bot} placement="inline" interaction="none"
+        moveDuration={1000} moveTravel="natural" bodyColor="#FFCC37"
+        style={{ position: 'absolute', left: 0, top: 0, width: 144, height: 144 }}
+        onMoveProgress={event => setPhase(event.detail.phase)}
+        onMoveEnd={event => setPhase(event.detail.finished ? '도착' : '이동 중단됨')} />
+    </div>
+    <button type="button" onClick={() => {
+      if (stage.current) flyTo(stage.current.clientWidth / 2, stage.current.clientHeight / 2);
+    }}>가운데로 이동</button>
+    <button type="button" onClick={() => bot.current?.cancelMove()}>이동 중단</button>
+    <button type="button" onClick={() => void bot.current?.play('speaking', { duration: 2000 })}>말하기 재생</button>
+    <button type="button" onClick={() => bot.current?.stop()}>활동 중단</button>
+    <button type="button" onClick={() => void bot.current?.transitionTo({
+      shape: 'heart', expression: 'smile', accessories: [createAccessory('beret')],
+    }, { duration: 600 })}>외형 전환</button>
+    <p aria-live="off">{phase}</p>
   </>;
 }
 ```
 
-React SSR은 기존처럼 안전하며 ref는 클라이언트 등록 후 게시됩니다. 선언형 position props는 값이 바뀔 때만 반영되므로 일반적인 부모 rerender가 명령형 이동을 되돌리지 않습니다. React의 `onAssetTransitionEnd`는 Sidekick 묶음 전환 이벤트입니다. 기존 네이티브 CSS `onTransitionEnd`와 구분됩니다. 공개 타입 `AvatarPlacement`, `AvatarPosition`, `MovementBounds`, `MoveResult`, `PlayOptions`, `AssetTransitionTarget`은 메인/`register` 엔트리에서 가져올 수 있습니다.
+React SSR은 기존처럼 안전하며 ref는 클라이언트 등록 후 게시됩니다. 선언형 `positionX/Y` props는 값이 바뀔 때만 반영되므로 일반적인 부모 rerender가 명령형 이동을 되돌리지 않습니다. 위 ref 호출은 `MoveOptions`를 직접 전달하며 `moveDuration`·`moveTravel` props는 선언형 `positionX/Y` 변경에 적용됩니다. React의 `onAssetTransitionEnd`는 Sidekick 묶음 전환 이벤트입니다. 기존 네이티브 CSS `onTransitionEnd`와 구분됩니다.
+
+공개 타입 `AvatarPlacement`, `AvatarPosition`, `MovementBounds`, `MoveOptions`, `MoveResult`, `MovementState`, `PlayOptions`, `AssetTransitionTarget`은 메인/`register` 엔트리에서 가져올 수 있습니다. `MoveOptions.travel`의 값은 `'natural' | 'none'`이며, 기존 `MotionOptions`를 받는 도형/표정/포즈 API에는 `travel`을 전달하지 않습니다.
