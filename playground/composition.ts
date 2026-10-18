@@ -3,7 +3,7 @@ import { createScene, migrateScene } from '../src/core/scene.js';
 import type { SidekickScene } from '../src/core/scene.js';
 export interface Composition { width: number; height: number; background: string; characterX: number; characterY: number; characterHeight: number; text: string; textX: number; textY: number; fontSize: number; textColor: string; font: 'sans' | 'serif' | 'mono' }
 export const FONT_FAMILIES = { sans: '"Geist Variable", Arial, sans-serif', serif: 'Georgia, serif', mono: 'monospace' };
-export const defaultComposition = (): Composition => ({ width: 1200, height: 630, background: '#ffffff', characterX: 42.4, characterY: 50, characterHeight: 20.8571428571, text: 'Sidekick', textX: 48.65, textY: 50, fontSize: 39.6, textColor: '#24242c', font: 'sans' });
+export const defaultComposition = (): Composition => ({ width: 1200, height: 630, background: '#ffffff', characterX: 40.88, characterY: 50, characterHeight: 25.0285714286, text: 'Sidekick', textX: 48.38, textY: 50, fontSize: 47.52, textColor: '#24242c', font: 'sans' });
 export function parseComposition(input: unknown): Composition {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('장면 배치 객체가 필요합니다.');
   const p = input as Record<string, unknown>, defaults = defaultComposition();
