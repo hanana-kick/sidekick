@@ -1,6 +1,8 @@
 name: Use Cases interaction walkthrough
 on:
   workflow_dispatch:
+  push:
+    branches: [fix/usecase-ux]
 permissions:
   contents: read
 jobs:
