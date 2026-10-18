@@ -21,6 +21,7 @@ Optional environment variables:
 - `VIEWS='[["front",0,0],["side",90,0]]'` customizes the named views.
 - `CAPTURE_LAYERS=1` also renders separate body-only and crown-only PNGs.
 - `CAPTURE_GEOMETRY=1` writes recorded vertices, indices, and uniforms for independent geometry review.
+- `CAPTURE_NO_CULL=1` also replays unchanged production shaders with culling disabled.
 
 `provenance.json` records every source file's SHA256, shader hashes, exact views, colors, and image hashes. Source hashes are checked again at completion. Freeze `src` into a separate source directory for each revision; changing source during a run fails the run. The renderer needs only that source directory's `src` files. Run the harness from the actual project so the installed `tsx` loader is available.
 
@@ -96,3 +97,49 @@ All 128 flagged candidate-5 low-resolution cases were rechecked at 768px. Remain
 The activity harness accepts the same `CASES_FILE` and `DETAIL_PIXELS` options. For a selected activity case, it still warms chronologically from frame 0 to the requested frame; it never substitutes a static render at that timestamp. Candidate 5's 93 low-resolution flagged activity cases were rechecked at 768px in `candidate-5-activity-flags-768`, and residual coordinates are in `candidate-5-activity-residual-pixels`. Consolidated findings and scope limitations are in `/workspace/shared/crown-fit-qa/candidate-5-visibility-review.md`.
 
 When comparing two later candidates, pass `--baseline-label 'candidate 5'` (or the relevant name) alongside `--baseline`; this keeps comparison headings explicit about the chosen baseline. Candidate 6's comparison pages use candidate 5, not the original v0.3.1 baseline.
+
+## Final integrated candidate 8
+
+The final source snapshot is `/workspace/shared/crown-fit-qa/candidate-8-source`, copied from the clean integrated `sidekick-crown-release` commit `97e6b50817f52e8c1a26dc7c8e9bd05d1342d68f`. Its `snapshot.json` pins all 47 source files. It includes the 0.4 motion changes, final crown placements, and header integration. Earlier candidate activity results must not be substituted for this source.
+
+```sh
+SOURCE=/workspace/shared/crown-fit-qa/candidate-8-source \
+OUT=/workspace/shared/crown-fit-qa/candidate-8 SIZE=512 \
+  node --import tsx scripts/crown-qa/production-catalog.mjs
+python3 scripts/crown-qa/compose.py /workspace/shared/crown-fit-qa/candidate-8 \
+  --label 'Final integrated crown candidate 8' \
+  --baseline /workspace/shared/crown-fit-qa/candidate-5 --baseline-label 'candidate 5'
+SOURCE=/workspace/shared/crown-fit-qa/candidate-8-source \
+OUT=/workspace/shared/crown-fit-qa/candidate-8-grid SIZE=192 STEP=15 \
+  node --import tsx scripts/crown-qa/visibility-grid.mjs
+SOURCE=/workspace/shared/crown-fit-qa/candidate-8-source \
+OUT=/workspace/shared/crown-fit-qa/candidate-8-activities SIZE=192 \
+  node --import tsx scripts/crown-qa/activity-grid.mjs
+```
+
+Use new output directories when reproducing a preserved run. `candidate-8-visibility-review.md` and `.json` summarize the exact completed coverage and residual high-resolution flags; raw per-case data remains available.
+
+## Opening versus solid-wall attribution
+
+For an individual suspicious view, capture actual production geometry, layers, and no-cull color replay. The following records the final Fan and Burst quarter views at 768px, zoom 2:
+
+```sh
+SOURCE=/workspace/shared/crown-fit-qa/candidate-8-source \
+OUT=/workspace/shared/crown-fit-qa/candidate-8-opening-audit SIZE=768 ZOOM=2 \
+SHAPES=fan,burst VIEWS='[["quarter",45,15]]' \
+CAPTURE_LAYERS=1 CAPTURE_GEOMETRY=1 CAPTURE_NO_CULL=1 \
+  node --import tsx scripts/crown-qa/production-catalog.mjs
+SOURCE=/workspace/shared/crown-fit-qa/candidate-8-source \
+OUT=/workspace/shared/crown-fit-qa/candidate-8-opening-audit/depth SIZE=768 ZOOM=2 \
+CASES_FILE=/workspace/shared/crown-fit-qa/candidate-8-opening-audit/selected-cases.json \
+SAVE_MASKS=1 DETAIL_PIXELS=1 \
+  node --import tsx scripts/crown-qa/visibility-grid.mjs
+node scripts/crown-qa/check-recorded-intersections.mjs \
+  /workspace/shared/crown-fit-qa/candidate-8-opening-audit/fan-quarter-geometry.json
+python3 scripts/crown-qa/trace-opening-rays.py \
+  /workspace/shared/crown-fit-qa/candidate-8-opening-audit fan
+```
+
+Repeat the last two commands with `burst`. The ray script additionally requires NumPy. `selected-cases.json` is the two explicit `{shape, camera}` entries for Fan and Burst, with `{yaw:45,pitch:15,roll:0,zoom:2}`. `SAVE_MASKS=1` preserves raw top-down RGBA diagnostic buffers: R is object ID, G/B contain 16-bit depth, and A is coverage. It is intended for small targeted audits, not full-grid image export.
+
+`check-recorded-intersections.mjs` uses captured production vertex/index buffers transformed with their exact model matrices, then the independent triangle-intersection helper. `trace-opening-rays.py` evaluates pixel-center rays against those same buffers/matrices, identifies crown sections from the immutable six-ring topology, checks every disconnected exact-yellow body-patch pixel, and explicitly probes Fan's small background opening. The report explains why flat-colored rear inner walls can appear to be front metal in the 2D image. This is evidence for these captured views, not a proof for all continuous motion/camera states.
