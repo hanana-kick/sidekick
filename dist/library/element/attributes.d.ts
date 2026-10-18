@@ -1,5 +1,5 @@
 import type { Activity, AvatarDesign, Vec2 } from '../core/design.js';
-import type { CameraState, CameraPreset } from '../core/camera.js';
+import type { BodyOrientation, BodyOrientationPreset } from '../core/body-orientation.js';
 import type { EyeExpression } from '../core/expressions.js';
 import type { MotionOptions, MotionResult, MotionTarget } from '../core/motion.js';
 import type { TrackingMode } from '../core/tracking.js';
@@ -45,11 +45,11 @@ export interface SidekickAttributes {
     'left-ear-color'?: string;
     'right-ear-accessory'?: 'earring' | 'starEarring' | 'none';
     'right-ear-color'?: string;
-    camera?: CameraPreset;
-    'camera-yaw'?: NumericAttribute;
-    'camera-pitch'?: NumericAttribute;
-    'camera-roll'?: NumericAttribute;
-    'camera-zoom'?: NumericAttribute;
+    'body-orientation'?: BodyOrientationPreset;
+    'body-yaw'?: NumericAttribute;
+    'body-pitch'?: NumericAttribute;
+    'body-roll'?: NumericAttribute;
+    'zoom'?: NumericAttribute;
     'gaze-x'?: NumericAttribute;
     'gaze-y'?: NumericAttribute;
     activity?: Activity;
@@ -74,7 +74,19 @@ export declare const ACCESSORY_ATTRIBUTE_SLOTS: Readonly<{
     readonly 'left-ear': "leftEar";
     readonly 'right-ear': "rightEar";
 }>;
-export declare const SIDEKICK_ATTRIBUTES: readonly ["placement", "position-x", "position-y", "movement-bounds", "move-duration", "move-easing", "move-travel", "move-max-speed", "move-acceleration", "move-deceleration", "design", "shape", "body-color", "eye-color", "expression", "left-expression", "right-expression", "smile", "blink", "left-smile", "right-smile", "left-blink", "right-blink", "accessories", "head-accessory", "head-color", "eyes-accessory", "eyes-color", "mouth-accessory", "mouth-color", "neck-accessory", "neck-color", "left-ear-accessory", "left-ear-color", "right-ear-accessory", "right-ear-color", "camera", "camera-yaw", "camera-pitch", "camera-roll", "camera-zoom", "gaze-x", "gaze-y", "activity", "paused", "interaction", "mouse-tracking", "tracking-mode", "render-style", "shape-duration", "shape-easing", "motion-duration", "motion-easing", "motion", "time"];
+export declare const SIDEKICK_ATTRIBUTES: readonly ["placement", "position-x", "position-y", "movement-bounds", "move-duration", "move-easing", "move-travel", "move-max-speed", "move-acceleration", "move-deceleration", "design", "shape", "body-color", "eye-color", "expression", "left-expression", "right-expression", "smile", "blink", "left-smile", "right-smile", "left-blink", "right-blink", "accessories", "head-accessory", "head-color", "eyes-accessory", "eyes-color", "mouth-accessory", "mouth-color", "neck-accessory", "neck-color", "left-ear-accessory", "left-ear-color", "right-ear-accessory", "right-ear-color", "body-orientation", "body-yaw", "body-pitch", "body-roll", "zoom", "gaze-x", "gaze-y", "activity", "paused", "interaction", "mouse-tracking", "tracking-mode", "render-style", "shape-duration", "shape-easing", "motion-duration", "motion-easing", "motion", "time"];
+export declare const REMOVED_ORIENTATION_ATTRIBUTES: Readonly<{
+    camera: "body-orientation";
+    'camera-yaw': "body-yaw";
+    'camera-pitch': "body-pitch";
+    'camera-roll': "body-roll";
+    'camera-zoom': "zoom";
+    view: "body-orientation";
+    'view-yaw': "body-yaw";
+    'view-pitch': "body-pitch";
+    'view-roll': "body-roll";
+    'view-zoom': "zoom";
+}>;
 export interface SidekickErrorDetail {
     message: string;
     attribute?: string;
@@ -84,8 +96,11 @@ export interface SidekickErrorDetail {
 export interface SidekickDesignChangeDetail {
     design: AvatarDesign;
 }
-export interface SidekickCameraChangeDetail {
-    camera: CameraState;
+export interface SidekickBodyOrientationChangeDetail {
+    bodyOrientation: BodyOrientation;
+}
+export interface SidekickZoomChangeDetail {
+    zoom: number;
 }
 export interface SidekickEventMap {
     'sidekick-move-end': CustomEvent<MoveResult>;
@@ -94,7 +109,8 @@ export interface SidekickEventMap {
     'sidekick-transition-end': CustomEvent<MotionResult>;
     'sidekick-ready': CustomEvent<Record<string, never>>;
     'sidekick-design-change': CustomEvent<SidekickDesignChangeDetail>;
-    'sidekick-camera-change': CustomEvent<SidekickCameraChangeDetail>;
+    'sidekick-body-orientation-change': CustomEvent<SidekickBodyOrientationChangeDetail>;
+    'sidekick-zoom-change': CustomEvent<SidekickZoomChangeDetail>;
     'sidekick-motion-end': CustomEvent<MotionResult>;
     'sidekick-shape-end': CustomEvent<MotionResult>;
     'sidekick-activate': CustomEvent<Record<string, never>>;
@@ -107,7 +123,8 @@ export interface ResolvedAttributes {
     movementBounds: MovementBounds;
     moveOptions: MoveOptions;
     design: AvatarDesign;
-    camera: CameraState;
+    bodyOrientation: BodyOrientation;
+    zoom: number;
     gaze: Vec2;
     activity: Activity;
     paused: boolean;

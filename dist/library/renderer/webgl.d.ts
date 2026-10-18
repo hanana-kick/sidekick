@@ -1,7 +1,7 @@
 import type { TravelPresentation } from '../core/travel.js';
-import type { Activity, AvatarDesign, RenderStyle, Vec2 } from '../core/design.js';
+import type { Activity, AvatarDesign, RenderStyle } from '../core/design.js';
 import type { ActivityFrame, Pose } from '../core/motion.js';
-import type { CameraAngles, CameraState } from '../core/camera.js';
+import type { BodyOrientation } from '../core/body-orientation.js';
 import type { ShapeProfile } from '../core/shape-profiles.js';
 import type { ShapeContour } from '../core/contours.js';
 export interface RenderState {
@@ -14,11 +14,10 @@ export interface RenderState {
     /** Optional runtime activity crossfade; direct renderer clients keep the standard loop. */
     activityFrame?: ActivityFrame;
     travel?: TravelPresentation;
-    camera?: CameraAngles & Partial<Pick<CameraState, 'zoom'>>;
+    bodyOrientation?: Partial<BodyOrientation>;
+    zoom?: number;
     /** Active explicit eye tracks postpone a newly starting idle blink per eye. */
     eyeMotion?: Record<'left' | 'right', boolean>;
-    /** Legacy viewing rotations in radians. Prefer camera's explicit degree values. */
-    view?: Vec2;
     contour?: ShapeContour;
     profile?: ShapeProfile;
 }

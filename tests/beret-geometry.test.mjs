@@ -369,7 +369,7 @@ test('complete 181-frame joint-axis turns retain bounded runtime beret motion', 
         const { time, pose } = jointAxisTurn(frame, design.accessories[0].id);
         renderer.render(design, {
           pose, eyeMotion: { left: false, right: false }, activity: 'idle', time, delta: 1 / 30,
-          reduced: false, style: 'flat', view: [0, 0], camera: { yaw: 0, pitch: -30, roll: 0 },
+          reduced: false, style: 'flat', bodyOrientation: { yaw: 0, pitch: -30, roll: 0 },
         });
         assert.equal(captured.draws.length, 3, `${shape}/${frame}: body, cuff and crown render`);
         const draw = captured.draws[1], crown = captured.draws[2];

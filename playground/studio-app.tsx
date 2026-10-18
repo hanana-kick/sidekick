@@ -10,8 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import type { Activity, AccessoryPreset } from '../src/core/design.js';
-import { CAMERA_PRESETS } from '../src/core/camera.js';
-import type { CameraPreset } from '../src/core/camera.js';
+import { BODY_ORIENTATION_PRESETS } from '../src/core/body-orientation.js';
+import type { BodyOrientationPreset } from '../src/core/body-orientation.js';
 import type { EyeExpression } from '../src/core/expressions.js';
 import type { TrackingMode } from '../src/core/tracking.js';
 import { MATERIAL_SHAPE_LABELS } from '../src/core/shapes.js';
@@ -28,7 +28,7 @@ import { defaultComposition } from './composition';
 
 const ASSET_BASE = studioBaseURL(import.meta.env?.BASE_URL ?? '/', import.meta.url);
 const ACTIVITY_LABELS: Record<Activity, string> = { idle: '대기', thinking: '생각 중', listening: '듣는 중', speaking: '말하는 중', celebrating: '축하', still: '정적' };
-const CAMERA_LABELS: Record<CameraPreset, string> = { front: '정면', 'three-quarter': '사선 45°', side: '측면 90°' };
+const BODY_ORIENTATION_LABELS: Record<BodyOrientationPreset, string> = { front: '정면', 'three-quarter': '사선 45°', side: '측면 90°' };
 function download(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob), link = document.createElement('a');
   link.href = url; link.download = filename; document.body.append(link); link.click(); link.remove();
@@ -39,7 +39,7 @@ function download(blob: Blob, filename: string): void {
 const AvatarPreview = memo(function AvatarPreview({ controller }: { controller: StudioController }) {
   const ref = useRef<SidekickAvatar | null>(null);
   useLayoutEffect(() => ref.current ? controller.bindAvatar(ref.current) : undefined, [controller]);
-  return createElement('sidekick-avatar', { ref, id: 'flat', 'render-style': 'flat', interaction: 'box', 'aria-label': '캐릭터 미리보기, 드래그로 카메라 각도 조절' });
+  return createElement('sidekick-avatar', { ref, id: 'flat', 'render-style': 'flat', interaction: 'box', 'aria-label': '캐릭터 미리보기, 드래그로 몸체 방향 조절' });
 });
 
 function AppearancePanel({ state, controller, resetKey }: { state: StudioState; controller: StudioController; resetKey: number }) {
@@ -82,7 +82,7 @@ function AnimationPanel({ state, controller }: { state: StudioState; controller:
           <ToggleGroupItem id="mouse-tracking" value="eyes">눈만</ToggleGroupItem>
           <ToggleGroupItem id="tracking-eyes-and-body" value="eyes-and-body">눈과 몸</ToggleGroupItem>
         </ToggleGroup>
-        <FieldDescription id="mouse-tracking-help">눈만 또는 눈과 몸이 페이지의 마우스를 따라봅니다. 몸 움직임은 기존 모션 위에 부드럽게 더해지며 카메라 각도를 바꾸지 않습니다. 장면 JSON에 저장됩니다.</FieldDescription>
+        <FieldDescription id="mouse-tracking-help">눈만 또는 눈과 몸이 페이지의 마우스를 따라봅니다. 몸 움직임은 기존 모션 위에 부드럽게 더해지며 몸체 방향를 바꾸지 않습니다. 장면 JSON에 저장됩니다.</FieldDescription>
       </FieldSet>
       <div className="motion-actions"><Button id="look-left" variant="ghost" size="sm" onClick={() => controller.look(-.9)}>왼쪽 보기</Button><Button id="look-center" variant="ghost" size="sm" onClick={() => controller.look(0)}>정면 보기</Button><Button id="look-right" variant="ghost" size="sm" onClick={() => controller.look(.9)}>오른쪽 보기</Button><Button id="face-motion" variant="outline" size="sm" aria-pressed={state.movedFace} onClick={controller.toggleFace}>얼굴 이동</Button></div>
     </section>
@@ -107,16 +107,17 @@ function AnimationPanel({ state, controller }: { state: StudioState; controller:
   </FieldGroup>;
 }
 
-function CameraPanel({ state, controller }: { state: StudioState; controller: StudioController }) {
-  const preset = (Object.keys(CAMERA_PRESETS) as CameraPreset[]).find(name => (['yaw', 'pitch', 'roll'] as const).every(axis => Math.abs(state.camera[axis] - CAMERA_PRESETS[name][axis]) < .0001)) ?? '';
-  return <FieldGroup><div className="section-heading"><h2>보는 각도</h2><Button id="reset-camera" variant="ghost" size="sm" onClick={controller.resetCamera}><RotateCcw data-icon="inline-start" />보기 초기화</Button></div>
-    <ToggleGroup type="single" variant="outline" value={preset} onValueChange={value => { if (value) controller.setCameraPreset(value as CameraPreset); }} aria-label="카메라 프리셋" className="camera-presets">
-      {(Object.keys(CAMERA_LABELS) as CameraPreset[]).map(name => <ToggleGroupItem key={name} value={name} data-camera-preset={name}>{CAMERA_LABELS[name]}</ToggleGroupItem>)}
+function BodyOrientationPanel({ state, controller }: { state: StudioState; controller: StudioController }) {
+  const preset = (Object.keys(BODY_ORIENTATION_PRESETS) as BodyOrientationPreset[]).find(name => (['yaw', 'pitch', 'roll'] as const).every(axis => Math.abs(state.bodyOrientation[axis] - BODY_ORIENTATION_PRESETS[name][axis]) < .0001)) ?? '';
+  return <FieldGroup><div className="section-heading"><h2>몸체 방향</h2><Button id="reset-body-orientation" variant="ghost" size="sm" onClick={controller.resetBodyOrientation}><RotateCcw data-icon="inline-start" />방향 초기화</Button></div>
+    <ToggleGroup type="single" variant="outline" value={preset} onValueChange={value => { if (value) controller.setBodyOrientationPreset(value as BodyOrientationPreset); }} aria-label="몸체 방향 프리셋" className="body-orientation-presets">
+      {(Object.keys(BODY_ORIENTATION_LABELS) as BodyOrientationPreset[]).map(name => <ToggleGroupItem key={name} value={name} data-body-orientation-preset={name}>{BODY_ORIENTATION_LABELS[name]}</ToggleGroupItem>)}
     </ToggleGroup>
-    <RangeField id="view-yaw" label="좌우 각도 · Yaw" value={state.camera.yaw} min={-360} max={360} suffix="°" onChange={yaw => controller.setCamera({ yaw })} />
-    <RangeField id="view-pitch" label="상하 각도 · Pitch" value={state.camera.pitch} min={-90} max={90} suffix="°" onChange={pitch => controller.setCamera({ pitch })} />
-    <RangeField id="view-roll" label="화면 기울기 · Roll" value={state.camera.roll} min={-180} max={180} suffix="°" onChange={roll => controller.setCamera({ roll })} />
-    <RangeField id="view-zoom" label="확대 · Zoom" value={state.camera.zoom} min={.5} max={3} step={.01} format={value => `${Math.round(value * 100)}%`} onChange={zoom => controller.setCamera({ zoom })} />
+    <RangeField id="body-yaw" label="좌우 각도 · Yaw" value={state.bodyOrientation.yaw} min={-360} max={360} suffix="°" onChange={yaw => controller.setBodyOrientation({ yaw })} />
+    <RangeField id="body-pitch" label="상하 각도 · Pitch" value={state.bodyOrientation.pitch} min={-90} max={90} suffix="°" onChange={pitch => controller.setBodyOrientation({ pitch })} />
+    <RangeField id="body-roll" label="몸체 기울기 · Roll" value={state.bodyOrientation.roll} min={-180} max={180} suffix="°" onChange={roll => controller.setBodyOrientation({ roll })} />
+    <div className="section-heading"><h2>확대</h2><Button id="reset-zoom" variant="ghost" size="sm" onClick={controller.resetZoom}>확대 초기화</Button></div>
+    <RangeField id="zoom" label="확대 · Zoom" value={state.zoom} min={.5} max={3} step={.01} format={value => `${Math.round(value * 100)}%`} onChange={zoom => controller.setZoom(zoom)} />
     <FieldDescription>드래그로 회전하고 휠·트랙패드 또는 두 손가락으로 확대하세요. 확대는 중앙 기준이며 높은 배율에서는 화면 밖이 잘릴 수 있습니다. PNG도 현재 보이는 부분을 저장합니다.</FieldDescription>
   </FieldGroup>;
 }
@@ -138,7 +139,7 @@ function JSONPanel({ state, controller }: { state: StudioState; controller: Stud
   }
   return <FieldGroup>
     <div className="section-heading"><h2>장면 JSON</h2><Badge variant="outline">Scene v1 · Design v7</Badge></div>
-    <FieldDescription>디자인·카메라·시선·추적·모션 설정을 함께 저장합니다. 이전 디자인 JSON도 가져올 수 있습니다.</FieldDescription>
+    <FieldDescription>디자인·몸체 방향·시선·추적·모션 설정을 함께 저장합니다. 이전 디자인 JSON도 가져올 수 있습니다.</FieldDescription>
     {state.recovery && !state.recoverySaved && <Alert id="saved-design-warning" variant="destructive"><CircleHelp /><AlertTitle>저장 원본을 보존했습니다</AlertTitle><AlertDescription>적용할 수 없는 저장 데이터를 아래에 열었습니다. 수정하거나 원본을 내려받으세요. 변경 전 원본 백업이 실패하면 자동 저장하지 않습니다.</AlertDescription></Alert>}
     <Field data-invalid={!!state.jsonError}><FieldLabel htmlFor="design-json">장면 데이터</FieldLabel><Textarea ref={textarea} id="design-json" spellCheck={false} value={state.jsonDraft} onChange={event => controller.editJSON(event.target.value)} aria-invalid={!!state.jsonError} aria-describedby="json-error" className="json-editor" /><div id="json-error"><FieldError>{state.jsonError}</FieldError></div></Field>
     <input ref={fileInput} id="import-scene-file" type="file" accept=".json,application/json" hidden onChange={event => {
@@ -150,7 +151,7 @@ function JSONPanel({ state, controller }: { state: StudioState; controller: Stud
     </div>
     <Separator />
     <section aria-labelledby="api-heading"><h2 id="api-heading" className="section-title">현재 장면을 코드로 사용하기</h2>
-      <FieldDescription>카메라·장비·표정·마우스 추적을 포함한 현재 설정입니다. 패키지를 설치한 번들러 프로젝트에서 사용하세요. <a id="usage-guide" href="https://github.com/hanana-kick/sidekick#readme" target="_blank" rel="noreferrer">설치 · 전체 속성 가이드</a></FieldDescription>
+      <FieldDescription>몸체 방향·장비·표정·마우스 추적을 포함한 현재 설정입니다. 패키지를 설치한 번들러 프로젝트에서 사용하세요. <a id="usage-guide" href="https://github.com/hanana-kick/sidekick#readme" target="_blank" rel="noreferrer">설치 · 전체 속성 가이드</a></FieldDescription>
       <details className="usage-example" open><summary>HTML · 웹컴포넌트</summary><Button id="copy-html" variant="outline" size="sm" onClick={() => void copySnippet('html')}><Copy data-icon="inline-start" />HTML 복사</Button><pre id="api-example">{snippets.html}</pre></details>
       <details className="usage-example"><summary>React · JSX</summary><Button id="copy-react" variant="outline" size="sm" onClick={() => void copySnippet('react')}><Copy data-icon="inline-start" />React 복사</Button><pre id="react-example">{snippets.react}</pre></details>
     </section>
@@ -183,12 +184,12 @@ export function StudioApp({ controller }: { controller: StudioController }) {
         <footer className="preview-footer"><ToggleGroup type="single" size="sm" value={sceneMode ? "scene" : "character"} onValueChange={value => { if (value) setSceneMode(value === "scene"); }} aria-label="편집 화면"><ToggleGroupItem value="character">캐릭터</ToggleGroupItem><ToggleGroupItem value="scene">장면</ToggleGroupItem></ToggleGroup><span className="preview-shape">{MATERIAL_SHAPE_LABELS[state.design.body.shape]}<Badge variant="secondary">Flat</Badge></span><span className="preview-hint"><Move aria-hidden="true" />드래그 회전 · 휠/핀치 확대</span></footer>
       </section>
       <aside className="inspector" aria-label="캐릭터 디자인 설정">
-        <Tabs value={tab} onValueChange={changeTab} className="settings-tabs"><div className="settings-nav"><TabsList className="w-full" aria-label="디자인 항목"><TabsTrigger value="appearance" id="appearance-tab" aria-controls="appearance-panel">외형</TabsTrigger><TabsTrigger value="animation" id="animation-tab" aria-controls="animation-panel">애니메이션</TabsTrigger><TabsTrigger value="camera" id="camera-tab" aria-controls="camera-panel">카메라</TabsTrigger><TabsTrigger value="scene" id="scene-tab" aria-controls="scene-panel">장면</TabsTrigger><TabsTrigger value="json" id="json-tab" aria-controls="json-panel">JSON</TabsTrigger></TabsList></div>
+        <Tabs value={tab} onValueChange={changeTab} className="settings-tabs"><div className="settings-nav"><TabsList className="w-full" aria-label="디자인 항목"><TabsTrigger value="appearance" id="appearance-tab" aria-controls="appearance-panel">외형</TabsTrigger><TabsTrigger value="animation" id="animation-tab" aria-controls="animation-panel">애니메이션</TabsTrigger><TabsTrigger value="bodyOrientation" id="body-orientation-tab" aria-controls="body-orientation-panel">몸체 방향</TabsTrigger><TabsTrigger value="scene" id="scene-tab" aria-controls="scene-panel">장면</TabsTrigger><TabsTrigger value="json" id="json-tab" aria-controls="json-panel">JSON</TabsTrigger></TabsList></div>
           <div ref={settingsScroll} className="settings-scroll" data-testid="settings-scroll">
             {state.warnings.length > 0 && <Alert id="migration-warning" className="migration-warning"><AlertTitle>이전 디자인을 v7으로 변환했습니다</AlertTitle><AlertDescription>{state.warnings.join(' ')}</AlertDescription></Alert>}
             <TabsContent value="appearance" forceMount hidden={tab !== 'appearance'} id="appearance-panel" aria-labelledby="appearance-tab"><AppearancePanel state={state} controller={controller} resetKey={resetKey} /></TabsContent>
             <TabsContent value="animation" forceMount hidden={tab !== 'animation'} id="animation-panel" aria-labelledby="animation-tab"><AnimationPanel state={state} controller={controller} /></TabsContent>
-            <TabsContent value="camera" forceMount hidden={tab !== 'camera'} id="camera-panel" aria-labelledby="camera-tab"><CameraPanel state={state} controller={controller} /></TabsContent>
+            <TabsContent value="bodyOrientation" forceMount hidden={tab !== 'bodyOrientation'} id="body-orientation-panel" aria-labelledby="body-orientation-tab"><BodyOrientationPanel state={state} controller={controller} /></TabsContent>
             <TabsContent value="scene" forceMount hidden={tab !== 'scene'} id="scene-panel" aria-labelledby="scene-tab"><CompositionPanel controller={controller} composition={composition} onChange={setComposition} canvasRef={compositionCanvas} onRefresh={() => setSceneRefresh(n => n + 1)} /></TabsContent>
             <TabsContent value="json" forceMount hidden={tab !== 'json'} id="json-panel" aria-labelledby="json-tab"><JSONPanel state={state} controller={controller} /></TabsContent>
           </div>

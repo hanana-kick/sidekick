@@ -8,7 +8,7 @@ import { automaticBlink } from '../dist/src/core/expressions.js';
 import { PROTOCOL_VERSION } from '../dist/src/runtime/protocol.js';
 
 function initialRuntimeState(patch = {}) {
-  return { design: createDesign(), pose: initialPose(), camera: { yaw: 0, pitch: 0, roll: 0 }, activity: 'still', paused: false, reduced: false, active: true, time: 0, gaze: [0, 0], trackingMode: 'off', width: 200, height: 200, dpr: 1, ...patch };
+  return { design: createDesign(), pose: initialPose(), zoom: 1, bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, activity: 'still', paused: false, reduced: false, active: true, time: 0, gaze: [0, 0], trackingMode: 'off', width: 200, height: 200, dpr: 1, ...patch };
 }
 function fixture(patch = {}) {
   let now = 10, next = 0;
@@ -18,7 +18,7 @@ function fixture(patch = {}) {
   const renderer = {
     canvas, stats: { drawCalls: 1, buffers: 3 }, disposals: 0, resizes: 0,
     resize(width, height, dpr) { this.resizes++; canvas.width = Math.max(1, Math.round(width * dpr)); canvas.height = Math.max(1, Math.round(height * dpr)); },
-    render(design, state) { draws.push({ design: structuredClone(design), pose: structuredClone(state.pose), camera: { ...state.camera }, time: state.time, delta: state.delta, contour: state.contour, travel: structuredClone(state.travel), activity: state.activity, activityFrame: structuredClone(state.activityFrame) }); },
+    render(design, state) { draws.push({ design: structuredClone(design), pose: structuredClone(state.pose), bodyOrientation: { ...state.bodyOrientation }, zoom: state.zoom, time: state.time, delta: state.delta, contour: state.contour, travel: structuredClone(state.travel), activity: state.activity, activityFrame: structuredClone(state.activityFrame) }); },
     readPixels() { const result = new Uint8Array(canvas.width * canvas.height * 4); result[3] = 255; return result; },
     dispose() { this.disposals++; },
   };
@@ -31,10 +31,10 @@ const near = (value, expected, epsilon = 1e-7) => assert.ok(Math.abs(value - exp
 test('static worker engine initializes once, coalesces changes, and ignores identical updates', () => {
   const f = fixture();
   assert.equal(f.draws.length, 1); assert.equal(f.callbacks.size, 0);
-  for (let i = 1; i <= 100; i++) f.engine.command({ kind: 'state', state: { camera: { yaw: i, pitch: 0, roll: 0 } } });
+  for (let i = 1; i <= 100; i++) f.engine.command({ kind: 'state', state: { bodyOrientation: { yaw: i, pitch: 0, roll: 0 } } });
   assert.equal(f.callbacks.size, 1); assert.equal(f.draws.length, 1);
-  f.step(); assert.equal(f.draws.length, 2); assert.equal(f.draws.at(-1).camera.yaw, 100); assert.equal(f.callbacks.size, 0);
-  f.engine.command({ kind: 'state', state: { camera: { yaw: 100, pitch: 0, roll: 0 }, gaze: [0, 0], active: true } });
+  f.step(); assert.equal(f.draws.length, 2); assert.equal(f.draws.at(-1).bodyOrientation.yaw, 100); assert.equal(f.callbacks.size, 0);
+  f.engine.command({ kind: 'state', state: { bodyOrientation: { yaw: 100, pitch: 0, roll: 0 }, gaze: [0, 0], active: true } });
   f.engine.command({ kind: 'resize', width: 200, height: 200, dpr: 1 });
   assert.equal(f.callbacks.size, 0); assert.equal(f.renderer.resizes, 1); f.engine.dispose();
 });
@@ -69,7 +69,7 @@ test('hidden engine stops all scheduled work and resumes without hidden-time cat
   const f = fixture({ activity: 'idle' }); f.step(); f.step(20);
   const before = f.engine.snapshot.time, frames = f.draws.length;
   f.engine.command({ kind: 'state', state: { active: false } });
-  f.engine.command({ kind: 'state', state: { camera: { yaw: 45, pitch: 0, roll: 0 } } });
+  f.engine.command({ kind: 'state', state: { bodyOrientation: { yaw: 45, pitch: 0, roll: 0 } } });
   assert.equal(f.callbacks.size, 0); f.step(20000); assert.equal(f.draws.length, frames);
   f.engine.command({ kind: 'state', state: { active: true } }); f.step(); near(f.engine.snapshot.time, before);
   f.step(20); near(f.engine.snapshot.time, before + .02); f.engine.dispose();
@@ -88,12 +88,12 @@ test('paused motion completion renders its final frame once and remains idle', a
 
 test('capture is an ordered fresh-frame barrier without advancing animation time', () => {
   const f = fixture();
-  f.engine.command({ kind: 'state', state: { camera: { yaw: 33, pitch: 2, roll: -4 }, time: 7 } }, 1);
+  f.engine.command({ kind: 'state', state: { bodyOrientation: { yaw: 33, pitch: 2, roll: -4 }, time: 7 } }, 1);
   f.engine.command({ kind: 'resize', width: 250, height: 180, dpr: 2 }, 2);
   f.engine.command({ kind: 'capture', request: 1 }, 3);
   const result = f.events.at(-1);
   assert.equal(result.kind, 'pixels'); assert.equal(result.image.width, 500); assert.equal(result.image.height, 360);
-  assert.deepEqual(f.draws.at(-1).camera, { yaw: 33, pitch: 2, roll: -4 }); assert.equal(result.snapshot.time, 7); f.engine.dispose();
+  assert.deepEqual(f.draws.at(-1).bodyOrientation, { yaw: 33, pitch: 2, roll: -4 }); assert.equal(result.snapshot.time, 7); f.engine.dispose();
 });
 
 test('PNG completion keeps the capture snapshot and revision while encoding asynchronously', async () => {
@@ -212,11 +212,11 @@ test('validated declarative batches commit one revision without exposing interme
   const f = fixture(); const start = f.events.length;
   f.engine.command({ kind: 'batch', commands: [
     { kind: 'design', design: createDesign({ body: { shape: 'heart', color: '#123456' } }) },
-    { kind: 'state', state: { camera: { yaw: 33, pitch: 0, roll: 0 }, paused: true } },
+    { kind: 'state', state: { bodyOrientation: { yaw: 33, pitch: 0, roll: 0 }, paused: true } },
     { kind: 'motion', target: { face: { uv: [.2, -.1] } }, options: { duration: 0 }, request: 5 },
   ] }, 12);
   const events = f.events.slice(start); assert.equal(events.length, 1); assert.equal(events[0].revision, 12); assert.deepEqual(events[0].snapshot.pose.face, [.2, -.1]);
-  f.engine.capture(); assert.equal(f.draws.at(-1).design.body.shape, 'heart'); assert.equal(f.draws.at(-1).camera.yaw, 33); f.engine.dispose();
+  f.engine.capture(); assert.equal(f.draws.at(-1).design.body.shape, 'heart'); assert.equal(f.draws.at(-1).bodyOrientation.yaw, 33); f.engine.dispose();
 });
 
 test('accepted no-op state and resize commands acknowledge without rendering or scheduling', () => {
@@ -251,7 +251,7 @@ test('clean idle draws at 30 Hz while RAF clocks advance and accessory delta is 
 test('dirty and capture frames bypass idle pacing and consume accumulated renderer delta once', () => {
   const f = fixture({ activity: 'idle' }); f.step(); f.step(10);
   assert.equal(f.draws.length, 1);
-  f.engine.command({ kind: 'state', state: { camera: { yaw: 15, pitch: 0, roll: 0 } } });
+  f.engine.command({ kind: 'state', state: { bodyOrientation: { yaw: 15, pitch: 0, roll: 0 } } });
   f.step(10); assert.equal(f.draws.length, 2); near(f.draws.at(-1).delta, .02);
   f.step(10); assert.equal(f.draws.length, 2);
   f.engine.command({ kind: 'capture', request: 1 });
@@ -326,11 +326,11 @@ test('idle pacing resets across activity, visibility and recreated engine lifecy
 });
 
 test('zoom-only worker state redraws once without restarting demand-only frames', () => {
-  const f = fixture({ camera: { yaw: 0, pitch: 0, roll: 0, zoom: 1 } });
-  for (let i = 1; i <= 100; i++) f.engine.command({ kind: 'state', state: { camera: { yaw: 0, pitch: 0, roll: 0, zoom: 1 + i / 100 } } });
+  const f = fixture({ bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 });
+  for (let i = 1; i <= 100; i++) f.engine.command({ kind: 'state', state: { bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 + i / 100 } });
   assert.equal(f.callbacks.size, 1); assert.equal(f.draws.length, 1);
-  f.step(); assert.equal(f.draws.length, 2); assert.equal(f.draws.at(-1).camera.zoom, 2); assert.equal(f.callbacks.size, 0);
-  f.engine.command({ kind: 'state', state: { camera: { yaw: 0, pitch: 0, roll: 0, zoom: 2 } } });
+  f.step(); assert.equal(f.draws.length, 2); assert.equal(f.draws.at(-1).zoom, 2); assert.equal(f.callbacks.size, 0);
+  f.engine.command({ kind: 'state', state: { bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 2 } });
   assert.equal(f.callbacks.size, 0); assert.equal(f.draws.length, 2); f.engine.dispose();
 });
 

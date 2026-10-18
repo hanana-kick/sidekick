@@ -1,6 +1,6 @@
 import type { HTMLAttributes, ReactElement, Ref } from 'react';
 import type { AccessoryDesign, Activity, AvatarDesign, RenderStyle } from './core/design.js';
-import type { CameraState, CameraPreset } from './core/camera.js';
+import type { BodyOrientation, BodyOrientationPreset } from './core/body-orientation.js';
 import type { EyeExpression } from './core/expressions.js';
 import type { MotionOptions, MotionTarget } from './core/motion.js';
 import type { TrackingMode } from './core/tracking.js';
@@ -52,11 +52,11 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
     leftEarColor?: string;
     rightEarAccessory?: SidekickAttributes['right-ear-accessory'];
     rightEarColor?: string;
-    camera?: CameraPreset | Partial<CameraState>;
-    cameraYaw?: number;
-    cameraPitch?: number;
-    cameraRoll?: number;
-    cameraZoom?: number;
+    bodyOrientation?: BodyOrientationPreset | Partial<BodyOrientation>;
+    bodyYaw?: number;
+    bodyPitch?: number;
+    bodyRoll?: number;
+    zoom?: number;
     gazeX?: number;
     gazeY?: number;
     activity?: Activity;
@@ -77,7 +77,8 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
     onDesignChange?: SidekickEventHandler<'sidekick-design-change'>;
     onMotionEnd?: SidekickEventHandler<'sidekick-motion-end'>;
     onShapeEnd?: SidekickEventHandler<'sidekick-shape-end'>;
-    onCameraChange?: SidekickEventHandler<'sidekick-camera-change'>;
+    onBodyOrientationChange?: SidekickEventHandler<'sidekick-body-orientation-change'>;
+    onZoomChange?: SidekickEventHandler<'sidekick-zoom-change'>;
     onActivate?: SidekickEventHandler<'sidekick-activate'>;
     onError?: SidekickEventHandler<'sidekick-error'>;
 }

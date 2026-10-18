@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { travelMatrix, travelPose, travelActivity } from '../dist/src/core/travel.js';
-import { cameraViewMatrix } from '../dist/src/core/camera.js';
+import { bodyOrientationMatrix } from '../dist/src/core/body-orientation.js';
 import { initialPose, activityFrame } from '../dist/src/core/motion.js';
 import { multiply, transform } from '../dist/src/core/math.js';
 const neutral = { direction: [0,0], strength: 0, lift: 0, bank: 0 };
 test('travel presentation leaves baseline pose and matrix byte-identical when neutral',()=>{
- const pose=initialPose(), base=cameraViewMatrix({yaw:45,pitch:20,roll:90});
+ const pose=initialPose(), base=bodyOrientationMatrix({yaw:45,pitch:20,roll:90});
  assert.equal(travelPose(pose,neutral),pose); assert.equal(travelMatrix(base,neutral),base);
  const activity=activityFrame('thinking',1,false); assert.equal(travelActivity(activity,neutral),activity);
 });
@@ -18,9 +18,9 @@ test('direction gaze is conjugate screen-space, bounded and does not mutate auth
   assert.equal(result.eyes,pose.eyes); assert.deepEqual(pose,saved);
  }
 });
-test('flight yaw pitch and lift are composed in view space for every camera',()=>{
+test('flight yaw pitch and lift are composed in view space for every bodyOrientation',()=>{
  for(const yaw of [0,45,90,180])for(const roll of [-90,0,90]){
-  const base=cameraViewMatrix({yaw,pitch:25,roll});const travel={direction:[.6,.8],strength:.7,lift:.06,bank:-.07};
+  const base=bodyOrientationMatrix({yaw,pitch:25,roll});const travel={direction:[.6,.8],strength:.7,lift:.06,bank:-.07};
   const expected=multiply(transform([0,.06,0],[.8*.24*.7,.6*.45*.7,-.07]),base);
   assert.deepEqual(travelMatrix(base,travel),expected);
  }

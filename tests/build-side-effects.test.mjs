@@ -102,7 +102,7 @@ test('packed multi-entry Vite React and hydration bundles register without circu
       assert.equal(window.libraryAPI, undefined, 'the unrelated vanilla auto-entry must not run during React registration');
       if (mode === 'react') {
         assert.equal(avatar.design.body.shape, 'puffy');
-        assert.equal(avatar.camera.yaw, 12);
+        assert.equal(avatar.bodyOrientation.yaw, 12);
         assert.equal(avatar.design.eyes.left.weights.smile, 0.25);
         assert.equal(errors.length, 1);
         assert.match(errors[0].detail.message, /WebGL2/);
@@ -116,10 +116,10 @@ test('packed multi-entry Vite React and hydration bundles register without circu
         assert.equal(errors.length, 1);
         assert.equal(errors[0].type, 'sidekick-error');
         assert.match(errors[0].detail.message, /WebGL2/, 'only the expected JSDOM WebGL fallback is allowed');
-        avatar.setCamera({ yaw: 23 });
+        avatar.setBodyOrientation({ yaw: 23 });
         window.rerenderHydration();
         await new Promise(resolve => setTimeout(resolve, 20));
-        assert.equal(avatar.camera.yaw, 23);
+        assert.equal(avatar.bodyOrientation.yaw, 23);
       }
       dom.window.close();
       console.log(mode + ' bundled registration passed');

@@ -1,5 +1,5 @@
 import { clamp, spring } from './math.js';
-/** Pointer behavior, independent of appearance, camera and authored body motion. */
+/** Pointer behavior, independent of appearance, body orientation and authored motion. */
 export const TRACKING_MODES = Object.freeze(['off', 'eyes', 'eyes-and-body']);
 export function parseTrackingMode(value) {
     if (!TRACKING_MODES.includes(value))

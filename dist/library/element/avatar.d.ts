@@ -6,14 +6,14 @@ import type { TrackingMode } from '../core/tracking.js';
 import type { ShapeMotionOptions, ShapeMotionResult } from '../core/shape-motion.js';
 import type { MaterialShapeName } from '../core/shapes.js';
 import type { EyeExpression, EyeShapeWeights } from '../core/expressions.js';
-import type { CameraAngles, CameraState, CameraPreset } from '../core/camera.js';
+import type { BodyOrientation, BodyOrientationPreset } from '../core/body-orientation.js';
 import type { MotionOptions, MotionResult, MotionTarget, Pose } from '../core/motion.js';
 import type { SnapshotOptions } from '../core/pixels.js';
 import type { PixelBuffer } from '../core/pixels.js';
 import type { SidekickEventMap } from './attributes.js';
 declare const HTMLElementBase: typeof HTMLElement;
 export declare class SidekickAvatar extends HTMLElementBase {
-    static observedAttributes: ("shape" | "smile" | "blink" | "expression" | "accessories" | "design" | "motion" | "camera" | "activity" | "paused" | "interaction" | "time" | "placement" | "position-x" | "position-y" | "movement-bounds" | "move-duration" | "move-easing" | "move-travel" | "move-max-speed" | "move-acceleration" | "move-deceleration" | "body-color" | "eye-color" | "left-expression" | "right-expression" | "left-smile" | "right-smile" | "left-blink" | "right-blink" | "head-accessory" | "head-color" | "eyes-accessory" | "eyes-color" | "mouth-accessory" | "mouth-color" | "neck-accessory" | "neck-color" | "left-ear-accessory" | "left-ear-color" | "right-ear-accessory" | "right-ear-color" | "camera-yaw" | "camera-pitch" | "camera-roll" | "camera-zoom" | "gaze-x" | "gaze-y" | "mouse-tracking" | "tracking-mode" | "render-style" | "shape-duration" | "shape-easing" | "motion-duration" | "motion-easing")[];
+    static observedAttributes: string[];
     addEventListener<K extends keyof SidekickEventMap>(type: K, listener: (this: SidekickAvatar, event: SidekickEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
     addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
     addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions): void;
@@ -82,7 +82,8 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private elapsed;
     private readyState;
     private currentActivity;
-    private cameraAngles;
+    private orientationState;
+    private zoomState;
     private gazeTarget;
     private manualGaze;
     private pausedState;
@@ -131,7 +132,7 @@ export declare class SidekickAvatar extends HTMLElementBase {
     get interaction(): 'none' | 'box';
     set interaction(value: 'none' | 'box');
     get ready(): boolean;
-    /** Last acknowledged worker pose; configuration and camera getters are immediate. */
+    /** Last acknowledged worker pose; configuration and body orientation getters are immediate. */
     get pose(): Pose;
     get diagnostics(): {
         travel?: TravelPresentation;
@@ -152,14 +153,14 @@ export declare class SidekickAvatar extends HTMLElementBase {
         };
         renderedRotation: Pose['rotation'];
     };
-    /** Viewing angles in degrees and centered zoom. Reads return an independent snapshot. */
-    get camera(): CameraState;
-    set camera(value: CameraAngles & Partial<Pick<CameraState, 'zoom'>>);
-    setCamera(angles: Partial<CameraState>): void;
-    setCameraPreset(preset: CameraPreset): void;
-    resetCamera(): void;
-    /** Legacy radians API; yaw/pitch update the camera while preserving its roll. */
-    setView(yaw: number, pitch?: number): void;
+    /** Body-facing angles in degrees. Reads return an independent snapshot. */
+    get bodyOrientation(): BodyOrientation;
+    set bodyOrientation(value: BodyOrientation);
+    setBodyOrientation(angles: Partial<BodyOrientation>): void;
+    setBodyOrientationPreset(preset: BodyOrientationPreset): void;
+    resetBodyOrientation(): void;
+    get zoom(): number;
+    set zoom(value: number);
     lookAt(target: {
         space: 'view';
         x: number;

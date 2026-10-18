@@ -30,25 +30,25 @@ test('canonical tracking modes, legacy aliases and declarative precedence are st
   assert.equal(avatar.getAttribute('mouse-tracking'), 'false');
   avatar.removeAttribute('tracking-mode'); await Promise.resolve(); assert.equal(avatar.trackingMode, 'off');
   assert.throws(() => { avatar.trackingMode = 'body'; }); assert.equal(avatar.trackingMode, 'off');
-  avatar.setAttribute('tracking-mode', 'eyes-and-body'); avatar.setAttribute('camera-yaw', 'bad'); await Promise.resolve();
+  avatar.setAttribute('tracking-mode', 'eyes-and-body'); avatar.setAttribute('body-yaw', 'bad'); await Promise.resolve();
   assert.equal(avatar.trackingMode, 'off');
-  avatar.setAttribute('camera-yaw', '10'); await Promise.resolve(); assert.equal(avatar.trackingMode, 'eyes-and-body');
+  avatar.setAttribute('body-yaw', '10'); await Promise.resolve(); assert.equal(avatar.trackingMode, 'eyes-and-body');
   avatar.removeAttribute('tracking-mode'); avatar.removeAttribute('mouse-tracking'); await Promise.resolve();
   assert.equal(avatar.trackingMode, 'eyes-and-body'); assert.equal(avatar.mouseTracking, true);
 });
 
-test('scene v2 defaults to eyes-and-body and preserves explicit and legacy tracking choices', () => {
+test('scene v3 defaults to eyes-and-body and preserves explicit and legacy tracking choices', () => {
   assert.equal(createScene().trackingMode, 'eyes-and-body');
   for (const mode of TRACKING_MODES) {
     const scene = createScene({ trackingMode: mode, mouseTracking: mode === 'off' });
-    assert.equal(scene.sceneVersion, 2); assert.equal(scene.trackingMode, mode); assert.equal('mouseTracking' in scene, false);
+    assert.equal(scene.sceneVersion, 3); assert.equal(scene.trackingMode, mode); assert.equal('mouseTracking' in scene, false);
     assert.deepEqual(parseScene(serializeScene(scene)), scene);
   }
   for (const enabled of [false, true]) {
     const scene = createScene({ mouseTracking: enabled });
     const { trackingMode, ...legacy } = scene;
     assert.equal(trackingMode, enabled ? 'eyes' : 'off');
-    assert.deepEqual(parseScene({ ...legacy, sceneVersion: 1, mouseTracking: enabled }), scene);
+    assert.throws(() => parseScene({ ...legacy, sceneVersion: 1, mouseTracking: enabled }));
   }
   assert.throws(() => createScene({ trackingMode: 'body' }));
   assert.throws(() => createScene({ trackingMode: 'eyes', mouseTracking: 'false' }));
@@ -80,11 +80,11 @@ test('body tracking is bounded, continuous through retargeting and never changes
   assert.deepEqual(layer.compose(pose), baseline); assert.equal(layer.active, false); assert.deepEqual(pose, baseline);
 });
 
-test('element tracking preserves camera and independent body timeline, mode switches settle without snaps', async () => {
+test('element tracking preserves bodyOrientation and independent body timeline, mode switches settle without snaps', async () => {
   const { avatar, connect, move, document } = fixture(); const runtime = connect();
-  avatar.lookAt({ space: 'view', x: .2, y: -.3 }); avatar.setCamera({ yaw: 35, pitch: 12, roll: -7 });
+  avatar.lookAt({ space: 'view', x: .2, y: -.3 }); avatar.setBodyOrientation({ yaw: 35, pitch: 12, roll: -7 });
   const pending = avatar.motion.to({ body: { rotation: [.2, .3, .4] } }, { duration: 1000, easing: 'linear' });
-  runtime.advanceMotion(250); const base = avatar.pose.rotation, camera = avatar.camera;
+  runtime.advanceMotion(250); const base = avatar.pose.rotation, bodyOrientation = avatar.bodyOrientation;
   avatar.trackingMode = 'eyes'; move(10000, -10000);
   for (let n = 0; n < 100; n++) runtime.advanceTracking(.016);
   assert.deepEqual(runtime.tracking.compose(avatar.pose).rotation, base); assert.deepEqual(avatar.gazeTarget, [1, 1]);
@@ -92,7 +92,7 @@ test('element tracking preserves camera and independent body timeline, mode swit
   assert.deepEqual(before, base);
   for (let n = 0; n < 100; n++) runtime.advanceTracking(.016);
   assert.notDeepEqual(runtime.tracking.compose(avatar.pose).rotation, base); assert.deepEqual(avatar.pose.rotation, base);
-  assert.deepEqual(avatar.camera, camera); assert.equal(runtime.timeline.active, true);
+  assert.deepEqual(avatar.bodyOrientation, bodyOrientation); assert.equal(runtime.timeline.active, true);
   const tracked = runtime.tracking.compose(avatar.pose).rotation;
   avatar.trackingMode = 'eyes'; assert.deepEqual(runtime.tracking.compose(avatar.pose).rotation, tracked);
   avatar.trackingMode = 'off'; assert.deepEqual(avatar.gazeTarget, [.2, -.3]);

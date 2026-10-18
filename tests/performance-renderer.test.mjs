@@ -19,10 +19,10 @@ test('all 35 unchanged equipped endpoints issue no redundant geometry uploads', 
   }
 });
 
-test('tracking, camera and color-only changes reuse exact existing meshes', () => {
+test('tracking, bodyOrientation and color-only changes reuse exact existing meshes', () => {
   const fixture = countingCanvas(), renderer = new AvatarRenderer(fixture.canvas), design = createDesign({ body: { shape: 'softBoom' }, accessories: equipment() }), frame = state('softBoom');
   renderer.render(design, frame); const before = fixture.snapshot();
-  for (let i = 0; i < 20; i++) { frame.camera = { yaw: i * 5, pitch: i - 10, roll: i }; frame.pose.gaze = [Math.sin(i) * .3, Math.cos(i) * .3]; frame.pose.rotation = [i * .001, i * .002, 0]; renderer.render(design, frame); }
+  for (let i = 0; i < 20; i++) { frame.bodyOrientation = { yaw: i * 5, pitch: i - 10, roll: i }; frame.pose.gaze = [Math.sin(i) * .3, Math.cos(i) * .3]; frame.pose.rotation = [i * .001, i * .002, 0]; renderer.render(design, frame); }
   const recolored = structuredClone(design); recolored.body.color = '#ff0000'; recolored.eyes.color = '#ffffff'; recolored.accessories.forEach(accessory => accessory.color = '#abcdef'); renderer.render(recolored, frame);
   assert.equal(fixture.snapshot().uploadedBytes, before.uploadedBytes); renderer.dispose();
 });
@@ -91,9 +91,9 @@ test('centered zoom changes only projection, preserves aspect and never uploads 
     const fixture = countingCanvas(), renderer = new AvatarRenderer(fixture.canvas), design = createDesign(), frame = state('circle');
     let projection, models = [];
     fixture.gl.uniformMatrix4fv = (location, _transpose, value) => { if (location.name === 'projection') projection = [...value]; else if (location.name === 'model') models.push([...value]); };
-    renderer.resize(width, height, 2); frame.camera = { yaw: 20, pitch: -5, roll: 9, zoom: 1 }; renderer.render(design, frame);
+    renderer.resize(width, height, 2); frame.bodyOrientation = { yaw: 20, pitch: -5, roll: 9 }; frame.zoom = 1; renderer.render(design, frame);
     const original = projection, originalModels = models, before = fixture.snapshot(); models = [];
-    frame.camera.zoom = 2; renderer.render(design, frame);
+    frame.zoom = 2; renderer.render(design, frame);
     assert.equal(projection[0], original[0] * 2); assert.equal(projection[5], original[5] * 2);
     assert.ok(Math.abs(projection[5] / projection[0] - width / height) < 1e-5);
     assert.equal(projection[12], original[12] * 2); assert.equal(projection[13], original[13] * 2);

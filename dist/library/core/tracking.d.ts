@@ -1,6 +1,6 @@
 import type { Vec2 } from './design.js';
 import type { Pose } from './motion.js';
-/** Pointer behavior, independent of appearance, camera and authored body motion. */
+/** Pointer behavior, independent of appearance, body orientation and authored motion. */
 export declare const TRACKING_MODES: readonly ["off", "eyes", "eyes-and-body"];
 export type TrackingMode = typeof TRACKING_MODES[number];
 export declare function parseTrackingMode(value: unknown): TrackingMode;

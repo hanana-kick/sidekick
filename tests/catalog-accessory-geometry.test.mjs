@@ -171,7 +171,7 @@ test('renderer caches each occupied slot independently, changes only materials o
   const uploads = fake.updates; renderer.render(design, state); assert.equal(fake.updates, uploads);
   design.accessories[2].color = '#c35b20'; design.accessories[3].color = '#174bcc'; renderer.render(design, state); assert.equal(fake.updates, uploads);
   assert.deepEqual(fake.draws.at(-2).color, [195 / 255, 91 / 255, 32 / 255]); assert.deepEqual(fake.draws.at(-1).color, [23 / 255, 75 / 255, 204 / 255]);
-  state.camera = { yaw: 70, pitch: -20, roll: 25 }; renderer.render(design, state); assert.equal(fake.updates, uploads, 'view changes must not rebuild body-local ornaments');
+  state.bodyOrientation = { yaw: 70, pitch: -20, roll: 25 }; renderer.render(design, state); assert.equal(fake.updates, uploads, 'view changes must not rebuild body-local ornaments');
   design.accessories = design.accessories.filter(a => a.slot !== 'rightEar'); renderer.render(design, state); assert.equal(renderer.stats.buffers, 14);
   design.accessories = [publicAccessory('scarf')]; renderer.render(design, state); assert.equal(renderer.stats.buffers, 10); assert.equal(renderer.stats.drawCalls, 3);
   near(fake.draws[2].offset, fake.draws[1].count * 2);

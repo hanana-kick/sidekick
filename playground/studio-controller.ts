@@ -1,7 +1,7 @@
 import { createAccessory, createDesign, equipAccessory, migrateDesign, patchDesign, serializeDesign, ACCESSORY_PRESETS, ACCESSORY_SLOTS_BY_PRESET, ACCESSORY_LABELS } from '../src/core/design.js';
 import type { AccessoryPreset, AccessorySlot, Activity, AvatarDesign, DesignPatch } from '../src/core/design.js';
-import { createCamera } from '../src/core/camera.js';
-import type { CameraState, CameraPreset } from '../src/core/camera.js';
+import { createBodyOrientation } from '../src/core/body-orientation.js';
+import type { BodyOrientation, BodyOrientationPreset } from '../src/core/body-orientation.js';
 import { eyeExpressionWeights } from '../src/core/expressions.js';
 import type { EyeExpression } from '../src/core/expressions.js';
 import type { MaterialShapeName } from '../src/core/shapes.js';
@@ -20,11 +20,12 @@ export const EQUIPMENT_GROUPS: readonly { slot: AccessorySlot; presets: readonly
 // Keep the previous Studio starting design. New equipment is always opt-in.
 export const defaultStudioDesign = (): AvatarDesign => createDesign({ body: { shape: 'square' }, accessories: [createAccessory('beret', 'hat')] });
 export interface StoragePort { getItem(key: string): string | null; setItem(key: string, value: string): void }
-export type AvatarPort = Pick<SidekickAvatar, 'design' | 'camera' | 'paused' | 'trackingMode' | 'resetTracking' | 'interaction' | 'updateDesign' | 'setShape' | 'setExpression' | 'setEyeWeights' | 'setCamera' | 'setCameraPreset' | 'resetCamera' | 'setActivity' | 'lookAt' | 'seek' | 'motion' | 'snapshot' | 'addEventListener' | 'removeEventListener'>;
+export type AvatarPort = Pick<SidekickAvatar, 'design' | 'bodyOrientation' | 'zoom' | 'paused' | 'trackingMode' | 'resetTracking' | 'interaction' | 'updateDesign' | 'setShape' | 'setExpression' | 'setEyeWeights' | 'setBodyOrientation' | 'setBodyOrientationPreset' | 'setActivity' | 'lookAt' | 'seek' | 'motion' | 'snapshot' | 'addEventListener' | 'removeEventListener'>;
 export interface SavedRecovery { raw: string; key: string; error: string }
 export interface StudioState {
   design: AvatarDesign;
-  camera: CameraState;
+  bodyOrientation: BodyOrientation;
+  zoom: number;
   duration: number;
   easing: 'smooth' | 'linear';
   activity: Activity;
@@ -67,10 +68,10 @@ export class StudioController {
       }
     } catch { storageError = true; }
     this.state = {
-      design, camera: createCamera(), duration: 450, easing: 'smooth', activity: 'idle', paused: false, trackingMode: 'eyes-and-body',
+      design, bodyOrientation: createBodyOrientation(), zoom: 1, duration: 450, easing: 'smooth', activity: 'idle', paused: false, trackingMode: 'eyes-and-body',
       movedFace: false, gaze: { x: 0, y: 0 }, time: 0, motion: {}, motionDuration: 400, motionEasing: 'smooth', interaction: 'box', background: 'checker', jsonDraft: recovery?.raw ?? serializeScene(createScene({ design, interaction: 'box' })),
       jsonError: recovery?.error ?? '', warnings, recovery, recoverySaved: false,
-      status: recovery ? '저장된 원본을 보존했습니다. JSON에서 수정하거나 내려받으세요.' : storageError ? '브라우저 저장소를 읽을 수 없습니다. JSON으로 내보내세요.' : '디자인 변경은 이 브라우저에 저장됩니다.',
+      status: recovery ? '저장된 설정을 읽을 수 없습니다. JSON에서 오류를 수정하거나 초기화하세요. 원본은 보존됩니다.' : storageError ? '브라우저 저장소를 읽을 수 없습니다. JSON으로 내보내세요.' : '디자인 변경은 이 브라우저에 저장됩니다.',
       statusError: !!recovery || storageError,
     };
   }
@@ -81,9 +82,11 @@ export class StudioController {
   private watch(result: Promise<unknown> | undefined): void { void result?.catch(error => this.report(errorMessage(error), true)); }
   bindAvatar(avatar: AvatarPort): () => void {
     this.avatar = avatar;
-    const cameraChanged = (): void => this.runtime({ camera: { ...avatar.camera } });
+    const bodyOrientationChanged = (): void => this.runtime({ bodyOrientation: { ...avatar.bodyOrientation } });
+    const zoomChanged = (): void => this.runtime({ zoom: avatar.zoom });
     const failed = (event: Event): void => this.report((event as CustomEvent<{ message: string }>).detail.message, true);
-    avatar.addEventListener('sidekick-camera-change', cameraChanged);
+    avatar.addEventListener('sidekick-body-orientation-change', bodyOrientationChanged);
+    avatar.addEventListener('sidekick-zoom-change', zoomChanged);
     avatar.addEventListener('sidekick-error', failed);
     if (!this.initialized.has(avatar)) {
       avatar.design = this.state.design;
@@ -92,9 +95,10 @@ export class StudioController {
     }
     avatar.trackingMode = this.state.trackingMode;
     avatar.interaction = this.state.interaction;
-    cameraChanged();
+    bodyOrientationChanged(); zoomChanged();
     return () => {
-      avatar.removeEventListener('sidekick-camera-change', cameraChanged);
+      avatar.removeEventListener('sidekick-body-orientation-change', bodyOrientationChanged);
+      avatar.removeEventListener('sidekick-zoom-change', zoomChanged);
       avatar.removeEventListener('sidekick-error', failed);
       if (this.avatar === avatar) { this.avatar = undefined; this.importGeneration++; }
     };
@@ -112,7 +116,7 @@ export class StudioController {
     }
   }
   private scene(state = this.state): SidekickScene {
-    return createScene({ design: state.design, camera: state.camera, activity: state.activity, paused: state.paused, trackingMode: state.trackingMode,
+    return createScene({ design: state.design, bodyOrientation: state.bodyOrientation, zoom: state.zoom, activity: state.activity, paused: state.paused, trackingMode: state.trackingMode,
       interaction: state.interaction, gaze: state.gaze, time: state.time, motion: state.motion,
       shapeDuration: state.duration, shapeEasing: state.easing, motionDuration: state.motionDuration, motionEasing: state.motionEasing });
   }
@@ -166,9 +170,11 @@ export class StudioController {
     if (this.state.motion.eyes) { const eyes = { ...this.state.motion.eyes }; delete eyes[side]; this.update({ motion: { ...this.state.motion, eyes } }); }
     this.commit(next);
   };
-  setCamera = (patch: Partial<CameraState>): void => { this.avatar?.setCamera(patch); if (this.avatar) this.runtime({ camera: { ...this.avatar.camera } }); };
-  setCameraPreset = (preset: CameraPreset): void => { this.avatar?.setCameraPreset(preset); if (this.avatar) this.runtime({ camera: { ...this.avatar.camera } }); };
-  resetCamera = (): void => { this.avatar?.resetCamera(); if (this.avatar) this.runtime({ camera: { ...this.avatar.camera } }); };
+  setBodyOrientation = (patch: Partial<BodyOrientation>): void => { this.avatar?.setBodyOrientation(patch); if (this.avatar) this.runtime({ bodyOrientation: { ...this.avatar.bodyOrientation } }); };
+  setBodyOrientationPreset = (preset: BodyOrientationPreset): void => { this.avatar?.setBodyOrientationPreset(preset); if (this.avatar) this.runtime({ bodyOrientation: { ...this.avatar.bodyOrientation } }); };
+  resetBodyOrientation = (): void => this.setBodyOrientation(createBodyOrientation());
+  setZoom = (zoom: number): void => { if (this.avatar) { this.avatar.zoom = zoom; this.runtime({ zoom: this.avatar.zoom }); } };
+  resetZoom = (): void => this.setZoom(1);
   setActivity = (activity: Activity): void => { this.avatar?.setActivity(activity); this.runtime({ activity }); };
   setTrackingMode = (value: TrackingMode): void => { const trackingMode = parseTrackingMode(value); if (this.avatar) this.avatar.trackingMode = trackingMode; this.runtime({ trackingMode }); };
   setMouseTracking = (enabled: boolean): void => { this.setTrackingMode(enabled ? 'eyes' : 'off'); };
@@ -188,10 +194,10 @@ export class StudioController {
         this.watch(avatar.setShape(scene.design.body.shape, { duration: 0 }));
         this.watch(avatar.motion.to({ body: { rotation: [0, 0, 0] }, face: { uv: [0, 0] }, eyes: { openness: 1, left: { weights: scene.design.eyes.left.weights }, right: { weights: scene.design.eyes.right.weights } }, accessories: Object.fromEntries(scene.design.accessories.map(item => [item.id, { rotation: [0, 0, 0] as [number, number, number] }])) }, { duration: 0 }));
         this.watch(avatar.motion.to(scene.motion, { duration: 0 }));
-        avatar.setCamera(scene.camera); avatar.lookAt({ space: 'view', ...scene.gaze }); avatar.seek(scene.time); avatar.setActivity(scene.activity);
+        avatar.setBodyOrientation(scene.bodyOrientation); avatar.zoom = scene.zoom; avatar.lookAt({ space: 'view', ...scene.gaze }); avatar.seek(scene.time); avatar.setActivity(scene.activity);
         avatar.interaction = scene.interaction; avatar.paused = scene.paused; avatar.trackingMode = scene.trackingMode;
       }
-      this.update({ design: scene.design, camera: scene.camera, duration: scene.shapeDuration, easing: scene.shapeEasing,
+      this.update({ design: scene.design, bodyOrientation: scene.bodyOrientation, zoom: scene.zoom, duration: scene.shapeDuration, easing: scene.shapeEasing,
         activity: scene.activity, paused: scene.paused, trackingMode: scene.trackingMode, interaction: scene.interaction,
         gaze: scene.gaze, time: scene.time, motion: scene.motion, motionDuration: scene.motionDuration, motionEasing: scene.motionEasing,
         movedFace: !!scene.motion.face?.uv.some(value => value !== 0), warnings: migrated.warnings,
@@ -215,10 +221,10 @@ export class StudioController {
     if (avatar) {
       avatar.paused = false; avatar.trackingMode = 'eyes-and-body'; avatar.resetTracking(); avatar.interaction = 'box'; avatar.motion.cancel();
       this.watch(avatar.motion.to({ body: { rotation: [0, 0, 0] }, face: { uv: [0, 0] }, eyes: { openness: 1, left: { weights: { smile: 0, blink: 0 } }, right: { weights: { smile: 0, blink: 0 } } } }, { duration: 0 }));
-      avatar.lookAt({ space: 'view', x: 0, y: 0 }); avatar.resetCamera(); avatar.seek(0); avatar.setActivity('idle');
+      avatar.lookAt({ space: 'view', x: 0, y: 0 }); avatar.setBodyOrientation(createBodyOrientation()); avatar.zoom = 1; avatar.seek(0); avatar.setActivity('idle');
       avatar.design = defaultStudioDesign(); this.watch(avatar.setShape('square', { duration: 0 }));
     }
-    this.update({ duration: 450, easing: 'smooth', paused: false, trackingMode: 'eyes-and-body', activity: 'idle', movedFace: false, gaze: { x: 0, y: 0 }, time: 0, motion: {}, motionDuration: 400, motionEasing: 'smooth', interaction: 'box', warnings: [], camera: createCamera() });
+    this.update({ duration: 450, easing: 'smooth', paused: false, trackingMode: 'eyes-and-body', activity: 'idle', movedFace: false, gaze: { x: 0, y: 0 }, time: 0, motion: {}, motionDuration: 400, motionEasing: 'smooth', interaction: 'box', warnings: [], bodyOrientation: createBodyOrientation(), zoom: 1 });
     this.commit(defaultStudioDesign(), '기본 디자인으로 초기화했습니다.');
   };
   exportScene = (): SidekickScene => this.scene();

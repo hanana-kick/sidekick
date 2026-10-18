@@ -160,15 +160,15 @@ test('shape-key motion flags suppress only new automatic blinks, without changin
   near(before.eyes.left.smile, 0.7 * 0.104); assert.equal(timeline.pose.eyes.left.smile, 0.7);
 });
 
-test('eye weight transitions do not modify camera angles or shape transition timing', async () => {
+test('eye weight transitions do not modify bodyOrientation angles or shape transition timing', async () => {
   const { avatar, runtime } = avatarForTest(true);
-  avatar.setCamera({ yaw: 35, pitch: -12, roll: 8 }); const camera = avatar.camera;
+  avatar.setBodyOrientation({ yaw: 35, pitch: -12, roll: 8 }); const bodyOrientation = avatar.bodyOrientation;
   const shape = avatar.setShape('circle', { duration: 900, easing: 'linear' });
   runtime.advanceShape(200); const contour = runtime.shape.contour;
   const weights = avatar.setEyeWeights('both', { smile: 0.4, blink: 0.3 }, { duration: 300 });
-  assert.equal(runtime.shape.contour, contour); assert.deepEqual(avatar.camera, camera);
+  assert.equal(runtime.shape.contour, contour); assert.deepEqual(avatar.bodyOrientation, bodyOrientation);
   runtime.advanceMotion(300); await weights; runtime.advanceShape(700);
-  assert.deepEqual(await shape, { finished: true }); assert.deepEqual(avatar.camera, camera);
+  assert.deepEqual(await shape, { finished: true }); assert.deepEqual(avatar.bodyOrientation, bodyOrientation);
 });
 
 test('updateDesign applies eye color immediately and rejects invalid patches atomically', async () => {

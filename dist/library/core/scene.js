@@ -1,10 +1,11 @@
+import { createZoom } from './zoom.js';
 import { createDesign, finite, migrateDesign, parseDesign, ACTIVITIES } from './design.js';
-import { createCamera } from './camera.js';
+import { createBodyOrientation } from './body-orientation.js';
 import { MotionTimeline, validateMotionOptions } from './motion.js';
 import { parseTrackingMode } from './tracking.js';
 import { validateShapeMotionOptions } from './shape-motion.js';
 export const MAX_SCENE_BYTES = 65536;
-const KEYS = ['sceneVersion', 'design', 'camera', 'activity', 'paused', 'trackingMode', 'interaction', 'renderStyle', 'gaze', 'time', 'motion', 'shapeDuration', 'shapeEasing', 'motionDuration', 'motionEasing'];
+const KEYS = ['sceneVersion', 'design', 'bodyOrientation', 'zoom', 'activity', 'paused', 'trackingMode', 'interaction', 'renderStyle', 'gaze', 'time', 'motion', 'shapeDuration', 'shapeEasing', 'motionDuration', 'motionEasing'];
 function record(value, keys, path) {
     if (!value || typeof value !== 'object' || Array.isArray(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value)))
         throw new TypeError(`${path}: 일반 객체가 필요합니다.`);
@@ -52,16 +53,19 @@ function decode(input) {
 }
 /** Strict pure validation: no element, storage or active animation is touched. */
 export function parseScene(input) {
-    const data = record(decode(input), [...KEYS, 'mouseTracking'], 'scene');
-    if (data.sceneVersion !== 1 && data.sceneVersion !== 2)
-        throw new TypeError('지원하는 장면 버전은 1 또는 2입니다.');
-    const keys = data.sceneVersion === 1 ? KEYS.map(key => key === 'trackingMode' ? 'mouseTracking' : key) : KEYS;
+    const decoded = decode(input);
+    if (decoded && typeof decoded === 'object' && (Object.hasOwn(decoded, 'camera') || Object.hasOwn(decoded, 'view')))
+        throw new TypeError('기존 camera/view 키는 폐기되었습니다. sceneVersion 3의 bodyOrientation과 zoom을 사용하세요.');
+    const data = record(decoded, KEYS, 'scene');
+    if (data.sceneVersion !== 3)
+        throw new TypeError('장면 버전 3이 필요합니다. 기존 camera 설정은 지원하지 않습니다.');
+    const keys = KEYS;
     record(data, keys, 'scene');
     for (const key of keys)
         if (!Object.hasOwn(data, key))
             throw new TypeError(`scene.${key}: 필수 항목입니다.`);
-    const cameraData = record(data.camera, ['yaw', 'pitch', 'roll', 'zoom'], 'scene.camera');
-    const design = parseDesign(data.design), camera = createCamera({ yaw: finite(cameraData.yaw, -360, 360, 'scene.camera.yaw'), pitch: finite(cameraData.pitch, -90, 90, 'scene.camera.pitch'), roll: finite(cameraData.roll, -180, 180, 'scene.camera.roll'), ...(Object.hasOwn(cameraData, 'zoom') ? { zoom: cameraData.zoom } : {}) });
+    const orientationData = record(data.bodyOrientation, ['yaw', 'pitch', 'roll'], 'scene.bodyOrientation');
+    const design = parseDesign(data.design), bodyOrientation = createBodyOrientation({ yaw: finite(orientationData.yaw, -360, 360, 'scene.bodyOrientation.yaw'), pitch: finite(orientationData.pitch, -90, 90, 'scene.bodyOrientation.pitch'), roll: finite(orientationData.roll, -180, 180, 'scene.bodyOrientation.roll') });
     if (!ACTIVITIES.includes(data.activity))
         throw new TypeError('scene.activity: 지원하지 않는 활동입니다.');
     if (data.interaction !== 'none' && data.interaction !== 'box')
@@ -81,9 +85,9 @@ export function parseScene(input) {
     const timeline = new MotionTimeline({ left: design.eyes.left, right: design.eyes.right });
     void timeline.to(motion, { duration: 0 });
     return {
-        sceneVersion: 2, design, camera, activity: data.activity,
+        sceneVersion: 3, design, bodyOrientation, zoom: createZoom(finite(data.zoom, 0.5, 3, 'scene.zoom')), activity: data.activity,
         paused: boolean(data.paused, 'scene.paused'),
-        trackingMode: data.sceneVersion === 1 ? (boolean(data.mouseTracking, 'scene.mouseTracking') ? 'eyes' : 'off') : parseTrackingMode(data.trackingMode),
+        trackingMode: parseTrackingMode(data.trackingMode),
         interaction: data.interaction, renderStyle: 'flat',
         gaze: { x: finite(gaze.x, -1, 1, 'scene.gaze.x'), y: finite(gaze.y, -1, 1, 'scene.gaze.y') },
         time: finite(data.time, 0, 86400, 'scene.time'), motion,
@@ -94,18 +98,18 @@ export function parseScene(input) {
 /** Complete a scene with runtime defaults; geometry remains solely in the design contract. */
 export function createScene(input = {}) {
     const data = record(input, [...KEYS.filter(key => key !== 'sceneVersion'), 'mouseTracking'], 'scene.input');
-    if (input.camera !== undefined)
-        record(input.camera, ['yaw', 'pitch', 'roll', 'zoom'], 'scene.input.camera');
+    if (input.bodyOrientation !== undefined)
+        record(input.bodyOrientation, ['yaw', 'pitch', 'roll'], 'scene.input.bodyOrientation');
     if (input.gaze !== undefined)
         record(input.gaze, ['x', 'y'], 'scene.input.gaze');
     const { mouseTracking, ...canonical } = data;
     if (Object.hasOwn(data, 'mouseTracking'))
         boolean(mouseTracking, 'scene.input.mouseTracking');
     return parseScene({
-        sceneVersion: 2, design: createDesign(), activity: 'idle', paused: false,
+        sceneVersion: 3, zoom: 1, design: createDesign(), activity: 'idle', paused: false,
         trackingMode: mouseTracking === undefined ? 'eyes-and-body' : mouseTracking ? 'eyes' : 'off', interaction: 'none', renderStyle: 'flat', time: 0,
         motion: {}, shapeDuration: 450, shapeEasing: 'smooth', motionDuration: 400, motionEasing: 'smooth',
-        ...canonical, camera: createCamera(input.camera), gaze: { x: 0, y: 0, ...input.gaze },
+        ...canonical, bodyOrientation: createBodyOrientation(input.bodyOrientation), gaze: { x: 0, y: 0, ...input.gaze },
     });
 }
 /** Accept a versioned scene or an existing v1–v7 design file. */

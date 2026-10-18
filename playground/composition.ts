@@ -24,7 +24,7 @@ export function parseCompositionDocument(raw: string): { composition: Compositio
   return { composition: parseComposition(value.composition), avatar: migrateScene(value.avatar).scene };
 }
 export function serializeComposition(composition: Composition, avatar: SidekickScene): string { return JSON.stringify({ compositionVersion: 1, composition: parseComposition(composition), avatar: migrateScene(avatar).scene }, null, 2); }
-export function ogAvatarScene(): SidekickScene { return createScene({ design: createDesign({ body: { shape: 'ghostish', color: '#FFCC37' }, eyes: { left: { weights: { smile: 1, blink: 0 } }, right: { weights: { smile: 1, blink: 0 } } }, accessories: [createAccessory('glasses'), createAccessory('beret'), createAccessory('bowTie')] }), camera: { yaw: 0, pitch: 0, roll: 0 }, activity: 'still', paused: true, trackingMode: 'off' }); }
+export function ogAvatarScene(): SidekickScene { return createScene({ design: createDesign({ body: { shape: 'ghostish', color: '#FFCC37' }, eyes: { left: { weights: { smile: 1, blink: 0 } }, right: { weights: { smile: 1, blink: 0 } } }, accessories: [createAccessory('glasses'), createAccessory('beret'), createAccessory('bowTie')] }), bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, activity: 'still', paused: true, trackingMode: 'off' }); }
 /** Both preview and export use this exact pixel-space compositor. Avatar is alpha-cropped first. */
 export function paintComposition(canvas: HTMLCanvasElement, composition: Composition, image: CanvasImageSource & { width: number; height: number }): void {
   const p = parseComposition(composition); canvas.width = p.width; canvas.height = p.height;

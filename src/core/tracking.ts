@@ -2,7 +2,7 @@ import type { Vec2, Vec3 } from './design.js';
 import type { Pose } from './motion.js';
 import { clamp, spring } from './math.js';
 
-/** Pointer behavior, independent of appearance, camera and authored body motion. */
+/** Pointer behavior, independent of appearance, body orientation and authored motion. */
 export const TRACKING_MODES = Object.freeze(['off', 'eyes', 'eyes-and-body'] as const);
 export type TrackingMode = typeof TRACKING_MODES[number];
 export function parseTrackingMode(value: unknown): TrackingMode {

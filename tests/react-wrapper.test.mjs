@@ -22,7 +22,7 @@ before(async () => {
   }
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   class MockAvatar extends HTMLElement {
-    static observedAttributes = ['design', 'shape', 'body-color', 'eye-color', 'paused', 'interaction', 'mouse-tracking', 'tracking-mode', 'camera-yaw', 'camera-pitch', 'camera-roll', 'accessories', 'motion', 'left-smile', 'right-blink', 'head-accessory'];
+    static observedAttributes = ['design', 'shape', 'body-color', 'eye-color', 'paused', 'interaction', 'mouse-tracking', 'tracking-mode', 'body-yaw', 'body-pitch', 'body-roll', 'accessories', 'motion', 'left-smile', 'right-blink', 'head-accessory'];
     ready = false;
     mutations = [];
     listeners = new Map();
@@ -38,7 +38,7 @@ before(async () => {
     attributeChangedCallback(name, oldValue, value) { this.mutations.push({ name, oldValue, value }); queueMicrotask(() => { this.appliedShape = this.getAttribute('shape'); }); }
     get activity() { return 'still'; }
     set design(_value) { throw new Error('React must not assign the design property'); }
-    set camera(_value) { throw new Error('React must not assign the camera property'); }
+    set bodyOrientation(_value) { throw new Error('React must not assign the camera property'); }
     setDesign() {}
     setShape(shape) { this.imperativeShape = shape; }
   }
@@ -63,7 +63,7 @@ async function fixture(t, props = {}, strict = false) {
 
 test('React 19 maps props before notifying readiness on an already registered host', async t => {
   const ref = React.createRef();
-  const f = await fixture(t, { ref, id: 'friend', className: 'avatar', 'aria-label': 'Companion', 'data-consumer': 'typed', style: { width: 240 }, shape: 'heart', bodyColor: '#abcdef', paused: false, mouseTracking: true, activity: 'still', interaction: 'box', camera: { yaw: 12, pitch: 4 }, leftSmile: 0.2, rightBlink: 0.5, headAccessory: 'beret', onReady: event => { assert.equal(ref.current.getAttribute('shape'), 'heart'); assert.equal(ref.current.getAttribute('camera-yaw'), '12'); assert.equal(ref.current.getAttribute('left-smile'), '0.2'); ready.push(event); } });
+  const f = await fixture(t, { ref, id: 'friend', className: 'avatar', 'aria-label': 'Companion', 'data-consumer': 'typed', style: { width: 240 }, shape: 'heart', bodyColor: '#abcdef', paused: false, mouseTracking: true, activity: 'still', interaction: 'box', bodyOrientation: { yaw: 12, pitch: 4 }, leftSmile: 0.2, rightBlink: 0.5, headAccessory: 'beret', onReady: event => { assert.equal(ref.current.getAttribute('shape'), 'heart'); assert.equal(ref.current.getAttribute('body-yaw'), '12'); assert.equal(ref.current.getAttribute('left-smile'), '0.2'); ready.push(event); } });
   assert.equal(ref.current, f.avatar);
   assert.equal(ready.length, 1);
   assert.ok(ready[0] instanceof CustomEvent);
@@ -71,8 +71,8 @@ test('React 19 maps props before notifying readiness on an already registered ho
   assert.equal(f.avatar.getAttribute('paused'), 'false');
   assert.equal(f.avatar.getAttribute('mouse-tracking'), 'true');
   assert.equal(f.avatar.getAttribute('activity'), 'still');
-  assert.equal(f.avatar.getAttribute('camera-yaw'), '12');
-  assert.equal(f.avatar.getAttribute('camera-pitch'), '4');
+  assert.equal(f.avatar.getAttribute('body-yaw'), '12');
+  assert.equal(f.avatar.getAttribute('body-pitch'), '4');
   assert.equal(f.avatar.getAttribute('left-smile'), '0.2');
   assert.equal(f.avatar.className, 'avatar');
   assert.equal(f.avatar.style.width, '240px');
@@ -83,10 +83,10 @@ test('React 19 maps props before notifying readiness on an already registered ho
 
 test('pre-registered insertion failures reach onError exactly once and release every listener', async t => {
   const events = [], readyEvents = [], ref = React.createRef();
-  const props = { ref, 'data-fail': 'yes', shape: 'heart', camera: { yaw: 12 }, leftSmile: 0.4, onReady: event => readyEvents.push(event), onError: event => {
+  const props = { ref, 'data-fail': 'yes', shape: 'heart', bodyOrientation: { yaw: 12 }, leftSmile: 0.4, onReady: event => readyEvents.push(event), onError: event => {
     assert.equal(event.target.getAttribute('shape'), 'heart');
     assert.equal(event.target.appliedShape, 'heart', 'error callback waits for attribute application');
-    assert.equal(event.target.getAttribute('camera-yaw'), '12');
+    assert.equal(event.target.getAttribute('body-yaw'), '12');
     assert.equal(event.target.getAttribute('left-smile'), '0.4');
     events.push(['first', event]);
   } };
@@ -113,7 +113,7 @@ test('stable semantic props do not restart motions; replacement handlers and pro
   const calls = [];
   const first = event => calls.push(['first', event.detail.design]);
   const second = event => calls.push(['second', event.detail.design]);
-  const props = { design: { body: { color: '#123456', shape: 'heart' } }, motion: { body: { rotation: [0, 1, 0] } }, camera: { yaw: 12 }, paused: true, onDesignChange: first };
+  const props = { design: { body: { color: '#123456', shape: 'heart' } }, motion: { body: { rotation: [0, 1, 0] } }, bodyOrientation: { yaw: 12 }, paused: true, onDesignChange: first };
   const f = await fixture(t, props);
   const count = f.avatar.mutations.length;
   f.avatar.setShape('puffy');
@@ -126,7 +126,7 @@ test('stable semantic props do not restart motions; replacement handlers and pro
   assert.equal(f.avatar.hasAttribute('design'), false);
   assert.equal(f.avatar.hasAttribute('motion'), false);
   assert.equal(f.avatar.hasAttribute('paused'), false);
-  assert.equal(f.avatar.hasAttribute('camera-yaw'), false);
+  assert.equal(f.avatar.hasAttribute('body-yaw'), false);
   assert.equal(f.avatar.getAttribute('shape'), 'circle');
 });
 
@@ -204,7 +204,7 @@ for (const subpath of ['/react', '/browser/sidekick-react.js']) test(`server imp
     await act(async () => root.unmount()); assert.equal(ref.current, null);
     const registeredContainer = document.createElement('div'); document.body.append(registeredContainer);
     const registeredRoot = createRoot(registeredContainer), registeredErrors = [], registeredRef = React.createRef();
-    await act(async () => { registeredRoot.render(React.createElement(React.StrictMode, null, React.createElement(SidekickAvatar, { shape: 'puffy', camera: { yaw: 15 }, leftSmile: 0.3, ref: registeredRef, onError: event => { assert.equal(event.target.design.body.shape, 'puffy'); assert.equal(event.target.camera.yaw, 15); assert.equal(event.target.design.eyes.left.weights.smile, 0.3); registeredErrors.push(event); } }))); });
+    await act(async () => { registeredRoot.render(React.createElement(React.StrictMode, null, React.createElement(SidekickAvatar, { shape: 'puffy', bodyOrientation: { yaw: 15 }, leftSmile: 0.3, ref: registeredRef, onError: event => { assert.equal(event.target.design.body.shape, 'puffy'); assert.equal(event.target.bodyOrientation.yaw, 15); assert.equal(event.target.design.eyes.left.weights.smile, 0.3); registeredErrors.push(event); } }))); });
     assert.equal(registeredErrors.length, 1, 'already registered WebGL failure is delivered exactly once');
     assert.equal(registeredRef.current, registeredContainer.firstElementChild);
     await act(async () => registeredRoot.unmount()); assert.equal(registeredRef.current, null);
@@ -222,12 +222,14 @@ test('React forwards canonical trackingMode independently from the legacy boolea
   assert.equal(f.avatar.hasAttribute('tracking-mode'), false); assert.equal(f.avatar.getAttribute('mouse-tracking'), 'true');
 });
 
-test('React cameraZoom overrides object zoom and removal restores object/default declarations', async t => {
-  const f = await fixture(t, { camera: { yaw: 12, zoom: 1.4 }, cameraZoom: 2 });
-  assert.equal(f.avatar.getAttribute('camera-zoom'), '2');
-  await f.render({ camera: { yaw: 12, zoom: 1.4 } }); assert.equal(f.avatar.getAttribute('camera-zoom'), '1.4');
-  await f.render({ camera: { yaw: 12 } }); assert.equal(f.avatar.hasAttribute('camera-zoom'), false);
-  assert.equal(f.avatar.getAttribute('camera-yaw'), '12');
+test('React zoom is independent of body orientation and removal restores defaults', async t => {
+  const f = await fixture(t, { bodyOrientation: { yaw: 12 }, zoom: 2 });
+  assert.equal(f.avatar.getAttribute('zoom'), '2');
+  await f.render({ bodyOrientation: 'side', zoom: 1.4 });
+  assert.equal(f.avatar.getAttribute('zoom'), '1.4');
+  assert.equal(f.avatar.getAttribute('body-orientation'), 'side');
+  await f.render({ bodyOrientation: { yaw: 12 } }); assert.equal(f.avatar.hasAttribute('zoom'), false);
+  assert.equal(f.avatar.getAttribute('body-yaw'), '12');
 });
 
 test('React forwards placement coordinates and custom completion events without resetting an unchanged command', async t => {
@@ -253,4 +255,20 @@ test('React maps physical movement props and forwards live acceleration telemetr
   f.avatar.dispatchEvent(new CustomEvent('sidekick-move-progress', { detail })); assert.deepEqual(received, [detail]);
   await f.render({ moveMaxSpeed: 180, moveTravel: 'none' });
   assert.equal(f.avatar.getAttribute('move-max-speed'), '180'); assert.equal(f.avatar.hasAttribute('move-acceleration'), false); assert.equal(f.avatar.hasAttribute('move-deceleration'), false);
+});
+
+
+test('React rejects removed camera and view props instead of forwarding them', () => {
+  for (const name of ['camera', 'cameraYaw', 'cameraPitch', 'cameraRoll', 'cameraZoom', 'view', 'viewYaw', 'viewPitch', 'onCameraChange', 'onViewChange', 'camera-yaw', 'view-yaw']) {
+    assert.throws(() => renderToString(React.createElement(SidekickAvatar, { [name]: 1 })), /has been removed; use bodyOrientation/);
+  }
+  assert.throws(() => renderToString(React.createElement(SidekickAvatar, { bodyOrientation: { yaw: 2, zoom: 2 } })), TypeError);
+});
+
+test('React forwards separate body orientation and zoom callbacks', async t => {
+  const orientations = [], zooms = [];
+  const f = await fixture(t, { onBodyOrientationChange: event => orientations.push(event.detail), onZoomChange: event => zooms.push(event.detail) });
+  f.avatar.dispatchEvent(new CustomEvent('sidekick-body-orientation-change', { detail: { bodyOrientation: { yaw: 30, pitch: 0, roll: 0 } } }));
+  f.avatar.dispatchEvent(new CustomEvent('sidekick-zoom-change', { detail: { zoom: 1.4 } }));
+  assert.deepEqual(orientations, [{ bodyOrientation: { yaw: 30, pitch: 0, roll: 0 } }]); assert.deepEqual(zooms, [{ zoom: 1.4 }]);
 });

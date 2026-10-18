@@ -152,7 +152,7 @@ test('render poses derive openness from blink for every independent combined wei
 test('root exports expose no profile, target-geometry or renderer calibration entry points', async () => {
   const api=await import('../dist/src/index.js');
   for(const key of ['AvatarRenderer','ShapeTimeline','resolveDesign','resolveShapeProfile','parseShapeProfiles','resolveShapeEyeGeometry','accessoryMountAnchor','DEFAULT_SHAPE_PROFILES','BODY_DEPTH_RANGE','EYE_PROFILE_SCALE_RANGE','EYE_PRESETS'])assert.equal(key in api,false,key);
-  for(const key of ['SidekickAvatar','createDesign','parseDesign','migrateDesign','patchDesign','createAccessory','createEyeState','eyeExpressionWeights','MotionTimeline','createCamera'])assert.equal(typeof api[key],'function',key);
+  for(const key of ['SidekickAvatar','createDesign','parseDesign','migrateDesign','patchDesign','createAccessory','createEyeState','eyeExpressionWeights','MotionTimeline','createBodyOrientation'])assert.equal(typeof api[key],'function',key);
 });
 
 test('legacy sparse arrays and accessor payloads reject without invoking getters', () => {

@@ -52,21 +52,21 @@ test('the boolean contract accepts explicit false and rejects ambiguous spelling
 
 test('all design sources resolve independently of attribute order and without caller mutation', () => {
   const design = createDesign({ body: { shape: 'circle', color: '#112233' }, eyes: { left: { weights: { smile: .1, blink: .2 } } }, accessories: [createAccessory('halo')] });
-  const attributes = { design: JSON.stringify(design), shape: 'heart', 'body-color': '#ABCDEF', expression: 'smile', 'left-expression': 'blink', smile: '.4', 'left-blink': '.6', accessories: JSON.stringify([createAccessory('glasses')]), 'head-accessory': 'beret', 'head-color': '#123456', camera: 'side', 'camera-yaw': '20' };
+  const attributes = { design: JSON.stringify(design), shape: 'heart', 'body-color': '#ABCDEF', expression: 'smile', 'left-expression': 'blink', smile: '.4', 'left-blink': '.6', accessories: JSON.stringify([createAccessory('glasses')]), 'head-accessory': 'beret', 'head-color': '#123456', 'body-orientation': 'side', 'body-yaw': '20' };
   const a = resolve(attributes), b = resolve(Object.fromEntries(Object.entries(attributes).reverse()));
   assert.deepEqual(a, b);
   assert.deepEqual(a.design.body, { shape: 'heart', color: '#abcdef' });
   assert.deepEqual(a.design.eyes.left.weights, { smile: .4, blink: .6 });
   assert.deepEqual(a.design.eyes.right.weights, { smile: .4, blink: 0 });
   assert.deepEqual(a.design.accessories.map(x => [x.slot, x.preset, x.color]), [['eyes', 'glasses', '#31323d'], ['head', 'beret', '#123456']]);
-  assert.deepEqual(a.camera, { yaw: 20, pitch: 0, roll: 0, zoom: 1 });
+  assert.deepEqual(a.bodyOrientation, { yaw: 20, pitch: 0, roll: 0 });
   assert.equal(design.body.shape, 'circle');
 });
 
 test('attribute parsing rejects malformed numbers, colors, JSON, slots, expressions and timing', () => {
   for (const attrs of [
     { shape: 'orb' }, { 'body-color': 'red' }, { 'eye-color': '#fff' }, { 'left-smile': '1.1' },
-    { 'camera-yaw': '' }, { 'camera-pitch': '91' }, { 'gaze-x': 'NaN' }, { time: '0x10' },
+    { 'body-yaw': '' }, { 'body-pitch': '91' }, { 'gaze-x': 'NaN' }, { time: '0x10' },
     { 'shape-duration': '20ms' }, { 'motion-duration': '-1' }, { 'shape-easing': 'ease' },
     { 'head-accessory': 'earring' }, { accessories: '{}' }, { design: '{' }, { motion: '{"body":{"rotation":[0,0,99]}}' },
     { 'head-color': '#ff' }, { expression: 'happy' }, { paused: 'yes' }, { interaction: 'orbit' }, { activity: 'dance' },
@@ -76,11 +76,11 @@ test('attribute parsing rejects malformed numbers, colors, JSON, slots, expressi
 test('raw attribute updates are a single atomic transaction and repairing it retries every field', async t => {
   const a = avatar(t), errors = []; a.addEventListener('sidekick-error', e => errors.push(e.detail));
   const before = a.design;
-  a.setAttribute('shape', 'heart'); a.setAttribute('body-color', 'invalid'); a.setAttribute('camera-yaw', '30');
-  await flush(); assert.deepEqual(a.design, before); assert.equal(a.camera.yaw, 0); assert.equal(errors.length, 1); assert.equal(errors[0].attribute, 'body-color');
+  a.setAttribute('shape', 'heart'); a.setAttribute('body-color', 'invalid'); a.setAttribute('body-yaw', '30');
+  await flush(); assert.deepEqual(a.design, before); assert.equal(a.bodyOrientation.yaw, 0); assert.equal(errors.length, 1); assert.equal(errors[0].attribute, 'body-color');
   assert.equal(a.getAttribute('shape'), 'heart');
   a.setAttribute('body-color', '#123456'); await flush();
-  assert.equal(a.design.body.shape, 'heart'); assert.equal(a.design.body.color, '#123456'); assert.equal(a.camera.yaw, 30);
+  assert.equal(a.design.body.shape, 'heart'); assert.equal(a.design.body.color, '#123456'); assert.equal(a.bodyOrientation.yaw, 30);
 });
 
 test('removing scalar overrides reveals JSON/default while preserving unrelated imperative state', async t => {
@@ -88,8 +88,8 @@ test('removing scalar overrides reveals JSON/default while preserving unrelated 
   a.setAttribute('design', JSON.stringify(createDesign({ body: { shape: 'circle', color: '#123456' } })));
   a.setAttribute('shape', 'heart'); await flush(); assert.equal(a.design.body.shape, 'heart');
   a.removeAttribute('shape'); await flush(); assert.equal(a.design.body.shape, 'circle');
-  await a.updateDesign({ eyes: { color: '#654321' } }); a.setCamera({ roll: 10 });
-  a.setAttribute('body-color', '#abcdef'); await flush(); assert.equal(a.design.eyes.color, '#654321'); assert.equal(a.camera.roll, 10);
+  await a.updateDesign({ eyes: { color: '#654321' } }); a.setBodyOrientation({ roll: 10 });
+  a.setAttribute('body-color', '#abcdef'); await flush(); assert.equal(a.design.eyes.color, '#654321'); assert.equal(a.bodyOrientation.roll, 10);
   a.removeAttribute('body-color'); await flush(); assert.equal(a.design.body.color, '#123456');
   a.removeAttribute('design'); await flush(); assert.deepEqual(a.design, createDesign());
 });
@@ -196,26 +196,26 @@ test('imperative setters remain reliable while an unrelated invalid HTML batch i
   a.removeAttribute('design'); await flush(); assert.equal(a.design.body.shape, 'heart'); assert.equal(a.paused, true);
 });
 
-test('camera zoom precedence, removal, range validation and rejected batches are atomic', async t => {
+test('independent zoom precedence, removal, range validation and rejected batches are atomic', async t => {
   const a = avatar(t);
-  a.setAttribute('camera', 'side'); a.setAttribute('camera-zoom', '1.7'); await flush();
-  assert.deepEqual(a.camera, { yaw: 90, pitch: 0, roll: 0, zoom: 1.7 });
-  a.setCamera({ yaw: 22 }); a.removeAttribute('camera-zoom'); await flush();
-  assert.deepEqual(a.camera, { yaw: 22, pitch: 0, roll: 0, zoom: 1 });
-  const before = a.camera, design = a.design;
-  a.setAttribute('camera-zoom', '4'); a.setAttribute('camera-yaw', '13'); a.setAttribute('body-color', '#abcdef'); await flush();
-  assert.deepEqual(a.camera, before); assert.deepEqual(a.design, design);
-  a.setAttribute('camera-zoom', '2'); await flush();
-  assert.equal(a.camera.zoom, 2); assert.equal(a.camera.yaw, 13); assert.equal(a.design.body.color, '#abcdef');
-  a.removeAttribute('camera'); a.removeAttribute('camera-zoom'); a.removeAttribute('camera-yaw'); await flush();
-  assert.deepEqual(a.camera, { yaw: 0, pitch: 0, roll: 0, zoom: 1 });
+  a.setAttribute('body-orientation', 'side'); a.setAttribute('zoom', '1.7'); await flush();
+  assert.deepEqual(a.bodyOrientation, { yaw: 90, pitch: 0, roll: 0 }); assert.equal(a.zoom, 1.7);
+  a.setBodyOrientation({ yaw: 22 }); a.removeAttribute('zoom'); await flush();
+  assert.deepEqual(a.bodyOrientation, { yaw: 22, pitch: 0, roll: 0 }); assert.equal(a.zoom, 1);
+  const before = a.bodyOrientation, design = a.design;
+  a.setAttribute('zoom', '4'); a.setAttribute('body-yaw', '13'); a.setAttribute('body-color', '#abcdef'); await flush();
+  assert.deepEqual(a.bodyOrientation, before); assert.deepEqual(a.design, design);
+  a.setAttribute('zoom', '2'); await flush();
+  assert.equal(a.zoom, 2); assert.equal(a.bodyOrientation.yaw, 13); assert.equal(a.design.body.color, '#abcdef');
+  a.removeAttribute('body-orientation'); a.removeAttribute('zoom'); a.removeAttribute('body-yaw'); await flush();
+  assert.deepEqual(a.bodyOrientation, { yaw: 0, pitch: 0, roll: 0 });
 });
 
 test('movement attributes are transactional and independent of renderer pose', async t => {
-  const a = avatar(t), before = a.camera;
+  const a = avatar(t), before = a.bodyOrientation;
   a.setAttribute('placement', 'viewport'); a.setAttribute('position-x', '25'); a.setAttribute('position-y', '35');
   await flush();
-  assert.equal(a.placement, 'viewport'); assert.deepEqual(a.position, { x: 25, y: 35 }); assert.deepEqual(a.camera, before);
+  assert.equal(a.placement, 'viewport'); assert.deepEqual(a.position, { x: 25, y: 35 }); assert.deepEqual(a.bodyOrientation, before);
   assert.equal(a.style.getPropertyValue('--sidekick-position'), 'fixed');
   a.setAttribute('position-x', 'bad'); a.setAttribute('position-y', '60'); await flush();
   assert.deepEqual(a.position, { x: 25, y: 35 });
@@ -240,11 +240,11 @@ test('default body color remains FFCC37 across core attributes and fresh element
 });
 
 test('play and transition methods settle on disconnect without changing camera', async t => {
-  const a = avatar(t), camera = a.camera;
+  const a = avatar(t), camera = a.bodyOrientation;
   const playing = a.play('speaking'); assert.equal(a.activity, 'speaking');
   a.stop(); assert.deepEqual(await playing, { finished: false }); assert.equal(a.activity, 'idle');
   const transition = a.transitionTo({ shape: 'heart', expression: 'smile' }, { duration: 200 });
-  a.remove(); assert.deepEqual(await transition, { finished: false }); assert.deepEqual(a.camera, camera);
+  a.remove(); assert.deepEqual(await transition, { finished: false }); assert.deepEqual(a.bodyOrientation, camera);
 });
 
 test('disconnect marks the host inactive before cancellation listeners can restart playback', async t => {
@@ -257,9 +257,9 @@ test('disconnect marks the host inactive before cancellation listeners can resta
 test('moving the host recalculates gaze toward a stationary mouse without changing camera', async t => {
   const a = avatar(t); a.mouseTracking = true;
   a.getBoundingClientRect = () => ({ left: a.position.x, top: 0, width: 200, height: 200 });
-  pointer(100, 100); assert.deepEqual(a.gazeTarget, [0, 0]); const camera = a.camera;
+  pointer(100, 100); assert.deepEqual(a.gazeTarget, [0, 0]); const camera = a.bodyOrientation;
   await a.moveTo({ x: 100, y: 0 }, { duration: 0 }); a.flushInput();
-  assert.deepEqual(a.gazeTarget, [-1, 0]); assert.deepEqual(a.camera, camera);
+  assert.deepEqual(a.gazeTarget, [-1, 0]); assert.deepEqual(a.bodyOrientation, camera);
   a.resetTracking(); await a.moveTo({ x: 0, y: 0 }, { duration: 0 }); a.flushInput(); assert.deepEqual(a.gazeTarget, [0, 0]);
 });
 
@@ -290,4 +290,41 @@ test('invalid physical attributes keep a batched position change atomic until re
   a.setAttribute('position-x', '100'); a.setAttribute('move-acceleration', '-1'); await flush();
   assert.deepEqual(a.position, { x: 20, y: 30 }); assert.equal(errors.length, 1);
   a.setAttribute('move-acceleration', '900'); await flush(); assert.deepEqual(a.position, { x: 100, y: 30 });
+});
+
+
+test('removed camera and view attributes produce actionable errors without mutating state', async t => {
+  for (const name of ['camera', 'camera-yaw', 'camera-pitch', 'camera-roll', 'camera-zoom', 'view', 'view-yaw', 'view-pitch', 'view-roll', 'view-zoom']) {
+    assert.throws(() => resolve({ [name]: '1' }), /removed attribute; use/);
+    const a = avatar(t), errors = [];
+    a.addEventListener('sidekick-error', event => errors.push(event.detail));
+    a.setAttribute(name, '1'); a.setAttribute('body-yaw', '20'); await flush();
+    assert.equal(errors.length, 1); assert.equal(errors[0].attribute, name); assert.match(errors[0].message, /use/);
+    assert.equal(a.bodyOrientation.yaw, 0);
+  }
+});
+
+test('orientation and zoom are separate snapshot APIs and emit only their own change events', t => {
+  const a = avatar(t), orientations = [], zooms = [];
+  a.addEventListener('sidekick-body-orientation-change', event => orientations.push(event.detail));
+  a.addEventListener('sidekick-zoom-change', event => zooms.push(event.detail));
+  a.zoom = 1.8; a.setBodyOrientationPreset('side');
+  assert.equal(a.zoom, 1.8); assert.deepEqual(zooms, [{ zoom: 1.8 }]);
+  assert.deepEqual(orientations, [{ bodyOrientation: { yaw: 90, pitch: 0, roll: 0 } }]);
+  const snapshot = a.bodyOrientation; snapshot.yaw = -1; assert.equal(a.bodyOrientation.yaw, 90);
+  a.setBodyOrientation({ roll: 12 }); assert.equal(a.bodyOrientation.yaw, 90); assert.equal(a.zoom, 1.8);
+  for (const name of ['camera', 'setCamera', 'setCameraPreset', 'resetCamera', 'view', 'setView']) assert.equal(name in a, false);
+  assert.throws(() => a.setBodyOrientation({ zoom: 2 }), TypeError);
+});
+
+
+test('invalid imperative zoom assignments reject atomically without events or resets', t => {
+  const a = avatar(t), events = [];
+  a.zoom = 1.8; a.setBodyOrientation({ yaw: 22 });
+  a.addEventListener('sidekick-zoom-change', event => events.push(event.detail));
+  for (const value of [undefined, null, '2', {}, NaN, Infinity, 0, 4]) {
+    assert.throws(() => { a.zoom = value; });
+    assert.equal(a.zoom, 1.8); assert.equal(a.bodyOrientation.yaw, 22);
+  }
+  assert.deepEqual(events, []);
 });

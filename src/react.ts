@@ -3,7 +3,7 @@
 import { createElement, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import type { HTMLAttributes, ReactElement, Ref } from 'react';
 import type { AccessoryDesign, Activity, AvatarDesign, RenderStyle } from './core/design.js';
-import type { CameraState, CameraPreset } from './core/camera.js';
+import type { BodyOrientation, BodyOrientationPreset } from './core/body-orientation.js';
 import type { EyeExpression } from './core/expressions.js';
 import type { MotionOptions, MotionTarget } from './core/motion.js';
 import type { TrackingMode } from './core/tracking.js';
@@ -57,11 +57,11 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
   leftEarColor?: string;
   rightEarAccessory?: SidekickAttributes['right-ear-accessory'];
   rightEarColor?: string;
-  camera?: CameraPreset | Partial<CameraState>;
-  cameraYaw?: number;
-  cameraPitch?: number;
-  cameraRoll?: number;
-  cameraZoom?: number;
+  bodyOrientation?: BodyOrientationPreset | Partial<BodyOrientation>;
+  bodyYaw?: number;
+  bodyPitch?: number;
+  bodyRoll?: number;
+  zoom?: number;
   gazeX?: number;
   gazeY?: number;
   activity?: Activity;
@@ -82,7 +82,8 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
   onDesignChange?: SidekickEventHandler<'sidekick-design-change'>;
   onMotionEnd?: SidekickEventHandler<'sidekick-motion-end'>;
   onShapeEnd?: SidekickEventHandler<'sidekick-shape-end'>;
-  onCameraChange?: SidekickEventHandler<'sidekick-camera-change'>;
+  onBodyOrientationChange?: SidekickEventHandler<'sidekick-body-orientation-change'>;
+  onZoomChange?: SidekickEventHandler<'sidekick-zoom-change'>;
   onActivate?: SidekickEventHandler<'sidekick-activate'>;
   onError?: SidekickEventHandler<'sidekick-error'>;
 }
@@ -96,14 +97,14 @@ const attributeProps = {
   headAccessory: 'head-accessory', headColor: 'head-color', eyesAccessory: 'eyes-accessory', eyesColor: 'eyes-color',
   mouthAccessory: 'mouth-accessory', mouthColor: 'mouth-color', neckAccessory: 'neck-accessory', neckColor: 'neck-color',
   leftEarAccessory: 'left-ear-accessory', leftEarColor: 'left-ear-color', rightEarAccessory: 'right-ear-accessory', rightEarColor: 'right-ear-color',
-  cameraYaw: 'camera-yaw', cameraPitch: 'camera-pitch', cameraRoll: 'camera-roll', cameraZoom: 'camera-zoom', gazeX: 'gaze-x', gazeY: 'gaze-y',
+  bodyYaw: 'body-yaw', bodyPitch: 'body-pitch', bodyRoll: 'body-roll', zoom: 'zoom', gazeX: 'gaze-x', gazeY: 'gaze-y',
   activity: 'activity', paused: 'paused', interaction: 'interaction', mouseTracking: 'mouse-tracking', trackingMode: 'tracking-mode', renderStyle: 'render-style',
   shapeDuration: 'shape-duration', shapeEasing: 'shape-easing', motionDuration: 'motion-duration', motionEasing: 'motion-easing', time: 'time',
 } as const satisfies Partial<Record<keyof SidekickAvatarProps, string>>;
 const eventProps = {
   onMoveEnd: 'sidekick-move-end', onMoveProgress: 'sidekick-move-progress', onPlayEnd: 'sidekick-play-end', onAssetTransitionEnd: 'sidekick-transition-end',
   onReady: 'sidekick-ready', onDesignChange: 'sidekick-design-change', onMotionEnd: 'sidekick-motion-end',
-  onShapeEnd: 'sidekick-shape-end', onCameraChange: 'sidekick-camera-change', onActivate: 'sidekick-activate', onError: 'sidekick-error',
+  onShapeEnd: 'sidekick-shape-end', onBodyOrientationChange: 'sidekick-body-orientation-change', onZoomChange: 'sidekick-zoom-change', onActivate: 'sidekick-activate', onError: 'sidekick-error',
 } as const;
 
 // Sorting object keys avoids restarting motions for semantically identical inline props.
@@ -116,9 +117,33 @@ function serialize(value: unknown): string {
   });
 }
 
+// Keep validation local: eager core imports create additional shared browser chunks
+// and pull renderer dependencies into the SSR-safe React entry point.
+function validateBodyOrientation(value: unknown): void {
+  if (typeof value === 'string') {
+    if (!['front', 'three-quarter', 'side'].includes(value)) throw new TypeError('bodyOrientation must be front, three-quarter, or side');
+    return;
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('bodyOrientation must be a plain object or preset');
+  const prototype: unknown = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) throw new TypeError('bodyOrientation must be a plain object');
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+    if ((key !== 'yaw' && key !== 'pitch' && key !== 'roll') || !Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) {
+      throw new TypeError('bodyOrientation accepts only yaw, pitch, and roll; use the separate zoom prop');
+    }
+    const limit = key === 'yaw' ? 360 : key === 'pitch' ? 90 : 180;
+    const angle: unknown = descriptor.value;
+    if (typeof angle !== 'number' || !Number.isFinite(angle) || angle < -limit || angle > limit) throw new RangeError(`bodyOrientation.${key} must be a finite number between ${-limit} and ${limit}`);
+  }
+}
+
 /** A stable SSR host; configuration and renderer registration happen only on the client. */
 export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
-  const { ref, design, accessories, camera, motion, ...html } = props;
+  for (const name of ['camera', 'cameraYaw', 'cameraPitch', 'cameraRoll', 'cameraZoom', 'view', 'viewYaw', 'viewPitch', 'viewRoll', 'viewZoom', 'onCameraChange', 'onViewChange', 'camera-yaw', 'camera-pitch', 'camera-roll', 'camera-zoom', 'view-yaw', 'view-pitch', 'view-roll', 'view-zoom']) {
+    if (Object.prototype.hasOwnProperty.call(props, name)) throw new TypeError(`${name} has been removed; use bodyOrientation, bodyYaw/bodyPitch/bodyRoll, zoom, onBodyOrientationChange or onZoomChange instead`);
+  }
+  const { ref, design, accessories, bodyOrientation, motion, ...html } = props;
   const element = useRef<SidekickElement | null>(null);
   const readyNotified = useRef(false);
   const deliveredReadyEvent = useRef<Event | null>(null);
@@ -134,9 +159,13 @@ export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
   if (design !== undefined) attributes.design = serialize(design);
   if (accessories !== undefined) attributes.accessories = serialize(accessories);
   if (motion !== undefined) attributes.motion = serialize(motion);
-  if (typeof camera === 'string') attributes.camera = camera;
-  else if (camera) for (const axis of ['yaw', 'pitch', 'roll', 'zoom'] as const) {
-    if (camera[axis] !== undefined) attributes[`camera-${axis}`] = String(camera[axis]);
+  if (bodyOrientation !== undefined) validateBodyOrientation(bodyOrientation);
+  if (typeof bodyOrientation === 'string') {
+    attributes['body-orientation'] = bodyOrientation;
+  } else if (bodyOrientation !== undefined) {
+    for (const axis of ['yaw', 'pitch', 'roll'] as const) {
+      if (bodyOrientation[axis] !== undefined) attributes[`body-${axis}`] = String(bodyOrientation[axis]);
+    }
   }
   for (const key of Object.keys(attributeProps) as (keyof typeof attributeProps)[]) {
     const value = props[key];

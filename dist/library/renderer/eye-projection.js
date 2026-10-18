@@ -15,7 +15,7 @@ export function viewPoint(matrix, point, vector = false) {
  * Orthographic projection of the stable body front-plane frame. Keep both raw
  * columns: normalizing them or making them perpendicular would billboard the
  * glyph, erasing yaw/pitch foreshortening and combined-rotation shear.
- * `root` includes the body and camera rotations, but not local body squash.
+ * `root` includes the animated pose and authored body rotations, but not local body squash.
  */
 export function eyeBasis(root) {
     const right = viewPoint(root, [1, 0, 0], true), up = viewPoint(root, [0, 1, 0], true);

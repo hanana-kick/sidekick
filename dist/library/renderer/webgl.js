@@ -1,6 +1,7 @@
+import { createZoom } from '../core/zoom.js';
 import { travelMatrix } from '../core/travel.js';
 import { resolveDesign } from '../core/resolved-design.js';
-import { cameraViewMatrix, createCamera } from '../core/camera.js';
+import { bodyOrientationMatrix, createBodyOrientation } from '../core/body-orientation.js';
 import { activityFrame } from '../core/motion.js';
 import { EyeBlinkGate, composeEyePose } from '../core/expressions.js';
 import { clamp, multiply, orthographic, spring, transform } from '../core/math.js';
@@ -260,11 +261,13 @@ export class AvatarRenderer {
         const design = this.resolvedInput;
         const gl = this.gl, { pose } = state, activity = state.activityFrame ?? activityFrame(state.activity, state.time, state.reduced);
         const roll = pose.rotation[2] + activity.roll;
-        const camera = createCamera(state.camera ?? { yaw: (state.view?.[0] ?? 0) * 180 / Math.PI, pitch: (state.view?.[1] ?? 0) * 180 / Math.PI, roll: 0 });
+        if (Object.hasOwn(state, 'camera') || Object.hasOwn(state, 'view'))
+            throw new TypeError('camera/view are removed; use bodyOrientation and zoom.');
+        const bodyOrientation = createBodyOrientation(state.bodyOrientation), zoom = createZoom(state.zoom);
         // View orientation is independent of the body's animated local pose. Matrix
         // composition preserves combined yaw/pitch/roll, unlike adding Euler angles.
         const model = transform([0, activity.bob, 0], [pose.rotation[0], pose.rotation[1], roll]);
-        const root = travelMatrix(multiply(cameraViewMatrix(camera), model), state.reduced ? undefined : state.travel);
+        const root = travelMatrix(multiply(bodyOrientationMatrix(bodyOrientation), model), state.reduced ? undefined : state.travel);
         const aspect = this.displayAspect ?? this.canvas.width / this.canvas.height;
         const contour = state.contour ?? shapeContour({ kind: 'material', name: design.body.shape });
         const profile = state.profile ?? resolveShapeProfile(design.body.shape);
@@ -297,7 +300,7 @@ export class AvatarRenderer {
             this.frameSpan = Math.max(Math.max(...BODY_SIZE) * 1.25 + 0.9, (radius + accessory) * 2 + 0.34);
             this.framingKey = framingKey;
         }
-        const span = this.frameSpan / camera.zoom;
+        const span = this.frameSpan / zoom;
         const height = span * Math.max(1, 1 / aspect), width = height * aspect;
         gl.viewport(0, 0, this.canvas.width, this.canvas.height);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -361,7 +364,7 @@ export class AvatarRenderer {
                 rotation[2] += (lag[0] - roll) * accessory.follow;
             if (accessory.preset === 'glasses' || accessory.preset === 'sunglasses') {
                 // Equipment follows the fitted neutral eye layout and face motion. Gaze
-                // stays inside the lenses; camera/weights never rebuild the frame mesh.
+                // stays inside the lenses; bodyOrientation/weights never rebuild the frame mesh.
                 const frameEyes = projectEyes(design, root, pose.face, [0, 0], activity.squash, contour, profile);
                 const key = JSON.stringify([accessory.preset, frameEyes.left.localCenter, frameEyes.right.localCenter, frameEyes.size, activity.squash, profile.depth, accessoryMountProfile(accessory, profile), accessory.anchor, accessory.scale, rotation]);
                 const mesh = this.meshes.glasses;

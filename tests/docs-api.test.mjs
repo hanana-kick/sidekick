@@ -215,3 +215,13 @@ test('README states the eyes-and-body default and explicit legacy opt-out', () =
   assert.match(readme, /`bot\.mouseTracking = false`는 명시적인 `mouse-tracking="false"`/);
   assert.doesNotMatch(readme, /마우스 추적 꺼짐으로 돌아갑니다/);
 });
+
+test('body orientation and zoom documentation describes independent APIs and version 3 scenes', () => {
+  for (const name of ['body-orientation', 'body-yaw', 'body-pitch', 'body-roll', 'bodyOrientation', 'bodyYaw', 'bodyPitch', 'bodyRoll', 'zoom', 'onBodyOrientationChange', 'onZoomChange']) {
+    assert.ok(cells.some(row => row[0] === '`' + name + '`' || row[1] === '`' + name + '`'), `Missing new public API row: ${name}`);
+  }
+  assert.match(readme, /sceneVersion: 3/);
+  assert.match(readme, /bot\.zoom = 1\.5/);
+  assert.doesNotMatch(readme, /setCamera|cameraYaw|cameraZoom|camera-yaw|camera-zoom|sidekick-camera-change|createCamera|CameraState/);
+  assert.doesNotMatch(readme, /bodyOrientation=\{\{zoom/);
+});

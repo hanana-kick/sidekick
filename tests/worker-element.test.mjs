@@ -147,12 +147,12 @@ test('synchronously denied Worker constructor enters the main fallback path', as
 
 test('attribute transactions use one worker packet and fresh capture flushes queued DOM writes', async () => {
   const avatar = await createAvatar(), worker = workers.at(-1), start = worker.messages.length;
-  avatar.setAttribute('shape', 'heart'); avatar.setAttribute('camera-yaw', '33'); avatar.setAttribute('body-color', '#123456');
+  avatar.setAttribute('shape', 'heart'); avatar.setAttribute('body-yaw', '33'); avatar.setAttribute('body-color', '#123456');
   const image = await avatar.capturePixelsAsync();
   const sent = worker.messages.slice(start).map(message => message.command);
   assert.equal(sent[0].kind, 'batch'); assert.equal(sent.filter(command => command.kind === 'batch').length, 1);
   assert.equal(sent[0].commands.find(command => command.kind === 'design').design.body.shape, 'heart');
-  assert.equal(sent[0].commands.find(command => command.kind === 'state' && command.state.camera).state.camera.yaw, 33);
+  assert.equal(sent[0].commands.find(command => command.kind === 'state' && command.state.bodyOrientation).state.bodyOrientation.yaw, 33);
   assert.equal(sent.at(-1).kind, 'capture'); assert.equal(image.pixels[3], 255); avatar.remove();
 });
 
@@ -163,10 +163,10 @@ test('canvas wheel input is nonpassive, frame-coalesced and excluded from disabl
     const event = new dom.window.WheelEvent('wheel', { deltaY: -1, cancelable: true, bubbles: true });
     canvas.dispatchEvent(event); assert.equal(event.defaultPrevented, true);
   }
-  assert.equal(worker.messages.slice(start).filter(message => message.command?.state?.camera).length, 0);
+  assert.equal(worker.messages.slice(start).filter(message => message.command?.state?.zoom).length, 0);
   await avatar.capturePixelsAsync();
-  const updates = worker.messages.slice(start).filter(message => message.command?.state?.camera);
-  assert.equal(updates.length, 1); assert.ok(Math.abs(updates[0].command.state.camera.zoom - Math.exp(.2)) < 1e-10);
+  const updates = worker.messages.slice(start).filter(message => message.command?.state?.zoom);
+  assert.equal(updates.length, 1); assert.ok(Math.abs(updates[0].command.state.zoom - Math.exp(.2)) < 1e-10);
   const settings = document.createElement('section'); document.body.append(settings);
   const scroll = new dom.window.WheelEvent('wheel', { deltaY: 100, bubbles: true, cancelable: true }); settings.dispatchEvent(scroll); assert.equal(scroll.defaultPrevented, false);
   avatar.interaction = 'none'; const disabled = new dom.window.WheelEvent('wheel', { deltaY: -100, cancelable: true }); canvas.dispatchEvent(disabled); assert.equal(disabled.defaultPrevented, false);
@@ -181,11 +181,11 @@ test('disconnect drops uncommitted pinch motion, releases both captures and reco
   const down = (id, x) => avatar.onPointerDown({ pointerId: id, pointerType: 'touch', button: 0, clientX: x, clientY: 100 });
   down(1, 50); down(2, 150);
   avatar.onPointerMove({ pointerId: 2, clientX: 200, clientY: 100 }); await avatar.capturePixelsAsync();
-  assert.equal(avatar.camera.zoom, 1.5);
+  assert.equal(avatar.zoom, 1.5);
   avatar.onPointerMove({ pointerId: 2, clientX: 250, clientY: 100 }); avatar.remove();
-  assert.equal(captures.size, 0); assert.equal(avatar.pointers.size, 0); assert.equal(avatar.camera.zoom, 1.5);
+  assert.equal(captures.size, 0); assert.equal(avatar.pointers.size, 0); assert.equal(avatar.zoom, 1.5);
   document.body.append(avatar); await avatar.capturePixelsAsync();
-  const worker = workers.at(-1); assert.notEqual(worker, old); assert.equal(worker.messages[0].state.camera.zoom, 1.5);
+  const worker = workers.at(-1); assert.notEqual(worker, old); assert.equal(worker.messages[0].state.zoom, 1.5);
   assert.equal(avatar.shadowRoot.querySelector('canvas').hasPointerCapture?.(1) ?? false, false);
   avatar.remove();
 });
@@ -197,7 +197,7 @@ test('camera listeners disconnecting or reconnecting during pointer-down flush c
     avatar.interaction = 'box';
     avatar.onPointerDown({ pointerId: 1, pointerType: 'touch', button: 0, clientX: 50, clientY: 100 });
     avatar.onPointerMove({ pointerId: 1, clientX: 70, clientY: 100 });
-    avatar.addEventListener('sidekick-camera-change', () => { avatar.remove(); if (reconnect) document.body.append(avatar); }, { once: true });
+    avatar.addEventListener('sidekick-body-orientation-change', () => { avatar.remove(); if (reconnect) document.body.append(avatar); }, { once: true });
     avatar.onPointerDown({ pointerId: 2, pointerType: 'touch', button: 0, clientX: 150, clientY: 100 });
     assert.equal(captures.size, 0); assert.equal(avatar.pointers.size, 0);
     if (reconnect) await avatar.capturePixelsAsync(); avatar.remove();

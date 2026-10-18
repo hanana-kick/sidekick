@@ -46,7 +46,7 @@ function fixture(patch: Partial<RuntimeState> = {}) {
   const canvas = Object.assign(new EventTarget(), { width: 200, height: 200 }) as HTMLCanvasElement;
   const scheduler: FrameScheduler = { request: callback => { pending.set(++id, callback); return id; }, cancel: key => { pending.delete(key); } };
   const renderer: RuntimeRenderer = { canvas, stats: { drawCalls: 0, buffers: 0 }, resize() {}, render(_design, state) { frames.push(structuredClone(state)); }, readPixels: () => new Uint8Array(200 * 200 * 4), dispose() {} };
-  const initial: RuntimeState = { design: createDesign(), pose: initialPose(), camera: { yaw: 0, pitch: 0, roll: 0, zoom: 1 }, activity: 'thinking', paused: false, reduced: false, active: true, time: 1, gaze: [0, 0], trackingMode: 'off', width: 200, height: 200, dpr: 1, ...patch };
+  const initial: RuntimeState = { design: createDesign(), pose: initialPose(), bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1, activity: 'thinking', paused: false, reduced: false, active: true, time: 1, gaze: [0, 0], trackingMode: 'off', width: 200, height: 200, dpr: 1, ...patch };
   const engine = new RenderEngine(canvas, initial, () => {}, scheduler, renderer);
   return { engine, frames, pending, step(ms = 16) { now += ms; const work = [...pending.values()]; pending.clear(); for (const callback of work) callback(now); } };
 }

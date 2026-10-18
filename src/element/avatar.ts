@@ -14,8 +14,9 @@ import type { ShapeMotionOptions, ShapeMotionResult } from '../core/shape-motion
 import type { MaterialShapeName } from '../core/shapes.js';
 import type { EyeExpression, EyeShapeWeights } from '../core/expressions.js';
 import { expressionDuration, eyeExpressionWeights, patchEyeState } from '../core/expressions.js';
-import { cameraPreset, createCamera, patchCamera, pinchZoom, wheelZoom } from '../core/camera.js';
-import type { CameraAngles, CameraState, CameraPreset } from '../core/camera.js';
+import { bodyOrientationPreset, createBodyOrientation, patchBodyOrientation } from '../core/body-orientation.js';
+import { createZoom, pinchZoom, wheelZoom } from '../core/zoom.js';
+import type { BodyOrientation, BodyOrientationPreset } from '../core/body-orientation.js';
 import type { MotionOptions, MotionResult, MotionTarget, Pose } from '../core/motion.js';
 import { validateSnapshotOptions } from '../core/pixels.js';
 import type { SnapshotOptions } from '../core/pixels.js';
@@ -23,12 +24,12 @@ import { LocalRenderBridge, WorkerRenderBridge, supportsRenderWorker } from '../
 import type { RenderBridge } from '../runtime/render-bridge.js';
 import type { DesignTransition, RuntimeCommand, RuntimeEvent, RuntimeSnapshot, RuntimeState } from '../runtime/protocol.js';
 import type { PixelBuffer } from '../core/pixels.js';
-import { ACCESSORY_ATTRIBUTE_SLOTS, SIDEKICK_ATTRIBUTES, SidekickAttributeError, resolveSidekickAttributes } from './attributes.js';
+import { ACCESSORY_ATTRIBUTE_SLOTS, SIDEKICK_ATTRIBUTES, REMOVED_ORIENTATION_ATTRIBUTES, SidekickAttributeError, resolveSidekickAttributes } from './attributes.js';
 import type { SidekickEventMap } from './attributes.js';
 const HTMLElementBase = (typeof HTMLElement === 'undefined' ? class {} : HTMLElement) as typeof HTMLElement;
 
 export class SidekickAvatar extends HTMLElementBase {
-  static observedAttributes = [...SIDEKICK_ATTRIBUTES];
+  static observedAttributes = [...SIDEKICK_ATTRIBUTES, ...Object.keys(REMOVED_ORIENTATION_ATTRIBUTES)];
   addEventListener<K extends keyof SidekickEventMap>(type: K, listener: (this: SidekickAvatar, event: SidekickEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | AddEventListenerOptions): void;
   addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions): void;
@@ -138,7 +139,8 @@ export class SidekickAvatar extends HTMLElementBase {
   private elapsed = 0;
   private readyState = false;
   private currentActivity: Activity = 'idle';
-  private cameraAngles = createCamera();
+  private orientationState = createBodyOrientation();
+  private zoomState = createZoom();
   private gazeTarget: Vec2 = [0, 0];
   private manualGaze: Vec2 = [0, 0];
   private pausedState = false;
@@ -150,7 +152,7 @@ export class SidekickAvatar extends HTMLElementBase {
   private pendingAttributes = new Map<string, string | null>();
   private attributesQueued = false;
   private propertiesUpgraded = false;
-  private drag?: { id: number; x: number; y: number; camera: CameraState; moved: boolean };
+  private drag?: { id: number; x: number; y: number; bodyOrientation: BodyOrientation; moved: boolean };
   readonly motion = {
     to: (target: MotionTarget, options: MotionOptions = {}): Promise<MotionResult> => {
       const timing = validateMotionOptions(options);
@@ -274,26 +276,30 @@ export class SidekickAvatar extends HTMLElementBase {
     this.reflectAttribute('interaction', value);
   }
   get ready(): boolean { return this.readyState; }
-  /** Last acknowledged worker pose; configuration and camera getters are immediate. */
+  /** Last acknowledged worker pose; configuration and body orientation getters are immediate. */
   get pose(): Pose { return structuredClone(this.currentPose); }
   get diagnostics(): { travel?: TravelPresentation; ready: boolean; running: boolean; frames: number; drawCalls: number; buffers: number; backend: 'worker' | 'main' | 'none'; generation: number; revision: number; acknowledgedRevision: number; time: number; renderCpu: { lastMs: number; totalMs: number; maxMs: number }; renderedRotation: Pose['rotation'] } {
     return { travel: this.snapshotState?.travel ? structuredClone(this.snapshotState.travel) : undefined, ready: this.ready, running: this.ready && (this.snapshotState?.running ?? false), frames: this.snapshotState?.frames ?? 0, drawCalls: this.snapshotState?.drawCalls ?? 0, buffers: this.ready ? this.snapshotState?.buffers ?? 0 : 0, backend: this.bridge?.backend ?? 'none', generation: this.generation, revision: this.bridge?.revision ?? 0, acknowledgedRevision: this.acknowledgedRevision, time: this.snapshotState?.time ?? this.elapsed, renderCpu: { ...(this.snapshotState?.renderCpu ?? { lastMs: 0, totalMs: 0, maxMs: 0 }) }, renderedRotation: [...(this.snapshotState?.renderedRotation ?? [0, 0, 0])] };
   }
-  /** Viewing angles in degrees and centered zoom. Reads return an independent snapshot. */
-  get camera(): CameraState { return { ...this.cameraAngles }; }
-  set camera(value: CameraAngles & Partial<Pick<CameraState, 'zoom'>>) { this.setCamera(value); }
-  setCamera(angles: Partial<CameraState>): void {
-    const next = patchCamera(this.cameraAngles, angles);
-    if (next.yaw === this.cameraAngles.yaw && next.pitch === this.cameraAngles.pitch && next.roll === this.cameraAngles.roll && next.zoom === this.cameraAngles.zoom) return;
-    this.cameraAngles = next;
-    this.send({ kind: 'state', state: { camera: this.camera } }); this.emit('sidekick-camera-change', { camera: this.camera });
+  /** Body-facing angles in degrees. Reads return an independent snapshot. */
+  get bodyOrientation(): BodyOrientation { return { ...this.orientationState }; }
+  set bodyOrientation(value: BodyOrientation) { this.setBodyOrientation(value); }
+  setBodyOrientation(angles: Partial<BodyOrientation>): void {
+    const next = patchBodyOrientation(this.orientationState, angles);
+    if (next.yaw === this.orientationState.yaw && next.pitch === this.orientationState.pitch && next.roll === this.orientationState.roll) return;
+    this.orientationState = next;
+    this.send({ kind: 'state', state: { bodyOrientation: this.bodyOrientation } });
+    this.emit('sidekick-body-orientation-change', { bodyOrientation: this.bodyOrientation });
   }
-  setCameraPreset(preset: CameraPreset): void { this.setCamera(cameraPreset(preset)); }
-  resetCamera(): void { this.clearDrag(); this.setCamera(createCamera()); }
-  /** Legacy radians API; yaw/pitch update the camera while preserving its roll. */
-  setView(yaw: number, pitch = 0): void {
-    const nextYaw = finite(yaw, -Math.PI * 2, Math.PI * 2, 'yaw'), nextPitch = finite(pitch, -Math.PI / 2, Math.PI / 2, 'pitch');
-    this.setCamera({ yaw: nextYaw * 180 / Math.PI, pitch: nextPitch * 180 / Math.PI });
+  setBodyOrientationPreset(preset: BodyOrientationPreset): void { this.setBodyOrientation(bodyOrientationPreset(preset)); }
+  resetBodyOrientation(): void { this.clearDrag(); this.setBodyOrientation(createBodyOrientation()); }
+  get zoom(): number { return this.zoomState; }
+  set zoom(value: number) {
+    if (typeof value !== 'number') throw new TypeError('zoom must be a number between 0.5 and 3');
+    const next = createZoom(value);
+    if (next === this.zoomState) return;
+    this.zoomState = next;
+    this.send({ kind: 'state', state: { zoom: next } }); this.emit('sidekick-zoom-change', { zoom: next });
   }
   lookAt(target: { space: 'view'; x: number; y: number }): void {
     if (target.space !== 'view') throw new TypeError('시선 좌표계는 view입니다.');
@@ -456,12 +462,13 @@ export class SidekickAvatar extends HTMLElementBase {
       if (!this.playbackCommand && (allDesign || touched('shape', 'expression', 'left-expression', 'right-expression', 'accessories', ...Object.keys(ACCESSORY_ATTRIBUTE_SLOTS).map(slot => `${slot}-accessory`)))) this.playback.cancelTransition();
       const eyeSides = (['left', 'right'] as const).filter(side => allDesign || touched('expression', `${side}-expression`, 'smile', 'blink', `${side}-smile`, `${side}-blink`));
       if (eyeSides.length || JSON.stringify(validated) !== JSON.stringify(this.configuration)) this.applyDesign(validated, { shape: resolved.shapeOptions, eyes: resolved.motionOptions, eyeSides });
-      if (touched('camera')) this.setCamera(resolved.camera);
+      if (touched('body-orientation')) this.setBodyOrientation(resolved.bodyOrientation);
       else {
-        const camera: Partial<CameraState> = {};
-        for (const axis of ['yaw', 'pitch', 'roll', 'zoom'] as const) if (touched(`camera-${axis}`)) camera[axis] = resolved.camera[axis];
-        if (Object.keys(camera).length) this.setCamera(camera);
+        const orientation: Partial<BodyOrientation> = {};
+        for (const axis of ['yaw', 'pitch', 'roll'] as const) if (touched(`body-${axis}`)) orientation[axis] = resolved.bodyOrientation[axis];
+        if (Object.keys(orientation).length) this.setBodyOrientation(orientation);
       }
+      if (touched('zoom')) this.zoom = resolved.zoom;
       if (touched('gaze-x', 'gaze-y')) this.lookAt({ space: 'view', x: touched('gaze-x') ? resolved.gaze[0] : this.manualGaze[0], y: touched('gaze-y') ? resolved.gaze[1] : this.manualGaze[1] });
       if (touched('mouse-tracking', 'tracking-mode')) { this.trackingModeState = resolved.trackingMode; this.updateTrackingBody(); this.updateMouseTracking(); }
       if (touched('time')) this.seek(resolved.time);
@@ -477,7 +484,7 @@ export class SidekickAvatar extends HTMLElementBase {
   private upgradeProperties(): void {
     if (this.propertiesUpgraded) return;
     this.propertiesUpgraded = true;
-    for (const name of ['placement', 'movementBounds', 'design', 'camera', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode'] as const) {
+    for (const name of ['placement', 'movementBounds', 'design', 'bodyOrientation', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode'] as const) {
       if (!Object.prototype.hasOwnProperty.call(this, name)) continue;
       const value: unknown = this[name];
       Reflect.deleteProperty(this, name);
@@ -555,7 +562,7 @@ export class SidekickAvatar extends HTMLElementBase {
   }
   private runtimeState(): RuntimeState {
     const rect = this.getBoundingClientRect();
-    return { travel: this.travelPresentation, design: this.design, camera: this.camera, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
+    return { travel: this.travelPresentation, design: this.design, bodyOrientation: this.bodyOrientation, zoom: this.zoom, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
   }
   private syncState(): void {
     this.send({ kind: 'state', state: { activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && this.visible && !this.ownerDocument.hidden, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze } });
@@ -593,14 +600,15 @@ export class SidekickAvatar extends HTMLElementBase {
     if (this.inputFrame) cancelAnimationFrame(this.inputFrame); this.inputFrame = 0;
     if (!this.connected) return;
     const dragged = this.pendingDrag; this.pendingDrag = undefined;
-    const camera: Partial<CameraState> = {};
-    if (dragged && this.drag) Object.assign(camera, { yaw: clamp(this.drag.camera.yaw + (dragged.x - this.drag.x) * .01 * 180 / Math.PI, -360, 360), pitch: clamp(this.drag.camera.pitch + (dragged.y - this.drag.y) * .007 * 180 / Math.PI, -90, 90) });
+    const orientation: Partial<BodyOrientation> = {};
+    if (dragged && this.drag) Object.assign(orientation, { yaw: clamp(this.drag.bodyOrientation.yaw + (dragged.x - this.drag.x) * .01 * 180 / Math.PI, -360, 360), pitch: clamp(this.drag.bodyOrientation.pitch + (dragged.y - this.drag.y) * .007 * 180 / Math.PI, -90, 90) });
     const pinch = this.pinch, distance = this.pendingPinchDistance; this.pendingPinchDistance = undefined;
-    if (this.pendingZoom !== undefined) { camera.zoom = this.pendingZoom; this.pendingZoom = undefined; }
-    if (pinch && distance !== undefined) camera.zoom = pinchZoom(camera.zoom ?? pinch.zoom, pinch.distance, distance);
-    if (Object.keys(camera).length) this.setCamera(camera);
+    let zoom = this.pendingZoom; this.pendingZoom = undefined;
+    if (pinch && distance !== undefined) zoom = pinchZoom(zoom ?? pinch.zoom, pinch.distance, distance);
+    if (Object.keys(orientation).length) this.setBodyOrientation(orientation);
+    if (zoom !== undefined) this.zoom = zoom;
     if (pinch && this.pinch === pinch && distance !== undefined) {
-      pinch.distance = distance; pinch.zoom = this.cameraAngles.zoom;
+      pinch.distance = distance; pinch.zoom = this.zoom;
     }
     const pointer = this.pendingPointer; this.pendingPointer = undefined;
     if (this.pendingResize || pointer) {
@@ -660,10 +668,10 @@ export class SidekickAvatar extends HTMLElementBase {
     const entries = [...this.pointers.entries()];
     if (entries.length === 1) {
       const [id, point] = entries[0]!;
-      this.drag = { id, x: point.x, y: point.y, camera: this.camera, moved };
+      this.drag = { id, x: point.x, y: point.y, bodyOrientation: this.bodyOrientation, moved };
     } else if (entries.length === 2) {
       const a = entries[0]![1], b = entries[1]![1];
-      this.pinch = { distance: Math.hypot(b.x - a.x, b.y - a.y), zoom: this.cameraAngles.zoom };
+      this.pinch = { distance: Math.hypot(b.x - a.x, b.y - a.y), zoom: this.zoom };
     }
   }
   private onKey = (event: KeyboardEvent): void => {
@@ -678,7 +686,7 @@ export class SidekickAvatar extends HTMLElementBase {
     this.wheelGesture = true;
     if (this.wheelTimer !== undefined) clearTimeout(this.wheelTimer);
     this.wheelTimer = setTimeout(() => { this.wheelTimer = undefined; this.wheelGesture = false; }, 150);
-    this.pendingZoom = wheelZoom(this.pendingZoom ?? this.cameraAngles.zoom, delta, mode, this.getBoundingClientRect().height);
+    this.pendingZoom = wheelZoom(this.pendingZoom ?? this.zoom, delta, mode, this.getBoundingClientRect().height);
     this.queueInput();
   };
   private onPointerDown = (event: PointerEvent): void => {
@@ -687,7 +695,7 @@ export class SidekickAvatar extends HTMLElementBase {
     if (this.pointers.size && (event.pointerType !== 'touch' || [...this.pointers.values()].some(point => point.type !== 'touch'))) return;
     const generation = this.generation, canvas = this.canvas;
     this.flushInput();
-    // Camera-change listeners may disconnect, reconnect or disable interaction.
+    // Orientation/zoom listeners may disconnect, reconnect or disable interaction.
     if (!this.connected || this.generation !== generation || this.canvas !== canvas || this.interaction !== 'box') return;
     const first = this.pointers.size === 0;
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, type: event.pointerType ?? 'mouse' });

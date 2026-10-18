@@ -7,7 +7,7 @@ import type { Mat4 } from './math.js';
 export interface TravelPresentation { direction: Vec2; strength: number; lift: number; bank: number }
 export function travelMatrix(base: Mat4, travel?: TravelPresentation): Mat4 {
   if (!travel || travel.strength === 0 && travel.lift === 0 && travel.bank === 0) return base;
-  // Screen y points down. Pre-multiplication keeps direction correct at any camera yaw/roll.
+  // Screen y points down. Pre-multiplication keeps direction correct at any body orientation yaw/roll.
   return multiply(transform([0, travel.lift, 0], [travel.direction[1] * .24 * travel.strength, travel.direction[0] * .45 * travel.strength, travel.bank]), base);
 }
 export function travelPose(pose: Pose, travel?: TravelPresentation): Pose {

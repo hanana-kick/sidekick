@@ -4,7 +4,7 @@ import { createDesign as createCoreDesign } from '@hanana-kick/sidekick/core';
 const design = createDesign({ body: { shape: 'heart', color: '#abcdef' }, eyes: { color: '#24242c', left: { weights: { smile: .3, blink: .4 } } }, accessories: [createAccessory('beret')] });
 createCoreDesign({ eyes: { right: { expression: 'smile' } } });
 const avatar = new SidekickAvatar();
-void avatar.setShape('circle'); void avatar.setEyeWeights('left', { smile: .7 }); void avatar.setExpression('right', 'blink'); avatar.setCamera({ yaw: 20 });
+void avatar.setShape('circle'); void avatar.setEyeWeights('left', { smile: .7 }); void avatar.setExpression('right', 'blink'); avatar.setBodyOrientation({ yaw: 20 });
 void avatar.motion.to({ accessories: { beret: { rotation: [0, 0, .2] } } });
 const leftEarring = createAccessory('earring', { slot: 'leftEar', id: 'left-earring' });
 const rightEarring = createAccessory('earring', { slot: 'rightEar' });

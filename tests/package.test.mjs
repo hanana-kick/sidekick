@@ -39,7 +39,7 @@ test('packed core installs offline without React, Studio, or lifecycle builds', 
       const api = await import('@hanana-kick/sidekick' + suffix);
       assert.equal(api.createDesign().version, 7);
       assert.equal(api.wheelZoom, undefined); assert.equal(api.pinchZoom, undefined);
-      assert.equal(api.createCamera({ zoom: 1.5 }).zoom, 1.5); assert.equal(api.CAMERA_ZOOM_RANGE.max, 3);
+      assert.equal(api.createZoom(1.5), 1.5); assert.equal(api.ZOOM_RANGE.max, 3);
       if (suffix !== '/core') { assert.equal(typeof api.defineSidekick, 'function'); api.defineSidekick(); }
     }
     assert.equal(typeof globalThis.window, 'undefined');
@@ -48,18 +48,18 @@ test('packed core installs offline without React, Studio, or lifecycle builds', 
   `]);
   assert.match(output, /SSR core imports passed/);
   compile(consumer, `
-    import { createDesign, createCamera, type CameraAngles, type CameraState, type AvatarDesign, type MaterialShapeName } from '@hanana-kick/sidekick/core';
+    import { createDesign, createBodyOrientation, type BodyOrientation, type AvatarDesign, type MaterialShapeName } from '@hanana-kick/sidekick/core';
     import { defineSidekick, type SidekickAvatar, type SidekickAttributes, type SidekickEventMap } from '@hanana-kick/sidekick/register';
     import '@hanana-kick/sidekick/auto';
     import { createScene as createBrowserScene } from '@hanana-kick/sidekick/browser/sidekick.js';
     console.log(createBrowserScene());
     const design: AvatarDesign = createDesign();
     const shape: MaterialShapeName = 'heart';
-    const attrs: SidekickAttributes = { shape, 'tracking-mode': 'eyes-and-body', 'mouse-tracking': 'false', 'camera-yaw': 12, 'camera-zoom': 1.5 };
+    const attrs: SidekickAttributes = { shape, 'tracking-mode': 'eyes-and-body', 'mouse-tracking': 'false', 'body-yaw': 12, 'zoom': 1.5 };
     const avatar: SidekickAvatar = document.createElement('sidekick-avatar');
-    avatar.design = design; avatar.camera = createCamera(); avatar.mouseTracking = true; avatar.trackingMode = 'eyes-and-body';
-    const angles: CameraAngles = { yaw: 12, pitch: 0, roll: 0 }; avatar.camera = angles;
-    avatar.setCamera({ zoom: 2 }); const full: CameraState = avatar.camera; console.log(full.zoom);
+    avatar.design = design; avatar.bodyOrientation = createBodyOrientation(); avatar.mouseTracking = true; avatar.trackingMode = 'eyes-and-body';
+    const angles: BodyOrientation = { yaw: 12, pitch: 0, roll: 0 }; avatar.bodyOrientation = angles;
+    avatar.zoom = 2; const full: BodyOrientation = avatar.bodyOrientation; console.log(full.yaw, avatar.zoom);
     avatar.addEventListener('sidekick-error', event => { const typed: SidekickEventMap['sidekick-error'] = event; console.log(typed.detail.message); });
     defineSidekick(); console.log(attrs);
     // @ts-expect-error unsupported shape
@@ -78,8 +78,13 @@ test('packed React subpath supports strict types, refs, events and DOM-free serv
     const prebuilt = <PrebuiltAvatar shape="heart" onError={event => console.log(event.detail.message)} />;
     console.log(prebuilt);
     const ref = createRef<SidekickAvatarRef>();
-    const props: SidekickAvatarProps = { design: createDesign(), camera: { yaw: 12, zoom: 1.5 }, cameraZoom: 2, trackingMode: 'eyes-and-body', mouseTracking: false, headAccessory: 'beret' };
-    const tree = <SidekickAvatar {...props} ref={ref} shape="heart" leftSmile={0.4} paused={false} onReady={event => event.detail} onError={event => console.log(event.detail.message)} onCameraChange={event => console.log(event.detail.camera.yaw, event.detail.camera.zoom)} onMotionEnd={event => console.log(event.detail.finished)} />;
+    const props: SidekickAvatarProps = { design: createDesign(), bodyOrientation: { yaw: 12 }, zoom: 2, trackingMode: 'eyes-and-body', mouseTracking: false, headAccessory: 'beret' };
+    // @ts-expect-error Removed camera props are not compatibility aliases.
+    const removedCamera: SidekickAvatarProps = { camera: { yaw: 12 } };
+    // @ts-expect-error Zoom is independent from body orientation.
+    const nestedZoom: SidekickAvatarProps = { bodyOrientation: { yaw: 12, zoom: 2 } };
+    void removedCamera; void nestedZoom;
+    const tree = <SidekickAvatar {...props} ref={ref} shape="heart" leftSmile={0.4} paused={false} onReady={event => event.detail} onError={event => console.log(event.detail.message)} onBodyOrientationChange={event => console.log(event.detail.bodyOrientation.yaw)} onZoomChange={event => console.log(event.detail.zoom)} onMotionEnd={event => console.log(event.detail.finished)} />;
     ref.current?.setShape('circle', { duration: 450 });
     // @ts-expect-error shape is a catalog name
     const wrong = <SidekickAvatar shape="anything" />;
@@ -95,7 +100,7 @@ test('packed React subpath supports strict types, refs, events and DOM-free serv
     import { renderToString } from 'react-dom/server';
     import { SidekickAvatar } from '@hanana-kick/sidekick/react';
     const ref = createRef();
-    const html = renderToString(createElement(SidekickAvatar, { id: 'server-avatar', shape: 'heart', paused: false, mouseTracking: true, camera: { yaw: 15 }, style: { width: 240 }, 'aria-label': 'Companion', ref, onReady: () => { throw new Error('server event'); } }));
+    const html = renderToString(createElement(SidekickAvatar, { id: 'server-avatar', shape: 'heart', paused: false, mouseTracking: true, bodyOrientation: { yaw: 15 }, style: { width: 240 }, 'aria-label': 'Companion', ref, onReady: () => { throw new Error('server event'); } }));
     assert.equal(html, '<sidekick-avatar id="server-avatar" style="width:240px" aria-label="Companion"></sidekick-avatar>');
     assert.equal(ref.current, null);
     assert.equal(typeof window, 'undefined');

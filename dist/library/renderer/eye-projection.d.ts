@@ -27,7 +27,7 @@ export declare function viewPoint(matrix: Mat4, point: Vec3, vector?: boolean): 
  * Orthographic projection of the stable body front-plane frame. Keep both raw
  * columns: normalizing them or making them perpendicular would billboard the
  * glyph, erasing yaw/pitch foreshortening and combined-rotation shear.
- * `root` includes the body and camera rotations, but not local body squash.
+ * `root` includes the animated pose and authored body rotations, but not local body squash.
  */
 export declare function eyeBasis(root: Mat4): EyeBasis;
 /** Centers follow the rounded surface; the renderer evaluates glyphs in local XY. */
