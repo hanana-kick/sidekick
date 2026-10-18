@@ -96,7 +96,7 @@ test('flight preserves a persistent activity and current expression', async t =>
   assert.equal(result.activity, 'thinking'); assert.deepEqual(result.after, result.before);
 });
 
-for (const fallback of [false, true]) test(`adaptive inertial distance-scaled flight and smooth stop (${fallback ? 'fallback' : 'worker'})`, async t => {
+for (const fallback of [false, true]) test(`fixed-ceiling stopping-distance flight and smooth stop (${fallback ? 'fallback' : 'worker'})`, async t => {
   const page = await fixture(t);
   await page.setViewportSize({ width: 1200, height: 650 });
   if (fallback) {
@@ -123,15 +123,13 @@ for (const fallback of [false, true]) test(`adaptive inertial distance-scaled fl
   for (const result of results) {
     assert.equal(result.result.finished, true);
     assert.ok(result.elapsed >= 700 && result.elapsed < 2600, `elapsed ${result.elapsed}`);
-    const cap = 1.5 * Math.max(80, result.distance);
-    // 800px starts braking before reaching its 1200 px/s ceiling; sampled physical
-    // peaks must not be confused with the automatic ceiling itself.
-    assert.ok(result.peak >= cap * (result.distance >= 800 ? 0.90 : 0.98) && result.peak <= cap + 0.01);
+    const cap = 1350;
+    assert.ok(result.peak > 100 && result.peak < cap, 'short flight brakes before the fixed ceiling');
     assert.equal(result.travel.strength, 0);
     assert.deepEqual(result.result.position, { x: 50 + result.distance, y: 250 });
   }
   assert.ok(results[2].peak > results[1].peak && results[1].peak > results[0].peak);
-  assert.ok(results[2].elapsed > results[1].elapsed && results[1].elapsed > results[0].elapsed, 'farther takes longer even with a higher speed ceiling');
+  assert.ok(results[2].elapsed > results[1].elapsed && results[1].elapsed > results[0].elapsed, 'farther takes longer under the same speed ceiling');
   for (const result of results) assert.ok(result.samples.every(s => Math.abs(s.acceleration.x) <= 2200.001));
   await page.waitForFunction(() => bot.movementState.progress > 0.3 && bot.movementState.phase !== 'idle');
   const stop = await page.evaluate(async () => {

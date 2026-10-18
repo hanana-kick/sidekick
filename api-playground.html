@@ -124,12 +124,12 @@
         <div class="fields"><label class="field"><span id="x-label">X · viewport px</span><input id="target-x" type="number" step="any" value="0" aria-labelledby="x-label"></label><label class="field"><span id="y-label">Y · viewport px</span><input id="target-y" type="number" step="any" value="0" aria-labelledby="y-label"></label></div>
         <label class="field"><span>Travel · 이동 방식</span><select id="travel"><option value="natural">natural · 가속 → 비행 → 감속</option><option value="none">none · 시간 기반 보간</option></select></label>
         <div id="physical-options">
-          <label class="check"><input id="auto-speed" type="checkbox" checked><span>최고 속도 자동 · 먼 목적지일수록 상한 증가</span></label>
-          <label class="field"><span>최고 속도 · CSS px/s</span><input id="max-speed" type="number" min="1" max="100000" step="any" value="320" disabled aria-describedby="timing-help"></label>
+          <label class="check"><input id="auto-speed" type="checkbox" checked><span>기본 최고 속도 · 1350 CSS px/s</span></label>
+          <label class="field"><span>최고 속도 · CSS px/s</span><input id="max-speed" type="number" min="1" max="100000" step="any" value="1350" disabled aria-describedby="timing-help"></label>
           <div class="fields"><label class="field"><span>가속도 · CSS px/s²</span><input id="acceleration" type="number" min="1" max="100000" step="any" value="1800"></label><label class="field"><span>감속도 · CSS px/s²</span><input id="deceleration" type="number" min="1" max="100000" step="any" value="2200"></label></div>
         </div>
-        <div class="fields"><label class="field"><span id="duration-label">자동 속도 계산 기준 · ms</span><input id="duration" type="number" min="0" max="10000" step="50" value="1200" aria-describedby="timing-help"></label><label class="field"><span>Easing · none 전용</span><select id="easing" aria-describedby="timing-help"><option value="smooth">smooth · 부드럽게</option><option value="linear">linear · 일정하게</option></select></label></div>
-        <p class="help" id="timing-help">거리와 기준 시간으로 최고 속도 상한만 자동 계산합니다. 가속도·감속도는 유지되며 실제 도착 시간은 보장하지 않습니다.</p>
+        <div class="fields"><label class="field"><span id="duration-label">즉시 이동: 0 · 비행: 양수</span><input id="duration" type="number" min="0" max="10000" step="50" value="1200" aria-describedby="timing-help"></label><label class="field"><span>Easing · none 전용</span><select id="easing" aria-describedby="timing-help"><option value="smooth">smooth · 부드럽게</option><option value="linear">linear · 일정하게</option></select></label></div>
+        <p class="help" id="timing-help">거리와 관계없이 고정 최고 속도를 향해 가속하다가 제동 거리에 들어가면 감속합니다. 양수 duration은 속도나 도착 시간에 영향을 주지 않습니다.</p>
         <div class="actions" style="margin-top:12px"><button class="primary" id="move">이동 실행</button><button id="cancel">감속해서 멈추기</button></div>
         <div class="directions" aria-label="방향별 이동"><button data-dx="-120" data-dy="0" aria-label="왼쪽으로 120픽셀 이동">← 왼쪽</button><button data-dx="0" data-dy="-120" aria-label="위로 120픽셀 이동">↑ 위</button><button data-dx="0" data-dy="120" aria-label="아래로 120픽셀 이동">↓ 아래</button><button data-dx="120" data-dy="0" aria-label="오른쪽으로 120픽셀 이동">→ 오른쪽</button></div>
         <p class="help">좌표는 캐릭터 박스의 왼쪽 위 기준입니다. 이 체험에서는 목적지만 미리보기 안으로 제한합니다. 관성 경로와 제동 위치는 미리보기 밖으로 나갈 수 있으며 화면 경계에서 멈춥니다. 자연 비행의 중지는 현재 진행 방향으로 감속한 뒤 자세를 정리합니다. 낮은 감속도에서는 더 멀리 이동할 수 있습니다.</p>

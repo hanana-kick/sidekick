@@ -182,7 +182,7 @@ test('physical telemetry displays signed vectors, magnitudes and state-backed tr
 });
 
 
-test('automatic speed defaults omit only the speed cap and retain fixed acceleration values', async t => {
+test('fixed speed defaults omit only the speed cap and retain fixed acceleration values', async t => {
   const f = fixture(t);
   assert.equal(f.$('auto-speed').checked, true); assert.equal(f.$('max-speed').disabled, true);
   f.input('duration', 1200); f.input('max-speed', -1); f.$('move').click(); await flush();

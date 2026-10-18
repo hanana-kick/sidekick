@@ -1,4 +1,4 @@
-/*! Sidekick 0.4.3 | UNLICENSED; no license is granted for Sidekick itself.
+/*! Sidekick 0.4.4 | UNLICENSED; no license is granted for Sidekick itself.
 
 Third-party Material Shapes notices and Apache-2.0 license:
 Material Shapes contour data and recipe generator

@@ -28,7 +28,7 @@ export function validateMoveOptions(options = {}) {
         if (options[key] !== undefined && (typeof options[key] !== 'number' || !Number.isFinite(options[key]) || options[key] < 1 || options[key] > 100000))
             throw new RangeError(key + ' must be between 1 and 100000');
     }
-    return { ...timing, travel: options.travel ?? 'natural', maxSpeed: options.maxSpeed ?? 0, acceleration: options.acceleration ?? 1800, deceleration: options.deceleration ?? 2200 };
+    return { ...timing, travel: options.travel ?? 'natural', maxSpeed: options.maxSpeed ?? 1350, acceleration: options.acceleration ?? 1800, deceleration: options.deceleration ?? 2200 };
 }
 const clamp = (value) => Math.max(0, Math.min(1, value));
 const smooth = (value) => value * value * (3 - 2 * value);
@@ -97,7 +97,7 @@ export class AvatarMovement {
             return new Promise(resolve => {
                 const distance = Math.hypot(to.x - this.point.x, to.y - this.point.y);
                 this.track = { kind: 'physical', to, start: now, last: now, accumulator: 0,
-                    maxSpeed: timing.maxSpeed || 1.5 * Math.max(80, Math.min(100000, distance / Math.max(0.1, duration / 1000))),
+                    maxSpeed: timing.maxSpeed,
                     acceleration: timing.acceleration, deceleration: timing.deceleration, initialDistance: Math.max(distance, 1), stopping: false, resolve };
                 this.progress = 0;
                 this.phase = Math.hypot(this.velocity.x, this.velocity.y) > 0.1 ? 'flight' : 'takeoff';

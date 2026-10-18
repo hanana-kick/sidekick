@@ -226,7 +226,7 @@ test('natural controls drive physical telemetry and keep a trace through control
   }
 });
 
-test('automatic speed mode omits maxSpeed without changing physical acceleration limits', async t => {
+test('default fixed speed mode omits maxSpeed without changing physical acceleration limits', async t => {
   const page = await pageFor(t, { reducedMotion: 'reduce' });
   await recordMoves(page);
   assert.equal(await page.locator('#auto-speed').isChecked(), true);
@@ -238,7 +238,7 @@ test('automatic speed mode omits maxSpeed without changing physical acceleration
   assert.doesNotMatch(await page.locator('#invocation').textContent(), /maxSpeed/);
   await page.locator('#auto-speed').uncheck();
   assert.equal(await page.locator('#max-speed').isEnabled(), true);
-  assert.match(await page.locator('#invocation').textContent(), /maxSpeed: 320/);
+  assert.match(await page.locator('#invocation').textContent(), /maxSpeed: 1350/);
   await page.locator('#auto-speed').check();
   assert.doesNotMatch(await page.locator('#invocation').textContent(), /maxSpeed/);
 });

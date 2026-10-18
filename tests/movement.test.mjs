@@ -126,7 +126,7 @@ test('fixed integration produces matching traces at 30, 60 and 120 Hz', async ()
     for (const field of ['position', 'velocity', 'acceleration']) for (const axis of ['x', 'y']) close(trace[i][field][axis], traces[0][i][field][axis], 1e-6, `${field}.${axis} at sample ${i}`);
   }
 });
-test('natural duration is a speed hint; an explicit maximum speed overrides that hint', async () => {
+test('positive natural duration never changes the fixed speed ceiling or physical trace', async () => {
   const traces = [];
   for (const duration of [10, 60000]) {
     const f = fixture(), result = f.controller.to({ x: 700, y: 0 }, { ...physics, duration });
@@ -137,7 +137,7 @@ test('natural duration is a speed hint; an explicit maximum speed overrides that
   const fast = fixture(), slow = fixture();
   const fastResult = fast.controller.to({ x: 700, y: 0 }, { duration: 400 });
   const slowResult = slow.controller.to({ x: 700, y: 0 }, { duration: 4000 });
-  advance(fast, 400); advance(slow, 400); assert.ok(fast.controller.state.speed > slow.controller.state.speed);
+  advance(fast, 400); advance(slow, 400); assert.deepEqual(fast.controller.state, slow.controller.state);
   finish(fast); finish(slow); await Promise.all([fastResult, slowResult]);
 });
 test('natural easing cannot reintroduce a timed velocity reset', async () => {
@@ -427,7 +427,7 @@ test('early oblique retargets converge across display rates without perpendicula
   }
 });
 
-test('adaptive natural speed ceilings compensate distance without changing acceleration or total-time physics', async () => {
+test('fixed natural ceiling allows short moves to brake before cruising and long moves to reach the same cap', async () => {
   const rows = [];
   for (const distance of [50, 200, 800, 2000]) {
     const f = fixture(); f.state.max = 10000;
@@ -444,7 +444,7 @@ test('adaptive natural speed ceilings compensate distance without changing accel
   assert.ok(rows[3].peak > 900, 'old arbitrary900px/s ceiling must not constrain long flight');
 });
 
-test('adaptive shorter retarget decelerates from current velocity instead of applying its lower ceiling instantly', async () => {
+test('shorter retarget brakes for its nearer destination while preserving velocity and acceleration', async () => {
   const f = fixture(); f.state.max = 10000;
   const first = f.controller.to({ x: 2000, y: 0 }, { duration: 1000 }); advance(f, 500, 120);
   const before = f.controller.state;
@@ -468,8 +468,8 @@ test('physical attitude smoothing bounds frame-to-frame bank without altering th
   assert.equal((await result).finished, true);
 });
 
-test('automatic speed policy is exactly 1.5 times prior ceilings while explicit maxSpeed remains exact', async () => {
-  for (const [distance, duration, expected] of [[20, 1000, 120], [200, 1000, 300], [800, 1000, 1200], [1e7, 100, 150000]]) {
+test('default speed ceiling is 1350 independent of distance and positive duration; explicit maxSpeed remains exact', async () => {
+  for (const [distance, duration, expected] of [[20, 1000, 1350], [200, 1000, 1350], [800, 1000, 1350], [1e7, 100, 1350], [800, 60000, 1350]]) {
     const f = fixture(); f.state.max = 1e7;
     const result = f.controller.to({ x: distance, y: 0 }, { duration });
     assert.equal(f.controller.track.maxSpeed, expected);
@@ -536,4 +536,32 @@ test('same-position retarget with tiny speed still preserves residual accelerati
   assert.deepEqual(f.controller.state.velocity, before.velocity);
   assert.equal((await old).finished, false);
   finish(f); assert.equal((await next).finished, true);
+});
+
+test('short and long default flights share launch traces; braking is set by remaining distance', async () => {
+  const rows = [];
+  for (const distance of [50, 200, 2000, 5000]) {
+    const f = fixture(); f.state.max = 10000;
+    const result = f.controller.to({ x: distance, y: 0 });
+    const launch = [];
+    for (const time of [25, 50, 75]) { advance(f, time, 240); launch.push({ velocity: f.controller.state.velocity, acceleration: f.controller.state.acceleration }); }
+    let previous = f.controller.state, cruiseSamples = 0, firstBraking;
+    while (f.callbacks.size && f.now < 15000) {
+      f.at(f.now + 1000 / 240); const state = f.controller.state;
+      assert.ok(state.position.x >= previous.position.x - 1e-8, 'uninterrupted arrival cannot reverse');
+      assert.ok(state.position.x <= distance + 1e-8, 'uninterrupted arrival cannot overshoot');
+      assert.ok(state.speed <= 1350 + 1e-6);
+      if (state.speed > 1349) cruiseSamples++;
+      if (!firstBraking && state.acceleration.x < -1) firstBraking = state;
+      previous = state;
+    }
+    assert.equal(f.callbacks.size, 0); assert.equal((await result).finished, true);
+    assert.ok(firstBraking && firstBraking.position.x < distance, 'braking starts before the destination');
+    const peak = Math.max(...f.states.map(s => s.speed));
+    if (distance <= 200) { assert.ok(peak < 1350); assert.equal(cruiseSamples, 0); }
+    else { assert.ok(peak > 1349); assert.ok(cruiseSamples > 20); }
+    rows.push({ launch, peak });
+  }
+  for (const row of rows.slice(1)) assert.deepEqual(row.launch, rows[0].launch);
+  close(rows[2].peak, rows[3].peak, .01);
 });

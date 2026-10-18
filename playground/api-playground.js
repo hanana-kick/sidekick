@@ -63,11 +63,11 @@ function previewCommand() {
   maxSpeedInput.disabled = !natural || autoSpeed.checked;
   easingInput.disabled = natural;
   $('cancel').textContent = natural ? '감속해서 멈추기' : '이동 중지';
-  $('duration-label').textContent = natural ? '자동 속도 계산 기준 · ms' : '이동 시간 · ms';
+  $('duration-label').textContent = natural ? '즉시 이동: 0 · 비행: 양수' : '이동 시간 · ms';
   $('timing-help').textContent = natural
     ? autoSpeed.checked
-      ? '자동 상한은 거리와 기준 시간으로 계산합니다. 가속도·감속도는 거리에 맞춰 키우지 않습니다. 먼 곳은 더 오래 걸리며 도착 시간을 보장하지 않습니다. 0ms는 즉시 이동입니다.'
-      : '입력한 최고 속도·가속도·감속도 한도를 사용합니다. 양수 기준 시간은 무시하며 도착 시간은 거리와 관성으로 결정됩니다. 0ms는 즉시 이동입니다.'
+      ? '기본 최고 속도는 거리와 무관하게 1350 CSS px/s입니다. 최고 속도를 향해 가속하다가 제동 거리에서 감속합니다. 짧으면 최고 속도에 도달하지 않으며 먼 곳은 더 오래 걸립니다. 양수 duration은 무시하고 0ms는 즉시 이동입니다.'
+      : '입력한 최고 속도·가속도·감속도 한도를 사용합니다. 양수 duration은 무시하며 도착 시간은 거리와 관성으로 결정됩니다. 0ms는 즉시 이동입니다.'
     : 'none은 정확한 시간과 Easing으로 위치를 보간합니다. 가속·감속 옵션과 비행 자세는 사용하지 않습니다.';
   try { setCode(movementCommand().code); }
   catch { setCode('// 유효한 좌표와 이동 옵션을 입력하면 호출 코드가 표시됩니다.'); }
