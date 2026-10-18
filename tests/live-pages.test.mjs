@@ -78,6 +78,38 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
       assert.deepEqual([...new Set(assets.images.map(image => image.preset))].sort(), expected.sort());
       for (const image of assets.images) { assert.ok(image.width >= 72); assert.equal(image.url, new URL(`accessory-previews/${image.preset}.png`, canonical).href); }
       for (const asset of assets.statuses) assert.equal(asset.status, 200, asset.url);
+      // Social crawlers must receive static metadata and an actual full-size PNG.
+      const social = await page.evaluate(async () => {
+        const content = selector => document.querySelector(selector)?.getAttribute('content');
+        const imageURL = content('meta[property="og:image"]');
+        if (!imageURL) throw new Error('Missing static OG image metadata');
+        const image = new Image(); image.src = imageURL; await image.decode();
+        const response = await fetch(imageURL);
+        return { url: content('meta[property="og:url"]'), title: content('meta[property="og:title"]'),
+          imageURL, width: image.naturalWidth, height: image.naturalHeight, status: response.status,
+          type: response.headers.get('content-type'), declaredWidth: content('meta[property="og:image:width"]'),
+          declaredHeight: content('meta[property="og:image:height"]'), twitter: content('meta[name="twitter:card"]'),
+          twitterImage: content('meta[name="twitter:image"]') };
+      });
+      assert.equal(social.url, customHTTPS); assert.match(social.title ?? '', /Sidekick/);
+      assert.equal(social.imageURL, new URL('og-sidekick.png', customHTTPS).href);
+      assert.equal(social.twitterImage, social.imageURL); assert.equal(social.twitter, 'summary_large_image');
+      assert.equal(social.status, 200); assert.match(social.type ?? '', /image\/png/);
+      assert.equal(social.width, 1200); assert.equal(social.height, 630);
+      assert.equal(social.declaredWidth, '1200'); assert.equal(social.declaredHeight, '630');
+      // Lightweight scene smoke test on every entry, without allocating export renderers.
+      await page.locator('#scene-tab').click();
+      assert.equal(await page.locator('#scene-panel').isVisible(), true);
+      assert.equal(await page.locator('#scene-og-preset').isVisible(), true);
+      assert.equal(await page.locator('#scene-text').inputValue(), 'Sidekick');
+      assert.equal(await page.locator('#scene-width').inputValue(), '1200');
+      assert.equal(await page.locator('#scene-height').inputValue(), '630');
+      assert.equal(await page.locator('#export-composition-png').isVisible(), true);
+      await page.waitForFunction(() => {
+        const canvas = document.querySelector('.composition-preview canvas');
+        return canvas?.width === 1200 && canvas?.height === 630 && document.querySelector('.composition-status')?.textContent.includes('정지 프레임');
+      }, undefined, { timeout: 20000 });
+      assert.equal(await page.locator('sidekick-avatar').count(), 1, 'Scene preview reuses the mounted renderer');
       await page.waitForLoadState('networkidle');
       assert.deepEqual(errors, [], 'No browser or console errors'); assert.deepEqual(failures, [], 'No failed resources');
       for (const request of requests.filter(request => !/^(?:data|blob):/.test(request.url))) {
@@ -93,7 +125,7 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
       for (const url of [...assets.modules, ...assets.styles.map(style => style.url)]) assert.ok(url.startsWith(new URL('assets/', canonical).href), `Entry asset escaped the canonical asset directory: ${url}`);
       assert.ok(responses.some(response => response.type === 'font' && response.status === 200 && /font\/woff2|application\/octet-stream/.test(response.contentType)), 'A bundled font received HTTP 200');
       for (const image of assets.images) assert.ok(responses.some(response => response.url === image.url && response.status === 200), `Preview did not receive HTTP 200: ${image.url}`);
-      t.diagnostic(`Verified ${entry} → ${page.url()} with ${assets.images.length} decoded preview tiles and ${responses.length} successful resource responses.`);
+      t.diagnostic(`Verified ${entry} → ${page.url()} with ${assets.images.length} decoded preview tiles, 1200×630 OG image, scene editor and ${responses.length} successful resource responses.`);
       if (screenshots) await page.screenshot({ path: `${screenshots}/live-pages-${name}-success.png` });
     } catch (error) {
       t.diagnostic(JSON.stringify({ url: page.url(), errors, failures, requests, responses }, null, 2));
