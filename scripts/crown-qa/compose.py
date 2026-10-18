@@ -7,6 +7,7 @@ p=argparse.ArgumentParser()
 p.add_argument('directory',type=Path)
 p.add_argument('--label',default='Crown fit')
 p.add_argument('--baseline',type=Path)
+p.add_argument('--baseline-label',default='frozen v0.3.1 baseline')
 a=p.parse_args()
 r=a.directory.resolve(); meta=json.loads((r/'provenance.json').read_text())
 size=meta['size']; shapes=meta['shapes']; views=[v[0] for v in meta['views']]
@@ -33,7 +34,7 @@ if a.baseline:
             group=shapes[page*7:(page+1)*7]
             im=Image.new('RGB',(len(group)*size,118+2*(size+38)),'white');d=ImageDraw.Draw(im)
             d.text((18,10),f'Crown before / after | {view} | page {page+1} | {a.label}',font=font(27),fill=(25,25,25))
-            d.text((18,49),'Top: frozen v0.3.1 baseline     Bottom: current production render',font=font(21),fill=(45,45,45))
+            d.text((18,49),f'Top: {a.baseline_label}     Bottom: current production render',font=font(21),fill=(45,45,45))
             for j,shape in enumerate(group):
                 x=j*size; d.text((x+14,88),f'{page*7+j+1}. {shape}',font=font(22),fill=(25,25,25))
                 im.paste(Image.open(before/f'{shape}-{view}.png').convert('RGB'),(x,118))
@@ -41,5 +42,5 @@ if a.baseline:
                 im.paste(Image.open(r/f'{shape}-{view}.png').convert('RGB'),(x,118+size+38))
             dest=out/f'before-after-{view}-{page+1}.png';im.save(dest);files.append(dest)
 manifest={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
-(out/'provenance.json').write_text(json.dumps({'sourceManifest':str(r/'provenance.json'),'baselineManifest':str(a.baseline/'provenance.json') if a.baseline else None,'method':'Pixel-exact native PNG panels pasted at original resolution; added plain-text headings only.','files':manifest},indent=2)+'\n')
+(out/'provenance.json').write_text(json.dumps({'sourceManifest':str(r/'provenance.json'),'baselineManifest':str(a.baseline/'provenance.json') if a.baseline else None,'baselineLabel':a.baseline_label if a.baseline else None,'method':'Pixel-exact native PNG panels pasted at original resolution; added plain-text headings only.','files':manifest},indent=2)+'\n')
 print(f'Created {len(files)} montage PNGs in {out}')
