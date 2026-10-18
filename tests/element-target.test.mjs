@@ -58,3 +58,10 @@ test('shared anchor scheduler reads before writes, suspends hidden, removes fina
  document.hidden=false;listeners.get('visibilitychange')();assert.equal(callbacks.size,1);
  a();assert.equal(callbacks.size,1);b();assert.equal(callbacks.size,0);assert.equal(listeners.size,0);
 });
+
+test('persistent anchors reject shadow-tree and slotted descendants', () => {
+ const {dom,bot}=fixture();const shadow=bot.attachShadow({mode:'open'});const canvas=dom.window.document.createElement('canvas');shadow.append(canvas);
+ assert.throws(()=>resolveElementTarget(bot,{x:0,y:0},canvas,{anchor:true}),/descendant/);
+ const slot=dom.window.document.createElement('slot');shadow.append(slot);const child=dom.window.document.createElement('span');bot.append(child);
+ assert.throws(()=>resolveElementTarget(bot,{x:0,y:0},child,{anchor:true}),/descendant/);dom.window.close();
+});

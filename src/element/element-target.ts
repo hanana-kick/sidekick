@@ -26,11 +26,14 @@ export function resolveElementTarget(avatar: HTMLElement, position: AvatarPositi
   }
   const { x = 0, y = 0, alignX = 'left', alignY = 'top', anchor = false, ...moveOptions } = options;
   if (typeof anchor !== 'boolean') throw new TypeError('anchor must be a boolean');
-  if (anchor && (target === avatar || avatar.contains(target))) throw new TypeError('anchor target cannot be the avatar or its descendant');
+
   validatePosition({ x, y }); validateMoveOptions(moveOptions);
   if (typeof alignX !== 'string' || typeof alignY !== 'string' || !Object.hasOwn(horizontal, alignX) || !Object.hasOwn(vertical, alignY)) throw new TypeError('alignX must be left, center or right; alignY must be top, center or bottom');
   const view = avatar.ownerDocument.defaultView;
   if (!view || !avatar.isConnected || !(target instanceof view.Element) || !target.isConnected || target.ownerDocument !== avatar.ownerDocument) throw new TypeError('moveToElement requires connected avatar and target Elements in the same document');
+  if (anchor) for (let node: Element | null = target; node; node = composedParent(node)) {
+    if (node === avatar) throw new TypeError('anchor target cannot be the avatar or its descendant');
+  }
   const ownZoom = view.getComputedStyle(avatar).zoom;
   if (ownZoom && ownZoom !== '1' && ownZoom !== 'normal') throw new TypeError('moveToElement does not support CSS zoom on the avatar; use CSS transform: scale() instead');
   // Parent transforms change the units/direction of CSS translate. Own transforms do not:
