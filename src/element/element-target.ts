@@ -16,6 +16,12 @@ const horizontal = { left: 0, center: .5, right: 1 };
 const vertical = { top: 0, center: .5, bottom: 1 };
 const composedParent = (element: Element): Element | null => element.assignedSlot ?? element.parentElement ?? (element.getRootNode() as ShadowRoot).host ?? null;
 
+export function assertAnchorHierarchy(avatar: Element, target: Element): void {
+  for (let node: Element | null = target; node; node = composedParent(node)) {
+    if (node === avatar) throw new TypeError('anchor target cannot be the avatar or its descendant');
+  }
+}
+
 /** Read layout once. No observers or persistent reference to the target are retained. */
 export function resolveElementTarget(avatar: HTMLElement, position: AvatarPosition, target: Element, options: MoveToElementOptions = {}): { position: AvatarPosition; options: MoveOptions } {
   if (!options || typeof options !== 'object' || Array.isArray(options)) throw new TypeError('moveToElement options must be an object');
@@ -31,9 +37,7 @@ export function resolveElementTarget(avatar: HTMLElement, position: AvatarPositi
   if (typeof alignX !== 'string' || typeof alignY !== 'string' || !Object.hasOwn(horizontal, alignX) || !Object.hasOwn(vertical, alignY)) throw new TypeError('alignX must be left, center or right; alignY must be top, center or bottom');
   const view = avatar.ownerDocument.defaultView;
   if (!view || !avatar.isConnected || !(target instanceof view.Element) || !target.isConnected || target.ownerDocument !== avatar.ownerDocument) throw new TypeError('moveToElement requires connected avatar and target Elements in the same document');
-  if (anchor) for (let node: Element | null = target; node; node = composedParent(node)) {
-    if (node === avatar) throw new TypeError('anchor target cannot be the avatar or its descendant');
-  }
+  if (anchor) assertAnchorHierarchy(avatar, target);
   const ownZoom = view.getComputedStyle(avatar).zoom;
   if (ownZoom && ownZoom !== '1' && ownZoom !== 'normal') throw new TypeError('moveToElement does not support CSS zoom on the avatar; use CSS transform: scale() instead');
   // Parent transforms change the units/direction of CSS translate. Own transforms do not:

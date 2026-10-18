@@ -2,6 +2,12 @@ import { validateMoveOptions, validatePosition } from './movement.js';
 const horizontal = { left: 0, center: .5, right: 1 };
 const vertical = { top: 0, center: .5, bottom: 1 };
 const composedParent = (element) => element.assignedSlot ?? element.parentElement ?? element.getRootNode().host ?? null;
+export function assertAnchorHierarchy(avatar, target) {
+    for (let node = target; node; node = composedParent(node)) {
+        if (node === avatar)
+            throw new TypeError('anchor target cannot be the avatar or its descendant');
+    }
+}
 /** Read layout once. No observers or persistent reference to the target are retained. */
 export function resolveElementTarget(avatar, position, target, options = {}) {
     if (!options || typeof options !== 'object' || Array.isArray(options))
@@ -24,10 +30,7 @@ export function resolveElementTarget(avatar, position, target, options = {}) {
     if (!view || !avatar.isConnected || !(target instanceof view.Element) || !target.isConnected || target.ownerDocument !== avatar.ownerDocument)
         throw new TypeError('moveToElement requires connected avatar and target Elements in the same document');
     if (anchor)
-        for (let node = target; node; node = composedParent(node)) {
-            if (node === avatar)
-                throw new TypeError('anchor target cannot be the avatar or its descendant');
-        }
+        assertAnchorHierarchy(avatar, target);
     const ownZoom = view.getComputedStyle(avatar).zoom;
     if (ownZoom && ownZoom !== '1' && ownZoom !== 'normal')
         throw new TypeError('moveToElement does not support CSS zoom on the avatar; use CSS transform: scale() instead');

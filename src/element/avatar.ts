@@ -1,6 +1,6 @@
 import { observeElementAnchor } from './element-anchor.js';
 import type { ElementAnchorState } from './element-anchor.js';
-import { resolveElementTarget } from './element-target.js';
+import { assertAnchorHierarchy, resolveElementTarget } from './element-target.js';
 import type { MoveToElementOptions } from './element-target.js';
 import { AvatarPresence } from './presence.js';
 import type { EnterOptions, ExitOptions, PresenceResult, PresenceState } from './presence.js';
@@ -96,13 +96,14 @@ export class SidekickAvatar extends HTMLElementBase {
     this.anchorCleanup = observeElementAnchor(this.ownerDocument, () => {
       if (this.anchorState !== state) return;
       if (!this.isConnected || !state.target.isConnected || state.target.ownerDocument !== this.ownerDocument) { this.detachAnchor(); return; }
+      try { assertAnchorHierarchy(this, state.target); } catch { this.detachAnchor(); return; }
       // display:none has no layout origin: its zero rectangle must not be added
       // to the current translation repeatedly. Keep the binding for restoration.
       if (!this.getClientRects().length || !state.target.getClientRects().length) return;
       let point: AvatarPosition;
       try { point = resolveElementTarget(this, this.position, state.target, { anchor: true, x: state.x, y: state.y, alignX: state.alignX, alignY: state.alignY }).position; }
       catch { this.detachAnchor(); return; }
-      return () => { if (this.anchorState === state) this.movement.followTarget(point); };
+      return () => { if (this.anchorState === state) this.movement.followTarget(this.constrainPosition(point, true)); };
     });
   }
   private presenceHidden = false;

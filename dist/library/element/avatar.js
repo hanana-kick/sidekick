@@ -1,5 +1,5 @@
 import { observeElementAnchor } from './element-anchor.js';
-import { resolveElementTarget } from './element-target.js';
+import { assertAnchorHierarchy, resolveElementTarget } from './element-target.js';
 import { AvatarPresence } from './presence.js';
 import { PlaybackController } from './playback.js';
 import { AvatarMovement, validatePosition, validateMoveOptions } from './movement.js';
@@ -95,6 +95,13 @@ export class SidekickAvatar extends HTMLElementBase {
                 this.detachAnchor();
                 return;
             }
+            try {
+                assertAnchorHierarchy(this, state.target);
+            }
+            catch {
+                this.detachAnchor();
+                return;
+            }
             // display:none has no layout origin: its zero rectangle must not be added
             // to the current translation repeatedly. Keep the binding for restoration.
             if (!this.getClientRects().length || !state.target.getClientRects().length)
@@ -108,7 +115,7 @@ export class SidekickAvatar extends HTMLElementBase {
                 return;
             }
             return () => { if (this.anchorState === state)
-                this.movement.followTarget(point); };
+                this.movement.followTarget(this.constrainPosition(point, true)); };
         });
     }
     presenceHidden = false;

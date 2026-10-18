@@ -10,6 +10,7 @@ export interface MoveToElementOptions extends MoveOptions {
     alignX?: HorizontalAlignment;
     alignY?: VerticalAlignment;
 }
+export declare function assertAnchorHierarchy(avatar: Element, target: Element): void;
 /** Read layout once. No observers or persistent reference to the target are retained. */
 export declare function resolveElementTarget(avatar: HTMLElement, position: AvatarPosition, target: Element, options?: MoveToElementOptions): {
     position: AvatarPosition;
