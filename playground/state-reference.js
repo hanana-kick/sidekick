@@ -47,7 +47,7 @@ export function mountStateReference(host,id,{session}){
  function error(message){status.setAttribute('role','alert');status.textContent=copy('invalid')+' '+message;}
  function updateSource(){
   const mode=getFramework();source.dataset.framework=mode;source.textContent=referenceSource(scene,edits,mode);sourceHeading.textContent=copy('source')+' · '+(mode==='react'?'React':'Custom Element');
-  for(const [el,item]of names)el.textContent=mode==='react'?item.prop:item.attribute;
+  for(const [el,item]of names){const name=mode==='react'?item.prop:item.attribute;el.textContent=name;controls.querySelector(`[data-state-control="${item.attribute}"]`)?.setAttribute('aria-label',name);controls.querySelector(`[data-state-enable="${item.attribute}"]`)?.setAttribute('aria-label',copy('enabled')+' '+name);}
   for(const [index,item]of fields.entries())body.rows[index].cells[0].textContent=mode==='react'?item.prop:item.attribute;
   saved.set(id,structuredClone(edits));
   const state=encode({id,values:edits}),url=new URL(location.href);
@@ -62,7 +62,7 @@ export function mountStateReference(host,id,{session}){
   const name=make('span','',label);names.push([name,item]);
   const semantic=lesson.parameters.find(entry=>entry[0].split(' / ')[0].split(', ').includes(item.attribute));
   if(semantic){const description=make('small','',row);description.dataset.stateDescription=semantic[3];description.textContent=translate(semantic[3]);}
-  const info=make('small','',row);info.textContent=fieldType(item)+(item.legacy?' · '+copy('legacy'):'');
+  const info=make('small','',row);if(item.legacy)info.dataset.stateLegacy=item.attribute;info.textContent=fieldType(item)+(item.legacy?' · '+copy('legacy'):'');
   let input;
   if(item.kind==='select'||item.kind==='boolean'){
    input=make('select','',row);for(const value of item.kind==='boolean'?[false,true]:item.values){const option=make('option','',input);option.value=String(value);option.textContent=String(value);}
@@ -73,7 +73,7 @@ export function mountStateReference(host,id,{session}){
     preset.addEventListener('change',()=>{const type=preset.value,value=type==='review'?{type,targets:'.reference-item',dwell:1000}:['wait','follow','guide'].includes(type)?{type,target:'#reference-target',side:'right',gap:16}:{type};input.value=JSON.stringify(value,null,2);toggle.checked=true;input.disabled=false;set(item,value);},{signal});
    }
    input=make('textarea','',row);input.spellcheck=false;
-  }else{input=make('input','',row);input.type=item.kind;if(item.kind==='number'){input.required=true;input.min=String(item.min);input.max=String(item.max);input.step=String(item.step);}}
+  }else{input=make('input','',row);input.type=item.kind;if(item.kind==='number'){input.required=true;input.min=String(item.min);input.max=String(item.max);input.step='any';}}
   const initial=Object.hasOwn(edits,item.attribute)?edits[item.attribute]:fieldDefault(item,scene);
   const showValue=value=>{input.value=item.kind==='json'?JSON.stringify(value,null,2):String(value);};showValue(initial);
   input.dataset.stateControl=item.attribute;input.setAttribute('aria-label',item.attribute);input.disabled=!toggle.checked;
@@ -95,7 +95,7 @@ export function mountStateReference(host,id,{session}){
  },{signal});
  const observer=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;if(mounted)frame.contentWindow.postMessage({type:'state-reference-visibility',visible},location.origin);if(!visible)status.textContent=copy('inactive');});observer.observe(frame);
  const unsubscribeFramework=subscribeFramework(()=>send(true));
- const unsubscribeLocale=subscribeSiteLocale(()=>{for(const el of section.querySelectorAll('[data-state-text]'))el.textContent=copy(el.dataset.stateText);for(const el of section.querySelectorAll('[data-state-column]'))el.dataset.label=copy(el.dataset.stateColumn);for(const el of section.querySelectorAll('[data-state-description]'))el.textContent=translate(el.dataset.stateDescription);frame.title=copy('preview');updateSource();});
+ const unsubscribeLocale=subscribeSiteLocale(()=>{for(const el of section.querySelectorAll('[data-state-text]'))el.textContent=copy(el.dataset.stateText);for(const el of section.querySelectorAll('[data-state-column]'))el.dataset.label=copy(el.dataset.stateColumn);for(const el of section.querySelectorAll('[data-state-description]'))el.textContent=translate(el.dataset.stateDescription);frame.title=copy('preview');controls.setAttribute('aria-label',copy('controls'));for(const el of section.querySelectorAll('[data-state-legacy]')){const field=FIELD_BY_KEY.get(el.dataset.stateLegacy);el.textContent=fieldType(field)+' · '+copy('legacy');}section.querySelector('[data-behavior-preset]')?.setAttribute('aria-label',copy('preset'));updateSource();});
  updateSource();
  return ()=>{disposed=true;controller.abort();observer.disconnect();unsubscribeFramework();unsubscribeLocale();frame.remove();section.remove();};
 }
