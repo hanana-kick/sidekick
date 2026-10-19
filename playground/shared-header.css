@@ -97,3 +97,8 @@
  .app-header .site-navigation .product-nav { grid-column: 1 / -1; grid-row: 2; width: 100%; }
  .app-header .site-navigation .guide-source-return { grid-column: 1 / -1; grid-row: 3; }
 }
+@media (max-width: 360px) {
+ .app-header .brand { font-size: 15px; gap: 3px; }
+ .app-header .brand-avatar { width: 28px; height: 28px; flex-basis: 28px; }
+ .app-header .site-navigation .site-framework { font-size: 10.5px; }
+}
