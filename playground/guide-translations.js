@@ -276,7 +276,12 @@ const rows = [
 ["LIVE EXAMPLE","실행 예제","Executable example","可执行示例","実行例"],
 ["커스텀 깊이","설정 단계","Configuration levels","配置层级","設定段階"],
 ["실행 중인 앱 예제","실행 중인 앱 예제","Running application example","运行中的应用示例","実行中のアプリ例"],
-["실행 코드","실행 코드","Executable code","执行代码","実行コード"]
+["실행 코드","실행 코드","Executable code","执行代码","実行コード"],
+["HTML에서 한 줄로 행동 선언","설치와 초기화","Installation and initialization","安装与初始化","導入と初期化"],
+["React의 선언형 prop","앱 상태와 행동 선언","Application state and behavior","应用状态与行为声明","アプリ状態と行動宣言"],
+["앱 상태에서 behavior prop을 계산하면 됩니다.","앱 상태에서 behavior 선언을 계산합니다.","Derive the behavior declaration from application state.","从应用状态计算 behavior 声明。","アプリ状態から behavior 宣言を決定します。"],
+["프리빌드된 GitHub 릴리스를 설치합니다. React의 기존 상태 흐름을 그대로 활용하세요.","선택한 코드 형식의 상태 변경 방식에 맞춰 선언을 갱신합니다.","Update the declaration using the selected framework’s state flow.","按照所选框架的状态更新方式更新声明。","選択した形式の状態更新に合わせて宣言を更新します。"],
+["useMemo는 선택사항입니다. 같은 의미의 선언 객체는 다시 렌더링해도 작업을 재시작하지 않습니다.","같은 의미의 선언 객체를 다시 전달해도 작업을 재시작하지 않습니다. React에서는 useMemo를 선택적으로 사용할 수 있습니다.","Passing an equivalent declaration does not restart the task. React applications can optionally use useMemo.","重复传入含义相同的声明不会重新启动任务。React 应用可按需使用 useMemo。","同じ意味の宣言を再指定してもタスクは再開しません。React では必要に応じて useMemo を使用できます。"]
 ];
 export const guideTranslations = Object.fromEntries(['ko', 'en', 'zh-CN', 'ja'].map((locale, i) =>
   [locale, Object.fromEntries(rows.map(row => [row[0], row[i + 1]]))]));
