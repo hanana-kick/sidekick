@@ -1,12 +1,15 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
 import { createAppServer } from '../scripts/serve.mjs';
 let browser, server, base;
+const screenshots=process.env.SIDEKICK_SCREENSHOTS;
 before(async()=>{
+ if(screenshots)await mkdir(screenshots,{recursive:true});
  server=createAppServer();await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));base=`http://127.0.0.1:${server.address().port}`;
- browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??(existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined),headless:true,args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
+ browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??(existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined),headless:process.env.SIDEKICK_HEADED!=='1',args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
 });
 after(async()=>{await browser?.close();if(server)await new Promise(resolve=>server.close(resolve));});
 for(const locale of ['ko','en','zh-CN','ja'])for(const path of ['','api-playground.html','guide.html'])test(`${locale} ${path||'Studio'}: visible locale, header and mobile layout`,async t=>{
@@ -34,6 +37,12 @@ for(const locale of ['ko','en','zh-CN','ja'])for(const path of ['','api-playgrou
     await page.locator('#'+id).click();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,id);
   }
+ }
+ await page.waitForFunction(()=>{const bot=document.querySelector('#flat,#bot');return !bot||bot.ready;});
+ if(screenshots){
+  await page.screenshot({path:`${screenshots}/locale-${locale}-${path.replace('.html','')||'studio'}-320x480.png`,fullPage:true});
+  await page.setViewportSize({width:1280,height:900});
+  await page.screenshot({path:`${screenshots}/locale-${locale}-${path.replace('.html','')||'studio'}-1280x900.png`,fullPage:true});
  }
  assert.deepEqual(errors,[]);
 });
