@@ -509,6 +509,7 @@ Preset default colors: beret/bow tie/scarf `#b84742`; halo/ring earring `#f7cc5b
 
 | HTML attribute | React prop | React type | Allowed values / defaults |
 | --- | --- | --- | --- |
+| `positioning` | `positioning` | `Positioning \| null` | Declare target, placement, gap and inertial following. HTML uses JSON. |
 | `entrance` | `entrance` | `Entrance \| null` | HTML JSON; runs once when ready; equivalent values do not replay; `null` or removal clears it |
 | `behavior` | `behavior` | `BotBehavior \| null` | JSON string in HTML; actual object/Element in React; `null` or removal cancels; see declarative behavior below |
 | `activity` | `activity` | `Activity` | `idle` / `thinking` / `listening` / `speaking` / `celebrating` / `still`; default `idle` |

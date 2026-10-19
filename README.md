@@ -509,6 +509,7 @@ const design = createDesign({
 
 | HTML 속성 | React prop | React 타입 | 허용 값 / 기본값 |
 | --- | --- | --- | --- |
+| `positioning` | `positioning` | `Positioning \| null` | 대상·배치·간격·관성 추적을 선언합니다. HTML은 JSON 문자열입니다. |
 | `entrance` | `entrance` | `Entrance \| null` | HTML JSON; 준비 후 한 번 실행; 같은 값은 반복하지 않음; `null` 또는 제거로 해제 |
 | `behavior` | `behavior` | `BotBehavior \| null` | HTML은 JSON 문자열, React는 실제 객체/Element. `null` 또는 제거는 행동 취소. 아래 선언형 행동 참고 |
 | `activity` | `activity` | `Activity` | `idle` / `thinking` / `listening` / `speaking` / `celebrating` / `still`. 기본 `idle` |

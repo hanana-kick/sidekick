@@ -509,6 +509,7 @@ const design = createDesign({
 
 | HTML 属性 | React prop | React の型 | 許可される値 / 既定値 |
 | --- | --- | --- | --- |
+| `positioning` | `positioning` | `Positioning \| null` | 対象・配置・間隔・慣性追従を宣言。HTML は JSON。 |
 | `entrance` | `entrance` | `Entrance \| null` | HTML JSON、準備完了後に一度実行、同じ値では再生し直さない、`null` または削除で解除 |
 | `behavior` | `behavior` | `BotBehavior \| null` | HTML では JSON 文字列、React では実際のオブジェクト/Element。`null` または削除で動作をキャンセル。以下の宣言型の動作を参照 |
 | `activity` | `activity` | `Activity` | `idle` / `thinking` / `listening` / `speaking` / `celebrating` / `still`。既定は `idle` |

@@ -509,6 +509,7 @@ const design = createDesign({
 
 | HTML 属性 | React prop | React 类型 | 允许值 / 默认值 |
 | --- | --- | --- | --- |
+| `positioning` | `positioning` | `Positioning \| null` | 声明目标、方位、间距和惯性跟随。HTML 使用 JSON。 |
 | `entrance` | `entrance` | `Entrance \| null` | HTML JSON；准备好后执行一次；等效值不重播；`null` 或移除会清除声明 |
 | `behavior` | `behavior` | `BotBehavior \| null` | HTML 使用 JSON 字符串，React 使用实际对象/Element；`null` 或移除会取消行为；参见下方声明式行为 |
 | `activity` | `activity` | `Activity` | `idle` / `thinking` / `listening` / `speaking` / `celebrating` / `still`；默认为 `idle` |

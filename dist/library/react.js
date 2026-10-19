@@ -1,4 +1,3 @@
-import { samePositioning, copyPositioning } from './element/positioning.js';
 'use client';
 import { createElement, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 function sameEntrance(a, b) {
@@ -330,3 +329,7 @@ export function SidekickAvatar(props) {
     }, [publish, captureError]);
     return createElement(tagName, { ...html, 'onsidekick-error': captureError, ref: capture });
 }
+function samePositioning(a, b) {
+    return a === b || !!a && !!b && a.target === b.target && (a.placement ?? 'bottom-right') === (b.placement ?? 'bottom-right') && (a.gap ?? 16) === (b.gap ?? 16) && (a.follow ?? true) === (b.follow ?? true) && (a.offset?.x ?? 0) === (b.offset?.x ?? 0) && (a.offset?.y ?? 0) === (b.offset?.y ?? 0);
+}
+function copyPositioning(value) { return value ? { ...value, ...(value.offset ? { offset: { ...value.offset } } : {}) } : null; }
