@@ -31,7 +31,7 @@ test('packed core installs offline without React, Studio, or lifecycle builds', 
   for (const entry of ['./dist/library/index.js', './dist/library/auto.js', './src/index.ts', './src/auto.ts', './dist/browser/sidekick.js', './dist/browser/sidekick.iife.js', '**/*.css']) assert.ok(consumer.manifest.sideEffects.includes(entry));
   assert.ok(!consumer.manifest.sideEffects.includes('./dist/library/register.js'));
   assert.ok(!consumer.manifest.sideEffects.includes('./dist/library/core.js'));
-  // v0.11.0: ~830 KB including emotion APIs, continuous transitions and four language references.
+  // v0.11.1: ~830 KB including emotion APIs, continuous transitions and four language references.
   // Keep a tight total budget and the independent no-React/no-Studio file assertions above.
   assert.ok(consumer.packed.size < 850_000, `Unexpected packed size ${consumer.packed.size}`);
   const output = consumer.run(['--input-type=module', '-e', `

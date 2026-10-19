@@ -28,6 +28,7 @@ export declare class RenderEngine {
     private shape;
     private activityBlend;
     private emotion;
+    private emotionEyeControl;
     private orientation;
     private attention;
     private tracking;

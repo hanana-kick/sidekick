@@ -51,6 +51,8 @@ export declare class MotionTimeline {
     private eyeStates;
     private tracks;
     constructor(eyes?: EyeStates);
+    /** Restore an authored pose and its eye targets together before resuming commands. */
+    seedPose(pose: Pose): void;
     get active(): boolean;
     get eyeMotion(): Record<EyeSide, boolean>;
     private values;

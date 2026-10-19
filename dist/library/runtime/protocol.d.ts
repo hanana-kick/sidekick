@@ -11,6 +11,11 @@ import type { PixelBuffer, SnapshotOptions } from '../core/pixels.js';
 export declare const PROTOCOL_VERSION = 1;
 export interface RuntimeState {
     emotion?: EmotionValue;
+    /** Explicit eye commands override only the selected eyes until a new emotion command. */
+    emotionEyeOverrides?: {
+        left: boolean;
+        right: boolean;
+    };
     /** Semantic target attention suppresses unrelated activity eye wandering. */
     attention?: boolean;
     design: AvatarDesign;
@@ -58,6 +63,14 @@ export type RuntimeCommand = {
 } | {
     kind: 'persist-design';
     design: AvatarDesign;
+} | {
+    kind: 'eye-control';
+    overrides: {
+        left: boolean;
+        right: boolean;
+    };
+    sides: readonly ('left' | 'right')[];
+    options: MotionOptions;
 } | {
     kind: 'cancel';
 } | {

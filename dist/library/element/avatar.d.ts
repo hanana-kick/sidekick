@@ -25,6 +25,8 @@ export declare class SidekickAvatar extends HTMLElementBase {
     removeEventListener<K extends keyof SidekickEventMap>(type: K, listener: (this: SidekickAvatar, event: SidekickEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
     removeEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
     removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions): void;
+    private emotionEyeOverrides;
+    private setEyeControl;
     private emotionController;
     /** Persistent feeling. Transient reactions are available in emotionState. */
     get emotion(): Emotion;

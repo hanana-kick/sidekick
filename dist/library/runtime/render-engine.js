@@ -51,6 +51,7 @@ export class RenderEngine {
     shape;
     activityBlend;
     emotion;
+    emotionEyeControl;
     orientation;
     attention;
     tracking = new TrackingBodyLayer();
@@ -79,10 +80,11 @@ export class RenderEngine {
         this.scheduler = scheduler;
         this.state = structuredClone(initial);
         this.emotion = new SmoothValues(this.emotionTarget());
+        this.emotionEyeControl = new MotionTimeline({ left: { weights: { smile: 0, blink: initial.emotionEyeOverrides?.left ? 1 : 0 } }, right: { weights: { smile: 0, blink: initial.emotionEyeOverrides?.right ? 1 : 0 } } });
         this.orientation = new SmoothValues([initial.bodyOrientation.yaw, initial.bodyOrientation.pitch, initial.bodyOrientation.roll], 22, .0001);
         this.attention = new SmoothValues([initial.attention ? 1 : 0]);
         this.timeline = new MotionTimeline({ left: initial.design.eyes.left, right: initial.design.eyes.right });
-        this.timeline.pose = structuredClone(initial.pose);
+        this.timeline.seedPose(initial.pose);
         if (initial.paused || initial.reduced)
             this.timeline.pose.gaze = [...initial.gaze];
         this.activityBlend = new ActivityBlend(initial.activity, initial.time, initial.reduced);
@@ -169,6 +171,10 @@ export class RenderEngine {
                 this.state.design = next;
                 break;
             }
+            case 'eye-control':
+                this.state.emotionEyeOverrides = { ...command.overrides };
+                void this.emotionEyeControl.to({ eyes: Object.fromEntries(command.sides.map(side => [side, { weights: { blink: command.overrides[side] ? 1 : 0 } }])) }, { ...command.options, duration: this.state.paused || this.state.reduced ? 0 : command.options.duration });
+                break;
             case 'motion':
                 this.complete(command.request, this.timeline.to(command.target, command.options));
                 break;
@@ -182,11 +188,14 @@ export class RenderEngine {
             case 'cancel-assets':
                 if (command.shape)
                     this.shape.cancel();
-                if (command.expression)
+                if (command.expression) {
                     this.timeline.cancelEyes();
+                    this.emotionEyeControl.cancelEyes();
+                }
                 break;
             case 'cancel':
                 this.timeline.cancel();
+                this.emotionEyeControl.cancel();
                 break;
             case 'state': {
                 const changed = Object.entries(command.state).some(([key, value]) => {
@@ -216,6 +225,7 @@ export class RenderEngine {
                     this.stop();
                 if (this.state.paused || this.state.reduced) {
                     this.emotion.set(this.emotionTarget());
+                    this.emotionEyeControl.advance(60000);
                     this.orientation.set(this.orientationTarget());
                     this.attention.set([this.state.attention ? 1 : 0]);
                     this.timeline.advance(60000);
@@ -280,7 +290,7 @@ export class RenderEngine {
     emotionTarget() { const e = resolveEmotionFrame(this.state.emotion ?? { emotion: 'neutral', intensity: 1 }, this.state.time, this.state.reduced); return [e.smile, e.blink, e.eyeWeight, e.bob, e.roll, e.pitch, ...e.gaze, e.squash]; }
     emotionFrame() { const [smile, blink, eyeWeight, bob, roll, pitch, x, y, squash] = this.emotion.values; return { smile: smile, blink: blink, eyeWeight: eyeWeight, bob: bob, roll: roll, pitch: pitch, gaze: [x, y], squash: squash }; }
     orientationTarget() { const o = this.state.bodyOrientation; return [o.yaw, o.pitch, o.roll]; }
-    presentationMoving() { return this.emotion.moving(this.emotionTarget()) || (!this.state.reduced && emotionHasMotion(this.state.emotion ?? { emotion: 'neutral', intensity: 1 })) || this.orientation.moving(this.orientationTarget()) || this.attention.moving([this.state.attention ? 1 : 0]); }
+    presentationMoving() { return this.emotionEyeControl.active || this.emotion.moving(this.emotionTarget()) || (!this.state.reduced && emotionHasMotion(this.state.emotion ?? { emotion: 'neutral', intensity: 1 })) || this.orientation.moving(this.orientationTarget()) || this.attention.moving([this.state.attention ? 1 : 0]); }
     animated() {
         if (this.state.paused)
             return this.tracking.settling;
@@ -321,6 +331,7 @@ export class RenderEngine {
             this.orientation.advance(this.orientationTarget(), delta);
             this.attention.advance([this.state.attention ? 1 : 0], delta);
             this.emotion.advance(this.emotionTarget(), delta);
+            this.emotionEyeControl.advance(elapsed);
             this.state.time += delta;
             this.activityBlend.advance(elapsed);
             this.timeline.advance(elapsed);
@@ -368,8 +379,8 @@ export class RenderEngine {
         const emotion = this.emotionFrame();
         pose.rotation = [pose.rotation[0] + emotion.pitch, pose.rotation[1], pose.rotation[2]];
         pose.eyes = Object.fromEntries(['left', 'right'].map(side => [side, {
-                smile: pose.eyes[side].smile + (emotion.smile - pose.eyes[side].smile) * emotion.eyeWeight,
-                openness: pose.eyes[side].openness + (1 - emotion.blink - pose.eyes[side].openness) * emotion.eyeWeight,
+                smile: pose.eyes[side].smile + (emotion.smile - pose.eyes[side].smile) * emotion.eyeWeight * this.emotionEyeControl.pose.eyes[side].openness,
+                openness: pose.eyes[side].openness + (1 - emotion.blink - pose.eyes[side].openness) * emotion.eyeWeight * this.emotionEyeControl.pose.eyes[side].openness,
             }]));
         this.renderedRotation = [...pose.rotation];
         const activityFrame = travelActivity(this.activityBlend.sample(this.state.time, this.state.reduced), travel);
@@ -395,6 +406,7 @@ export class RenderEngine {
         this.disposed = true;
         this.stop();
         this.timeline.cancel();
+        this.emotionEyeControl.cancel();
         this.shape.cancel();
         this.tracking.reset();
         this.renderer.canvas.removeEventListener('webglcontextlost', this.contextLost);
