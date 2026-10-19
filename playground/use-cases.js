@@ -48,7 +48,8 @@ function contextSnapshot(){return {id:currentId,level,side:active?.declaration.s
 function updateContextLinks(){
  const context=contextSnapshot(), link=$('context-playground-link');
  if(link){link.hidden=!!lessonById(currentId);link.href=lessonById(currentId)?technicalHref(currentId,getSiteLocale(),context):guideHref(context,getSiteLocale(),true,context);link.textContent=navText().try;}
- if(!restoringContext){const url=new URL(guideHref(context,getSiteLocale(),exerciseMode,sourceContext),location.href);history.replaceState(history.state,'',url);}
+ // A native anchor/history change can queue scroll before hashchange. Never overwrite its new route.
+ if(!restoringContext&&(!location.hash||location.hash.slice(1)===currentId)){const url=new URL(guideHref(context,getSiteLocale(),exerciseMode,sourceContext),location.href);history.replaceState(history.state,'',url);}
  const back=$('guide-source-return');if(back)back.href=guideHref(sourceContext??incomingContext??context,getSiteLocale());
 }
 

@@ -90,7 +90,7 @@ test('guide progresses from one declaration to live options, events and direct c
  await page.locator('#return-declaration').click();assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'wait');
 });
 test('legacy use-case URL preserves hash and redirects to canonical Guide',async t=>{
- const page=await setup(t);await page.goto(`${base}/use-cases.html?lang=ko#review`);await page.waitForSelector('#demo-bot[data-configured][data-scenario="review"]');assert.match(page.url(),/\/guide\.html\?lang=ko#review$/);
+ const page=await setup(t);await page.goto(`${base}/use-cases.html?lang=ko#review`);await page.waitForSelector('#demo-bot[data-configured][data-scenario="review"]');const destination=new URL(page.url());assert.equal(destination.pathname,'/guide.html');assert.equal(destination.searchParams.get('lang'),'ko');assert.equal(destination.hash,'#review');
 });
 for(const locale of ['ko','en','zh-CN','ja'])test(`Guide translates technical lessons and live scenarios in ${locale}`,async t=>{
  const page=await setup(t,{width:390,height:844});await page.selectOption('#site-language',locale);
