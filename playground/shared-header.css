@@ -64,3 +64,8 @@
 }
 .app-header .site-navigation .product-nav,
 .app-header .site-navigation .product-nav a { min-width: 0; }
+.app-header .guide-source-return { font-size: 12px; text-underline-offset: 3px; }
+@media (max-width: 760px) {
+  .app-header .site-navigation:has(.guide-source-return) { flex-wrap: wrap; }
+  .app-header .guide-source-return { order: 2; flex: 1 0 100%; text-align: right; }
+}
