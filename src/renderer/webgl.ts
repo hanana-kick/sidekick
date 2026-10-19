@@ -1,3 +1,5 @@
+import { AccessoryTransition } from '../core/accessory-transition.js';
+import type { ResolvedAccessoryDesign } from '../core/resolved-design.js';
 import { createZoom } from '../core/zoom.js';
 import { travelMatrix } from '../core/travel.js';
 import type { TravelPresentation } from '../core/travel.js';
@@ -30,6 +32,10 @@ export interface RenderState {
   pose: Pose; activity: Activity; time: number; delta: number; reduced: boolean; style: RenderStyle;
   /** Optional runtime activity crossfade; direct renderer clients keep the standard loop. */
   activityFrame?: ActivityFrame;
+  /** Snap presentation while paused; authored state remains immediate either way. */
+  instant?: boolean;
+  /** Existing whole-canvas transitions already hide the equipment swap. */
+  equipmentImmediate?: boolean;
   travel?: TravelPresentation;
   bodyOrientation?: Partial<BodyOrientation>;
   zoom?: number;
@@ -57,6 +63,7 @@ precision highp float;
 in float vFrontCap;
 in vec2 vFacePosition;
 uniform vec3 color;
+uniform float opacity;
 uniform bool eyesOn;
 uniform vec3 eyeColor;
 uniform vec4 eyeCenters;
@@ -111,7 +118,7 @@ float eyeDistance(vec2 p, float openness, float smile, vec4 targets) {
 }
 void main() {
   // Uniform per draw: accessories need no curve solves or ink derivatives.
-  if (!eyesOn) { outColor = vec4(color, 1.0); return; }
+  if (!eyesOn) { outColor = vec4(color * opacity, opacity); return; }
   // Stable body-local surface chart: regular glyphs do not inherit contour
   // deformations. Curved triangles themselves provide tilt, foreshortening and
   // partial occlusion, rather than a screen billboard or binary center test.
@@ -134,7 +141,7 @@ void main() {
 export class AvatarRenderer {
   readonly gl: WebGL2RenderingContext;
   private program: WebGLProgram;
-  private uniforms: Record<'model' | 'projection' | 'color' | 'eyesOn' | 'eyeColor' | 'eyeCenters' | 'eyeSize' | 'eyeStates' | 'eyeLeftTargets' | 'eyeRightTargets' | 'faceScale', WebGLUniformLocation>;
+  private uniforms: Record<'opacity' | 'model' | 'projection' | 'color' | 'eyesOn' | 'eyeColor' | 'eyeCenters' | 'eyeSize' | 'eyeStates' | 'eyeLeftTargets' | 'eyeRightTargets' | 'faceScale', WebGLUniformLocation>;
   private meshes: Record<'body' | 'beret' | 'glasses' | 'halo', Mesh>;
   private beretContour?: ShapeContour;
   private beretKey = '';
@@ -149,6 +156,9 @@ export class AvatarRenderer {
   private disposed = false;
   private drawCount = 0;
   private blinkGate = new EyeBlinkGate();
+  private equipment = new AccessoryTransition<ResolvedAccessoryDesign>();
+  private framingActive = false;
+  private framingTarget = 2.4;
   private framingKey = '';
   private frameSpan = 2.4;
   private displayAspect?: number;
@@ -177,7 +187,7 @@ export class AvatarRenderer {
       if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) ?? '프로그램 연결 오류');
       this.program = program;
       const uniform = (name: string): WebGLUniformLocation => { const location = gl.getUniformLocation(program!, name); if (!location) throw new Error(`uniform ${name} 없음`); return location; };
-      this.uniforms = { model: uniform('model'), projection: uniform('projection'), color: uniform('color'), eyesOn: uniform('eyesOn'), eyeColor: uniform('eyeColor'), eyeCenters: uniform('eyeCenters'), eyeSize: uniform('eyeSize'), eyeStates: uniform('eyeStates'), eyeLeftTargets: uniform('eyeLeftTargets'), eyeRightTargets: uniform('eyeRightTargets'), faceScale: uniform('faceScale') };
+      this.uniforms = { opacity: uniform('opacity'), model: uniform('model'), projection: uniform('projection'), color: uniform('color'), eyesOn: uniform('eyesOn'), eyeColor: uniform('eyeColor'), eyeCenters: uniform('eyeCenters'), eyeSize: uniform('eyeSize'), eyeStates: uniform('eyeStates'), eyeLeftTargets: uniform('eyeLeftTargets'), eyeRightTargets: uniform('eyeRightTargets'), faceScale: uniform('faceScale') };
       const upload = (data: Geometry): Mesh => { const mesh = this.upload(data); uploaded.push(mesh); return mesh; };
       // The first render uploads the requested body; prebuilding a square here
       // would duplicate both CPU triangulation and GPU uploads on every startup.
@@ -238,6 +248,8 @@ export class AvatarRenderer {
     const signature = JSON.stringify(input);
     if (signature !== this.inputSignature) { this.resolvedInput = resolveDesign(input); this.inputSignature = signature; }
     const design = this.resolvedInput!;
+    const instant = state.reduced || state.instant || state.equipmentImmediate;
+    const equipment = this.equipment.sample(design.accessories, state.delta, instant);
     const gl = this.gl, { pose } = state, activity = state.activityFrame ?? activityFrame(state.activity, state.time, state.reduced);
     const roll = pose.rotation[2] + activity.roll;
     if (Object.hasOwn(state, 'camera') || Object.hasOwn(state, 'view')) throw new TypeError('camera/view are removed; use bodyOrientation and zoom.');
@@ -267,13 +279,18 @@ export class AvatarRenderer {
       this.bodyContour = contour; this.bodyDeformation = String(profile.depth);
     }
     // Shape-independent envelope: selecting/retargeting a contour cannot pump zoom.
-    const framingKey = JSON.stringify(design.accessories);
+    const framingKey = JSON.stringify(this.equipment.envelope);
     if (framingKey !== this.framingKey) {
       const radius = Math.hypot(BODY_SIZE[0] * 0.5 / Math.sqrt(0.88), BODY_SIZE[1] * 0.56, BODY_DEPTH_RANGE[1] * 0.5 / Math.sqrt(0.88));
-      const accessory = Math.max(0, ...design.accessories.map(a => a.anchor.offset + MOUNT_OFFSET_RANGE[1] + (CATALOG_ACCESSORY_EXTENT[a.preset as CatalogAccessoryPreset] ?? .43) * a.scale));
-      this.frameSpan = Math.max(Math.max(...BODY_SIZE) * 1.25 + 0.9, (radius + accessory) * 2 + 0.34);
+      const accessory = Math.max(0, ...this.equipment.envelope.map(a => a.anchor.offset + MOUNT_OFFSET_RANGE[1] + (CATALOG_ACCESSORY_EXTENT[a.preset as CatalogAccessoryPreset] ?? .43) * a.scale));
+      this.framingTarget = Math.max(Math.max(...BODY_SIZE) * 1.25 + 0.9, (radius + accessory) * 2 + 0.34);
+      if (!this.framingKey) this.frameSpan = this.framingTarget;
       this.framingKey = framingKey;
     }
+    const framingDelta = Number.isFinite(state.delta) ? Math.max(0, Math.min(state.delta, 0.25)) : 0;
+    this.frameSpan = instant ? this.framingTarget : this.frameSpan + (this.framingTarget - this.frameSpan) * (1 - Math.exp(-framingDelta / 0.07));
+    if (Math.abs(this.framingTarget - this.frameSpan) < 0.0001) this.frameSpan = this.framingTarget;
+    this.framingActive = this.frameSpan !== this.framingTarget;
     const span = this.frameSpan / zoom;
     const height = span * Math.max(1, 1 / aspect), width = height * aspect;
     gl.viewport(0, 0, this.canvas.width, this.canvas.height); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -295,6 +312,8 @@ export class AvatarRenderer {
     const bodyRoot = multiply(root, transform([0, 0, 0], [0, 0, 0], [stretch, activity.squash, stretch]));
     // Eye ink is evaluated in the body pass: it has zero depth and cannot alter alpha coverage.
     const eyes = projectEyes(design, root, pose.face, [pose.gaze[0] + activity.gaze[0], pose.gaze[1] + activity.gaze[1]], activity.squash, contour, profile);
+    gl.disable(gl.BLEND);
+    gl.uniform1f(this.uniforms.opacity, 1);
     gl.uniform1i(this.uniforms.eyesOn, 1);
     const ink = parseInt(design.eyes.color.slice(1), 16);
     gl.uniform3f(this.uniforms.eyeColor, ((ink >> 16) & 255) / 255, ((ink >> 8) & 255) / 255, (ink & 255) / 255);
@@ -311,11 +330,17 @@ export class AvatarRenderer {
     this.draw(body, bodyRoot, design.body.color);
     gl.uniform1i(this.uniforms.eyesOn, 0);
     const localDraw = (mesh: Mesh, parent: Mat4, color: string, position: Vec3, size: Vec3, rotation: Vec3 = [0, 0, 0]): void => this.draw(mesh, multiply(parent, transform(position, rotation, size)), color);
-    const activeIds = new Set(design.accessories.map(a => a.id));
+    const activeIds = new Set(equipment.map(({ accessory }) => accessory.id));
     for (const id of this.lag.keys()) if (!activeIds.has(id)) this.lag.delete(id);
-    const activeSlots = new Set(design.accessories.map(a => a.slot));
+    const activeSlots = new Set(equipment.map(({ accessory }) => accessory.slot));
     for (const [slot, cached] of this.catalogMeshes) if (!activeSlots.has(slot)) { this.deleteMesh(cached.mesh); this.catalogMeshes.delete(slot); }
-    for (const accessory of design.accessories) {
+    for (const { accessory, opacity } of equipment) {
+      if (opacity <= 0) continue;
+      // Premultiplied output matches the transparent canvas. Retain depth writes
+      // so a mesh's back faces/details cannot accumulate through its front.
+      if (opacity < 1) { gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); }
+      else gl.disable(gl.BLEND);
+      gl.uniform1f(this.uniforms.opacity, opacity);
       const oldLag = this.lag.get(accessory.id) ?? [roll, 0];
       const lag = state.reduced ? [roll, 0] as [number, number] : spring(oldLag[0], oldLag[1], roll, state.delta, 11);
       this.lag.set(accessory.id, lag);
@@ -391,8 +416,10 @@ export class AvatarRenderer {
         localDraw(this.meshes.halo, parent, accessory.color, [0, 0, 0], [0.34, 0.34, 0.34]);
       }
     }
+    gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
   }
+  get animating(): boolean { return this.equipment.active || this.framingActive; }
   get stats(): { drawCalls: number; buffers: number } { return { drawCalls: this.drawCount, buffers: [...Object.values(this.meshes), ...Array.from(this.catalogMeshes.values(), item => item.mesh)].reduce(count => count + 2, 0) }; }
   /** Call immediately after render; the drawing buffer need not be preserved between frames. */
   readPixels(): Uint8Array {
