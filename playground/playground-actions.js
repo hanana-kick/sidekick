@@ -1,3 +1,5 @@
+import { apiError } from './api-locales.js';
+
 /** One serializable action describes both the invocation and the displayed example. */
 const literal = value => {
   if (typeof value === 'string') return `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll("\n", "\\n").replaceAll("\r", "\\r")}'`;
@@ -25,7 +27,7 @@ export function executeAction(avatar, action, createAccessory) {
   if (action.method === 'moveToElement') {
     const selector = args[0];
     args[0] = avatar.ownerDocument.querySelector(selector);
-    if (!args[0]) throw new TypeError(`대상 엘리먼트를 찾을 수 없습니다: ${selector}`);
+    if (!args[0]) throw apiError('targetNotFound', { selector });
   }
   if (action.method === 'transitionTo' && args[0]?.accessories) args[0].accessories = args[0].accessories.map(preset => createAccessory(preset));
   return avatar[action.method](...args);
@@ -33,6 +35,6 @@ export function executeAction(avatar, action, createAccessory) {
 export function codeForAction(action, format = 'javascript', scene) {
   const source = actionSource(action);
   const accessories = source.includes('createAccessory(');
-  if (format === 'react') return `import { useRef } from 'react';\nimport { SidekickAvatar } from '@hanana-kick/sidekick/react';\n${accessories ? "import { createAccessory } from '@hanana-kick/sidekick';\n" : ''}\n${scene ? `const scene = ${JSON.stringify(scene, null, 2)};\n` : ''}export default function Example() {\n  const ref = useRef(null);\n  async function run() {\n    const avatar = ref.current;\n    if (!avatar) return;\n${source.split('\n').map(line => `    ${line}`).join('\n')}\n  }\n  return <>\n    <SidekickAvatar ref={ref} placement="viewport"\n      ${scene ? `design={scene.design} activity={scene.activity} paused={scene.paused}\n      trackingMode={scene.trackingMode} bodyOrientation={scene.bodyOrientation} zoom={scene.zoom}\n      onReady={event => { const bot = event.currentTarget; bot.lookAt({ space: 'view', ...scene.gaze }); bot.seek(scene.time); void bot.motion.to(scene.motion, { duration: 0 }); }}` : 'shape="ghostish" bodyColor="#FFCC37"'}\n      style={{ width: 180, height: 180, pointerEvents: 'none' }} />\n    <button onClick={run}>실행</button>\n  </>;\n}`;
+  if (format === 'react') return `import { useRef } from 'react';\nimport { SidekickAvatar } from '@hanana-kick/sidekick/react';\n${accessories ? "import { createAccessory } from '@hanana-kick/sidekick';\n" : ''}\n${scene ? `const scene = ${JSON.stringify(scene, null, 2)};\n` : ''}export default function Example() {\n  const ref = useRef(null);\n  async function run() {\n    const avatar = ref.current;\n    if (!avatar) return;\n${source.split('\n').map(line => `    ${line}`).join('\n')}\n  }\n  return <>\n    <SidekickAvatar ref={ref} placement="viewport"\n      ${scene ? `design={scene.design} activity={scene.activity} paused={scene.paused}\n      trackingMode={scene.trackingMode} bodyOrientation={scene.bodyOrientation} zoom={scene.zoom}\n      onReady={event => { const bot = event.currentTarget; bot.lookAt({ space: 'view', ...scene.gaze }); bot.seek(scene.time); void bot.motion.to(scene.motion, { duration: 0 }); }}` : 'shape="ghostish" bodyColor="#FFCC37"'}\n      style={{ width: 180, height: 180, pointerEvents: 'none' }} />\n    <button onClick={run}>Run</button>\n  </>;\n}`;
   return `${accessories ? "import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.10.0/dist/browser/sidekick.js';\n" : ''}const avatar = document.querySelector('#bot');\n${source}`;
 }

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { JSDOM } from 'jsdom';
 import ts from 'typescript';
+import { apiText, applyApiLocale, apiError } from '../playground/api-locales.js';
+import { getSiteLocale, setSiteLocale, subscribeSiteLocale } from '../playground/site-i18n.js';
 import { actionSource, executeAction, codeForAction } from '../playground/playground-actions.js';
 
 test('Playground install and accessory snippets use the current released package version', async () => {
@@ -98,6 +100,7 @@ test('the playground is a free-page companion without a framed movement stage', 
 });
 
 test('both pages share a paused native avatar brand and accessible navigation', async t => {
+  setSiteLocale('en'); t.after(() => setSiteLocale('ko'));
   const { mountSiteHeader } = await import('../playground/shared-header.js');
   const { resolveSidekickAttributes } = await import('../dist/library/element/attributes.js');
   const dom = new JSDOM('<div id="header"></div>', { url: 'https://sidekick.test/nested/' });
@@ -127,8 +130,8 @@ test('both pages share a paused native avatar brand and accessible navigation', 
     assert.equal(avatar.getAttribute('tracking-mode'), 'off');
     assert.equal(host.querySelectorAll('[aria-current="page"]').length, 1);
     assert.equal(host.querySelector('[aria-current="page"]').textContent, page === 'api' ? 'API playground' : 'Studio');
-    assert.equal(host.querySelector('.brand').href, 'https://sidekick.test/nested/');
-    assert.equal(host.querySelector('#api-playground-link').href, 'https://sidekick.test/nested/api-playground.html');
+    assert.equal(host.querySelector('.brand').href, 'https://sidekick.test/nested/?lang=en');
+    assert.equal(host.querySelector('#api-playground-link').href, 'https://sidekick.test/nested/api-playground.html?lang=en');
     cleanup(); assert.equal(host.childElementCount, 0);
   }
 });
@@ -139,7 +142,7 @@ async function controllerFixture(t) {
   const dom = new JSDOM(html, { url: 'https://sidekick.test/api-playground.html', runScripts: 'outside-only', pretendToBeVisual: true });
   t.after(() => dom.window.close());
   const w = dom.window, $ = id => w.document.getElementById(id);
-  Object.assign(w, { structuredClone, codeForAction, executeAction, createAccessory, MATERIAL_SHAPE_LABELS: { heart: 'Heart', ghostish: 'Ghost' }, mountSiteHeader() {}, loadStudioSession: () => ({ message: 'Default scene', scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), applyStudioSession: async () => {} });
+  Object.assign(w, { apiText, applyApiLocale, apiError, getSiteLocale, subscribeSiteLocale: callback => { const cleanup = subscribeSiteLocale(callback); t.after(cleanup); return cleanup; }, structuredClone, codeForAction, executeAction, createAccessory, MATERIAL_SHAPE_LABELS: { heart: 'Heart', ghostish: 'Ghost' }, mountSiteHeader() {}, loadStudioSession: () => ({ message: 'Default scene', scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), applyStudioSession: async () => {} });
   w.matchMedia = () => ({ matches: false, addEventListener() {} });
   class Avatar extends w.HTMLElement {
     ready = true; calls = []; point = { x: 0, y: 0 }; activity = 'idle'; trackingMode = 'eyes-and-body'; zoom = 1;
