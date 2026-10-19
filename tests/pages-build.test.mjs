@@ -154,3 +154,24 @@ test('explicit fixed SIDEKICK_BASE remains supported', async t => {
 test('module graph checking includes static imports, dynamic chunks and module-relative assets', () => {
   assert.deepEqual(moduleReferences('import "./boot.js"; export { x } from "./shared.js"; import("./lazy.js"); new URL("./font.woff2", import.meta.url);'), ['./boot.js', './shared.js', './lazy.js', './font.woff2']);
 });
+
+test('Guide startup keeps its controller and never evaluates the Studio entry', async t => {
+  const output = await buildSite(t);
+  const html = await readFile(join(output, 'guide.html'), 'utf8');
+  const queue = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map(match => resolve(output, match[1]));
+  const visited = new Set();
+  let controllerFound = false;
+  while (queue.length) {
+    const path = queue.pop();
+    if (visited.has(path)) continue;
+    visited.add(path);
+    const source = await readFile(path, 'utf8');
+    assert.ok(!source.includes('Studio root is missing'), 'Guide must not import the Studio bootstrap via a shared runtime helper');
+    controllerFound ||= source.includes('scenario-toc') && source.includes('context-playground-link');
+    const ast = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    for (const node of ast.statements) {
+      if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier) && node.moduleSpecifier.text.startsWith('.')) queue.push(resolve(path, '..', node.moduleSpecifier.text));
+    }
+  }
+  assert.ok(controllerFound, 'Shared Guide initialization must survive tree shaking');
+});

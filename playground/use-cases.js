@@ -1,4 +1,3 @@
-import './use-cases.css';
 import { readGuideContext, readGuideSource, guideHref, technicalHref, lessonDestinations, navigationText, guideIds } from './guide-navigation.js';
 import { emotionFlowById, emotionMarkup, emotionCode, runEmotionAction, customizeEmotionAction } from './emotion-scenarios.js';
 import '../src/index.ts';
