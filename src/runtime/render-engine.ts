@@ -1,4 +1,7 @@
+import { resolveEmotionFrame, emotionHasMotion } from '../core/emotion.js';
+import type { EmotionFrame } from '../core/emotion.js';
 import { travelPose, travelActivity } from '../core/travel.js';
+import { SmoothValues } from '../core/smooth-values.js';
 import { clamp, spring } from '../core/math.js';
 import { ActivityBlend } from '../core/activity-blend.js';
 import { MotionTimeline } from '../core/motion.js';
@@ -50,6 +53,9 @@ export class RenderEngine {
   private timeline: MotionTimeline;
   private shape: ShapeTimeline;
   private activityBlend: ActivityBlend;
+  private emotion: SmoothValues;
+  private orientation: SmoothValues;
+  private attention: SmoothValues;
   private tracking = new TrackingBodyLayer();
   private velocity: Vec2 = [0, 0];
   private scheduled = 0;
@@ -71,6 +77,9 @@ export class RenderEngine {
   readonly renderer: RuntimeRenderer;
   constructor(canvas: HTMLCanvasElement | OffscreenCanvas, initial: RuntimeState, private readonly emit: (event: RuntimeEvent, revision?: number) => void, private readonly scheduler = frameScheduler(), renderer?: RuntimeRenderer) {
     this.state = structuredClone(initial);
+    this.emotion = new SmoothValues(this.emotionTarget());
+    this.orientation = new SmoothValues([initial.bodyOrientation.yaw, initial.bodyOrientation.pitch, initial.bodyOrientation.roll], 22, .0001);
+    this.attention = new SmoothValues([initial.attention ? 1 : 0]);
     this.timeline = new MotionTimeline({ left: initial.design.eyes.left, right: initial.design.eyes.right });
     this.timeline.pose = structuredClone(initial.pose);
     if (initial.paused || initial.reduced) this.timeline.pose.gaze = [...initial.gaze];
@@ -116,12 +125,14 @@ export class RenderEngine {
         const next = command.design, previous = this.state.design;
         if (next.body.shape !== previous.body.shape) {
           if (command.transition) this.complete(command.shapeRequest, this.shape.to(next.body.shape, command.transition.shape));
-          else this.shape.set(next.body.shape);
+          else if (this.state.paused || this.state.reduced) this.shape.set(next.body.shape);
+          else this.complete(undefined, this.shape.to(next.body.shape));
         } else if (command.shapeRequest !== undefined) this.complete(command.shapeRequest, Promise.resolve({ finished: true }));
         const sides = (['left', 'right'] as const).filter(side => command.transition?.eyeSides?.includes(side) || next.eyes[side].weights.smile !== previous.eyes[side].weights.smile || next.eyes[side].weights.blink !== previous.eyes[side].weights.blink);
         if (sides.length) {
           if (command.transition) this.complete(command.eyeRequest, this.timeline.to({ eyes: Object.fromEntries(sides.map(side => [side, { weights: next.eyes[side].weights }])) }, command.transition.eyes));
-          else this.timeline.setEyes({ left: next.eyes.left, right: next.eyes.right }, sides);
+          else if (this.state.paused || this.state.reduced) this.timeline.setEyes({ left: next.eyes.left, right: next.eyes.right }, sides);
+          else this.complete(undefined, this.timeline.to({ eyes: Object.fromEntries(sides.map(side => [side, { weights: next.eyes[side].weights }])) }));
         } else if (command.eyeRequest !== undefined) this.complete(command.eyeRequest, Promise.resolve({ finished: true }));
         this.timeline.removeAccessories(previous.accessories.filter(item => !next.accessories.some(part => part.id === item.id)).map(item => item.id));
         this.state.design = next;
@@ -149,6 +160,7 @@ export class RenderEngine {
         Object.assign(this.state, command.state);
         if (!this.state.active || wasActive !== this.state.active) this.stop();
         if (this.state.paused || this.state.reduced) {
+          this.emotion.set(this.emotionTarget()); this.orientation.set(this.orientationTarget()); this.attention.set([this.state.attention ? 1 : 0]);
           this.timeline.advance(60000); this.shape.finish(); this.activityBlend.finish();
           this.timeline.pose.gaze = [...this.state.gaze]; this.velocity = [0, 0];
         }
@@ -185,12 +197,16 @@ export class RenderEngine {
   }
   private updateTracking(): void { this.tracking.follow(this.state.trackingMode === 'eyes-and-body' && !this.state.reduced ? this.state.trackedGaze : undefined); }
   private gazeMoving(): boolean { return this.state.gaze.some((target, i) => Math.abs(target - this.timeline.pose.gaze[i]!) > .0001 || Math.abs(this.velocity[i]!) > .0001); }
+  private emotionTarget(): number[] { const e = resolveEmotionFrame(this.state.emotion ?? { emotion: 'neutral', intensity: 1 }, this.state.time, this.state.reduced); return [e.smile, e.blink, e.eyeWeight, e.bob, e.roll, e.pitch, ...e.gaze, e.squash]; }
+  private emotionFrame(): EmotionFrame { const [smile, blink, eyeWeight, bob, roll, pitch, x, y, squash] = this.emotion.values; return { smile: smile!, blink: blink!, eyeWeight: eyeWeight!, bob: bob!, roll: roll!, pitch: pitch!, gaze: [x!, y!], squash: squash! }; }
+  private orientationTarget(): number[] { const o = this.state.bodyOrientation; return [o.yaw, o.pitch, o.roll]; }
+  private presentationMoving(): boolean { return this.emotion.moving(this.emotionTarget()) || (!this.state.reduced && emotionHasMotion(this.state.emotion ?? { emotion: 'neutral', intensity: 1 })) || this.orientation.moving(this.orientationTarget()) || this.attention.moving([this.state.attention ? 1 : 0]); }
   private animated(): boolean {
     if (this.state.paused) return this.tracking.settling;
-    return this.activityBlend.active || this.timeline.active || this.shape.active || this.gazeMoving() || this.tracking.active || (!this.state.reduced && this.state.activity !== 'still');
+    return this.presentationMoving() || this.activityBlend.active || this.timeline.active || this.shape.active || this.gazeMoving() || this.tracking.active || (!this.state.reduced && this.state.activity !== 'still');
   }
   private paceIdle(): boolean {
-    return !this.dirty && this.state.activity === 'idle' && !this.state.paused && !this.state.reduced && !this.activityBlend.active && !this.timeline.active && !this.shape.active && !this.gazeMoving() && !this.tracking.active;
+    return !this.dirty && !this.presentationMoving() && this.state.activity === 'idle' && !this.state.paused && !this.state.reduced && !this.activityBlend.active && !this.timeline.active && !this.shape.active && !this.gazeMoving() && !this.tracking.active;
   }
   private resetPacing(): void { this.idleDrawElapsed = 0; this.rendererDelta = 0; }
   private wake(): void {
@@ -210,6 +226,8 @@ export class RenderEngine {
     const idle = this.paceIdle();
     this.idleDrawElapsed += delta; this.rendererDelta += delta;
     if (!this.state.paused) {
+      this.orientation.advance(this.orientationTarget(), delta); this.attention.advance([this.state.attention ? 1 : 0], delta);
+      this.emotion.advance(this.emotionTarget(), delta);
       this.state.time += delta; this.activityBlend.advance(elapsed); this.timeline.advance(elapsed); this.shape.advance(elapsed);
       for (const i of [0, 1] as const) {
         const [position, velocity] = spring(this.timeline.pose.gaze[i], this.velocity[i], this.state.gaze[i], delta, 16);
@@ -240,9 +258,20 @@ export class RenderEngine {
     const travel = this.state.reduced ? undefined : this.state.travel;
     const tracked = this.tracking.compose(this.timeline.pose);
     if (travel?.strength) tracked.rotation = tracked.rotation.map((value, index) => value + (this.timeline.pose.rotation[index]! - value) * travel.strength) as typeof tracked.rotation;
-    const pose = travelPose(tracked, travel); this.renderedRotation = [...pose.rotation];
+    const pose = travelPose(tracked, travel);
+    const emotion = this.emotionFrame();
+    pose.rotation = [pose.rotation[0] + emotion.pitch, pose.rotation[1], pose.rotation[2]];
+    pose.eyes = Object.fromEntries((['left', 'right'] as const).map(side => [side, {
+      smile: pose.eyes[side].smile + (emotion.smile - pose.eyes[side].smile) * emotion.eyeWeight,
+      openness: pose.eyes[side].openness + (1 - emotion.blink - pose.eyes[side].openness) * emotion.eyeWeight,
+    }])) as typeof pose.eyes;
+    this.renderedRotation = [...pose.rotation];
+    const activityFrame = travelActivity(this.activityBlend.sample(this.state.time, this.state.reduced), travel);
+    activityFrame.bob += emotion.bob; activityFrame.roll += emotion.roll; activityFrame.squash *= emotion.squash;
+    activityFrame.gaze = activityFrame.gaze.map((value, i) => (value + emotion.gaze[i]!) * (1 - this.attention.values[0]!)) as Vec2;
+    const [yaw, pitch, roll] = this.orientation.values;
     const started = performance.now();
-    this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, activityFrame: { ...travelActivity(this.activityBlend.sample(this.state.time, this.state.reduced), travel), ...(this.state.attention ? { gaze: [0, 0] as [number, number] } : {}) }, travel, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', bodyOrientation: this.state.bodyOrientation, zoom: this.state.zoom });
+    this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, activityFrame, travel, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', bodyOrientation: { yaw: yaw!, pitch: pitch!, roll: roll! }, zoom: this.state.zoom });
     const duration = performance.now() - started;
     this.renderCpu.lastMs = duration; this.renderCpu.totalMs += duration; this.renderCpu.maxMs = Math.max(this.renderCpu.maxMs, duration);
     this.dirty = false; this.frames++; this.resetPacing();

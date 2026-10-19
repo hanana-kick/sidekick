@@ -33,7 +33,10 @@ test('static worker engine initializes once, coalesces changes, and ignores iden
   assert.equal(f.draws.length, 1); assert.equal(f.callbacks.size, 0);
   for (let i = 1; i <= 100; i++) f.engine.command({ kind: 'state', state: { bodyOrientation: { yaw: i, pitch: 0, roll: 0 } } });
   assert.equal(f.callbacks.size, 1); assert.equal(f.draws.length, 1);
-  f.step(); assert.equal(f.draws.length, 2); assert.equal(f.draws.at(-1).bodyOrientation.yaw, 100); assert.equal(f.callbacks.size, 0);
+  f.step(); assert.equal(f.draws.length, 2); assert.equal(f.draws.at(-1).bodyOrientation.yaw, 0);
+  f.step(16); assert.ok(f.draws.at(-1).bodyOrientation.yaw > 0 && f.draws.at(-1).bodyOrientation.yaw < 100);
+  for (let i = 0; i < 100; i++) f.step(16);
+  assert.equal(f.draws.at(-1).bodyOrientation.yaw, 100); assert.equal(f.callbacks.size, 0);
   f.engine.command({ kind: 'state', state: { bodyOrientation: { yaw: 100, pitch: 0, roll: 0 }, gaze: [0, 0], active: true } });
   f.engine.command({ kind: 'resize', width: 200, height: 200, dpr: 1 });
   assert.equal(f.callbacks.size, 0); assert.equal(f.renderer.resizes, 1); f.engine.dispose();
@@ -93,7 +96,7 @@ test('capture is an ordered fresh-frame barrier without advancing animation time
   f.engine.command({ kind: 'capture', request: 1 }, 3);
   const result = f.events.at(-1);
   assert.equal(result.kind, 'pixels'); assert.equal(result.image.width, 500); assert.equal(result.image.height, 360);
-  assert.deepEqual(f.draws.at(-1).bodyOrientation, { yaw: 33, pitch: 2, roll: -4 }); assert.equal(result.snapshot.time, 7); f.engine.dispose();
+  assert.deepEqual(f.draws.at(-1).bodyOrientation, { yaw: 0, pitch: 0, roll: 0 }); assert.equal(result.snapshot.time, 7); f.engine.dispose();
 });
 
 test('PNG completion keeps the capture snapshot and revision while encoding asynchronously', async () => {
@@ -251,7 +254,7 @@ test('clean idle draws at 30 Hz while RAF clocks advance and accessory delta is 
 test('dirty and capture frames bypass idle pacing and consume accumulated renderer delta once', () => {
   const f = fixture({ activity: 'idle' }); f.step(); f.step(10);
   assert.equal(f.draws.length, 1);
-  f.engine.command({ kind: 'state', state: { bodyOrientation: { yaw: 15, pitch: 0, roll: 0 } } });
+  f.engine.command({ kind: 'state', state: { zoom: 1.1 } });
   f.step(10); assert.equal(f.draws.length, 2); near(f.draws.at(-1).delta, .02);
   f.step(10); assert.equal(f.draws.length, 2);
   f.engine.command({ kind: 'capture', request: 1 });
@@ -370,4 +373,47 @@ test('explicit hidden capture applies a pending resize without waking animation'
   assert.deepEqual([captured.image.width, captured.image.height], [321, 213]);
   assert.equal(f.draws.length, frames + 1); assert.equal(f.renderer.resizes, resizes + 1);
   assert.equal(f.callbacks.size, 0); f.engine.dispose();
+});
+
+test('unannotated design updates interpolate eyes and preserve current pose on interruption', () => {
+  const f = fixture();
+  f.engine.command({ kind: 'design', design: createDesign({ eyes: { left: { weights: { smile: 1 } } } }) });
+  assert.equal(f.engine.snapshot.pose.eyes.left.smile, 0);
+  f.step(); f.step(100);
+  const current = f.engine.snapshot.pose.eyes.left.smile;
+  assert.ok(current > 0 && current < 1);
+  f.engine.command({ kind: 'design', design: createDesign() });
+  assert.equal(f.engine.snapshot.pose.eyes.left.smile, current);
+  f.step(1); assert.ok(Math.abs(f.engine.snapshot.pose.eyes.left.smile - current) < .02);
+  for (let i = 0; i < 30; i++) f.step(16);
+  near(f.engine.snapshot.pose.eyes.left.smile, 0); f.engine.dispose();
+});
+
+test('emotion overlays interpolate eyes and body without changing authored motion and settle neutral to idle', () => {
+  const f = fixture();
+  f.engine.command({ kind: 'state', state: { emotion: { emotion: 'happy', intensity: 1 } } });
+  f.step(); near(f.draws.at(-1).pose.eyes.left.smile, 0);
+  for (let i = 0; i < 20; i++) f.step(16);
+  assert.ok(f.draws.at(-1).pose.eyes.left.smile > .7);
+  assert.equal(f.engine.snapshot.pose.eyes.left.smile, 0, 'emotion must never mutate baseline eyes');
+  const last = structuredClone(f.draws.at(-1));
+  f.engine.command({ kind: 'state', state: { emotion: { emotion: 'sad', intensity: 1 } } });
+  f.engine.capture(); assert.deepEqual(f.draws.at(-1).pose, last.pose);
+  f.step(1); assert.ok(Math.abs(f.draws.at(-1).pose.eyes.left.smile - last.pose.eyes.left.smile) < .02);
+  f.engine.command({ kind: 'state', state: { emotion: { emotion: 'neutral', intensity: 1 } } });
+  for (let i = 0; i < 130; i++) f.step(16);
+  near(f.draws.at(-1).pose.eyes.left.smile, 0);
+  assert.equal(f.callbacks.size, 0, 'neutral still must stop scheduling'); f.engine.dispose();
+});
+
+test('orientation and attention restore smoothly while reduced motion settles immediately', () => {
+  const f = fixture({ activity: 'thinking' });
+  const gaze = f.draws.at(-1).activityFrame.gaze[0];
+  f.engine.command({ kind: 'state', state: { attention: true, bodyOrientation: { yaw: 60, pitch: 15, roll: -10 } } });
+  f.engine.capture(); near(f.draws.at(-1).activityFrame.gaze[0], gaze); near(f.draws.at(-1).bodyOrientation.yaw, 0);
+  f.step(); f.step(16); assert.ok(f.draws.at(-1).bodyOrientation.yaw > 0 && f.draws.at(-1).bodyOrientation.yaw < 60);
+  assert.ok(f.draws.at(-1).activityFrame.gaze[0] > 0);
+  f.engine.command({ kind: 'state', state: { reduced: true, emotion: { emotion: 'sad', intensity: 1 } } });
+  f.engine.capture(); near(f.draws.at(-1).bodyOrientation.yaw, 60); near(f.draws.at(-1).pose.eyes.left.openness, .62);
+  f.engine.dispose();
 });

@@ -129,8 +129,9 @@ test('a one-eye weight baseline edit affects only that eye, preserving global an
   avatar.design = patchDesign(avatar.design, { eyes: { right: { weights: { smile: 0.3, blink: 0.4 } } } });
   assert.deepEqual(await pending, { finished: false });
   assert.deepEqual(avatar.pose.eyes.left, before.eyes.left); near(avatar.pose.openness, before.openness);
-  assert.deepEqual(avatar.pose.eyes.right, { openness: 0.6, smile: 0.3 });
-  runtime.advanceMotion(800); near(avatar.pose.eyes.left.smile, 1); near(avatar.pose.rotation[1], 1); near(avatar.pose.openness, 0.5);
+  assert.deepEqual(avatar.pose.eyes.right, before.eyes.right);
+  runtime.advanceMotion(400); assert.deepEqual(avatar.pose.eyes.right, { openness: 0.6, smile: 0.3 });
+  runtime.advanceMotion(400); near(avatar.pose.eyes.left.smile, 1); near(avatar.pose.rotation[1], 1); near(avatar.pose.openness, 0.5);
 });
 
 test('weight API validation is atomic even for paused, disconnected and reduced avatars', async () => {
@@ -236,4 +237,17 @@ test('renderer initialization failure settles queued weights and restores persis
   assert.equal(avatar.ready, false); assert.equal(avatar.pose.openness, 1);
   assert.deepEqual(avatar.pose.eyes, { left: { openness: 0.6, smile: 0.7 }, right: { openness: 0.7, smile: 0.2 } });
   assert.equal(avatar.fallback.hidden, false); assert.match(avatar.fallback.textContent, /Test renderer unavailable/);
+});
+
+test('smooth reversed expression preserves incoming velocity and stays within valid weights', () => {
+  const timeline = new MotionTimeline();
+  void timeline.to({ eyes: { left: { weights: { smile: 1 } } } }, { duration: 400 });
+  timeline.advance(119.99); const before = timeline.pose.eyes.left.smile;
+  timeline.advance(.01); const at = timeline.pose.eyes.left.smile, velocity = (at - before) / .01;
+  void timeline.to({ eyes: { left: { weights: { smile: 0 } } } }, { duration: 400 });
+  near(timeline.pose.eyes.left.smile, at);
+  timeline.advance(.01); const afterVelocity = (timeline.pose.eyes.left.smile - at) / .01;
+  assert.ok(Math.abs(afterVelocity - velocity) < .00001);
+  for (let i = 0; i < 500; i++) { timeline.advance(1); assert.ok(timeline.pose.eyes.left.smile >= -1e-10 && timeline.pose.eyes.left.smile <= 1 + 1e-10); }
+  near(timeline.pose.eyes.left.smile, 0);
 });

@@ -53,7 +53,22 @@ function eyeTarget(value: unknown, previous: EyeState): EyeState {
 type MotionChannel = 'rotation' | 'face' | 'openness' | EyeSide | `accessory:${string}`;
 interface MotionRequest { remaining: number; settled: boolean; resolve: (result: MotionResult) => void }
 interface MotionTrack {
-  from: number[]; to: number[]; slope: number[]; elapsed: number; duration: number; smooth: boolean; request: MotionRequest;
+  from: number[]; to: number[]; tangent: number[]; elapsed: number; duration: number; smooth: boolean; request: MotionRequest;
+}
+
+/** Keep the inherited velocity unless its cubic would leave the channel's valid domain. */
+function boundedTangent(from: number, to: number, tangent: number, min: number, max: number): number {
+  const valid = (m: number): boolean => {
+    const d = to - from, a = -2 * d + m, b = 3 * d - 2 * m, c = m;
+    const points = [0, 1];
+    if (Math.abs(a) < 1e-12) { if (Math.abs(b) > 1e-12) points.push(-c / (2 * b)); }
+    else { const discriminant = 4 * b * b - 12 * a * c; if (discriminant >= 0) { const root = Math.sqrt(discriminant); points.push((-2 * b + root) / (6 * a), (-2 * b - root) / (6 * a)); } }
+    return points.filter(t => t >= 0 && t <= 1).every(t => { const value = from + ((a * t + b) * t + c) * t; return value >= min - 1e-12 && value <= max + 1e-12; });
+  };
+  if (valid(tangent)) return tangent;
+  let low = 0, high = 1;
+  for (let i = 0; i < 32; i++) { const middle = (low + high) / 2; if (valid(tangent * middle)) low = middle; else high = middle; }
+  return tangent * low;
 }
 
 /** Disjoint channels keep their own clocks; only a replaced channel is interrupted. */
@@ -136,17 +151,20 @@ export class MotionTimeline {
       const request: MotionRequest = { remaining: channels.length, settled: false, resolve };
       for (const channel of channels) {
         const previous = this.tracks.get(channel), from = this.values(channel), to = this.values(channel, next);
-        const slope = to.map((end, index) => {
-          if (!previous || duration === 0 || end === from[index]) return 0;
+        const tangent = to.map((end, index) => {
+          if (!previous || duration === 0) return 0;
           const ratio = previous.elapsed / previous.duration;
-          const derivative = previous.smooth ? 6 * ratio * (1 - ratio) + (3 * ratio * ratio - 4 * ratio + 1) * previous.slope[index]! : 1;
-          const velocity = (previous.to[index]! - previous.from[index]!) * derivative / previous.duration;
-          // Preserve continuing velocity without overshoot; reversing starts at rest.
-          return Math.max(0, Math.min(3, velocity * duration / (end - from[index]!)));
+          const derivative = previous.smooth
+            ? (previous.to[index]! - previous.from[index]!) * 6 * ratio * (1 - ratio) + (3 * ratio * ratio - 4 * ratio + 1) * previous.tangent[index]!
+            : previous.to[index]! - previous.from[index]!;
+          const velocity = derivative / previous.duration;
+          const limits = channel === 'left' || channel === 'right' || channel === 'openness' ? [0, 1]
+            : channel === 'face' ? [-.5, .5] : channel === 'rotation' ? [-Math.PI * 2, Math.PI * 2] : [-Math.PI, Math.PI];
+          return boundedTangent(from[index]!, end, velocity * duration, limits[0]!, limits[1]!);
         });
         this.stopChannel(channel);
         if (duration === 0) { this.write(channel, to); request.remaining--; }
-        else this.tracks.set(channel, { from, to, slope, elapsed: 0, duration, smooth: easing === 'smooth', request });
+        else this.tracks.set(channel, { from, to, tangent, elapsed: 0, duration, smooth: easing === 'smooth', request });
       }
       if (request.remaining === 0) this.settle(request, true);
     });
@@ -157,8 +175,8 @@ export class MotionTimeline {
       track.elapsed = Math.min(track.duration, track.elapsed + ms);
       const ratio = track.elapsed / track.duration;
       this.write(channel, track.to.map((end, index) => {
-        const eased = track.smooth ? ratio * ratio * (3 - 2 * ratio) + ratio * (1 - ratio) * (1 - ratio) * track.slope[index]! : ratio;
-        return track.from[index]! + (end - track.from[index]!) * eased;
+        const eased = track.smooth ? ratio * ratio * (3 - 2 * ratio) : ratio;
+        return track.from[index]! + (end - track.from[index]!) * eased + (track.smooth ? ratio * (1 - ratio) ** 2 * track.tangent[index]! : 0);
       }));
       if (ratio === 1) {
         this.tracks.delete(channel); track.request.remaining--;
@@ -178,6 +196,6 @@ export function activityFrame(activity: Activity, time: number, reduced = false)
   if (activity === 'thinking') { frame.roll += 0.12; frame.gaze = [0.3, 0.35]; }
   if (activity === 'listening') { frame.roll += Math.sin(time * 3) * 0.05; frame.squash += Math.sin(time * 3) * 0.014; }
   if (activity === 'speaking') { frame.squash += Math.sin(time * 12) * 0.035; frame.bob += Math.sin(time * 6) * 0.016; }
-  if (activity === 'celebrating') { frame.bob += Math.abs(Math.sin(time * 5)) * 0.14; frame.roll += Math.sin(time * 5) * 0.12; frame.squash += Math.sin(time * 10) * 0.055; }
+  if (activity === 'celebrating') { frame.bob += Math.sin(time * 5) ** 2 * 0.14; frame.roll += Math.sin(time * 5) * 0.12; frame.squash += Math.sin(time * 10) * 0.055; }
   return frame;
 }
