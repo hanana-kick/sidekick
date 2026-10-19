@@ -417,3 +417,26 @@ test('orientation and attention restore smoothly while reduced motion settles im
   f.engine.capture(); near(f.draws.at(-1).bodyOrientation.yaw, 60); near(f.draws.at(-1).pose.eyes.left.openness, .62);
   f.engine.dispose();
 });
+
+test('startup presentation fence draws the latest authored shape and eyes before acknowledging readiness', () => {
+  const f = fixture();
+  const design = createDesign({ body: { shape: 'heart' }, eyes: { left: { weights: { smile: 1 } }, right: { weights: { smile: 1 } } } });
+  f.engine.command({ kind: 'design', design });
+  f.engine.command({ kind: 'state', state: { bodyOrientation: { yaw: 24, pitch: 8, roll: 0 }, activity: 'thinking' } });
+  const frames = f.draws.length;
+  f.engine.command({ kind: 'present', request: 999 }, 3);
+  const draw = f.draws.at(-1);
+  assert.equal(f.draws.length, frames + 1);
+  assert.equal(draw.design.body.shape, 'heart');
+  assert.equal(draw.pose.eyes.left.smile, 1);
+  assert.equal(draw.pose.eyes.right.smile, 1);
+  assert.equal(draw.bodyOrientation.yaw, 24);
+  const completed = f.events.find(event => event.kind === 'complete' && event.request === 999);
+  assert.equal(completed.revision, 3);
+  assert.equal(completed.snapshot.frames, f.draws.length);
+  // Subsequent authored changes retain the existing smooth animation contract.
+  f.engine.command({ kind: 'design', design: createDesign({ body: { shape: 'flower' } }) });
+  f.step(); f.step(20);
+  assert.ok(f.engine.snapshot.pose.eyes.left.smile > 0 && f.engine.snapshot.pose.eyes.left.smile < 1);
+  f.engine.dispose();
+});
