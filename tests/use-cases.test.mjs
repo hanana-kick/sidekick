@@ -1,3 +1,5 @@
+import * as framework from '../playground/site-framework.js';
+import * as frameworkCode from '../playground/guide-framework-code.js';
 import { readGuideContext,readGuideSource, guideHref, technicalHref, lessonDestinations, navigationText,guideIds } from '../playground/guide-navigation.js';
 import { emotionFlowById, emotionMarkup, emotionCode, runEmotionAction, customizeEmotionAction } from '../playground/emotion-scenarios.js';
 import test from 'node:test';
@@ -18,7 +20,7 @@ test('element example forwards real target and alignment without rewriting coord
 test('shared navigation includes Use cases and correct relative paths', () => {
   const dom = new JSDOM('<header></header>'); const host = dom.window.document.querySelector('header');
   mountSiteHeader(host,'guide','../');
-  assert.deepEqual([...host.querySelectorAll('nav a')].map(a => a.getAttribute('href')), ['../?lang=ko','../api-playground.html?lang=ko','../guide.html?lang=ko']);
+  assert.deepEqual([...host.querySelectorAll('nav a')].map(a => a.getAttribute('href')), ['../?lang=ko&framework=element','../api-playground.html?lang=ko&framework=element','../guide.html?lang=ko&framework=element']);
   assert.equal(host.querySelector('[aria-current]').textContent,'가이드');
 });
 test('copyable event function cancels stale submit timer on another event and cleanup', async () => {
@@ -56,7 +58,7 @@ test('application controls feed the displayed declaration across all routes (moc
  const script=readFileSync(new URL('../playground/use-cases.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
  const dom=new JSDOM(html,{url:'https://example.com/guide.html#loading',runScripts:'outside-only'}),w=dom.window;
  w.ResizeObserver=class{observe(){}};w.scrollTo=()=>{};
- Object.assign(w,{readGuideContext,readGuideSource,guideHref,technicalHref,lessonDestinations,navigationText,guideIds,emotionFlowById,emotionMarkup,emotionCode,runEmotionAction,customizeEmotionAction,scenarioGroups,scenarioById,lessons,lessonById,guideTranslations,getSiteLocale:()=>'ko',subscribeSiteLocale:()=>{},loadStudioSession:()=>({scene:{},message:'mock'}),applyStudioSession:async()=>{},mountSiteHeader:()=>{}});
+ Object.assign(w,{...framework,...frameworkCode,readGuideContext,readGuideSource,guideHref,technicalHref,lessonDestinations,navigationText,guideIds,emotionFlowById,emotionMarkup,emotionCode,runEmotionAction,customizeEmotionAction,scenarioGroups,scenarioById,lessons,lessonById,guideTranslations,getSiteLocale:()=>'ko',subscribeSiteLocale:()=>{},loadStudioSession:()=>({scene:{},message:'mock'}),applyStudioSession:async()=>{},mountSiteHeader:()=>{}});
  class Bot extends w.HTMLElement {
  setActivity(){} setEmotion(){} reactTo(){return Promise.resolve();} cancelReaction(){} setExpression(){return Promise.resolve();}
 
@@ -85,7 +87,7 @@ test('all guide routes localize visible prose without untranslated Korean (mock 
  const html=readFileSync(new URL('../guide.html',import.meta.url),'utf8');const script=readFileSync(new URL('../playground/use-cases.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
  const dom=new JSDOM(html,{url:'https://example.com/guide.html#html-start',runScripts:'outside-only'}),w=dom.window;let locale='en';
  w.ResizeObserver=class{observe(){}};w.scrollTo=()=>{};
- Object.assign(w,{readGuideContext,readGuideSource,guideHref,technicalHref,lessonDestinations,navigationText,guideIds,emotionFlowById,emotionMarkup,emotionCode,runEmotionAction,customizeEmotionAction,scenarioGroups,scenarioById,lessons,lessonById,guideTranslations,getSiteLocale:()=>locale,subscribeSiteLocale:()=>{},loadStudioSession:()=>({scene:{zoom:1},message:'아직 저장된 Studio 설정이 없어 기본 봇을 표시합니다.'}),applyStudioSession:async()=>{},mountSiteHeader:()=>{}});
+ Object.assign(w,{...framework,...frameworkCode,readGuideContext,readGuideSource,guideHref,technicalHref,lessonDestinations,navigationText,guideIds,emotionFlowById,emotionMarkup,emotionCode,runEmotionAction,customizeEmotionAction,scenarioGroups,scenarioById,lessons,lessonById,guideTranslations,getSiteLocale:()=>locale,subscribeSiteLocale:()=>{},loadStudioSession:()=>({scene:{zoom:1},message:'아직 저장된 Studio 설정이 없어 기본 봇을 표시합니다.'}),applyStudioSession:async()=>{},mountSiteHeader:()=>{}});
  class Bot extends w.HTMLElement{setActivity(){} setEmotion(){}reactTo(){return Promise.resolve();}cancelReaction(){}setExpression(){return Promise.resolve();}connectedCallback(){queueMicrotask(()=>{this.ready=true;this.dispatchEvent(new w.CustomEvent('sidekick-ready'));});}stopBehavior(){}set behavior(v){this.value=v;}get behavior(){return this.value;}}
  w.customElements.define('sidekick-avatar',Bot);w.eval(script);
  try{for(const language of ['en','zh-CN','ja']){locale=language;w.localizeGuide();for(const item of [...lessons,...scenarios]){w.location.hash=item.id;await new Promise(r=>setTimeout(r,4));const walker=w.document.createTreeWalker(w.document.querySelector('.catalog-layout'),w.NodeFilter.SHOW_TEXT);let node;while(node=walker.nextNode())if(!node.parentElement.closest('pre,[hidden]'))assert.ok(!/[가-힣]/.test(node.nodeValue),`${language}/${item.id}: ${node.nodeValue}`);}}}

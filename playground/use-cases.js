@@ -214,7 +214,7 @@ function renderCurrentCode(){
  const declaration=flow?emotionCode(flow,active.emotionAction,level===3?1:level):level===4?manualCode():'const bot = document.querySelector("#demo-bot");\n\nbot.behavior = '+JSON.stringify(active.declaration,null,2)+';';
  const events=eventCode(active.item.id);
  const source=level===3?declaration+'\n'+events:declaration;
- $('declaration-code').textContent=scenarioCode(source,applicationMarkup(active.item.id),{design:session.scene.design});
+ $('declaration-code').textContent=scenarioCode(source,applicationMarkup(active.item.id),{scene:session.scene,document,translate:t});
  $('event-code').textContent='';
  document.querySelector('.declaration-panel details').hidden=true;
  document.querySelector('.declaration-panel details').open=level===3;

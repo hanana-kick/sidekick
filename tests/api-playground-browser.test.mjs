@@ -150,7 +150,7 @@ test('JavaScript and React copy stays synchronized and mobile controls stay insi
   const page = await pageFor(t, { viewport: { width: 320, height: 480 }, isMobile: true, hasTouch: true });
   await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async value => { window.copiedCode = value; } } }));
   for (const format of ['javascript', 'react']) {
-    await select(page, 'code-format', format);
+    await select(page, 'site-framework', format === 'react' ? 'react' : 'element');
     const code = await page.locator('#invocation').textContent();
     if (format === 'react') assert.match(code, /SidekickAvatar/);
     await page.locator('#copy').click();

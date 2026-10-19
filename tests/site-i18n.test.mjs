@@ -28,7 +28,7 @@ test('shared header changes language without remounting logo or deleting page st
     assert.equal(host.querySelector('sidekick-avatar'),avatar);
     assert.equal(host.querySelector('[aria-current]').textContent,SITE_MESSAGES[locale].guide);
     assert.match(host.querySelector('[aria-current]').href,/guide\.html\?lang=/);
-    assert.equal(host.querySelector('select').value,locale);
+    assert.equal(host.querySelector('#site-language').value,locale);
     assert.equal(host.ownerDocument.querySelector('#draft').value,'preserved');
     assert.equal(host.ownerDocument.title,SITE_MESSAGES[locale].guideTitle);
   }

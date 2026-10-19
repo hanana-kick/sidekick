@@ -260,11 +260,11 @@ preference.addEventListener('change', showPreference);
 subscribeSiteLocale(refreshLocale); refreshLocale(); refresh();
 const elementInstallCode = `npm install github:hanana-kick/sidekick#v0.11.3\n\n<!-- HTML: Start with the companion configured in Studio -->\n<sidekick-avatar id="bot" placement="viewport"\n  style="width:180px;height:180px;pointer-events:none">\n</sidekick-avatar>\n<script type="module">\n  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/dist/browser/sidekick.js';\n  const scene = ${JSON.stringify(studioSession.scene, null, 2)};\n  const bot = document.querySelector('#bot');\n  bot.design = scene.design;\n  bot.setActivity(scene.activity);\n  bot.bodyOrientation = scene.bodyOrientation;\n  bot.zoom = scene.zoom;\n  bot.trackingMode = scene.trackingMode;\n  bot.paused = scene.paused;\n  bot.lookAt({ space: 'view', ...scene.gaze });\n  bot.seek(scene.time);\n  await bot.motion.to(scene.motion, { duration: 0 });\n  // Insert the invocation code above here.\n</script>`;
 
+function renderInstallCode(){ $('install-code').textContent=getFramework()==='react'?'npm install github:hanana-kick/sidekick#v0.11.3\n\n'+codeForAction({property:'paused',value:false},'react',studioSession.scene):elementInstallCode; }
+renderInstallCode();
+
 }
 }).catch(()=>{
  for(const element of [...document.body.children])if(!element.matches('.app-header,script'))element.remove();
  const warning=document.createElement('p');warning.id='invalid-guide-context';warning.setAttribute('role','alert');warning.textContent=navigationText[getSiteLocale()].invalid;document.body.append(warning);
 });
-
-function renderInstallCode(){ $('install-code').textContent=getFramework()==='react'?'npm install github:hanana-kick/sidekick#v0.11.3\n\n'+codeForAction({property:'paused',value:false},'react',studioSession.scene):elementInstallCode; }
-renderInstallCode();

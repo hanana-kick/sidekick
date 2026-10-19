@@ -1,3 +1,4 @@
+import { getFramework, setFramework, subscribeFramework } from '../playground/site-framework.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -95,7 +96,7 @@ test('the playground is a free-page companion without a framed movement stage', 
   const dom = new JSDOM(html);
   try {
     assert.equal(dom.window.document.querySelector('#movement-stage, .preview-panel'), null);
-    for (const id of ['bot', 'action-kind', 'execute', 'code-format', 'copy', 'invocation']) assert.ok(dom.window.document.getElementById(id), id);
+    for (const id of ['bot', 'action-kind', 'execute', 'copy', 'invocation']) assert.ok(dom.window.document.getElementById(id), id);
   } finally { dom.window.close(); }
 });
 
@@ -130,8 +131,8 @@ test('both pages share a paused native avatar brand and accessible navigation', 
     assert.equal(avatar.getAttribute('tracking-mode'), 'off');
     assert.equal(host.querySelectorAll('[aria-current="page"]').length, 1);
     assert.equal(host.querySelector('[aria-current="page"]').textContent, page === 'api' ? 'API playground' : 'Studio');
-    assert.equal(host.querySelector('.brand').href, 'https://sidekick.test/nested/?lang=en');
-    assert.equal(host.querySelector('#api-playground-link').href, 'https://sidekick.test/nested/api-playground.html?lang=en');
+    assert.equal(host.querySelector('.brand').href, 'https://sidekick.test/nested/?lang=en&framework=element');
+    assert.equal(host.querySelector('#api-playground-link').href, 'https://sidekick.test/nested/api-playground.html?lang=en&framework=element');
     cleanup(); assert.equal(host.childElementCount, 0);
   }
 });
@@ -142,7 +143,8 @@ async function controllerFixture(t) {
   const dom = new JSDOM(html, { url: 'https://sidekick.test/api-playground.html', runScripts: 'outside-only', pretendToBeVisual: true });
   t.after(() => dom.window.close());
   const w = dom.window, $ = id => w.document.getElementById(id);
-  Object.assign(w, { mountGuideExercise:async()=>false, apiText, applyApiLocale, apiError, getSiteLocale, subscribeSiteLocale: callback => { const cleanup = subscribeSiteLocale(callback); t.after(cleanup); return cleanup; }, structuredClone, codeForAction, executeAction, createAccessory, MATERIAL_SHAPE_LABELS: { heart: 'Heart', ghostish: 'Ghost' }, mountSiteHeader() {}, loadStudioSession: () => ({ message: 'Default scene', scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), applyStudioSession: async () => {} });
+  setFramework('element');
+  Object.assign(w, { getFramework, subscribeFramework:callback=>{const cleanup=subscribeFramework(callback);t.after(cleanup);return cleanup;}, mountGuideExercise:async()=>false, apiText, applyApiLocale, apiError, getSiteLocale, subscribeSiteLocale: callback => { const cleanup = subscribeSiteLocale(callback); t.after(cleanup); return cleanup; }, structuredClone, codeForAction, executeAction, createAccessory, MATERIAL_SHAPE_LABELS: { heart: 'Heart', ghostish: 'Ghost' }, mountSiteHeader() {}, loadStudioSession: () => ({ message: 'Default scene', scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), applyStudioSession: async () => {} });
   w.matchMedia = () => ({ matches: false, addEventListener() {} });
   class Avatar extends w.HTMLElement {
     ready = true; calls = []; point = { x: 0, y: 0 }; activity = 'idle'; trackingMode = 'eyes-and-body'; zoom = 1;
@@ -211,7 +213,7 @@ test('controller copy follows format changes, and telemetry does not overwrite c
   const f = await controllerFixture(t); let copied;
   Object.defineProperty(f.w.navigator, 'clipboard', { value: { writeText: async value => { copied = value; } } });
   f.input('action-kind', 'expression');
-  f.$('code-format').value = 'react'; f.$('code-format').dispatchEvent(new f.w.Event('change'));
+  setFramework('react');
   f.$('copy').click(); await Promise.resolve(); assert.equal(copied, f.$('invocation').textContent); assert.match(copied, /SidekickAvatar/);
   const code = f.$('invocation').textContent;
   f.$('diagnostics').open = true;
@@ -275,7 +277,7 @@ for (const anchor of [false, true]) {
     assert.equal(direct.method, 'moveToElement'); assert.equal(direct.args[0], target);
     assert.deepEqual(plain(direct.args[1]), { x: -17, y: 23, alignX: 'right', alignY: 'bottom', anchor, duration: 1200, travel: 'natural', acceleration: 1800, deceleration: 2200 });
     for (const format of ['javascript', 'react']) {
-      f.$('code-format').value = format; f.$('code-format').dispatchEvent(new f.w.Event('change'));
+      setFramework(format === 'react' ? 'react' : 'element');
       const displayed = f.$('invocation').textContent;
       const copied = recorder();
       const document = { querySelector: selector => selector === '#bot' ? copied.avatar : f.w.document.querySelector(selector) };
