@@ -285,3 +285,19 @@ test('README translations have working local anchors, repository links, and iden
     }
   }
 });
+
+test('declarative positioning native and React public types compile', () => {
+ typecheckExample(`import type { SidekickAvatar, Positioning } from '../src/index.js';
+ const positioning: Positioning = { target: 'viewport', placement: 'bottom-right', gap: 16, follow: true };
+ declare const bot: SidekickAvatar;
+ bot.positioning = positioning;
+ const x: number = bot.position.x;
+ void x;
+ bot.positioning = { target: document.body, placement: 'center-right', offset: { y: -8 } };
+ bot.positioning = null;
+ `, 'positioning-native', 'ts');
+ typecheckExample(`import { SidekickAvatar, type Positioning } from '../src/react.js';
+ const positioning: Positioning = { target: '#status', placement: 'center-right', gap: 16 };
+ export default function Example() { return <SidekickAvatar placement="viewport" positioning={positioning} />; }
+ `, 'positioning-react', 'tsx');
+});

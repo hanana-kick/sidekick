@@ -162,7 +162,7 @@ test('reference workspace aligns headings and preview at desktop and narrow widt
 test('positioning controls generate matching CE and React placements without coordinate arithmetic',{timeout:120000},async()=>{
  const page=await browser.newPage({viewport:{width:1280,height:900},reducedMotion:'reduce'});
  try{for(const mode of ['element','react']){
-  await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-position`);await frameFor(page);
+  await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-position`);await frameFor(page);await page.check('[data-state-enable="positioning"]');
   for(const target of ['viewport','#reference-target']){
    await page.selectOption('[data-positioning-control="target"]',target);
    for(const placement of ['top-left','top-center','top-right','center-left','center','center-right','bottom-left','bottom-center','bottom-right']){
