@@ -181,6 +181,7 @@ $('return-declaration').onclick=()=>{level=1;renderLevel();if(active?.ready)botD
 function renderLesson(lesson){
  const host=$('lesson-content');host.replaceChildren();
  for(const text of lesson.paragraphs){const p=document.createElement('p');p.textContent=text;host.append(p);}
+ if(lesson.install){const install=document.createElement('pre');install.textContent=lesson.install;host.append(install);}
  const pre=document.createElement('pre');pre.textContent=lesson.code;pre.tabIndex=0;host.append(pre);
  const link=document.createElement('a');link.href='#'+lesson.next;link.textContent='관련 예제를 직접 실행하기 →';host.append(link);
 }
