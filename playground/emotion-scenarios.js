@@ -22,7 +22,8 @@ export const emotionScenarioGroup={id:'emotions',title:'감정과 앱 흐름',gr
 ]};
 export function emotionMarkup(flow,t){
  const label=key=>`<span data-guide-i18n="${key}">${t(key)}</span>`;
- return `<div class="app-card"><h3 id="emotion-target">${label(flow.title)}</h3><div class="target-item emotion-item">${label('첫 번째 항목')}</div><div id="emotion-destination" class="target-item emotion-item">${label('두 번째 항목')}</div><div class="app-actions emotion-actions">${flow.buttons.map(([title],i)=>`<button type="button" data-emotion-step="${i}">${label(title)}</button>`).join('')}</div><p id="emotion-feedback" role="status">${label('버튼으로 앱 이벤트를 발생시키세요.')}</p></div>`;
+ const items=['emotion-inspection','emotion-composition'].includes(flow.id)?`<div class="target-item emotion-item">${label('첫 번째 항목')}</div><div id="emotion-destination" class="target-item emotion-item">${label('두 번째 항목')}</div>`:'';
+ return `<div class="emotion-scene"><div class="app-card emotion-card"><h3 id="emotion-target">${label(flow.title)}</h3>${items}</div><div class="app-actions emotion-actions">${flow.buttons.map(([title],i)=>`<button type="button" data-emotion-step="${i}">${label(title)}</button>`).join('')}</div><p id="emotion-feedback" role="status">${label('버튼으로 앱 이벤트를 발생시키세요.')}</p></div>`;
 }
 export function emotionCode(flow,action=flow.initial,level=1){
  const source=actionSource(action,'bot');
