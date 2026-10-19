@@ -12,7 +12,7 @@ mountSiteHeader($('site-header-brand'), 'guide');
 new ResizeObserver(([entry]) => document.documentElement.style.setProperty('--header-height', `${entry.target.getBoundingClientRect().height}px`)).observe(document.querySelector('.app-header'));
 let storage; try { storage = localStorage; } catch {}
 const session = loadStudioSession(storage);
-setText('session-status',session.message);
+$('session-status').textContent=t(session.message);
 const lessonGroups = major => [...new Set(lessons.filter(x=>x.major===major).map(x=>x.middle))].map(title=>({title,cases:lessons.filter(x=>x.major===major&&x.middle===title)}));
 const navigationGroups = [{title:'빠르게 시작',groups:lessonGroups('빠르게 시작')},{title:'행동 선언',groups:scenarioGroups.map(group=>({title:group.title,cases:group.groups.flatMap(x=>x.cases)}))},{title:'직접 제어',groups:lessonGroups('직접 제어')}];
 $('scenario-toc').innerHTML = '<h2 data-guide-i18n="가이드 목차">'+t('가이드 목차')+'</h2>' + navigationGroups.map(major => `<details open><summary data-guide-i18n="${major.title}">${t(major.title)}</summary>${major.groups.map(middle => `<section><h3 data-guide-i18n="${middle.title}">${t(middle.title)}</h3>${middle.cases.map(item => `<a href="#${item.id}" data-scenario="${item.id}" data-guide-i18n="${item.title}">${t(item.title)}</a>`).join('')}</section>`).join('')}</details>`).join('');
@@ -197,6 +197,7 @@ function localizeGuideBindings(){
  for(const link of document.querySelectorAll('.catalog-layout a[href]'))if(!link.getAttribute('href').startsWith('#')){const url=new URL(link.href);url.searchParams.set('lang',getSiteLocale());link.href=url.href;}
 }
 function localizeGuide(){
+ $('session-status').textContent=t(session.message);
  const item=lessonById(location.hash.slice(1))??active?.item??lessonById('html-start');
  if(item)$('breadcrumb').textContent=[item.major,item.middle,item.title].map(t).join(' / ');
  localizeGuideBindings();
