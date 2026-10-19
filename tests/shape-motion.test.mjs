@@ -145,14 +145,15 @@ test('unrelated design and eye animation edits do not restart or cancel a shape 
   exactTarget(runtime.shape, 'puffy');
 });
 
-test('explicit design shape replacement is immediate and invalid replacement is atomic', async () => {
+test('explicit design shape replacement starts at the rendered contour and invalid replacement is atomic', async () => {
   const { avatar, runtime } = avatarForTest(true);
   const pending = avatar.setShape('flower', { duration: 1000 }); runtime.advanceShape(200);
   const before = snapshot(runtime.shape), design = avatar.design;
   assert.throws(() => { avatar.design = { ...design, body: { ...design.body, shape: {} } }; });
   assert.deepEqual(runtime.shape.contour, before); assert.equal(runtime.shape.active, true);
   await avatar.setDesign(patchDesign(avatar.design, { body: { shape: 'square' } }));
-  assert.deepEqual(await pending, { finished: false }); exactTarget(runtime.shape, 'square');
+  assert.deepEqual(await pending, { finished: false }); assert.deepEqual(runtime.shape.contour, before);
+  assert.equal(runtime.shape.active, true); runtime.advanceShape(450); exactTarget(runtime.shape, 'square');
   assert.equal(runtime.shape.active, false);
 });
 

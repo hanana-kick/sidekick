@@ -75,10 +75,13 @@ test('bodyOrientation changes preserve in-flight body and shape animation and re
   assert.equal(runtime.timeline.active, true); assert.equal(runtime.shape.active, true);
   assert.deepEqual(avatar.pose, pose); assert.deepEqual(avatar.design, design); assert.strictEqual(runtime.shape.contour, contour);
   const frame = runtime.render();
-  assert.deepEqual(frame.bodyOrientation, avatar.bodyOrientation); assert.deepEqual(frame.pose, pose); assert.equal(frame.view, undefined);
+  assert.deepEqual(frame.bodyOrientation, { yaw: 0, pitch: 0, roll: 0 }); assert.deepEqual(frame.pose, pose); assert.equal(frame.view, undefined);
   avatar.design = patchDesign(avatar.design, { body: { color: '#abcdef' } }); assert.deepEqual(avatar.bodyOrientation, { yaw: 65, pitch: 20, roll: -10 });
   runtime.advanceMotion(800); runtime.advanceShape(800);
   assert.deepEqual(await body, { finished: true }); assert.deepEqual(await shape, { finished: true });
+  runtime.frame(10); runtime.frame(26); assert.ok(runtime.render().bodyOrientation.yaw > 0 && runtime.render().bodyOrientation.yaw < 65);
+  for (let i = 2; i < 110; i++) runtime.frame(10 + i * 16);
+  assert.deepEqual(runtime.render().bodyOrientation, avatar.bodyOrientation);
 });
 
 test('pointer orbit updates the same degree bodyOrientation, preserves roll, clamps axes and emits no activation after drag', () => {
@@ -109,8 +112,8 @@ test('simultaneous eye edit and accessory removal preserve bodyOrientation, body
   avatar.design = patchDesign(avatar.design, { eyes: { left: { expression: 'blink' } }, accessories: avatar.design.accessories.filter(part => part.id !== 'hat') });
   assert.deepEqual(await hat, { finished: false });
   assert.deepEqual(avatar.pose.rotation, before.rotation); assert.deepEqual(avatar.pose.eyes.right, before.eyes.right);
-  assert.equal(avatar.pose.eyes.left.openness, 0); assert.equal(avatar.pose.accessories.hat, undefined);
-  runtime.advanceMotion(800);
+  assert.equal(avatar.pose.eyes.left.openness, before.eyes.left.openness); assert.equal(avatar.pose.accessories.hat, undefined);
+  runtime.advanceMotion(800); assert.equal(avatar.pose.eyes.left.openness, 0);
   assert.deepEqual(await body, { finished: true }); assert.deepEqual(await right, { finished: true });
   assert.deepEqual(avatar.pose.rotation, [0.2, 0.3, 0.5]); assert.equal(avatar.pose.eyes.right.smile, 1);
   assert.equal(avatar.pose.accessories.hat, undefined, 'Removed accessory tracks cannot recreate a stale pose entry');
