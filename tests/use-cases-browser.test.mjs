@@ -37,7 +37,8 @@ test('loading declaration and app completion execute exactly the displayed seman
  await page.locator('#stop-demo').click();assert.match(await page.locator('#run-status').textContent(),/중단/);
 });
 test('review visits list sequentially and search reviews only current matching DOM',async t=>{
- const page=await setup(t,undefined,'review');await page.waitForFunction(()=>document.querySelector('#demo-bot').behaviorState.status==='completed',{},{timeout:20000});
+ const page=await setup(t,undefined,'review');assert.equal(await page.locator('#demo-app .target-item').count(),3);await page.waitForFunction(()=>['completed','cancelled','error'].includes(document.querySelector('#demo-bot').behaviorState.status),{},{timeout:20000});
+ assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behaviorState.status),'completed',JSON.stringify(await page.locator('#demo-bot').evaluate(b=>b.behaviorState)));
  assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behaviorState.completedItems),3);
  await choose(page,'search');await page.fill('#search-query','계정');await page.locator('#app-search').click();assert.equal(await page.locator('#search-results .target-item').count(),2);
  assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'review');
