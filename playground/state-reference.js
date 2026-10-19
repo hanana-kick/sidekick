@@ -82,7 +82,7 @@ export function mountStateReference(host,id,{session}){
   if(item.kind==='json'){const applyButton=bindText(make('button','',row),'jsonApply');applyButton.type='button';applyButton.addEventListener('click',()=>{if(toggle.checked)apply();},{signal});bindText(make('small','',row),'help');}
   else input.addEventListener('change',apply,{signal});
   toggle.addEventListener('change',()=>{input.disabled=!toggle.checked;if(toggle.checked)apply();else{delete edits[item.attribute];send();}},{signal});
-  const tr=body.insertRow();make('th','',tr).scope='row';make('td','',tr).textContent=fieldType(item);make('td','',tr).textContent=id==='state-appearance'?copy('inherited'):item.attribute==='behavior'?'null':JSON.stringify(item.initial);const effect=make('td','',tr);if(semantic){effect.dataset.stateDescription=semantic[3];effect.textContent=translate(semantic[3]);}else effect.textContent=item.legacy?copy('legacy'):'—';
+  const tr=body.insertRow();make('th','',tr).scope='row';const typeCell=make('td','',tr);typeCell.dataset.stateColumn='type';typeCell.dataset.label=copy('type');typeCell.textContent=fieldType(item);const initialCell=make('td','',tr);initialCell.dataset.stateColumn='initial';initialCell.dataset.label=copy('initial');initialCell.textContent=id==='state-appearance'?copy('inherited'):item.attribute==='behavior'?'null':JSON.stringify(item.initial);const effect=make('td','',tr);effect.dataset.stateColumn='effect';effect.dataset.label=copy('effect');if(semantic){effect.dataset.stateDescription=semantic[3];effect.textContent=translate(semantic[3]);}else effect.textContent=item.legacy?copy('legacy'):'—';
  }
  reset.addEventListener('click',()=>{edits={};for(const item of fields){const input=controls.querySelector(`[data-state-control="${item.attribute}"]`);controls.querySelector(`[data-state-enable="${item.attribute}"]`).checked=false;input.disabled=true;input.value=item.kind==='json'?JSON.stringify(fieldDefault(item,scene),null,2):String(fieldDefault(item,scene));}send(true);},{signal});
  rerun.addEventListener('click',()=>send(true),{signal});
@@ -95,7 +95,7 @@ export function mountStateReference(host,id,{session}){
  },{signal});
  const observer=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;if(mounted)frame.contentWindow.postMessage({type:'state-reference-visibility',visible},location.origin);if(!visible)status.textContent=copy('inactive');});observer.observe(frame);
  const unsubscribeFramework=subscribeFramework(()=>send(true));
- const unsubscribeLocale=subscribeSiteLocale(()=>{for(const el of section.querySelectorAll('[data-state-text]'))el.textContent=copy(el.dataset.stateText);for(const el of section.querySelectorAll('[data-state-description]'))el.textContent=translate(el.dataset.stateDescription);frame.title=copy('preview');updateSource();});
+ const unsubscribeLocale=subscribeSiteLocale(()=>{for(const el of section.querySelectorAll('[data-state-text]'))el.textContent=copy(el.dataset.stateText);for(const el of section.querySelectorAll('[data-state-column]'))el.dataset.label=copy(el.dataset.stateColumn);for(const el of section.querySelectorAll('[data-state-description]'))el.textContent=translate(el.dataset.stateDescription);frame.title=copy('preview');updateSource();});
  updateSource();
  return ()=>{disposed=true;controller.abort();observer.disconnect();unsubscribeFramework();unsubscribeLocale();frame.remove();section.remove();};
 }
