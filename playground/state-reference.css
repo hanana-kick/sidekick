@@ -9,3 +9,6 @@
 /* Equal heading baselines and bounded preview/source prevent unrelated columns. */
 .state-lab-control-panel{min-width:0}.state-lab-control-panel>h3,.state-lab-preview>h3{margin:0 0 10px;line-height:1.5;min-height:21px}.state-lab-preview{position:static}.state-lab-controls{max-height:660px;scrollbar-gutter:stable}.state-lab-grid{grid-template-columns:minmax(240px,1fr) minmax(280px,1fr)}.state-field-title{line-height:1.5;align-items:flex-start}.state-field-title input{margin:0;transform:translateY(1px)}.state-field-title span{min-width:0}.state-lab-source-panel{min-width:0;border-top:1px solid #e2e8f0;padding-top:12px}.state-lab-source-panel>summary{font-size:13px;font-weight:600}.state-lab-source-panel .state-lab-source{max-height:240px!important;white-space:pre;overflow:auto}.state-lab-grid iframe{height:300px}.state-lab-source-panel p{margin:8px 0}.state-lab-status{margin:6px 0}.state-lab-preview>p{margin:8px 0}
 @media(max-width:1050px){.state-lab-grid{grid-template-columns:1fr}.state-lab-preview{grid-row:1}.state-lab-controls{max-height:440px}.state-lab-grid iframe{height:280px}}
+
+.state-lab[data-state-reference="state-lifecycle"] iframe{height:520px}
+@media(max-width:600px){.state-lab[data-state-reference="state-lifecycle"] iframe{height:580px}}

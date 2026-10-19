@@ -1,3 +1,4 @@
+import { installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels } from './lifecycle-example.js';
 import '../src/index.ts';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -9,12 +10,14 @@ const style=document.createElement('style');style.textContent=REFERENCE_CSS;docu
 const root=document.getElementById('reference-root');
 root.innerHTML=REFERENCE_TARGET_HTML;
 const mount=document.createElement('div');root.append(mount);
-let currentRevision=0;
+let currentRevision=0, previewId=null, disposeLifecycle=null;
 let reactRoot=null, bot=null, framework=null, last={}, generation=0, suspended=false, intendedPaused=false;
 const notify=(type,data={})=>parent.postMessage({type,...data},location.origin);
-function remove(){generation++;if(reactRoot){reactRoot.unmount();reactRoot=null;}bot?.remove();bot=null;last={};}
+function remove(){disposeLifecycle?.();disposeLifecycle=null;generation++;if(reactRoot){reactRoot.unmount();reactRoot=null;}bot?.remove();bot=null;last={};}
 function apply(message){
  currentRevision=message.revision;style.textContent=referenceCSS(message.id);
+ if(previewId!==message.id){remove();root.innerHTML=message.id==='state-lifecycle'?lifecycleMarkup(message.locale):REFERENCE_TARGET_HTML;root.append(mount);previewId=message.id;}
+ if(message.id==='state-lifecycle')refreshLifecycleLabels(root,message.locale);
  const scene=parseScene(message.scene), edits={};
  if(!message.values||typeof message.values!=='object'||Array.isArray(message.values))throw new TypeError('Invalid fields');
  for(const [key,value] of Object.entries(message.values)){const field=FIELD_BY_KEY.get(key);if(!field)throw new TypeError('Unknown field');edits[key]=validateStateValue(field,value,scene,document);}
@@ -36,7 +39,7 @@ function apply(message){
   if(!bot.isConnected)mount.append(bot);
  }
  last=attributes;
- const ready=()=>{if(token!==generation)return;if(suspended)bot.paused=true;notify('state-reference-ready',{revision:message.revision});};
+ const ready=()=>{if(token!==generation)return;if(suspended)bot.paused=true;if(message.id==='state-lifecycle'&&!disposeLifecycle)disposeLifecycle=installLifecycleExample(bot,root,lifecycleLabels[message.locale]??lifecycleLabels.en);notify('state-reference-ready',{revision:message.revision});};
  if(bot.ready)ready();else bot.addEventListener('sidekick-ready',ready,{once:true});
 }
 window.addEventListener('message',event=>{

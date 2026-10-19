@@ -64,7 +64,7 @@ test('offscreen current and destination suspend movement, return wakes pursuit',
 });
 test('entrance preserves source at while positioning supplies destination',()=>{
  const {avatar,target}=fixture();avatar.readyState=false;avatar.positioning={target,placement:'center-right'};avatar.entrance={source:'viewport',edge:'left',at:.2};avatar.readyState=true;avatar.startEntrance();
- assert.deepEqual(avatar.position,{x:-28,y:(dom.window.innerHeight-20)*.2});assert.deepEqual(avatar.presence.operation.point,{x:316,y:240});
+ assert.deepEqual(avatar.position,{x:-28,y:(dom.window.innerHeight-20)*.2});assert.deepEqual(avatar.presenceController.operation.point,{x:316,y:240});
 });
 test('JSON null detaches without an invalid transaction',()=>{
  const {avatar,target,errors}=fixture();avatar.positioning={target};avatar.setAttribute('positioning','null');avatar.flushAttributes();assert.equal(avatar.positioning,null);assert.deepEqual(errors,[]);
@@ -81,5 +81,5 @@ test('signed gap is preserved through follow, entrance destination, and viewport
  assert.deepEqual(avatar.position,{x:-21,y:-21});
  avatar.readyState=false;avatar.positioning={target,placement:'center-right',gap:-10};
  avatar.entrance={source:'viewport',edge:'left',at:.2};avatar.readyState=true;avatar.pausedState=false;avatar.startEntrance();
- assert.deepEqual(avatar.presence.operation.point,{x:340,y:240});
+ assert.deepEqual(avatar.presenceController.operation.point,{x:340,y:240});
 });

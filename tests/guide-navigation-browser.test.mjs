@@ -25,7 +25,7 @@ async function clickContextLink(page){
  assert.equal(typeof source,'string','the actual contextual click captured its source');
  return source;
 }
-for(const lang of ['ko','en','zh-CN','ja'])test(`actual contextual link clicks for all 33 Guide sections: ${lang}`,{timeout:180000},async()=>{
+for(const lang of ['ko','en','zh-CN','ja'])test(`actual contextual link clicks for all 34 Guide sections: ${lang}`,{timeout:180000},async()=>{
  const page=await browser.newPage({viewport:{width:1280,height:900},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error('GUIDE PAGE ERROR',e.stack)});page.on('console',m=>{if(m.type()==='error')console.error('GUIDE CONSOLE',m.text())});
  // Context restoration renders the source before attaching the avatar. Capture
  // that source at readiness, before a returned Guide starts its next workload.

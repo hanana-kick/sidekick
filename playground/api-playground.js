@@ -1,3 +1,4 @@
+import { installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels } from './lifecycle-example.js';
 import { getFramework, subscribeFramework } from './site-framework.js';
 import { getSiteLocale, subscribeSiteLocale } from './site-i18n.js';
 import { apiText, applyApiLocale, apiError } from './api-locales.js';
@@ -49,6 +50,8 @@ function refreshLabels() {
 }
 function refreshLocale() {
   applyApiLocale(document);
+  if($('lifecycle-live')?.querySelector('#reference-home'))refreshLifecycleLabels($('lifecycle-live'),getSiteLocale());
+  const lifecycleLink=document.querySelector('[data-api-i18n="lifecycleGuide"]');if(lifecycleLink)lifecycleLink.href=`./guide.html?lang=${getSiteLocale()}&framework=${getFramework()}#state-lifecycle`;
   refreshLabels();
   $('studio-session-status').textContent = studioSession.message;
   for (const id of notices.keys()) renderNotice(id);
@@ -58,7 +61,7 @@ function refreshLocale() {
   }
   if (validationError) { code = `// ${errorMessage(validationError)}`; $('invocation').textContent = code; }
   for(const [value,key] of [['performance','performance'],['manual-motion','manual']]){const option=$('action-kind').querySelector('option[value="'+value+'"]');if(option)option.textContent=navigationText[getSiteLocale()][key];}
-  const back=$('guide-source-return');if(back&&technicalKinds[technicalLesson]){back.textContent=navigationText[getSiteLocale()].back;back.href=guideHref(readGuideSource(location.href)??{id:technicalLesson,level:1},getSiteLocale());}
+  const back=$('guide-source-return');if(back&&technicalKinds[technicalLesson]){back.textContent=navigationText[getSiteLocale()].back;back.href=guideHref(readGuideSource(location.href)??{id:technicalLesson==='declarative-lifecycle'?'state-lifecycle':technicalLesson,level:1},getSiteLocale());}
   showPreference(); telemetry();
 }
 
@@ -75,7 +78,7 @@ for (const value of Object.keys(MATERIAL_SHAPE_LABELS)) {
 }
 $('shape').value = 'heart'; $('head-accessory').value = 'beret'; $('eyes-accessory').value = 'glasses';
 const technicalLesson=new URL(location.href).searchParams.get('lesson');
-const technicalKinds={'placement':'movement','element-anchor':'movement','manual-motion':'manual-motion','performance':'performance'};
+const technicalKinds={'placement':'movement','element-anchor':'movement','manual-motion':'manual-motion','performance':'performance','declarative-lifecycle':'lifecycle'};
 if(technicalKinds[technicalLesson]){
  const labels=navigationText[getSiteLocale()];
  if(['manual-motion','performance'].includes(technicalLesson)){
@@ -84,15 +87,17 @@ if(technicalKinds[technicalLesson]){
   if(technicalLesson==='performance'){const label=document.createElement('label');label.className='check';const input=document.createElement('input');input.type='checkbox';input.id='render-paused';input.checked=true;label.append(input,document.createTextNode('paused'));const output=document.createElement('pre');output.id='renderer-diagnostics';const refresh=document.createElement('button');refresh.type='button';refresh.textContent='diagnostics';refresh.onclick=()=>{output.textContent=JSON.stringify(bot.diagnostics,null,2);};panel.append(label,refresh,output);}
   $('action-panel').append(panel);
  }
- const link=document.createElement('a');link.id='guide-source-return';link.href=guideHref(readGuideSource(location.href)??{id:technicalLesson,level:1},getSiteLocale());link.textContent=labels.back;document.querySelector('.intro').append(link);
+ const link=document.createElement('a');link.id='guide-source-return';link.href=guideHref(readGuideSource(location.href)??{id:technicalLesson==='declarative-lifecycle'?'state-lifecycle':technicalLesson,level:1},getSiteLocale());link.textContent=labels.back;document.querySelector('.intro').append(link);
 }
 function movementOptions() {
   const duration = numeric('duration'), travel = $('travel').value;
   if (travel === 'none') return { duration, easing: $('easing').value, travel };
   return { duration, travel, ...($('auto-speed').checked ? {} : { maxSpeed: numeric('max-speed') }), acceleration: numeric('acceleration'), deceleration: numeric('deceleration') };
 }
+let disposeLifecycleExample = null;
 function readAction() {
   switch ($('action-kind').value) {
+    case 'lifecycle': return { lifecycle: true, locale: getSiteLocale(), steps: ['home', 'presence', 'task'].map(property => ({ property, value: JSON.parse($('lifecycle-' + property).value) })) };
     case 'movement': if ($('move-method').value === 'moveToElement') {
       const selector = $('target-selector').value.trim();
       let target;
@@ -192,7 +197,13 @@ async function run(action) {
   const id = ++execution; renderLastCode(action);
   notice('status', 'running');
   try {
-    const promise = executeAction(bot, action, createAccessory); telemetry();
+    if (action.lifecycle && !$('lifecycle-live').querySelector('#reference-home')) $('lifecycle-live').innerHTML = lifecycleMarkup(getSiteLocale());
+    const promise = executeAction(bot, action, createAccessory);
+    if (action.lifecycle) {
+      disposeLifecycleExample?.();
+      disposeLifecycleExample = installLifecycleExample(bot, $('lifecycle-live'), lifecycleLabels[getSiteLocale()] ?? lifecycleLabels.en);
+    }
+    telemetry();
     const result = await promise;
     report(action.method ?? action.property ?? 'bodyOrientation / zoom', result ?? { applied: true });
     if (id === execution) notice('status', result?.finished === false ? 'interrupted' : 'applied');
@@ -204,9 +215,10 @@ const cancelMove = () => void run({ method: 'cancelMove', args: [] });
 $('cancel').onclick = cancelMove; $('cancel-preview').onclick = cancelMove;
 $('detach-anchor').onclick = () => void run({ method: 'detachAnchor', args: [] });
 $('cancel-transition').onclick = () => void run({ method: 'cancelTransition', args: [] });
-for (const input of document.querySelectorAll('#action-panel input, #action-panel select')) input.addEventListener('input', refresh);
+for (const input of document.querySelectorAll('#action-panel input, #action-panel select, #action-panel textarea')) input.addEventListener('input', refresh);
 subscribeFramework(() => { if (selectedAction) renderCode(selectedAction); if (lastAction) renderLastCode(lastAction); renderInstallCode(); });
 $('diagnostics').addEventListener('toggle', () => { if ($('diagnostics').open) telemetry(); });
+window.addEventListener('pagehide', () => disposeLifecycleExample?.(), { once: true });
 $('clear-log').onclick = () => $('result-log').replaceChildren();
 function copyCode(sourceId, statusId, getCode) { return async () => {
   const copied = getCode();
@@ -233,7 +245,7 @@ window.addEventListener('pointerup', event => {
   catch (error) { errorNotice(error); }
 }, { passive: true });
 bot.addEventListener('sidekick-move-progress', event => telemetry(event.detail));
-for (const name of ['move-end', 'play-end', 'transition-end', 'enter-end', 'exit-end']) bot.addEventListener(`sidekick-${name}`, event => { report(`sidekick-${name}`, event.detail); telemetry(); });
+for (const name of ['move-end', 'play-end', 'transition-end', 'enter-end', 'exit-end', 'lifecycle-change']) bot.addEventListener(`sidekick-${name}`, event => { report(`sidekick-${name}`, event.detail); telemetry(); });
 async function initialize() {
   if (initialized || initializing) return; initializing = true;
   await applyStudioSession(bot, studioSession.scene);
@@ -259,9 +271,9 @@ const preference = matchMedia('(prefers-reduced-motion: reduce)');
 function showPreference() { $('motion-preference').textContent = t(preference.matches ? 'reducedMotion' : 'motionPreference'); }
 preference.addEventListener('change', showPreference);
 subscribeSiteLocale(refreshLocale); refreshLocale(); refresh();
-const elementInstallCode = `npm install github:hanana-kick/sidekick#v0.14.2\n\n<!-- HTML: Start with the companion configured in Studio -->\n<sidekick-avatar id="bot" placement="viewport"\n  style="width:180px;height:180px;pointer-events:none">\n</sidekick-avatar>\n<script type="module">\n  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/dist/browser/sidekick.js';\n  const scene = ${JSON.stringify(studioSession.scene, null, 2)};\n  const bot = document.querySelector('#bot');\n  bot.design = scene.design;\n  bot.setActivity(scene.activity);\n  bot.bodyOrientation = scene.bodyOrientation;\n  bot.zoom = scene.zoom;\n  bot.trackingMode = scene.trackingMode;\n  bot.paused = scene.paused;\n  bot.lookAt({ space: 'view', ...scene.gaze });\n  bot.seek(scene.time);\n  await bot.motion.to(scene.motion, { duration: 0 });\n  // Insert the invocation code above here.\n</script>`;
+const elementInstallCode = `npm install github:hanana-kick/sidekick#v0.15.0\n\n<!-- HTML: Start with the companion configured in Studio -->\n<sidekick-avatar id="bot" placement="viewport"\n  style="width:180px;height:180px;pointer-events:none">\n</sidekick-avatar>\n<script type="module">\n  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/dist/browser/sidekick.js';\n  const scene = ${JSON.stringify(studioSession.scene, null, 2)};\n  const bot = document.querySelector('#bot');\n  bot.design = scene.design;\n  bot.setActivity(scene.activity);\n  bot.bodyOrientation = scene.bodyOrientation;\n  bot.zoom = scene.zoom;\n  bot.trackingMode = scene.trackingMode;\n  bot.paused = scene.paused;\n  bot.lookAt({ space: 'view', ...scene.gaze });\n  bot.seek(scene.time);\n  await bot.motion.to(scene.motion, { duration: 0 });\n  // Insert the invocation code above here.\n</script>`;
 
-function renderInstallCode(){ $('install-code').textContent=getFramework()==='react'?'npm install github:hanana-kick/sidekick#v0.14.2\n\n'+codeForAction({property:'paused',value:false},'react',studioSession.scene):elementInstallCode; }
+function renderInstallCode(){ $('install-code').textContent=getFramework()==='react'?'npm install github:hanana-kick/sidekick#v0.15.0\n\n'+codeForAction({property:'paused',value:false},'react',studioSession.scene):elementInstallCode; }
 renderInstallCode();
 
 }

@@ -1,3 +1,5 @@
+import { validateSidekickPresence, validateSidekickTask, validateSidekickHome } from '../src/element/lifecycle.ts';
+import { lifecycleDefaults, lifecycleCSS, lifecycleSource } from './lifecycle-example.js';
 import { POSITION_PLACEMENTS, validatePositioning } from '../src/element/positioning.ts';
 import { MATERIAL_SHAPE_NAMES } from '../src/core/shapes.ts';
 import { EYE_EXPRESSIONS } from '../src/core/expressions.ts';
@@ -20,6 +22,7 @@ const duration = (key, initial) => number(key, initial, 0, 60000, 50, 'ms');
 const color = key => field(key, 'color', key === 'body-color' ? '#FFCC37' : '#202020');
 const json = (key, initial, extra = {}) => field(key, 'json', initial, extra);
 export const STATE_FIELDS = Object.freeze({
+ 'state-lifecycle': [json('presence', lifecycleDefaults.presence, {nullable:true}), json('task', {id:1,status:'pending',behavior:{type:'wait',target:'#reference-target',side:'left',gap:8}}, {nullable:true}), json('home', lifecycleDefaults.home, {nullable:true})],
  'state-emotion': [select('emotion', 'neutral', EMOTIONS), number('emotion-intensity', 1, 0, 1, 0.05)],
  'state-position': [json('positioning', {target:'viewport',placement:'bottom-right',gap:16}, {nullable:true}), select('placement', 'inline', ['inline', 'viewport']), number('position-x', 0, -10000000, 10000000, 1, 'px'), number('position-y', 0, -10000000, 10000000, 1, 'px'), select('movement-bounds', 'viewport', ['viewport', 'none'])],
  'state-behavior': [json('behavior', { type: 'wait', target: '#reference-target', side: 'right', gap: 16 }, { nullable: true })],
@@ -31,11 +34,12 @@ export const STATE_FIELDS = Object.freeze({
 export const STATE_IDS = Object.freeze(Object.keys(STATE_FIELDS));
 export const ALL_STATE_FIELDS = Object.freeze(Object.values(STATE_FIELDS).flat());
 export const FIELD_BY_KEY = new Map(ALL_STATE_FIELDS.map(item => [item.attribute, item]));
-export const READ_ONLY_STATE = Object.freeze(['behaviorState', 'emotionState', 'movementState', 'presenceState', 'elementAnchor']);
+export const READ_ONLY_STATE = Object.freeze(['lifecycleState', 'behaviorState', 'emotionState', 'movementState', 'presenceState', 'elementAnchor']);
 export const REFERENCE_TARGET_HTML = '<div id="reference-target">#reference-target</div><ol id="reference-list"><li class="reference-item">Item 1</li><li class="reference-item">Item 2</li><li class="reference-item">Item 3</li></ol>';
 export const REFERENCE_CSS = `html,body{margin:0;min-height:100%;font:14px system-ui;color:#334155}body{padding:16px;box-sizing:border-box;background:#f8fafc}#reference-root{position:relative;height:calc(100vh - 32px);min-height:200px}#reference-target{margin-left:16px;width:84px;padding:10px;border:1px solid #cbd5e1;border-radius:6px}#reference-list{position:absolute;right:8px;top:70px;width:100px;padding:0;list-style:none}.reference-item{margin:6px 0;padding:8px;border:1px solid #cbd5e1;border-radius:6px}#reference-bot{display:block;width:144px;height:144px;margin:48px 0 0 12px}`;
 
 export function referenceCSS(id) {
+ if(id==='state-lifecycle')return REFERENCE_CSS + lifecycleCSS;
  if(id==='state-position')return REFERENCE_CSS + `body{padding:0;overflow:hidden}#reference-root{height:100vh;min-height:0}#reference-target{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin:0;width:84px;box-sizing:border-box}#reference-list{display:none}#reference-bot{width:72px;height:72px;margin:0}`;
  if(id==='state-entrance')return REFERENCE_CSS + `body{padding:0;overflow:hidden}#reference-root{height:100vh;min-height:0}#reference-target{box-sizing:border-box;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin:0;width:min(160px,44vw);height:min(160px,44vw);padding:12px;display:grid;place-items:center;border-radius:0;border:1px solid #94a3b8;background:#e2e8f0;color:#334155;font:12px ui-monospace,monospace;overflow-wrap:anywhere}#reference-list{display:none}#reference-bot{width:min(72px,18vw);height:min(72px,18vw);margin:0}`;
  return REFERENCE_CSS + (id && !['state-position','state-behavior'].includes(id) ? '#reference-root{display:grid;place-items:center}#reference-target,#reference-list{display:none}#reference-bot{width:180px;height:180px;margin:0}' : ''); }
@@ -68,6 +72,9 @@ export function validateStateValue(item, value, scene, document) {
   const encoded=JSON.stringify(value);if(!encoded||encoded.length>65536)throw new RangeError('JSON: ≤65536 characters');
   if(item.attribute==='design'){if(!value||typeof value!=='object'||Array.isArray(value))throw new TypeError('design: object required');parseDesign(value);}
   if(item.attribute==='accessories')parseDesign({...scene.design,accessories:value});
+  if(item.attribute==='presence'&&value!==null)validateSidekickPresence(value,document);
+  if(item.attribute==='task'&&value!==null)validateSidekickTask(value,document);
+  if(item.attribute==='home'&&value!==null)validateSidekickHome(value,document);
   if(item.attribute==='positioning'&&value!==null)validatePositioning(structuredClone(value),document);
   if(item.attribute==='entrance'&&value!==null)validateEntrance(structuredClone(value));
   if(item.attribute==='behavior'&&value!==null){if(!document)throw new Error('Document required');validateBehavior(value,document);}
@@ -82,7 +89,7 @@ export function compileReferenceAttributes(scene, edits) {
  if(Object.hasOwn(edits,'body-orientation'))for(const axis of ['yaw','pitch','roll'])delete attributes[`body-${axis}`];
  for(const [key,value] of Object.entries(edits)){if(value===undefined)continue;if(!FIELD_BY_KEY.has(key))throw new TypeError(`Unknown state field: ${key}`);attributes[key]=structuredClone(value);}
  // The entrance examples use the required viewport placement in both runtime and copied source.
- if((edits.entrance!=null||edits.positioning!=null)&&!Object.hasOwn(edits,'placement'))attributes.placement='viewport';
+ if((edits.entrance!=null||edits.positioning!=null||edits.presence!=null||edits.home!=null||edits.task!=null)&&!Object.hasOwn(edits,'placement'))attributes.placement='viewport';
  const resolved=resolveSidekickAttributes(new Map(Object.entries(attributes).filter(([key,value])=>key!=='behavior'&&value!==undefined).map(([key,value])=>[key,attributeText(value)])));
  if(attributes.motion?.accessories){
   const available=new Set(resolved.design.accessories.map(item=>item.id));
@@ -95,13 +102,17 @@ export function referenceReactProps(attributes){return Object.fromEntries(Object
 export const attributeText = value => typeof value==='object'?JSON.stringify(value):String(value);
 const escape = value => String(value).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 const safeJSON = value => JSON.stringify(value,null,2).replaceAll('<','\\u003c').replaceAll('\u2028','\\u2028').replaceAll('\u2029','\\u2029');
-export function referenceSource(scene, edits, framework='element', id) {
+export function referenceSource(scene, edits, framework='element', id, locale='en') {
  const attributes=compileReferenceAttributes(scene,edits), css=referenceCSS(id);
+ if(id==='state-lifecycle')return lifecycleSource(framework==='react'?referenceReactProps(attributes):attributes,css,framework,locale);
  if(framework==='react')return `import { SidekickAvatar } from '@hanana-kick/sidekick/react';\n\nconst avatarProps = ${safeJSON(referenceReactProps(attributes))};\n\nexport default function StateExample() {\n  return (\n    <>\n      <style>{${JSON.stringify(css)}}<\/style>\n      <div id="reference-root">\n        <div id="reference-target">#reference-target</div>\n        <ol id="reference-list">\n          {[1, 2, 3].map(item => <li className="reference-item" key={item}>Item {item}</li>)}\n        </ol>\n        <SidekickAvatar id="reference-bot" {...avatarProps} />\n      </div>\n    </>\n  );\n}`;
  return `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<style>${css}</style>\n<script type="module">\n  import '@hanana-kick/sidekick/auto';\n<\/script>\n</head>\n<body>\n<div id="reference-root">\n  ${REFERENCE_TARGET_HTML}\n  <sidekick-avatar id="reference-bot"\n${Object.entries(attributes).filter(([key,value])=>!(key==='behavior'&&value===null)).map(([key,value])=>`    ${key}="${escape(attributeText(value))}"`).join('\n')}>\n  </sidekick-avatar>\n</div>\n</body>\n</html>`;
 }
 
 export const JSON_FIELDS = Object.freeze({
+ presence: [['visible','boolean (required)'],['entrance','Entrance · optional'],['exit','ExitOptions · optional']],
+ task: [['id','string | number (required; new id starts new work)'],['status','pending | success | error | cancelled'],['behavior','BotBehavior · optional'],['reaction','{ emotion: Emotion, duration?: ms, intensity?: 0…1 }']],
+ home: [['positioning','Positioning (required)'],['rest.behavior','idle | celebrate | error (non-targeted BotBehavior)'],['rest.activity','Activity · optional'],['rest.emotion / emotionIntensity','Emotion / 0…1'],['rest.trackingMode','off | eyes | eyes-and-body'],['rest.gaze','{ x, y } | { target: Element | string }'],['rest.bodyOrientation','BodyOrientationPreset | Partial<BodyOrientation>'],['returnOn','(success | error | cancelled)[] · [success, cancelled]']],
  positioning: [['target','viewport | selector | Element (HTML JSON: string)'],['placement',POSITION_PLACEMENTS.join(' | ')],['gap','finite CSS px (signed) · 16'],['offset','{ x?: number, y?: number } · 0'],['follow','boolean · true']],
  entrance: [
   ['source','viewport | element'], ['edge','viewport: left | right | top | bottom'],
@@ -119,4 +130,4 @@ export const JSON_FIELDS = Object.freeze({
  motion: [['body.rotation','[x, y, z] · −2π…2π rad'],['face.uv','[u, v] · −0.5…0.5'],['eyes.openness','0…1'],['eyes.left.weights / eyes.right.weights','{ smile?: 0…1, blink?: 0…1 }'],['accessories[id].rotation','[x, y, z] · −π…π rad']],
 });
 
-export { POSITION_PLACEMENTS };
+export { POSITION_PLACEMENTS, lifecycleDefaults };

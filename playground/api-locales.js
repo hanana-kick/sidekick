@@ -3,6 +3,9 @@ import { getSiteLocale } from './site-i18n.js';
 /** Explicit message keys. Columns are Korean, English, Simplified Chinese, Japanese. */
 export const API_LOCALES = Object.freeze(['ko', 'en', 'zh-CN', 'ja']);
 const messages = {
+  actionLifecycle: ['표시·작업·집', 'Presence, task and home', '显示、任务与归位', '表示・タスク・ホーム'],
+  lifecycleGuide: ['표시·작업·집 가이드', 'Presence, task and home guide', '显示、任务与归位指南', '表示・タスク・ホームのガイド'],
+  lifecycleHelp: ['집과 표시 상태를 적용한 뒤 작업 버튼으로 앱 결과를 알려주세요. success와 cancelled는 자동 복귀하고 error는 기본적으로 현재 위치에 남습니다. 결과 버튼은 비동기 요청을 모의합니다.', 'Apply home and presence, then use task buttons to report app outcomes. Success and cancellation return home automatically; errors stay in place by default. Outcome buttons settle a simulated async request.', '应用 home 与 presence 后，用任务按钮报告应用结果。成功和取消后自动返回，失败默认停在原地。结果按钮结束模拟异步请求。', 'home と presence を適用し、タスクボタンで結果を通知します。成功・取消後は自動帰還し、エラー時はその場に留まります。結果ボタンは模擬非同期リクエストを完了します。'],
 "actionEmotion":["감정 / 반응","Emotion / reaction","情绪 / 反应","感情 / 反応"],
 "emotionOperation":["감정 실행","Emotion operation","情绪操作","感情の操作"],
 "emotionPersistent":["지속 감정","Persistent emotion","持续情绪","持続する感情"],

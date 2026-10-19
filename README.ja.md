@@ -6,7 +6,7 @@
 
 - [インストール](#インストール) · [HTML](#html-で直接使う) · [React](#react-で使う)
 - [すべての属性](#html-属性と-react-props) · [デザインとアクセサリー](#デザイン-json-とアクセサリー) · [アニメーション/API](#アニメーションと命令型-api)
-- [宣言型の動作](#宣言型の動作-behavior) · [画面内の移動/飛行](#レンダリング移動の標準-v03) · [イベント/クリーンアップ](#イベントとクリーンアップ) · [SSR](#ssr-とブラウザー対応) · [Studio/開発](#studio-と開発) · [宣言型の登場](#宣言型の登場-entrance)
+- [ライフサイクル/ホーム](#宣言型ライフサイクルpresencetaskhome) · [宣言型の動作](#宣言型の動作-behavior) · [画面内の移動/飛行](#レンダリング移動の標準-v03) · [イベント/クリーンアップ](#イベントとクリーンアップ) · [SSR](#ssr-とブラウザー対応) · [Studio/開発](#studio-と開発) · [宣言型の登場](#宣言型の登場-entrance)
 
 ## インストール
 
@@ -19,22 +19,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 バージョンを固定するには、リリースタグを指定します。
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.14.2
+npm install https://github.com/hanana-kick/sidekick.git#v0.15.0
 ```
 
-ビルド済みの ESM、型宣言、ブラウザーバンドルがリポジトリに含まれているため、**インストール先で Sidekick のソースをビルドする必要はありません。** 依存関係と lockfile を一緒にコミットすれば、チームでも同じバージョンを使えます。パッケージ名は `@hanana-kick/sidekick`、このバージョンは `0.14.2` です。**npm レジストリには公開していないため、名前だけで `npm install @hanana-kick/sidekick` を実行しないでください。**
+ビルド済みの ESM、型宣言、ブラウザーバンドルがリポジトリに含まれているため、**インストール先で Sidekick のソースをビルドする必要はありません。** 依存関係と lockfile を一緒にコミットすれば、チームでも同じバージョンを使えます。パッケージ名は `@hanana-kick/sidekick`、このバージョンは `0.15.0` です。**npm レジストリには公開していないため、名前だけで `npm install @hanana-kick/sidekick` を実行しないでください。**
 
 npm を使わない HTML サイトでは、[GitHub Releases](https://github.com/hanana-kick/sidekick/releases) からビルド済みファイルをダウンロードしてください。ESM と通常の `<script>` 用 JS、専用のレンダリング worker を提供します。このブラウザーコアには React、バンドラー、Node.js、追加の CSS、フォントは不要です。
 
 ### GitHub Release からダウンロード
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases) を開きます。
-2. 使用するタグの **Assets** から `sidekick-browser-0.14.2.zip` または `hanana-kick-sidekick-0.14.2.tgz` をダウンロードします。別のバージョンでは、タグに一致するファイル名を選んでください。自動生成される **Source code (zip/tar.gz)** はソースアーカイブなので、ブラウザー配布用 ZIP と区別してください。
+2. 使用するタグの **Assets** から `sidekick-browser-0.15.0.zip` または `hanana-kick-sidekick-0.15.0.tgz` をダウンロードします。別のバージョンでは、タグに一致するファイル名を選んでください。自動生成される **Source code (zip/tar.gz)** はソースアーカイブなので、ブラウザー配布用 ZIP と区別してください。
 3. 通常の HTML サイトでは、ブラウザー ZIP を展開して、以下のファイルをサイトの静的ファイルディレクトリにコピーします。同梱の `START-HERE.txt` を読み、`esm.html`、`classic.html`、`react.html` から希望する例を開いてください。例の `/vendor/sidekick/` は**利用するサイトのパス**です。配信先のパスに合わせて変更してください。
 
 | ビルド済みファイル | 用途 | 必要なファイル・依存関係 |
 | --- | --- | --- |
-| `sidekick-browser-0.14.2.zip` | 通常の HTML/React 向けブラウザー配布 | `esm.html`・`classic.html`・`react.html`、以下の JS 6 ファイル、任意の `vendor/`、README・告知を含む |
+| `sidekick-browser-0.15.0.zip` | 通常の HTML/React 向けブラウザー配布 | `esm.html`・`classic.html`・`react.html`、以下の JS 6 ファイル、任意の `vendor/`、README・告知を含む |
 | `sidekick.js` | ブラウザー ESM。`import` と `<script type="module">` を使用 | `sidekick.worker.js` を同じディレクトリに置く |
 | `sidekick.iife.js` | 通常の classic `<script>`。API は `window.Sidekick` | `sidekick.worker.js` を同じディレクトリに置く。`type="module"` は使用しない |
 | `sidekick-react.js` | React 19 用 ESM コンポーネント | `sidekick-element.js`・`sidekick-fallback.js`・`sidekick.worker.js` を同じディレクトリに置き、`react` peer を用意する |
@@ -42,7 +42,7 @@ npm を使わない HTML サイトでは、[GitHub Releases](https://github.com/
 | `sidekick-fallback.js` | worker が使えない場合に React 要素が読み込むレンダラー | 直接 import しない。他のファイルと同じバージョンを使う |
 | `sidekick.worker.js` | OffscreenCanvas 専用 worker | ブラウザーのエントリーファイルの隣に配置する。別の script タグでは読み込まない |
 | `vendor/react.js`, `vendor/react-dom-client.js` | ブラウザー ZIP に含まれる任意の React 19/ReactDOM ESM | 以下のビルド不要の React 例に使用。import map で接続し、React をすでに用意しているアプリでは不要 |
-| `hanana-kick-sidekick-0.14.2.tgz` | 既存の npm ベースのプロジェクトにインストールするパッケージ | ビルド済み ESM・型宣言・ブラウザーバンドル・告知を含む |
+| `hanana-kick-sidekick-0.15.0.tgz` | 既存の npm ベースのプロジェクトにインストールするパッケージ | ビルド済み ESM・型宣言・ブラウザーバンドル・告知を含む |
 | `SHA256SUMS` | ZIP と tarball のダウンロード整合性の確認 | 同じ Release のチェックサムファイル |
 
 ZIP に同梱されている README と第三者ライセンス・出典の告知も保管してください。**GitHub Release のアセットは、ダウンロードしてから自分のサイトで配信してください。** ダウンロード URL はブラウザー JS のホスティング用 URL ではなく、アセットの応答の MIME・CORS の挙動は静的ホスティングとは異なります。以下の例の `src`/`import` には、ダウンロードしたファイルを配信するサイトのパスを使います。
@@ -54,7 +54,7 @@ ZIP に同梱されている README と第三者ライセンス・出典の告�
 Release から取得した tarball を、使用するプロジェクトでインストールします。このコマンドは Sidekick のソースをコンパイルしたり、Studio をビルドしたりしません。
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.14.2.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.15.0.tgz
 ```
 
 React 19 が必要なのは React ラッパーを使う場合だけです。Web ページをマウントする `react-dom` も、利用者が同じバージョンで用意します。コアだけを使うプロジェクトには React は不要です。
@@ -123,12 +123,12 @@ bot.setEmotion('neutral');
 
 ## CDN を使ってビルドなしで利用する
 
-現在の CDN 推奨バージョンは **0.14.2** です。以下の URL は GitHub タグにコミットされた**ビルド済み JS** を jsDelivr が配信するため、ソースのビルド、npm のインストール、npm アカウントは不要です。`main`、`latest`、バージョン範囲ではなく、**正確なタグ**を固定してください。以前の `v0.2.7` のファイルは変更していません。0.2.7 も同じ CDN パスからダウンロードできますが、異なるオリジンのページでは worker の生成がブロックされてメインスレッドへフォールバックするため、CDN の新規利用では上記の現在の固定バージョンを使ってください。
+現在の CDN 推奨バージョンは **0.15.0** です。以下の URL は GitHub タグにコミットされた**ビルド済み JS** を jsDelivr が配信するため、ソースのビルド、npm のインストール、npm アカウントは不要です。`main`、`latest`、バージョン範囲ではなく、**正確なタグ**を固定してください。以前の `v0.2.7` のファイルは変更していません。0.2.7 も同じ CDN パスからダウンロードできますが、異なるオリジンのページでは worker の生成がブロックされてメインスレッドへフォールバックするため、CDN の新規利用では上記の現在の固定バージョンを使ってください。
 
 ### 通常の HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
@@ -140,7 +140,7 @@ bot.setEmotion('neutral');
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -156,15 +156,15 @@ React と ReactDOM は、同じ 19.3.1 のビルド済み ESM を提供します
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
@@ -682,6 +682,134 @@ bot.entrance = null;
 ```
 
 形式が不正または範囲外のオブジェクトは拒否します。実行時に対象がない・小さすぎる・到着空間が不足する場合は `sidekick-error` が発生し、対象を自動では待ちません。新しい移動・行動・登場の指定や接続解除は進行中の登場を取り消すことがあります。`entrance` はページの配置設定であり、保存する Studio シーンには含まれません。
+
+## 宣言型ライフサイクル：presence、task、home
+
+ボットの表示状態、アプリが実行するタスク、休む場所を宣言します。Sidekick が登場 → 処理中の動作 → 結果への反応 → 慣性移動でホームへ復帰 → 休息をつなぎます。非同期処理はアプリが実行し、状態を明示的に知らせます。Sidekick はタイマーや動作の終了からタスク完了を推測しません。手動の復帰コマンドや座標計算は不要です。
+
+**リリースバージョン：** 以下のライフサイクル例は `v0.15.0` を対象とします。HTML は固定 CDN ブラウザーバンドル、React は対応するパッケージビルドを使用します。セルフホストの場合は、同じバージョンの `dist/browser/` ファイルをまとめて配信し、CDN の import をローカルの `sidekick.js` URL に置き換えてください。
+
+| HTML JSON / JavaScript プロパティ | React prop | 宣言 |
+| --- | --- | --- |
+| `presence` | `presence` | `{ visible: boolean, entrance?: Entrance, exit?: ExitOptions }`。`entrance` と `exit` は既存の登場・退場設定を再利用します。 |
+| `task` | `task` | `{ id: string \| number, status: 'pending' \| 'success' \| 'error' \| 'cancelled', behavior?: BotBehavior, reaction?: { emotion: Emotion, duration?: number, intensity?: number } }` |
+| `home` | `home` | `{ positioning: Positioning, rest?: { activity?, behavior?, emotion?, emotionIntensity?, trackingMode?, gaze?, bodyOrientation? }, returnOn?: readonly ('success' \| 'error' \| 'cancelled')[] }` |
+| `sidekick-lifecycle-change` | `onLifecycleChange` | 読み取り専用の `lifecycleState` プロパティと同じ `SidekickLifecycleState` スナップショット。 |
+
+- `home.positioning` は既存の viewport／要素基準の位置指定を使います。ホームは初期配置と、対象となるタスク結果の後の復帰に使われます。`returnOn` の既定値は `['success', 'cancelled']`。失敗時にも復帰するには `'error'` を追加し、自動復帰を無効にするには `[]` を指定します。
+- `status` が `'pending'` の間は、`task.behavior` に `{ type: 'wait', target: '#lifecycle-work' }` などの動作を指定します。動作の終了はタスクの完了を意味しません。アプリが結果を確認したら、同じタスク ID の状態を `success`、`error`、`cancelled` に更新します。
+- 既定の結果反応は `success` が `happy` で 1000ms、`error` が `sad` で 1000ms。`cancelled` に反応はありません。`task.reaction` では既存の `Emotion`、ミリ秒単位の duration、0〜1 の intensity を指定できます。反応後、復帰条件に合えばホームへ移動します。エラー時は既定で作業場所にとどまります。
+- `home.rest.behavior` は対象を持たない `idle`、`celebrate`、`error` と省略可能な `duration` のみです。休息には既存の `activity`（`idle`、`thinking`、`listening`、`speaking`、`celebrating`、`still`）、`emotion`、`emotionIntensity`（0〜1）、`trackingMode`（`off`、`eyes`、`eyes-and-body`）、`gaze: { x, y }`（各 −1〜1）、`bodyOrientation`（`front`、`three-quarter`、`side` または部分的な `{ yaw, pitch, roll }`）も設定できます。ホーム到着後に休息状態を適用します。
+- 新しいタスク ID は、それまでのタスク・反応・復帰を滑らかに置き換えます。同じ値の新しいオブジェクトを含め、同等の宣言ではライフサイクルを再開しません。古いリクエストの非同期コールバックが新しいタスクを上書きしないように ID を確認してください。
+- `presence.visible: false` はタスク／ホームの動作に優先し、`exit` があればその退場設定を使います。`true` に戻すと最新の宣言から再開し、`entrance` があればその登場設定を使います。表示状態を変えてもアプリのネットワークリクエストはキャンセルされません。必要なら別途中断してください。
+
+`home.rest.gaze` に `{ target: '#nearby' }` または `{ target: element }` を指定すると、ボットを移動せず視線だけを向けられます。対象への視線は休息中の tracking を `off` として制御します。休息開始時に視線の対象が存在する必要があり、同じセレクターの新しいノードへ自動再接続はしません。
+
+公開エントリーポイントから `SidekickPresence`、`SidekickTask`、`SidekickHome`、`SidekickLifecycleState` 型を import できます。HTML は JSON オブジェクトを使い、JavaScript プロパティと React props は同一文書の `Element` 対象にも対応します。
+
+### HTML：実際のタスク結果を接続する
+
+このコードを HTTP(S) で配信するページに入れてください。固定バージョンのブラウザーバンドルを CDN から読み込みます。Promise はローカルのシミュレーションなので、実際のアプリのリクエストに置き換えます。もう一度クリックすると新しいタスク ID が始まります。
+
+```html
+<button id="lifecycle-save">Save / restart</button>
+<div id="lifecycle-work" style="margin: 96px 160px">Task target</div>
+<sidekick-avatar id="lifecycle-bot" placement="viewport"
+  style="width:96px;height:96px"
+  presence='{"visible":true,"entrance":{"source":"viewport","edge":"left"}}'
+  home='{"positioning":{"target":"viewport","placement":"bottom-right","gap":20},"rest":{"behavior":{"type":"idle"},"emotion":"neutral","trackingMode":"eyes-and-body","bodyOrientation":"front"}}'>
+</sidekick-avatar>
+<script type="module">
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/dist/browser/sidekick.js';
+  const bot = document.querySelector('#lifecycle-bot');
+  let latestId = 0;
+  document.querySelector('#lifecycle-save').addEventListener('click', async () => {
+    const id = ++latestId;
+    bot.task = { id, status: 'pending', behavior: { type: 'wait', target: '#lifecycle-work' } };
+    try {
+      // Replace this simulated Promise with the actual save request.
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (id === latestId) bot.task = { id, status: 'success' };
+    } catch (error) {
+      if (id === latestId) bot.task = { id, status: 'error' };
+      console.error(error);
+    }
+  });
+</script>
+```
+
+### React：アプリの状態でライフサイクルを管理する
+
+既存の React 19 アプリでは、対応するパッケージビルドからコンポーネントを import します。同じオブジェクトを props として渡すため、ref による移動コマンドは不要です。
+
+```tsx
+import { useRef, useState } from 'react';
+import { SidekickAvatar } from '@hanana-kick/sidekick/react';
+import type { SidekickAvatarProps } from '@hanana-kick/sidekick/react';
+
+export default function SaveAssistant() {
+  const latestId = useRef(0);
+  const [task, setTask] = useState<SidekickAvatarProps['task']>();
+
+  async function save() {
+    const id = ++latestId.current;
+    setTask({ id, status: 'pending', behavior: { type: 'wait', target: '#lifecycle-work' } });
+    try {
+      // Replace this simulated Promise with the actual save request.
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (id === latestId.current) setTask({ id, status: 'success' });
+    } catch (error) {
+      if (id === latestId.current) setTask({ id, status: 'error' });
+      console.error(error);
+    }
+  }
+
+  return <>
+    <button onClick={save}>Save / restart</button>
+    <div id="lifecycle-work" style={{ margin: '96px 160px' }}>Task target</div>
+    <SidekickAvatar placement="viewport" style={{ width: 96, height: 96 }}
+      presence={{ visible: true, entrance: { source: 'viewport', edge: 'left' } }}
+      task={task}
+      onLifecycleChange={event => console.log(event.detail.phase)}
+      home={{
+        positioning: { target: 'viewport', placement: 'bottom-right', gap: 20 },
+        rest: { behavior: { type: 'idle' }, emotion: 'neutral',
+          trackingMode: 'eyes-and-body', bodyOrientation: 'front' },
+      }} />
+  </>;
+}
+```
+
+キャンセル時は現在のタスクを `{ id, status: 'cancelled' }` に更新し、実際のアプリのリクエストも別途中断してください。静的 HTML では `task='{"id":"save-1","status":"pending","behavior":{"type":"wait","target":"#lifecycle-work"}}'` を使えます。結果が届いたら JSON 属性または JavaScript プロパティを更新します。
+
+### ページ要素に追従するホーム
+
+レイアウトとともに動くドックには、マウント済みの同一文書のセレクターまたは `Element` を指定します。JSON 属性ではセレクター文字列を使います。ホームを適用する時点で対象が存在する必要があります。既定の `follow: true` は既存の慣性位置制御でスクロール・サイズ・レイアウトの変化を追従します。
+
+レンダラーの準備完了時に対象が存在すれば、マウント前でもセレクターを宣言できます。その後ホームを変更する場合は、新しい宣言を適用する前に対象をマウントしてください。
+
+```js
+bot.home = {
+  positioning: { target: '#dock', placement: 'center-left', gap: 12, follow: true },
+  rest: { behavior: { type: 'idle' }, emotion: 'neutral' },
+  returnOn: ['success', 'error', 'cancelled'],
+};
+```
+
+ホームの対象が存在しない、または削除された場合は `sidekick-error` を通知し、ボットは現在の位置を維持します。任意の代替位置への移動や、新しいノードへの自動再接続は行いません。レンダラーの準備完了時に対象が存在するようにし、ノードを交換したら宣言も更新してください。既存の位置計算・移動範囲・モーション抑制の規則はそのまま適用されます。
+
+既存の `behavior`、`positioning`、`entrance`、`perform()`、`reactTo()`、移動 API は引き続き直接制御に使えます。作業から復帰までをつなぐ場合は `presence`/`task`/`home` を使い、同じ流れを競合する低レベルの宣言で同時に制御しないでください。直接コマンドはライフサイクル制御を中断する場合があり（`phase: 'suspended'`）、同等の rerender では制御を取り戻しません。再開するには対象の宣言を変更するか、解除して再適用してください。
+
+### ライフサイクルの進行を確認する
+
+`bot.lifecycleState` を読むか、`sidekick-lifecycle-change` / React の `onLifecycleChange` を購読します。スナップショットには `phase`、`taskId`（`string | number | null`）、`taskStatus`（`pending | success | error | cancelled | null`）、省略可能な `reason` 文字列があります。`phase` は `idle`、`hidden`、`entering`、`working`、`pending`、`reacting`、`returning`、`resting`、`settled`、`suspended`、`error` のいずれかです。これは表現上の段階です。動作終了後も `pending` は続くことがあり、`resting` はホーム到着と休息適用を表し、アプリのリクエスト完了そのものではありません。ライフサイクルのエラーは `taskStatus` を変更しません。
+
+```js
+bot.addEventListener('sidekick-lifecycle-change', event => {
+  console.log(event.detail.phase, event.detail.taskId, event.detail.taskStatus);
+});
+console.log(bot.lifecycleState);
+```
 
 ## 宣言型の動作 (behavior)
 
@@ -1328,7 +1456,7 @@ API playground では「既定の最高速度 · 1350 CSS px/s」が既定で有
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { maxSpeed: 320, acceleration: 900, deceleration: 1200 });
@@ -1365,7 +1493,7 @@ API playground では「既定の最高速度 · 1350 CSS px/s」が既定で有
 <button id="flight-stop" type="button">활동 중단</button>
 <p id="flight-status" aria-live="off">idle</p>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/dist/browser/sidekick.js';
   const stage = document.getElementById('flight-stage');
   const bot = document.getElementById('flight-avatar');
   const status = document.getElementById('flight-status');

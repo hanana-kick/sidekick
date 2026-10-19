@@ -13,7 +13,7 @@ test('all public attributes have one control with a real React prop',()=>{
  assert.equal(new Set(ALL_STATE_FIELDS.map(x=>x.attribute)).size,ALL_STATE_FIELDS.length);
  const react=readFileSync(new URL('../src/react.ts',import.meta.url),'utf8').split('export interface SidekickAvatarProps')[1].split('const tagName')[0];
  for(const item of ALL_STATE_FIELDS)assert.ok(react.includes(item.prop+'?:'),item.prop);
- assert.equal(Object.keys(STATE_FIELDS).length,7);
+ assert.equal(Object.keys(STATE_FIELDS).length,8);
 });
 test('schema defaults validate and Studio shape/color/eyes remain inherited',()=>{
  const document=new JSDOM().window.document;
@@ -81,4 +81,16 @@ test('entrance schema validates the public declaration and emits exact selected-
   dom.window.close();
  }
  for(const declaration of [{source:'viewport',edge:'above'},{source:'viewport',edge:'left',at:2},{source:'element',target:'',direction:'right'},{source:'element',target:'#reference-target',direction:'right',gap:-1},{source:'viewport',edge:'left',gap:10}])assert.throws(()=>validateStateValue(field,declaration,scene));
+});
+
+test('lifecycle reference validates public JSON and preserves matching typed React props',()=>{
+ const document=new JSDOM().window.document;
+ const valid={presence:{visible:false},task:{id:'save-1',status:'pending',behavior:{type:'wait',target:'#reference-target'}},home:{positioning:{target:'viewport',placement:'bottom-right'},rest:{gaze:{target:'#reference-target'}},returnOn:['success','error','cancelled']}};
+ for(const [key,value]of Object.entries(valid))assert.deepEqual(validateStateValue(FIELD_BY_KEY.get(key),value,scene,document),value);
+ for(const [key,value]of [['presence',{visible:'false'}],['task',{id:1,status:'complete'}],['home',{positioning:{target:'viewport'},rest:{behavior:{type:'follow',target:'#reference-target'}}}]])assert.throws(()=>validateStateValue(FIELD_BY_KEY.get(key),value,scene,document));
+ const attributes=compileReferenceAttributes(scene,valid);assert.equal(attributes.placement,'viewport');
+ const props=referenceReactProps(attributes);for(const key of ['presence','task','home'])assert.deepEqual(props[key],valid[key]);
+ const html=referenceSource(scene,valid,'element','state-lifecycle'),dom=new JSDOM(html);
+ for(const key of ['presence','task','home'])assert.deepEqual(JSON.parse(dom.window.document.querySelector('sidekick-avatar').getAttribute(key)),valid[key]);
+ assert.match(html,/sidekick@v0\.15\.0/);dom.window.close();
 });

@@ -1,3 +1,4 @@
+import type { SidekickPresence, SidekickTask, SidekickHome, SidekickLifecycleState } from './lifecycle.js';
 import type { Positioning } from './positioning.js';
 import type { Emotion, EmotionOptions, EmotionState, EmotionResult, ReactionOptions } from '../core/emotion.js';
 import type { BotBehavior, BehaviorState, BehaviorResult, PerformOptions } from './behavior.js';
@@ -39,9 +40,29 @@ export declare class SidekickAvatar extends HTMLElementBase {
     setEmotion(value: Emotion, options?: EmotionOptions): void;
     reactTo(value: Emotion, options?: ReactionOptions): Promise<EmotionResult>;
     cancelReaction(): void;
+    private lifecycleCommand;
+    private lifecycleRest;
+    private lifecycleCancelling;
+    private lifecycleGazeCleanup?;
+    private lifecycleRestore?;
+    private lifecyclePositionPromise?;
+    private lifecyclePositionCurrent?;
+    private lifecycleEntrancePromise?;
+    private lifecycleController;
+    get presence(): SidekickPresence | null;
+    set presence(value: SidekickPresence | null);
+    get task(): SidekickTask | null;
+    set task(value: SidekickTask | null);
+    get home(): SidekickHome | null;
+    set home(value: SidekickHome | null);
+    get lifecycleState(): SidekickLifecycleState;
+    private lifecycleOperation;
+    private interruptLifecycle;
+    private applyLifecycleRest;
     private behaviorCommand;
     private behaviorAttention;
     private pendingBehavior;
+    private desiredBehavior;
     private behaviorController;
     /** A deterministic semantic intent; null stops it. DOM targets are retained by identity. */
     get behavior(): BotBehavior | null;
@@ -85,6 +106,7 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private discardInvalidPositioning;
     private positioningDestination;
     private startPositioning;
+    private positioningFailed;
     private entranceDeclaration;
     private entranceApplied;
     private entranceRevision;
@@ -96,7 +118,7 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private clearEntrance;
     private startEntrance;
     private presenceHidden;
-    private presence;
+    private presenceController;
     get presenceState(): PresenceState;
     enter(position: AvatarPosition, options?: EnterOptions): Promise<PresenceResult>;
     exit(options?: ExitOptions): Promise<PresenceResult>;

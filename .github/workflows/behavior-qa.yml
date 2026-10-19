@@ -6,7 +6,7 @@ permissions:
 jobs:
   walkthrough:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.1.0
@@ -16,7 +16,7 @@ jobs:
       - run: npm ci
       - run: npm run build:all
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
-      - run: xvfb-run -a node --test --test-concurrency=1 tests/behavior-browser.test.mjs tests/animation-continuity-browser.test.mjs
+      - run: xvfb-run -a node --test --test-concurrency=1 tests/lifecycle-browser.test.mjs tests/lifecycle-docs-browser.test.mjs tests/behavior-browser.test.mjs tests/animation-continuity-browser.test.mjs
         env:
           SIDEKICK_HEADED: '1'
           SIDEKICK_SCREENSHOTS: artifacts

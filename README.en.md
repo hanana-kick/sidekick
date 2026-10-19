@@ -6,7 +6,7 @@
 
 - [Installation](#installation) · [HTML](#using-html-directly) · [React](#using-react)
 - [All attributes](#html-attributes-and-react-props) · [Design and accessories](#design-json-and-accessories) · [Animation/API](#animation-and-imperative-apis)
-- [Declarative behavior](#declarative-behavior) · [Movement/flight](#rendering-and-movement-standard-v03) · [Events/cleanup](#events-and-cleanup) · [SSR](#ssr-and-browser-support) · [Studio/development](#studio-and-development) · [Declarative entrance](#declarative-entrance)
+- [Lifecycle/home](#declarative-lifecycle-presence-task-and-home) · [Declarative behavior](#declarative-behavior) · [Movement/flight](#rendering-and-movement-standard-v03) · [Events/cleanup](#events-and-cleanup) · [SSR](#ssr-and-browser-support) · [Studio/development](#studio-and-development) · [Declarative entrance](#declarative-entrance)
 
 ## Installation
 
@@ -19,22 +19,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 To pin a version, specify a release tag:
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.14.2
+npm install https://github.com/hanana-kick/sidekick.git#v0.15.0
 ```
 
-The repository includes built ESM, type declarations, and browser bundles, so **consumers do not need to build Sidekick from source.** Commit your dependencies and lockfile so your team uses the same version. The package name is `@hanana-kick/sidekick`, and this version is `0.14.2`. **It has not been published to the npm registry: do not run `npm install @hanana-kick/sidekick` using the name alone.**
+The repository includes built ESM, type declarations, and browser bundles, so **consumers do not need to build Sidekick from source.** Commit your dependencies and lockfile so your team uses the same version. The package name is `@hanana-kick/sidekick`, and this version is `0.15.0`. **It has not been published to the npm registry: do not run `npm install @hanana-kick/sidekick` using the name alone.**
 
 For an HTML site without npm, download the prebuilt files from [GitHub Releases](https://github.com/hanana-kick/sidekick/releases). ESM, classic `<script>` JavaScript, and a dedicated rendering worker are provided. The browser core requires no React, bundler, Node.js, separate CSS, or fonts.
 
 ### Downloading from GitHub Releases
 
 1. Open [Releases](https://github.com/hanana-kick/sidekick/releases).
-2. Under the chosen tag's **Assets**, download `sidekick-browser-0.14.2.zip` or `hanana-kick-sidekick-0.14.2.tgz`. For another version, use the filename matching its tag. The automatically generated **Source code (zip/tar.gz)** archives contain source code, not the browser distribution ZIP.
+2. Under the chosen tag's **Assets**, download `sidekick-browser-0.15.0.zip` or `hanana-kick-sidekick-0.15.0.tgz`. For another version, use the filename matching its tag. The automatically generated **Source code (zip/tar.gz)** archives contain source code, not the browser distribution ZIP.
 3. For a plain HTML site, extract the browser ZIP and copy the following files into your site's static directory. Read the included `START-HERE.txt` and open your preferred `esm.html`, `classic.html`, or `react.html` example. `/vendor/sidekick/` in the examples is **a path on your site**; adjust it to your deployment.
 
 | Built file | Purpose | Required files/dependencies |
 | --- | --- | --- |
-| `sidekick-browser-0.14.2.zip` | Plain HTML/React browser distribution | Includes `esm.html`, `classic.html`, `react.html`, the six JS files below, optional `vendor/`, README, and notices |
+| `sidekick-browser-0.15.0.zip` | Plain HTML/React browser distribution | Includes `esm.html`, `classic.html`, `react.html`, the six JS files below, optional `vendor/`, README, and notices |
 | `sidekick.js` | Browser ESM for `import` and `<script type="module">` | Keep `sidekick.worker.js` in the same directory |
 | `sidekick.iife.js` | Classic `<script>` exposing `window.Sidekick` | Keep `sidekick.worker.js` alongside it; do not use `type="module"` |
 | `sidekick-react.js` | ESM component for React 19 | Keep `sidekick-element.js`, `sidekick-fallback.js`, and `sidekick.worker.js` alongside it, and provide the `react` peer |
@@ -42,7 +42,7 @@ For an HTML site without npm, download the prebuilt files from [GitHub Releases]
 | `sidekick-fallback.js` | Renderer loaded by the React element when workers are unavailable | Do not import directly; keep all files on the same version |
 | `sidekick.worker.js` | Dedicated OffscreenCanvas worker | Place beside the browser entry files; do not load with a separate script tag |
 | `vendor/react.js`, `vendor/react-dom-client.js` | Optional React 19/ReactDOM ESM in the browser ZIP | For the no-build React example below, connected via an import map; unnecessary when your app already provides React |
-| `hanana-kick-sidekick-0.14.2.tgz` | Package for an existing npm-based project | Built ESM, type declarations, browser bundles, and notices |
+| `hanana-kick-sidekick-0.15.0.tgz` | Package for an existing npm-based project | Built ESM, type declarations, browser bundles, and notices |
 | `SHA256SUMS` | Verify ZIP and tarball download integrity | Checksum file in the same release |
 
 Keep the README and third-party license/attribution notices included in the ZIP. **Download GitHub Release assets and serve them from your own site.** Their download URLs are not browser JavaScript hosting URLs; asset MIME/CORS behavior differs from static hosting. The `src`/`import` paths below refer to your site's copies of the downloaded files.
@@ -54,7 +54,7 @@ Both `sidekick.js` and `sidekick.iife.js` export the complete public core/elemen
 Install the downloaded release tarball in your project. This command neither compiles Sidekick source nor builds Studio.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.14.2.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.15.0.tgz
 ```
 
 React 19 is required only for the React wrapper. Supply the matching version of `react-dom` yourself to mount the page. Core-only projects do not require React.
@@ -123,12 +123,12 @@ Paused or reduced-motion mode settles immediately at the target. Reading setting
 
 ## Using the CDN without a build
 
-The currently recommended CDN version is **0.14.2**. These URLs serve **already built JavaScript** committed to a GitHub tag through jsDelivr: no source build, npm installation, or npm account is needed. Pin an **exact tag**, not `main`, `latest`, or a version range. Earlier `v0.2.7` files have not been changed. Version 0.2.7 is also downloadable through the same CDN path, but cross-origin pages cannot create its worker and fall back to the main thread; use the current pinned version for new CDN integrations.
+The currently recommended CDN version is **0.15.0**. These URLs serve **already built JavaScript** committed to a GitHub tag through jsDelivr: no source build, npm installation, or npm account is needed. Pin an **exact tag**, not `main`, `latest`, or a version range. Earlier `v0.2.7` files have not been changed. Version 0.2.7 is also downloadable through the same CDN path, but cross-origin pages cannot create its worker and fall back to the main thread; use the current pinned version for new CDN integrations.
 
 ### Plain HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
@@ -140,7 +140,7 @@ The currently recommended CDN version is **0.14.2**. These URLs serve **already 
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -156,15 +156,15 @@ Prebuilt ESM for matching React and ReactDOM 19.3.1 is provided. Declare the imp
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
@@ -682,6 +682,134 @@ bot.entrance = null;
 ```
 
 Malformed or out-of-range objects are rejected. A missing or undersized target, or insufficient destination room, emits `sidekick-error` at execution; targets are not awaited automatically. A new movement, behavior or entrance declaration, or disconnection, can cancel an entrance in progress. `entrance` is page-layout configuration and is not included in saved Studio scenes.
+
+## Declarative lifecycle: presence, task, and home
+
+Declare whether the bot is visible, the application task it is presenting, and where it rests. Sidekick coordinates entrance → pending behavior → result reaction → inertial return home → rest. The application owns the asynchronous work and explicitly reports its status; Sidekick never infers completion from a timer or from a behavior ending. No manual move-back sequence or coordinate calculation is needed.
+
+**Release version:** The lifecycle examples below target `v0.15.0`. HTML uses the pinned CDN browser bundle; React uses the matching package build. For self-hosting, serve the matching `dist/browser/` files together and replace the CDN import with your local `sidekick.js` URL.
+
+| HTML JSON / JavaScript property | React prop | Declaration |
+| --- | --- | --- |
+| `presence` | `presence` | `{ visible: boolean, entrance?: Entrance, exit?: ExitOptions }`; `entrance` and `exit` reuse the existing arrival/exit settings. |
+| `task` | `task` | `{ id: string \| number, status: 'pending' \| 'success' \| 'error' \| 'cancelled', behavior?: BotBehavior, reaction?: { emotion: Emotion, duration?: number, intensity?: number } }` |
+| `home` | `home` | `{ positioning: Positioning, rest?: { activity?, behavior?, emotion?, emotionIntensity?, trackingMode?, gaze?, bodyOrientation? }, returnOn?: readonly ('success' \| 'error' \| 'cancelled')[] }` |
+| `sidekick-lifecycle-change` | `onLifecycleChange` | A `SidekickLifecycleState` snapshot; the same payload as the read-only `lifecycleState` property. |
+
+- `home.positioning` uses the existing viewport/element positioning object. Home is applied initially, then used again after eligible task results. `returnOn` defaults to `['success', 'cancelled']`; include `'error'` to return after failures, or use `[]` to disable automatic return.
+- While `status` is `'pending'`, `task.behavior` supplies the work behavior, such as `{ type: 'wait', target: '#lifecycle-work' }`. A behavior finishing is not a task finishing. Update the same task ID to `success`, `error`, or `cancelled` when the application knows the result.
+- By default, `success` reacts with `happy` for 1000ms, `error` with `sad` for 1000ms, and `cancelled` has no reaction. `task.reaction` customizes the result reaction with an existing `Emotion`, a duration in milliseconds, and intensity from 0 to 1. The reaction runs before an eligible home return; errors stay at the work location by default.
+- `home.rest.behavior` accepts only non-targeted `idle`, `celebrate`, or `error` behavior, with optional `duration`. Rest can also set an existing `activity` (`idle`, `thinking`, `listening`, `speaking`, `celebrating`, `still`), `emotion`, `emotionIntensity` (0–1), `trackingMode` (`off`, `eyes`, `eyes-and-body`), `gaze: { x, y }` (each −1…1), and `bodyOrientation` (`front`, `three-quarter`, `side`, or a partial `{ yaw, pitch, roll }`). Rest is applied at home after arrival.
+- A new task ID smoothly interrupts the previous task, reaction, or return. Equivalent declarations, including new object references with the same values, do not restart the lifecycle. Guard asynchronous callbacks by task ID so an old request cannot overwrite a newer task.
+- `presence.visible: false` takes priority over task/home choreography and uses `exit` when supplied. Setting it back to `true` resumes from the latest declarations, using `entrance` when supplied. Visibility does not cancel the application's network request; abort that separately when needed.
+
+Alternatively, `home.rest.gaze` accepts `{ target: '#nearby' }` or `{ target: element }` for attention only, without moving the bot. Target gaze owns tracking in `off` mode while resting. The gaze target must exist when rest begins; a replacement node matching the selector is not rebound automatically.
+
+The public entry points export `SidekickPresence`, `SidekickTask`, `SidekickHome`, and `SidekickLifecycleState` types. HTML uses JSON objects; JavaScript properties and React props also accept same-document `Element` targets.
+
+### HTML: connect a real task result
+
+Save this snippet in a page served over HTTP(S); it imports the pinned browser bundle from the CDN. The Promise is a local simulation; replace it with your application request. Click again to start a new task ID.
+
+```html
+<button id="lifecycle-save">Save / restart</button>
+<div id="lifecycle-work" style="margin: 96px 160px">Task target</div>
+<sidekick-avatar id="lifecycle-bot" placement="viewport"
+  style="width:96px;height:96px"
+  presence='{"visible":true,"entrance":{"source":"viewport","edge":"left"}}'
+  home='{"positioning":{"target":"viewport","placement":"bottom-right","gap":20},"rest":{"behavior":{"type":"idle"},"emotion":"neutral","trackingMode":"eyes-and-body","bodyOrientation":"front"}}'>
+</sidekick-avatar>
+<script type="module">
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/dist/browser/sidekick.js';
+  const bot = document.querySelector('#lifecycle-bot');
+  let latestId = 0;
+  document.querySelector('#lifecycle-save').addEventListener('click', async () => {
+    const id = ++latestId;
+    bot.task = { id, status: 'pending', behavior: { type: 'wait', target: '#lifecycle-work' } };
+    try {
+      // Replace this simulated Promise with the actual save request.
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (id === latestId) bot.task = { id, status: 'success' };
+    } catch (error) {
+      if (id === latestId) bot.task = { id, status: 'error' };
+      console.error(error);
+    }
+  });
+</script>
+```
+
+### React: keep the lifecycle in application state
+
+In an existing React 19 app, import the component from the matching package build. The same objects are passed as props; no ref-based movement commands are needed.
+
+```tsx
+import { useRef, useState } from 'react';
+import { SidekickAvatar } from '@hanana-kick/sidekick/react';
+import type { SidekickAvatarProps } from '@hanana-kick/sidekick/react';
+
+export default function SaveAssistant() {
+  const latestId = useRef(0);
+  const [task, setTask] = useState<SidekickAvatarProps['task']>();
+
+  async function save() {
+    const id = ++latestId.current;
+    setTask({ id, status: 'pending', behavior: { type: 'wait', target: '#lifecycle-work' } });
+    try {
+      // Replace this simulated Promise with the actual save request.
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (id === latestId.current) setTask({ id, status: 'success' });
+    } catch (error) {
+      if (id === latestId.current) setTask({ id, status: 'error' });
+      console.error(error);
+    }
+  }
+
+  return <>
+    <button onClick={save}>Save / restart</button>
+    <div id="lifecycle-work" style={{ margin: '96px 160px' }}>Task target</div>
+    <SidekickAvatar placement="viewport" style={{ width: 96, height: 96 }}
+      presence={{ visible: true, entrance: { source: 'viewport', edge: 'left' } }}
+      task={task}
+      onLifecycleChange={event => console.log(event.detail.phase)}
+      home={{
+        positioning: { target: 'viewport', placement: 'bottom-right', gap: 20 },
+        rest: { behavior: { type: 'idle' }, emotion: 'neutral',
+          trackingMode: 'eyes-and-body', bodyOrientation: 'front' },
+      }} />
+  </>;
+}
+```
+
+For cancellation, set the current task to `{ id, status: 'cancelled' }` and separately abort its application request. A static HTML task can use `task='{"id":"save-1","status":"pending","behavior":{"type":"wait","target":"#lifecycle-work"}}'`; update that JSON attribute or the JavaScript property when the result arrives.
+
+### Home attached to a page element
+
+Use a mounted, same-document selector or `Element` for a dock that moves with layout. JSON attributes accept selector strings. The target must exist when home is applied; `follow: true` (the default) tracks scrolling, resizing, and layout changes with the existing inertial positioning system.
+
+A selector may be declared before mount if its target exists by renderer readiness. For later home changes, mount the target before applying the declaration.
+
+```js
+bot.home = {
+  positioning: { target: '#dock', placement: 'center-left', gap: 12, follow: true },
+  rest: { behavior: { type: 'idle' }, emotion: 'neutral' },
+  returnOn: ['success', 'error', 'cancelled'],
+};
+```
+
+If the home target is missing or removed, `sidekick-error` is emitted and the bot keeps its current position. It does not jump to an invented fallback or bind a replacement node automatically. Ensure the target exists by renderer readiness, and update the declaration when replacing it. Existing positioning geometry, movement bounds, and reduced-motion rules still apply.
+
+Existing `behavior`, `positioning`, `entrance`, `perform()`, `reactTo()`, and movement APIs remain available for direct control. Prefer `presence`/`task`/`home` when the app wants the whole work-and-return sequence; avoid competing low-level declarations for that same sequence. Direct commands can suspend lifecycle ownership (`phase: 'suspended'`); an equivalent rerender does not take control back. Change or clear and reapply the relevant declaration to resume.
+
+### Observe lifecycle progress
+
+Read `bot.lifecycleState` or subscribe to `sidekick-lifecycle-change` / React `onLifecycleChange`. The snapshot contains `phase`, `taskId` (`string | number | null`), `taskStatus` (`pending | success | error | cancelled | null`), and an optional `reason` string. `phase` is `idle`, `hidden`, `entering`, `working`, `pending`, `reacting`, `returning`, `resting`, `settled`, `suspended`, or `error`. These are presentation phases: `pending` can continue after a behavior ends, and `resting` means home arrival/rest application, not that the application's request has just completed. Lifecycle errors do not rewrite `taskStatus`.
+
+```js
+bot.addEventListener('sidekick-lifecycle-change', event => {
+  console.log(event.detail.phase, event.detail.taskId, event.detail.taskStatus);
+});
+console.log(bot.lifecycleState);
+```
 
 ## Declarative behavior
 
@@ -1328,7 +1456,7 @@ The API playground enables “Default maximum speed · 1350 CSS px/s” by defau
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { maxSpeed: 320, acceleration: 900, deceleration: 1200 });
@@ -1365,7 +1493,7 @@ This stage absolutely positions a small 144px canvas in `inline` mode; there is 
 <button id="flight-stop" type="button">활동 중단</button>
 <p id="flight-status" aria-live="off">idle</p>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/dist/browser/sidekick.js';
   const stage = document.getElementById('flight-stage');
   const bot = document.getElementById('flight-avatar');
   const status = document.getElementById('flight-status');

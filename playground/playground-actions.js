@@ -1,3 +1,4 @@
+import { lifecycleSource, lifecycleCSS } from './lifecycle-example.js';
 import { apiError } from './api-locales.js';
 
 /** One serializable action describes both the invocation and the displayed example. */
@@ -34,8 +35,13 @@ export function executeAction(avatar, action, createAccessory) {
   return avatar[action.method](...args);
 }
 export function codeForAction(action, format = 'javascript', scene) {
+  if (action.lifecycle) {
+    const declarations = Object.fromEntries(action.steps.map(step => [step.property, step.value]));
+    const props = { placement: 'viewport', ...(scene ? { design: scene.design } : {}), ...declarations };
+    return lifecycleSource(props, 'body{margin:0;padding:16px;font:14px system-ui;color:#334155;background:#f8fafc}' + lifecycleCSS, format === 'react' ? 'react' : 'element', action.locale ?? 'en');
+  }
   const source = actionSource(action);
   const accessories = source.includes('createAccessory(');
   if (format === 'react') return `import { useRef } from 'react';\nimport { SidekickAvatar } from '@hanana-kick/sidekick/react';\n${accessories ? "import { createAccessory } from '@hanana-kick/sidekick';\n" : ''}\n${scene ? `const scene = ${JSON.stringify(scene, null, 2)};\n` : ''}export default function Example() {\n  const ref = useRef(null);\n  async function run() {\n    const avatar = ref.current;\n    if (!avatar) return;\n${source.split('\n').map(line => `    ${line}`).join('\n')}\n  }\n  return <>\n    <SidekickAvatar ref={ref} placement="viewport"\n      ${scene ? `design={scene.design} activity={scene.activity} paused={scene.paused}\n      trackingMode={scene.trackingMode} bodyOrientation={scene.bodyOrientation} zoom={scene.zoom}\n      onReady={event => { const bot = event.currentTarget; bot.lookAt({ space: 'view', ...scene.gaze }); bot.seek(scene.time); void bot.motion.to(scene.motion, { duration: 0 }); }}` : 'shape="ghostish" bodyColor="#FFCC37"'}\n      style={{ width: 180, height: 180, pointerEvents: 'none' }} />\n    <button onClick={run}>Run</button>\n  </>;\n}`;
-  return `${accessories ? "import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/dist/browser/sidekick.js';\n" : ''}const avatar = document.querySelector('#bot');\n${source}`;
+  return `${accessories ? "import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.0/dist/browser/sidekick.js';\n" : ''}const avatar = document.querySelector('#bot');\n${source}`;
 }

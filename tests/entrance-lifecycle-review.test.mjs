@@ -86,7 +86,7 @@ test('moving target updates both cutout and physical destination', () => {
   avatar.entrance = declaration;
   layout.left += 40; layout.top += 30;
   frame();
-  assert.deepEqual(avatar.presence.operation.point, { x: 356, y: 270 });
+  assert.deepEqual(avatar.presenceController.operation.point, { x: 356, y: 270 });
   assert.equal(avatar.canvas.style.clipPath, entranceClip(avatar.getBoundingClientRect(), target.getBoundingClientRect()));
 });
 
@@ -94,9 +94,9 @@ test('equal declarations retain the flight; removal cancels and readdition stage
   const { avatar, declaration } = fixture();
   avatar.entrance = declaration;
   frame();
-  const operation = avatar.presence.operation, position = avatar.position;
+  const operation = avatar.presenceController.operation, position = avatar.position;
   avatar.entrance = { ...declaration, at: 0.5, gap: 16 };
-  assert.equal(avatar.presence.operation, operation);
+  assert.equal(avatar.presenceController.operation, operation);
   assert.deepEqual(avatar.position, position);
   avatar.entrance = null;
   assert.equal(avatar.entrance, null);

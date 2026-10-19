@@ -1,3 +1,5 @@
+import { LifecycleController, validateSidekickPresence, validateSidekickTask, validateSidekickHome } from './lifecycle.js';
+import type { SidekickPresence, SidekickTask, SidekickHome, SidekickRest, SidekickLifecycleState } from './lifecycle.js';
 import { validatePositioning, samePositioning, copyPositioning, resolvePositioning } from './positioning.js';
 import type { Positioning, ResolvedPositioning } from './positioning.js';
 import { parseEmotion, validateEmotionOptions } from '../core/emotion.js';
@@ -43,6 +45,11 @@ import type { DesignTransition, RuntimeCommand, RuntimeEvent, RuntimeSnapshot, R
 import type { PixelBuffer } from '../core/pixels.js';
 import { ACCESSORY_ATTRIBUTE_SLOTS, SIDEKICK_ATTRIBUTES, REMOVED_ORIENTATION_ATTRIBUTES, SidekickAttributeError, resolveSidekickAttributes } from './attributes.js';
 import type { SidekickEventMap } from './attributes.js';
+function sameDesiredBehavior(a: BotBehavior | null, b: BotBehavior | null): boolean {
+  if (!a || !b) return a === b;
+  const left = a as unknown as Record<string, unknown>, right = b as unknown as Record<string, unknown>;
+  return Object.keys(left).length === Object.keys(right).length && Object.keys(left).every(key => { const x = left[key], y = right[key]; return Array.isArray(x) && Array.isArray(y) ? x.length === y.length && x.every((item, index) => item === y[index]) : x === y; });
+}
 const HTMLElementBase = (typeof HTMLElement === 'undefined' ? class {} : HTMLElement) as typeof HTMLElement;
 
 export class SidekickAvatar extends HTMLElementBase {
@@ -70,16 +77,137 @@ export class SidekickAvatar extends HTMLElementBase {
   });
   /** Persistent feeling. Transient reactions are available in emotionState. */
   get emotion(): Emotion { return this.emotionController.state.baseline.emotion; }
-  set emotion(value: Emotion) { this.setEmotion(value, { intensity: this.emotionIntensity }); }
+  set emotion(value: Emotion) { parseEmotion(value); this.interruptLifecycle(); this.setEmotion(value, { intensity: this.emotionIntensity }); }
   get emotionIntensity(): number { return this.emotionController.state.baseline.intensity; }
-  set emotionIntensity(value: number) { this.setEmotion(this.emotion, { intensity: value }); }
+  set emotionIntensity(value: number) { validateEmotionOptions({ intensity: value }); this.interruptLifecycle(); this.setEmotion(this.emotion, { intensity: value }); }
   get emotionState(): EmotionState { return this.emotionController.state; }
-  setEmotion(value: Emotion, options: EmotionOptions = {}): void { parseEmotion(value); validateEmotionOptions(options); this.setEyeControl(['left', 'right'], false); this.emotionController.set(value, options); }
-  reactTo(value: Emotion, options: ReactionOptions = {}): Promise<EmotionResult> { parseEmotion(value); validateEmotionOptions(options, true); if (this.isConnected) this.setEyeControl(['left', 'right'], false); return this.emotionController.react(value, options); }
-  cancelReaction(): void { this.emotionController.cancel(); }
+  setEmotion(value: Emotion, options: EmotionOptions = {}): void { parseEmotion(value); validateEmotionOptions(options); this.interruptLifecycle(); this.setEyeControl(['left', 'right'], false); this.emotionController.set(value, options); }
+  reactTo(value: Emotion, options: ReactionOptions = {}): Promise<EmotionResult> { parseEmotion(value); validateEmotionOptions(options, true); this.interruptLifecycle(); if (this.isConnected) this.setEyeControl(['left', 'right'], false); return this.emotionController.react(value, options); }
+  cancelReaction(): void { this.interruptLifecycle(); this.emotionController.cancel(); }
+  private lifecycleCommand = false;
+  private lifecycleRest = false;
+  private lifecycleCancelling = false;
+  private lifecycleGazeCleanup?: () => void;
+  private lifecycleRestore?: () => void;
+  private lifecyclePositionPromise?: Promise<MoveResult>;
+  private lifecyclePositionCurrent?: () => boolean;
+  private lifecycleEntrancePromise?: Promise<PresenceResult>;
+  private lifecycleController = new LifecycleController({
+    document: this.ownerDocument,
+    connected: () => this.connected && this.ready,
+    cancel: (reason, current) => this.lifecycleOperation(() => {
+      this.pendingBehavior = undefined;
+      this.lifecycleCancelling = true;
+      try { this.behaviorController.cancel(reason); } finally { this.lifecycleCancelling = false; }
+      if (!current()) return;
+      this.lifecycleRest = false;
+      this.lifecycleGazeCleanup?.(); this.lifecycleGazeCleanup = undefined;
+      const restore = this.lifecycleRestore; this.lifecycleRestore = undefined; restore?.(); if (!current()) return;
+      this.emotionController.cancel(); if (!current()) return;
+      this.lifecyclePositionCurrent = undefined;
+      this.clearPositioning(); this.releaseAnchor(false);
+      this.entranceRevision++; this.clearEntrance();
+      const owner = this.presenceController.interrupt();
+      if (current() && this.presenceController.owns(owner)) this.movement.cancel();
+    }),
+    presence: (value, current) => this.lifecycleOperation(() => {
+      if (!current()) return;
+      if (!value.visible) return this.exit(this.presenceHidden && this.presenceState === 'visible' ? { ...value.exit, duration: 0 } : value.exit ?? {});
+      if (value.entrance) {
+        const home = this.lifecycleController.home;
+        if (home && !this.lifecycleController.task) {
+          this.positioningDeclaration = validatePositioning(home.positioning, this.ownerDocument);
+          this.positioningTarget = undefined;
+        }
+        this.entranceRevision++; this.clearEntrance();
+        this.entranceDeclaration = value.entrance; this.entranceApplied = false;
+        this.lifecycleEntrancePromise = undefined;
+        this.startEntrance();
+        const entered = this.lifecycleEntrancePromise as Promise<PresenceResult> | undefined;
+        if (!entered) throw new Error('Declarative entrance could not start');
+        return entered.then(result => {
+          if (current() && !result.finished) throw new Error('Declarative entrance was interrupted');
+          if (current()) { this.clearPositioning(); this.releaseAnchor(false); }
+          return result;
+        });
+      }
+      const owner = this.presenceController.reveal();
+      if (current() && this.presenceController.owns(owner)) this.presenceController.recovered(owner);
+    }),
+    perform: (value, _current) => this.lifecycleOperation(() => this.behaviorController.perform(value)),
+    reactTo: (value, _current) => this.lifecycleOperation(() => { const { emotion, ...options } = value; return this.reactTo(emotion, options); }),
+    position: (value, current) => this.lifecycleOperation(() => {
+      if (!current()) return;
+      this.lifecyclePositionPromise = undefined;
+      this.lifecyclePositionCurrent = current;
+      this.positioning = value;
+      return this.lifecyclePositionPromise;
+    }),
+    rest: (value, current) => this.lifecycleOperation(() => this.applyLifecycleRest(value, current)),
+    change: state => this.emit('sidekick-lifecycle-change', state),
+    error: error => this.emit('sidekick-error', { ...error, attribute: 'lifecycle' }),
+  });
+  get presence(): SidekickPresence | null { return this.lifecycleController.presence; }
+  set presence(value: SidekickPresence | null) {
+    this.lifecycleController.update({ presence: value });
+    if (!this.ready) {
+      this.presenceHidden = value?.visible === false; this.style.setProperty('--sidekick-visibility', this.presenceHidden ? 'hidden' : 'visible');
+    }
+  }
+  get task(): SidekickTask | null { return this.lifecycleController.task; }
+  set task(value: SidekickTask | null) { this.lifecycleController.update({ task: value }); }
+  get home(): SidekickHome | null { return this.lifecycleController.home; }
+  set home(value: SidekickHome | null) { this.lifecycleController.update({ home: value }); }
+  get lifecycleState(): SidekickLifecycleState { return this.lifecycleController.state; }
+  private lifecycleOperation<T>(action: () => T): T {
+    const previous = this.lifecycleCommand; this.lifecycleCommand = true;
+    try { return action(); } finally { this.lifecycleCommand = previous; }
+  }
+  private interruptLifecycle(): void { if (!this.lifecycleCommand && !this.behaviorCommand) this.lifecycleController.suspend('manual-command'); }
+  private applyLifecycleRest(value: SidekickRest | null, current: () => boolean): void {
+    if (!value || !current()) return;
+    const activity = this.currentActivity, tracking = this.trackingModeState;
+    const orientation = this.bodyOrientation, gaze: Vec2 = [...this.manualGaze];
+    const emotion = this.emotion, intensity = this.emotionIntensity;
+    this.lifecycleRestore = () => {
+      this.currentActivity = activity; this.trackingModeState = tracking;
+      this.orientationState = orientation; this.manualGaze = gaze; this.gazeTarget = [...gaze];
+      this.send({ kind: 'state', state: { bodyOrientation: orientation } });
+      this.emotionController.set(emotion, { intensity });
+      this.updateMouseTracking(); this.syncState();
+    };
+    this.lifecycleRest = true;
+    if (value.activity !== undefined) this.currentActivity = value.activity;
+    if (value.trackingMode !== undefined) this.trackingModeState = value.trackingMode;
+    if (value.gaze) {
+      this.trackingModeState = 'off';
+      if ('target' in value.gaze) {
+        const target = typeof value.gaze.target === 'string' ? this.ownerDocument.querySelector(value.gaze.target) : value.gaze.target;
+        if (!target || !target.isConnected) throw new Error('Rest gaze target must be mounted when rest starts');
+        this.lifecycleGazeCleanup = this.watchBehaviorTarget(target, () => {
+          this.lifecycleGazeCleanup?.(); this.lifecycleGazeCleanup = undefined;
+          if (current()) this.lifecycleController.reportError(new Error('Rest gaze target was removed'));
+        });
+      } else { this.manualGaze = [value.gaze.x, value.gaze.y]; this.gazeTarget = [...this.manualGaze]; }
+    }
+    if (value.bodyOrientation) {
+      this.orientationState = typeof value.bodyOrientation === 'string' ? bodyOrientationPreset(value.bodyOrientation) : patchBodyOrientation(this.orientationState, value.bodyOrientation);
+      this.send({ kind: 'state', state: { bodyOrientation: this.bodyOrientation } });
+    }
+    if (value.emotion !== undefined || value.emotionIntensity !== undefined) this.emotionController.set(value.emotion ?? this.emotion, { intensity: value.emotionIntensity ?? this.emotionIntensity });
+    if (!current()) return;
+    if (value.behavior) {
+      const restTracking = this.trackingModeState, restGaze: Vec2 = [...this.manualGaze];
+      void this.behaviorController.perform(value.behavior);
+      if (!current()) return;
+      this.trackingModeState = restTracking; this.manualGaze = restGaze; this.gazeTarget = [...restGaze];
+    }
+    this.updateMouseTracking(); this.syncState();
+  }
   private behaviorCommand = false;
   private behaviorAttention = false;
   private pendingBehavior: BotBehavior | null | undefined;
+  private desiredBehavior: BotBehavior | null = null;
   private behaviorController = new BehaviorController({
     document: this.ownerDocument,
     connected: () => this.isConnected,
@@ -87,9 +215,17 @@ export class SidekickAvatar extends HTMLElementBase {
       const activity = this.currentActivity, tracking = this.trackingModeState;
       const orientation = this.bodyOrientation, gaze: Vec2 = [...this.manualGaze];
       return () => {
-        this.behaviorAttention = false; this.currentActivity = activity; this.trackingModeState = tracking;
-        this.orientationState = orientation; this.manualGaze = gaze; this.gazeTarget = [...gaze];
-        this.send({ kind: 'state', state: { bodyOrientation: orientation } });
+        if (this.lifecycleCancelling && this.lifecycleRestore) {
+          const restore = this.lifecycleRestore; this.lifecycleRestore = undefined; this.lifecycleRest = false;
+          this.lifecycleGazeCleanup?.(); this.lifecycleGazeCleanup = undefined;
+          this.behaviorAttention = false; restore();
+          return;
+        }
+        this.behaviorAttention = false; this.currentActivity = activity;
+        if (!this.lifecycleRest) {
+          this.trackingModeState = tracking; this.orientationState = orientation; this.manualGaze = gaze; this.gazeTarget = [...gaze];
+          this.send({ kind: 'state', state: { bodyOrientation: orientation } });
+        }
         void this.behaviorOperation(() => this.motion.to({ eyes: { left: this.configuration.eyes.left, right: this.configuration.eyes.right } }, { duration: 180 }));
         this.updateMouseTracking(); this.syncState();
       };
@@ -104,7 +240,7 @@ export class SidekickAvatar extends HTMLElementBase {
     },
     move: (target, side, gap) => this.behaviorOperation(() => this.moveToElement(target, this.behaviorPlacement(side, gap))),
     watch: (target, lost) => this.watchBehaviorTarget(target, lost),
-    stop: () => this.behaviorOperation(() => { this.releaseAnchor(false); this.movement.cancel(); }),
+    stop: () => this.behaviorOperation(() => { if (!this.lifecycleRest) { this.releaseAnchor(false); this.movement.cancel(); } }),
     change: state => this.emit('sidekick-behavior-change', state),
     end: result => this.emit('sidekick-behavior-end', result),
   });
@@ -112,14 +248,17 @@ export class SidekickAvatar extends HTMLElementBase {
   get behavior(): BotBehavior | null { return this.pendingBehavior === undefined ? this.behaviorController.declaration : this.pendingBehavior === null ? null : validateBehavior(this.pendingBehavior, this.ownerDocument); }
   set behavior(value: BotBehavior | null) {
     const next = value === null ? null : validateBehavior(value, this.ownerDocument);
+    if (next !== null && sameDesiredBehavior(next, this.desiredBehavior)) return;
+    this.desiredBehavior = next;
+    this.interruptLifecycle();
     if (!this.isConnected || (this.entranceDeclaration && (!this.ready || !this.entranceApplied || this.presenceState === 'entering'))) { this.pendingBehavior = next; return; }
     this.pendingBehavior = undefined;
     if (next === null) this.stopBehavior(); else void this.perform(next);
   }
   get behaviorState(): BehaviorState { return this.behaviorController.state; }
-  perform(value: BotBehavior, options: PerformOptions = {}): Promise<BehaviorResult> { return this.behaviorController.perform(value, options); }
-  stopBehavior(): void { this.pendingBehavior = undefined; this.behaviorController.cancel(); }
-  private interruptBehavior(): void { if (!this.behaviorCommand) { this.pendingBehavior = undefined; this.behaviorController.cancel('manual-command'); } }
+  perform(value: BotBehavior, options: PerformOptions = {}): Promise<BehaviorResult> { validateBehavior(value, this.ownerDocument); this.interruptLifecycle(); return this.behaviorController.perform(value, options); }
+  stopBehavior(): void { this.interruptLifecycle(); this.desiredBehavior = null; this.pendingBehavior = undefined; this.behaviorController.cancel(); }
+  private interruptBehavior(): void { this.interruptLifecycle(); if (!this.behaviorCommand) { this.pendingBehavior = undefined; this.behaviorController.cancel('manual-command'); } }
   private behaviorOperation<T>(action: () => T): T { const previous = this.behaviorCommand; this.behaviorCommand = true; try { return action(); } finally { this.behaviorCommand = previous; } }
   private behaviorPlacement(side: BehaviorSide, gap: number): MoveToElementOptions {
     const rect = this.getBoundingClientRect();
@@ -235,13 +374,14 @@ export class SidekickAvatar extends HTMLElementBase {
     if (samePositioning(next, this.positioningDeclaration)) return;
     // Validate mounted targets before cancelling an existing valid declaration.
     if (next && this.ready && this.connected) resolvePositioning(this, this.position, next);
+    this.interruptLifecycle();
     const revision = ++this.positioningRevision;
     this.interruptBehavior(); if (revision !== this.positioningRevision) return;
     this.releaseAnchor(false); this.positioningTarget = undefined; this.positioningDeclaration = next;
     if (!next) {
       this.entranceRevision++; this.clearEntrance();
-      const owner = this.presence.interrupt();
-      if (revision === this.positioningRevision && this.presence.owns(owner)) this.movement.cancel();
+      const owner = this.presenceController.interrupt();
+      if (revision === this.positioningRevision && this.presenceController.owns(owner)) this.movement.cancel();
       return;
     }
     if (this.ready && this.connected && this.presenceState !== 'entering') this.startPositioning();
@@ -268,12 +408,12 @@ export class SidekickAvatar extends HTMLElementBase {
       const resolved = this.resolvePositioningDeclaration(config);
       this.releaseAnchor(false);
       const revision = this.anchorRevision;
-      const owner = this.presence.reveal();
-      if (!this.presence.owns(owner) || this.positioningDeclaration !== config || revision !== this.anchorRevision) return;
+      const owner = this.presenceController.reveal();
+      if (!this.presenceController.owns(owner) || this.positioningDeclaration !== config || revision !== this.anchorRevision) return;
       const options = resolveSidekickAttributes(this.acceptedAttributes).moveOptions;
       if (!this.acceptedAttributes.has('move-duration')) delete options.duration;
       if (initial) this.movement.relocate(this.constrainPosition(resolved.position, true));
-      else void this.movement.to(this.constrainPosition(resolved.position, true), options).then(result => { if (result.finished) this.presence.recovered(owner); });
+      else this.lifecyclePositionPromise = this.movement.to(this.constrainPosition(resolved.position, true), options).then(result => { if (result.finished) this.presenceController.recovered(owner); return result; });
       if (!config.follow || this.positioningDeclaration !== config || revision !== this.anchorRevision) return;
       this.anchorCleanup = observeElementAnchor(this.ownerDocument, () => {
         if (this.positioningDeclaration !== config || revision !== this.anchorRevision) return;
@@ -293,10 +433,16 @@ export class SidekickAvatar extends HTMLElementBase {
             this.movement.followTarget(point);
           };
         } catch (error) {
-          return () => { if (revision !== this.anchorRevision) return; this.clearPositioning(); this.releaseAnchor(true); this.emit('sidekick-error', { message: String(error), attribute: 'positioning' }); };
+          return () => { if (revision !== this.anchorRevision) return; this.positioningFailed(error); };
         }
       }, () => this.anchorSleeping);
-    } catch (error) { this.clearPositioning(); this.releaseAnchor(true); this.emit('sidekick-error', { message: String(error), attribute: 'positioning' }); }
+    } catch (error) { this.positioningFailed(error); }
+  }
+  private positioningFailed(error: unknown): void {
+    const owned = this.lifecyclePositionCurrent?.() ?? false;
+    this.clearPositioning(); this.releaseAnchor(true);
+    if (owned) this.lifecycleController.reportError(error);
+    else this.emit('sidekick-error', { message: String(error), attribute: 'positioning' });
   }
   private entranceDeclaration: Entrance | null = null;
   private entranceApplied = false;
@@ -307,15 +453,16 @@ export class SidekickAvatar extends HTMLElementBase {
   set entrance(value: Entrance | null) {
     const next = value === null ? null : validateEntrance(value);
     if (sameEntrance(next, this.entranceDeclaration)) return;
+    this.interruptLifecycle();
     const revision = ++this.entranceRevision;
-    if (this.entranceCleanup || (this.entranceApplied && this.presenceState === 'entering')) { this.clearEntrance(); const owner = this.presence.interrupt(); if (revision !== this.entranceRevision || !this.presence.owns(owner)) return; this.movement.cancel(true); }
+    if (this.entranceCleanup || (this.entranceApplied && this.presenceState === 'entering')) { this.clearEntrance(); const owner = this.presenceController.interrupt(); if (revision !== this.entranceRevision || !this.presenceController.owns(owner)) return; this.movement.cancel(true); }
     if (revision !== this.entranceRevision) return;
     this.clearEntrance(); this.entranceDeclaration = next; this.entranceApplied = false;
     if (next && this.ready) this.startEntrance();
     else if (!next) this.resumeEntranceBehavior();
   }
   private resumeEntranceBehavior(): void {
-    if (this.pendingBehavior !== undefined && this.ready && this.connected && this.presenceState !== 'entering') this.behavior = this.pendingBehavior;
+    if (this.pendingBehavior !== undefined && this.ready && this.connected && this.presenceState !== 'entering') { const next = this.pendingBehavior; this.desiredBehavior = null; this.behavior = next; }
   }
   private clearEntrance(): void { this.entranceCleanup?.(); this.entranceCleanup = undefined; this.refreshEntranceClip = undefined; this.canvas?.style?.removeProperty('clip-path'); }
   private startEntrance(): void {
@@ -361,11 +508,11 @@ export class SidekickAvatar extends HTMLElementBase {
           const box = this.getBoundingClientRect();
           const next = entrancePositions(config, box.width, box.height, view.innerWidth, view.innerHeight, target?.getBoundingClientRect());
           const destination = this.positioningDestination() ?? { x: next.end.x - (box.left - this.position.x), y: next.end.y - (box.top - this.position.y) };
-          return () => { if (revision !== this.entranceRevision) return; this.refreshEntranceClip?.(); this.presence.retarget(destination); };
+          return () => { if (revision !== this.entranceRevision) return; this.refreshEntranceClip?.(); this.presenceController.retarget(destination); };
         } catch (error) {
           return () => {
             if (revision !== this.entranceRevision) return;
-            this.clearEntrance(); const owner = this.presence.interrupt(); if (revision !== this.entranceRevision || !this.presence.owns(owner)) return; this.movement.cancel();
+            this.clearEntrance(); const owner = this.presenceController.interrupt(); if (revision !== this.entranceRevision || !this.presenceController.owns(owner)) return; this.movement.cancel();
             this.discardInvalidPositioning(); this.emit('sidekick-error', { message: String(error), attribute: 'entrance' }); this.resumeEntranceBehavior();
           };
         }
@@ -374,15 +521,16 @@ export class SidekickAvatar extends HTMLElementBase {
       const source = geometry.start ?? (config.source === 'viewport' ? { x: config.edge === 'left' ? -rect.width - 8 : config.edge === 'right' ? view.innerWidth + 8 : geometry.end.x, y: config.edge === 'top' ? -rect.height - 8 : config.edge === 'bottom' ? view.innerHeight + 8 : geometry.end.y } : undefined);
       const motion = resolveSidekickAttributes(this.acceptedAttributes).moveOptions;
       if (!this.acceptedAttributes.has('move-duration')) delete motion.duration;
-      void this.presence.enter(this.positioningDestination() ?? local(geometry.end), { ...motion, from: config.source === 'viewport' ? config.edge : config.direction }, source ? local(source) : undefined).then(() => {
+      this.lifecycleEntrancePromise = this.presenceController.enter(this.positioningDestination() ?? local(geometry.end), { ...motion, from: config.source === 'viewport' ? config.edge : config.direction }, source ? local(source) : undefined).then(result => {
         if (revision === this.entranceRevision && this.entranceCleanup === cleanup) { this.clearEntrance(); this.startPositioning(); this.resumeEntranceBehavior(); }
+        return result;
       });
       if (revision !== this.entranceRevision || !this.connected) return;
       if (target) this.canvas.style.clipPath = entranceClip(this.getBoundingClientRect(), target.getBoundingClientRect());
     } catch (error) { if (revision !== this.entranceRevision) return; this.clearEntrance(); this.discardInvalidPositioning(); this.emit('sidekick-error', { message: error instanceof Error ? error.message : String(error), attribute: 'entrance' }); this.resumeEntranceBehavior(); }
   }
   private presenceHidden = false;
-  private presence = new AvatarPresence({
+  private presenceController = new AvatarPresence({
     assertViewport: () => { if (this.placement !== 'viewport' || !this.connected) throw new Error('enter/exit require a connected avatar with placement="viewport"'); this.releaseAnchor(false); },
     position: () => this.position,
     geometry: () => { const rect = this.getBoundingClientRect(), view = this.ownerDocument.defaultView!; return { width: rect.width, height: rect.height, viewportWidth: view.innerWidth, viewportHeight: view.innerHeight, offsetX: rect.left - this.position.x, offsetY: rect.top - this.position.y }; },
@@ -392,9 +540,9 @@ export class SidekickAvatar extends HTMLElementBase {
     visibility: hidden => { this.presenceHidden = hidden; this.style.setProperty('--sidekick-visibility', hidden ? 'hidden' : 'visible'); this.updateMouseTracking(); this.syncState(); },
     complete: (kind, result) => this.emit(kind === 'enter' ? 'sidekick-enter-end' : 'sidekick-exit-end', result),
   });
-  get presenceState(): PresenceState { return this.presence.current; }
-  enter(position: AvatarPosition, options: EnterOptions = {}): Promise<PresenceResult> { validatePosition(position); validatePresenceOptions(options, 'from'); if (this.placement !== 'viewport' || !this.connected) throw new Error('enter requires a connected viewport avatar'); this.clearPositioning(); return this.presence.enter(position, options); }
-  exit(options: ExitOptions = {}): Promise<PresenceResult> { validatePresenceOptions(options, 'to'); if (this.placement !== 'viewport' || !this.connected) throw new Error('exit requires a connected viewport avatar'); this.clearPositioning(); return this.presence.exit(options); }
+  get presenceState(): PresenceState { return this.presenceController.current; }
+  enter(position: AvatarPosition, options: EnterOptions = {}): Promise<PresenceResult> { validatePosition(position); validatePresenceOptions(options, 'from'); if (this.placement !== 'viewport' || !this.connected) throw new Error('enter requires a connected viewport avatar'); this.interruptBehavior(); this.clearPositioning(); return this.presenceController.enter(position, options); }
+  exit(options: ExitOptions = {}): Promise<PresenceResult> { validatePresenceOptions(options, 'to'); if (this.placement !== 'viewport' || !this.connected) throw new Error('exit requires a connected viewport avatar'); this.interruptBehavior(); this.clearPositioning(); return this.presenceController.exit(options); }
   get placement(): AvatarPlacement { return this.placementState; }
   set placement(value: AvatarPlacement) { if (value !== 'inline' && value !== 'viewport') throw new TypeError('placement must be inline or viewport'); this.reflectAttribute('placement', value); }
   get movementBounds(): MovementBounds { return this.boundsState; }
@@ -402,7 +550,7 @@ export class SidekickAvatar extends HTMLElementBase {
   /** Inline: offset from normal layout. Viewport: layout viewport top-left, CSS pixels. */
   get position(): AvatarPosition { return this.movement.position; }
   get movementState(): MovementState { return this.movement.state; }
-  moveTo(position: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { const target = this.constrainPosition(validatePosition(position), true); validateMoveOptions(options); this.interruptBehavior(); this.clearPositioning(); this.releaseAnchor(false); const revision = this.presence.reveal(); if (!this.presence.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.to(target, options).then(result => { if (result.finished) this.presence.recovered(revision); return result; }); }
+  moveTo(position: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { const target = this.constrainPosition(validatePosition(position), true); validateMoveOptions(options); this.interruptBehavior(); this.clearPositioning(); this.releaseAnchor(false); const revision = this.presenceController.reveal(); if (!this.presenceController.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.to(target, options).then(result => { if (result.finished) this.presenceController.recovered(revision); return result; }); }
   /** Sample the target's viewport border-box and align matching anchors, then move with inertia. */
   moveToElement(target: Element, options: MoveToElementOptions = {}): Promise<MoveResult> {
     const resolved = resolveElementTarget(this, this.position, target, options);
@@ -412,10 +560,10 @@ export class SidekickAvatar extends HTMLElementBase {
     if (state && this.anchorRevision === expectedRevision) this.attachAnchor(state);
     return result;
   }
-  moveBy(delta: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { validatePosition(delta); validateMoveOptions(options); this.interruptBehavior(); this.clearPositioning(); this.releaseAnchor(false); const revision = this.presence.reveal(); if (!this.presence.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.by(delta, options, point => this.constrainPosition(point, true)).then(result => { if (result.finished) this.presence.recovered(revision); return result; }); }
-  cancelMove(): void { this.clearPositioning(); this.interruptBehavior(); this.releaseAnchor(false); const revision = this.presence.interrupt(); if (this.presence.owns(revision)) this.movement.cancel(); }
+  moveBy(delta: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { validatePosition(delta); validateMoveOptions(options); this.interruptBehavior(); this.clearPositioning(); this.releaseAnchor(false); const revision = this.presenceController.reveal(); if (!this.presenceController.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.by(delta, options, point => this.constrainPosition(point, true)).then(result => { if (result.finished) this.presenceController.recovered(revision); return result; }); }
+  cancelMove(): void { this.clearPositioning(); this.interruptBehavior(); this.releaseAnchor(false); const revision = this.presenceController.interrupt(); if (this.presenceController.owns(revision)) this.movement.cancel(); }
   private constrainPosition(point: AvatarPosition, presenceTarget = false): AvatarPosition {
-    if (!presenceTarget && this.presence?.bypassBounds) return { ...point };
+    if (!presenceTarget && this.presenceController?.bypassBounds) return { ...point };
     if (this.placementState !== 'viewport' || this.boundsState === 'none' || !this.connected) return { ...point };
     const view = this.ownerDocument.defaultView;
     if (!view) return { ...point };
@@ -425,9 +573,9 @@ export class SidekickAvatar extends HTMLElementBase {
   private updatePlacement(): void {
     this.style.setProperty('--sidekick-position', this.placementState === 'viewport' ? 'fixed' : 'relative');
     this.style.setProperty('--sidekick-inset', this.placementState === 'viewport' ? '0px' : 'auto');
-    this.measureMovementBox(); if (this.presence?.bypassBounds) this.presence.resize(); else this.movement.resize();
+    this.measureMovementBox(); if (this.presenceController?.bypassBounds) this.presenceController.resize(); else this.movement.resize();
   }
-  private onViewportResize = (): void => { this.measureMovementBox(); if (this.presence?.bypassBounds) this.presence.resize(); else this.movement.resize(); };
+  private onViewportResize = (): void => { this.measureMovementBox(); if (this.presenceController?.bypassBounds) this.presenceController.resize(); else this.movement.resize(); };
   private configuration = createDesign();
   // This zero-duration reducer validates commands synchronously. It never runs animation.
   private validator = new MotionTimeline({ left: this.configuration.eyes.left, right: this.configuration.eyes.right });
@@ -617,8 +765,9 @@ export class SidekickAvatar extends HTMLElementBase {
   get bodyOrientation(): BodyOrientation { return { ...this.orientationState }; }
   set bodyOrientation(value: BodyOrientation) { this.setBodyOrientation(value); }
   setBodyOrientation(angles: Partial<BodyOrientation>): void {
-    const next = patchBodyOrientation(this.orientationState, angles);
+    patchBodyOrientation(this.orientationState, angles);
     this.interruptBehavior();
+    const next = patchBodyOrientation(this.orientationState, angles);
     if (next.yaw === this.orientationState.yaw && next.pitch === this.orientationState.pitch && next.roll === this.orientationState.roll) return;
     this.orientationState = next;
     this.send({ kind: 'state', state: { bodyOrientation: this.bodyOrientation } });
@@ -678,7 +827,7 @@ export class SidekickAvatar extends HTMLElementBase {
     this.connected = true;
     this.flushAttributes();
     this.upgradeProperties();
-    if (this.pendingBehavior !== undefined) this.behavior = this.pendingBehavior;
+    if (this.pendingBehavior !== undefined) { const next = this.pendingBehavior; this.desiredBehavior = null; this.behavior = next; }
     if (!this.connected || !this.isConnected) return;
     if (!this.shadowRoot) {
       const shadow = this.attachShadow({ mode: 'open' });
@@ -713,10 +862,11 @@ export class SidekickAvatar extends HTMLElementBase {
     this.initializeRenderer();
   }
   disconnectedCallback(): void {
+    this.lifecycleController.suspend('disconnected');
     this.emotionController.cancel('disconnected');
     this.behaviorController.cancel('disconnected');
     this.connected = false; this.releaseAnchor(false);
-    this.entranceRevision++; this.clearEntrance(); this.entranceApplied = false; this.presence.cancel(); this.playback.disconnect(); this.movement.disconnect();
+    this.entranceRevision++; this.clearEntrance(); this.entranceApplied = false; this.presenceController.cancel(); this.playback.disconnect(); this.movement.disconnect();
     this.ownerDocument.defaultView?.removeEventListener('resize', this.onViewportResize);
     this.connected = false; this.readyState = false; this.cancelInput(); this.detachMouseTracking(); this.clearDrag();
     this.disposeBridge(new Error('Avatar disconnected')); this.resetEyes(); this.snapshotState = undefined;
@@ -759,6 +909,11 @@ export class SidekickAvatar extends HTMLElementBase {
       const entranceValue: unknown = pending.has('entrance') && candidate.has('entrance') ? JSON.parse(candidate.get('entrance')!) : null;
       const entrance = entranceValue === null ? null : validateEntrance(entranceValue);
       const behavior = pending.has('behavior') && candidate.has('behavior') ? validateBehavior(JSON.parse(candidate.get('behavior')!), this.ownerDocument) : null;
+      const lifecycle = Object.fromEntries((['presence', 'task', 'home'] as const).filter(name => pending.has(name)).map(name => {
+        const value: unknown = candidate.has(name) ? JSON.parse(candidate.get(name)!) : null;
+        const validator = name === 'presence' ? validateSidekickPresence : name === 'task' ? validateSidekickTask : validateSidekickHome;
+        return [name, value === null ? null : validator(value, this.ownerDocument)];
+      }));
       const touched = (...names: string[]): boolean => names.some(name => pending.has(name));
       const allDesign = touched('design');
       const next = this.design;
@@ -797,14 +952,14 @@ export class SidekickAvatar extends HTMLElementBase {
       }
       const positioningRevision = this.positioningRevision;
       // Validation is complete before any live state, request or listener changes.
-      if (touched('activity', 'mouse-tracking', 'tracking-mode', 'expression', 'left-expression', 'right-expression', 'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'design', 'motion')) this.interruptBehavior();
+      if (touched('emotion', 'emotion-intensity', 'body-orientation', 'body-yaw', 'body-pitch', 'body-roll', 'gaze-x', 'gaze-y', 'activity', 'mouse-tracking', 'tracking-mode', 'expression', 'left-expression', 'right-expression', 'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'design', 'motion')) this.interruptBehavior();
       this.batch(() => {
       this.acceptedAttributes = candidate;
       if (touched('paused')) { this.pausedState = resolved.paused; if (resolved.paused) this.movement.finish(); this.playback.policyChanged(); }
       if (touched('placement', 'movement-bounds')) {
         this.placementState = resolved.placement; this.boundsState = resolved.movementBounds;
-        const revision = this.presence.reveal();
-        if (this.presence.owns(revision)) { this.movement.cancel(true); this.presence.recovered(revision); }
+        const revision = this.presenceController.reveal();
+        if (this.presenceController.owns(revision)) { this.movement.cancel(true); this.presenceController.recovered(revision); }
         this.updatePlacement();
       }
       if (touched('position-x', 'position-y') && !(touched('positioning') && positioning)) void this.moveTo({ x: touched('position-x') ? resolved.position.x : this.position.x, y: touched('position-y') ? resolved.position.y : this.position.y }, resolved.moveOptions);
@@ -830,6 +985,10 @@ export class SidekickAvatar extends HTMLElementBase {
       if (touched('positioning') && this.positioningRevision === positioningRevision) this.positioning = positioning;
       if (touched('entrance')) this.entrance = entrance;
       if (touched('behavior')) this.behavior = behavior;
+      if (Object.keys(lifecycle).length) {
+        this.lifecycleController.update(lifecycle);
+        if (!this.ready && Object.hasOwn(lifecycle, 'presence')) { this.presenceHidden = this.lifecycleController.presence?.visible === false; this.style.setProperty('--sidekick-visibility', this.presenceHidden ? 'hidden' : 'visible'); }
+      }
     } catch (error) {
       // Keep rejected writes together: repairing one field retries the original batch.
       for (const [name, value] of pending) if (!this.pendingAttributes.has(name)) this.pendingAttributes.set(name, value);
@@ -839,7 +998,7 @@ export class SidekickAvatar extends HTMLElementBase {
   private upgradeProperties(): void {
     if (this.propertiesUpgraded) return;
     this.propertiesUpgraded = true;
-    for (const name of ['positioning', 'entrance', 'behavior', 'placement', 'movementBounds', 'design', 'emotion', 'emotionIntensity', 'bodyOrientation', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode'] as const) {
+    for (const name of ['presence', 'task', 'home', 'positioning', 'entrance', 'behavior', 'placement', 'movementBounds', 'design', 'emotion', 'emotionIntensity', 'bodyOrientation', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode'] as const) {
       if (!Object.prototype.hasOwnProperty.call(this, name)) continue;
       const value: unknown = this[name];
       Reflect.deleteProperty(this, name);
@@ -920,8 +1079,8 @@ export class SidekickAvatar extends HTMLElementBase {
       }
       this.cancelStartupPresentation();
       this.readyState = true;
-      this.startEntrance();
-      this.startPositioning(true);
+      if (!this.presence && !this.task && !this.home) { this.startEntrance(); this.startPositioning(true); }
+      this.lifecycleController.reconcile();
       this.refreshEntranceClip?.();
       if (!this.connected || generation !== this.generation || !this.bridge) return;
       this.canvas!.hidden = false; this.fallback!.hidden = true;
@@ -1007,7 +1166,7 @@ export class SidekickAvatar extends HTMLElementBase {
     this.style.setProperty('--sidekick-touch-action', this.interaction === 'box' ? 'none' : 'auto');
     this.style.setProperty('--sidekick-cursor', this.interaction === 'box' ? 'grab' : 'auto');
   }
-  private resize = (): void => { this.measureMovementBox(); if (this.presence?.bypassBounds) this.presence.resize(); else this.movement.resize(); this.pendingResize = true; this.queueInput(); };
+  private resize = (): void => { this.measureMovementBox(); if (this.presenceController?.bypassBounds) this.presenceController.resize(); else this.movement.resize(); this.pendingResize = true; this.queueInput(); };
   private queueInput(): void { if (!this.inputFrame && this.connected) this.inputFrame = requestAnimationFrame(this.flushInput); }
   private cancelInput(): void { if (this.inputFrame) cancelAnimationFrame(this.inputFrame); this.inputFrame = 0; this.pendingResize = false; this.pendingPointer = undefined; this.pendingDrag = undefined; this.pendingZoom = undefined; this.pendingPinchDistance = undefined; }
   private flushInput = (): void => {
@@ -1034,7 +1193,13 @@ export class SidekickAvatar extends HTMLElementBase {
       }
     }
   };
-  private emit(name: keyof SidekickEventMap, detail: unknown): void { this.dispatchEvent(new CustomEvent(name, { detail, bubbles: true, composed: true })); }
+  private emit(name: keyof SidekickEventMap, detail: unknown): void {
+    // Event handlers are application commands, even when emitted inside an owned operation.
+    const lifecycle = this.lifecycleCommand, behavior = this.behaviorCommand;
+    this.lifecycleCommand = false; this.behaviorCommand = false;
+    try { this.dispatchEvent(new CustomEvent(name, { detail, bubbles: true, composed: true })); }
+    finally { this.lifecycleCommand = lifecycle; this.behaviorCommand = behavior; }
+  }
   private resetEyes(): void { this.validator.pose = structuredClone(this.currentPose); this.validator.setEyes({ left: this.configuration.eyes.left, right: this.configuration.eyes.right }); this.currentPose = structuredClone(this.validator.pose); }
   private onMotionPreference = (): void => { this.reduced = this.media?.matches ?? false; if (this.reduced) this.movement.finish(); this.playback.policyChanged(); this.syncState(); };
   private onVisibility = (): void => { if (this.anchorState) this.movement.suspend(this.ownerDocument.hidden || this.anchorSleeping); this.updateMouseTracking(); this.syncState(); };

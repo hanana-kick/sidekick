@@ -187,7 +187,8 @@ for(const lesson of lessons.lessons.filter(item=>item.id.startsWith('state-')))t
   assert.equal(page.$('lesson-content').querySelectorAll('tbody tr').length,stateSchema.STATE_FIELDS[lesson.id].length);
   assert.equal(page.$('lesson-content').querySelectorAll('pre').length,1);
   const target=page.$('lesson-content').querySelector('[data-lesson-destination]');assert.equal(navigation.readGuideSource(target.href).id,lesson.id);
-  assert.ok(catalog.scenarios.some(item=>'#'+item.id===new URL(target.href).hash));
+  if(lesson.id==='state-lifecycle')assert.equal(new URL(target.href).searchParams.get('lesson'),'declarative-lifecycle');
+  else assert.ok(catalog.scenarios.some(item=>'#'+item.id===new URL(target.href).hash));
   assert.equal(page.$('demo-bot'),null);
  }finally{page.close();}
 });

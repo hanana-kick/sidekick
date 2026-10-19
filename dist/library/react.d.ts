@@ -1,4 +1,3 @@
-import type { Positioning } from './element/positioning.js';
 import type { HTMLAttributes, ReactElement, Ref } from 'react';
 import type { AccessoryDesign, Activity, AvatarDesign, RenderStyle } from './core/design.js';
 import type { BodyOrientation, BodyOrientationPreset } from './core/body-orientation.js';
@@ -11,6 +10,8 @@ import type { SidekickAttributes, SidekickEventMap } from './element/attributes.
 import type { Emotion } from './core/emotion.js';
 import type { Entrance } from './element/entrance.js';
 import type { BotBehavior } from './element/behavior.js';
+import type { Positioning } from './element/positioning.js';
+import type { SidekickPresence, SidekickTask, SidekickHome } from './element/lifecycle.js';
 export type SidekickAvatarRef = SidekickElement;
 export type SidekickEventHandler<K extends keyof SidekickEventMap> = (event: SidekickEventMap[K]) => void;
 /** React 19 wrapper. The ref is published after the custom element has upgraded. */
@@ -36,12 +37,19 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
     behavior?: BotBehavior | null;
     entrance?: Entrance | null;
     positioning?: Positioning | null;
+    /** Declarative visibility; null releases lifecycle ownership. */
+    presence?: SidekickPresence | null;
+    /** Keyed asynchronous work, including its terminal outcome. */
+    task?: SidekickTask | null;
+    /** A return destination and optional resting appearance. */
+    home?: SidekickHome | null;
     emotion?: Emotion;
     emotionIntensity?: number;
     onEmotionChange?: SidekickEventHandler<'sidekick-emotion-change'>;
     onReactionEnd?: SidekickEventHandler<'sidekick-reaction-end'>;
     onBehaviorChange?: SidekickEventHandler<'sidekick-behavior-change'>;
     onBehaviorEnd?: SidekickEventHandler<'sidekick-behavior-end'>;
+    onLifecycleChange?: SidekickEventHandler<'sidekick-lifecycle-change'>;
     design?: AvatarDesign;
     shape?: MaterialShapeName;
     bodyColor?: string;
@@ -106,3 +114,4 @@ export type { BotBehavior, BehaviorTarget, BehaviorSide, BehaviorPhase, Behavior
 export type { Emotion, EmotionValue, EmotionOptions, ReactionOptions, EmotionState, EmotionResult } from './core/emotion.js';
 export type { Entrance } from './element/entrance.js';
 export type { Positioning, PositionPlacement, ResolvedPositioning } from './element/positioning.js';
+export type { SidekickPresence, SidekickTask, SidekickTaskStatus, SidekickTerminalStatus, SidekickReaction, SidekickHome, SidekickRest, SidekickLifecycleDeclaration, SidekickLifecyclePhase, SidekickLifecycleState } from './element/lifecycle.js';

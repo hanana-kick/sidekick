@@ -25,6 +25,7 @@ const eventProps = {
     onEnterEnd: 'sidekick-enter-end', onExitEnd: 'sidekick-exit-end',
     onMoveEnd: 'sidekick-move-end', onMoveProgress: 'sidekick-move-progress', onPlayEnd: 'sidekick-play-end', onAssetTransitionEnd: 'sidekick-transition-end',
     onBehaviorChange: 'sidekick-behavior-change', onBehaviorEnd: 'sidekick-behavior-end',
+    onLifecycleChange: 'sidekick-lifecycle-change',
     onReady: 'sidekick-ready', onDesignChange: 'sidekick-design-change', onMotionEnd: 'sidekick-motion-end',
     onShapeEnd: 'sidekick-shape-end', onBodyOrientationChange: 'sidekick-body-orientation-change', onZoomChange: 'sidekick-zoom-change', onActivate: 'sidekick-activate', onError: 'sidekick-error',
 };
@@ -67,6 +68,55 @@ function copyBehavior(value) {
     }
     return Object.create(Object.getPrototypeOf(value), descriptors);
 }
+// Lifecycle declarations contain nested data and identity-bearing Element targets.
+// Inspect descriptors rather than reading values so invalid accessors can reach the
+// native validator without ever running during React comparison or snapshotting.
+// Only arrays and plain data records are traversed; DOM objects stay by identity,
+// without accessing DOM globals or importing the client-only lifecycle controller.
+function isDeclarativeRecord(value) {
+    const prototype = Object.getPrototypeOf(value);
+    return Array.isArray(value) || prototype === Object.prototype || prototype === null;
+}
+function copyDeclarative(value, seen = new WeakMap()) {
+    if (value === null || typeof value !== 'object' || !isDeclarativeRecord(value))
+        return value;
+    const existing = seen.get(value);
+    if (existing)
+        return existing;
+    const result = Array.isArray(value) ? [] : Object.create(Object.getPrototypeOf(value));
+    seen.set(value, result);
+    for (const key of Reflect.ownKeys(value)) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, key);
+        if (Object.hasOwn(descriptor, 'value'))
+            descriptor.value = copyDeclarative(descriptor.value, seen);
+        Object.defineProperty(result, key, descriptor);
+    }
+    return result;
+}
+function sameDeclarative(previous, next, seen = new WeakMap()) {
+    if (Object.is(previous, next))
+        return true;
+    if (!previous || !next || typeof previous !== 'object' || typeof next !== 'object')
+        return false;
+    if (!isDeclarativeRecord(previous) || !isDeclarativeRecord(next) || Object.getPrototypeOf(previous) !== Object.getPrototypeOf(next))
+        return false;
+    const paired = seen.get(previous);
+    if (paired)
+        return paired === next;
+    seen.set(previous, next);
+    const keys = Reflect.ownKeys(previous);
+    if (keys.length !== Reflect.ownKeys(next).length)
+        return false;
+    return keys.every(key => {
+        const before = Object.getOwnPropertyDescriptor(previous, key);
+        const after = Object.getOwnPropertyDescriptor(next, key);
+        if (!after || before.enumerable !== after.enumerable || Object.hasOwn(before, 'value') !== Object.hasOwn(after, 'value'))
+            return false;
+        return Object.hasOwn(before, 'value')
+            ? sameDeclarative(before.value, after.value, seen)
+            : before.get === after.get && before.set === after.set;
+    });
+}
 // Keep validation local: eager core imports create additional shared browser chunks
 // and pull renderer dependencies into the SSR-safe React entry point.
 function validateBodyOrientation(value) {
@@ -97,7 +147,7 @@ export function SidekickAvatar(props) {
         if (Object.prototype.hasOwnProperty.call(props, name))
             throw new TypeError(`${name} has been removed; use bodyOrientation, bodyYaw/bodyPitch/bodyRoll, zoom, onBodyOrientationChange or onZoomChange instead`);
     }
-    const { ref, design, accessories, bodyOrientation, motion, behavior: _behavior, entrance: _entrance, positioning: _positioning, ...html } = props;
+    const { ref, design, accessories, bodyOrientation, motion, behavior: _behavior, entrance: _entrance, positioning: _positioning, presence: _presence, task: _task, home: _home, ...html } = props;
     const element = useRef(null);
     const readyNotified = useRef(false);
     const deliveredReadyEvent = useRef(null);
@@ -111,6 +161,7 @@ export function SidekickAvatar(props) {
     const appliedPositioning = useRef(null);
     const appliedEntrance = useRef(null);
     const appliedBehavior = useRef(null);
+    const appliedLifecycle = useRef({});
     const published = useRef(null);
     const attributes = {};
     if (design !== undefined)
@@ -246,6 +297,31 @@ export function SidekickAvatar(props) {
                     catch (error) {
                         node.dispatchEvent(new CustomEvent('sidekick-error', {
                             detail: { message: error instanceof Error ? error.message : String(error), attribute: 'behavior' }, bubbles: true, composed: true,
+                        }));
+                    }
+                }
+                // Install the return destination before visibility or task work can start.
+                for (const name of ['home', 'presence', 'task']) {
+                    const requested = callbacks.current[name];
+                    const previous = appliedLifecycle.current[name];
+                    if (requested === undefined && previous?.node !== node)
+                        continue;
+                    const value = requested ?? null;
+                    try {
+                        if (previous?.node !== node || !sameDeclarative(previous.value, value)) {
+                            appliedLifecycle.current[name] = { node, value: copyDeclarative(value) };
+                            // Keep the property's specific type correlated with its name.
+                            if (name === 'home')
+                                node.home = value;
+                            else if (name === 'presence')
+                                node.presence = value;
+                            else
+                                node.task = value;
+                        }
+                    }
+                    catch (error) {
+                        node.dispatchEvent(new CustomEvent('sidekick-error', {
+                            detail: { message: error instanceof Error ? error.message : String(error), attribute: name }, bubbles: true, composed: true,
                         }));
                     }
                 }

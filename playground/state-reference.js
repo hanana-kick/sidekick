@@ -1,3 +1,4 @@
+import { lifecycleDefaults } from './lifecycle-example.js';
 import './state-reference.css';
 import { getFramework, subscribeFramework } from './site-framework.js';
 import { getSiteLocale, subscribeSiteLocale } from './site-i18n.js';
@@ -21,7 +22,7 @@ export function mountStateReference(host,id,{session}){
  const scene=structuredClone(session.scene),controller=new AbortController(),signal=controller.signal;
  const copy=key=>stateCopy(key,getSiteLocale());
  const incoming=readStateReferenceContext(location.href,scene,document);
- let edits=structuredClone(incoming?.id===id?incoming.values:saved.get(id)??(id==='state-entrance'?{entrance:fieldDefault(fields[0],scene)}:{})),revision=0,mounted=false,visible=true,disposed=false;
+ let edits=structuredClone(incoming?.id===id?incoming.values:saved.get(id)??(id==='state-lifecycle'?lifecycleDefaults:id==='state-entrance'?{entrance:fieldDefault(fields[0],scene)}:{})),revision=0,mounted=false,visible=true,disposed=false;
  const lesson=stateLessons.find(item=>item.id===id);
  const translate=value=>guideTranslations[getSiteLocale()]?.[value]??value;
  const section=document.createElement('section');section.className='state-lab';section.dataset.stateReference=id;host.append(section);
@@ -47,7 +48,7 @@ export function mountStateReference(host,id,{session}){
  function fieldType(item){return item.values?.join(' | ')??(item.kind==='number'?`number · ${item.min}…${item.max} ${item.unit}`:item.kind==='json'?`JSON${item.nullable?' | null':''}`:item.kind);}
  function error(message){status.setAttribute('role','alert');status.textContent=copy('invalid')+' '+message;}
  function updateSource(){
-  const mode=getFramework();sourceNote.textContent=copy(mode==='react'?'sourceNoteReact':'sourceNoteElement');source.dataset.framework=mode;source.textContent=referenceSource(scene,edits,mode,id);sourceHeading.textContent=copy('source')+' · '+(mode==='react'?'React':'Custom Element');
+  const mode=getFramework();sourceNote.textContent=copy(mode==='react'?'sourceNoteReact':id==='state-lifecycle'?'sourceNoteLifecycleElement':'sourceNoteElement');source.dataset.framework=mode;source.textContent=referenceSource(scene,edits,mode,id,getSiteLocale());sourceHeading.textContent=copy('source')+' · '+(mode==='react'?'React':'Custom Element');
   for(const [el,item]of names){const name=mode==='react'?item.prop:item.attribute;el.textContent=name;controls.querySelector(`[data-state-control="${item.attribute}"]`)?.setAttribute('aria-label',name);controls.querySelector(`[data-state-enable="${item.attribute}"]`)?.setAttribute('aria-label',copy('enabled')+' '+name);}
   for(const [index,item]of fields.entries())body.rows[index].cells[0].textContent=mode==='react'?item.prop:item.attribute;
   saved.set(id,structuredClone(edits));
@@ -55,7 +56,7 @@ export function mountStateReference(host,id,{session}){
   if(state.length<=MAX_CONTEXT){url.searchParams.set('state',state);history.replaceState(history.state,'',url);const target=new URL(guideHref({id,level:1},getSiteLocale(),true,{id,level:1}),location.href);target.searchParams.set('state',state);target.searchParams.set('framework',mode);tryLink.href=target.href;tryLink.removeAttribute('aria-disabled');tryLink.title='';}
   else {tryLink.removeAttribute('href');tryLink.setAttribute('aria-disabled','true');tryLink.title=copy('truncated');}
  }
- function send(restart=false){updateSource();if(!mounted)return;revision++;delete section.dataset.configured;status.setAttribute('role','status');status.textContent=copy('waiting');frame.contentWindow.postMessage({type:'state-reference-config',id,scene,values:edits,framework:getFramework(),revision,restart},location.origin);}
+ function send(restart=false){updateSource();if(!mounted)return;revision++;delete section.dataset.configured;status.setAttribute('role','status');status.textContent=copy('waiting');frame.contentWindow.postMessage({type:'state-reference-config',id,scene,locale:getSiteLocale(),values:edits,framework:getFramework(),revision,restart},location.origin);}
  function set(item,value){try{const valid=validateStateValue(item,value,scene,document);const next={...edits,[item.attribute]:valid};if(item.attribute==='positioning'){delete next['position-x'];delete next['position-y'];for(const key of ['position-x','position-y']){const checkbox=controls.querySelector(`[data-state-enable="${key}"]`),input=controls.querySelector(`[data-state-control="${key}"]`);if(checkbox)checkbox.checked=false;if(input)input.disabled=true;}}else if(['position-x','position-y'].includes(item.attribute)){delete next.positioning;const checkbox=controls.querySelector('[data-state-enable="positioning"]'),input=controls.querySelector('[data-state-control="positioning"]');if(checkbox)checkbox.checked=false;if(input)input.disabled=true;for(const control of controls.querySelectorAll('[data-positioning-control]'))control.disabled=true;}compileReferenceAttributes(scene,next);edits=next;send();return true;}catch(err){error(err.message);return false;}}
  for(const item of fields){
   const row=make('div','state-field',controls);row.dataset.stateField=item.attribute;

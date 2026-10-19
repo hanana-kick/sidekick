@@ -1,4 +1,5 @@
 const rows = {
+ sourceNoteLifecycleElement:['고정 버전 v0.15.0 CDN을 사용하는 전체 HTML 예제입니다. 파일을 저장하고 웹 서버로 제공하세요.','This complete HTML example uses the pinned v0.15.0 CDN build. Save the file and serve it with a web server.','完整 HTML 示例使用固定版本 v0.15.0 CDN 构建。保存文件并通过 Web 服务器提供。','固定バージョン v0.15.0 の CDN を使う完全な HTML 例です。保存して Web サーバーで配信してください。'],
  structure:['객체 필드','Object fields','对象字段','オブジェクトの項目'],
  effect:['동작과 적용 범위','Effect and scope','作用与范围','動作と適用範囲'],
  title:['파라미터 미리보기','Parameter preview','参数预览','パラメーターのプレビュー'],

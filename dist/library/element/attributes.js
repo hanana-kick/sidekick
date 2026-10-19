@@ -8,7 +8,7 @@ import { validateShapeMotionOptions } from '../core/shape-motion.js';
 import { parseTrackingMode } from '../core/tracking.js';
 export const ACCESSORY_ATTRIBUTE_SLOTS = Object.freeze({ head: 'head', eyes: 'eyes', mouth: 'mouth', neck: 'neck', 'left-ear': 'leftEar', 'right-ear': 'rightEar' });
 export const SIDEKICK_ATTRIBUTES = Object.freeze([
-    'emotion', 'emotion-intensity', 'behavior', 'entrance', 'positioning',
+    'emotion', 'emotion-intensity', 'behavior', 'entrance', 'positioning', 'presence', 'task', 'home',
     'placement', 'position-x', 'position-y', 'movement-bounds', 'move-duration', 'move-easing', 'move-travel', 'move-max-speed', 'move-acceleration', 'move-deceleration',
     'design', 'shape', 'body-color', 'eye-color', 'expression', 'left-expression', 'right-expression',
     'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'accessories',

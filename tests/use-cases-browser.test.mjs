@@ -23,8 +23,8 @@ async function choose(page,id){
  assert.equal(await page.locator('#demo-bot').count(),1);
  assert.equal(await page.locator('#scenario-toc [aria-current=page]').getAttribute('data-scenario'),id);
 }
-test('three-level contents provides all 33 guide entries and hash history navigation',async t=>{
- const page=await setup(t);assert.equal(await page.locator('#scenario-toc > details').count(),3);assert.equal(await page.locator('#scenario-toc h3').count(),11);assert.equal(await page.locator('#scenario-toc [data-scenario]').count(),33);
+test('three-level contents provides all 34 guide entries and hash history navigation',async t=>{
+ const page=await setup(t);assert.equal(await page.locator('#scenario-toc > details').count(),3);assert.equal(await page.locator('#scenario-toc h3').count(),11);assert.equal(await page.locator('#scenario-toc [data-scenario]').count(),34);
  await choose(page,'review');await choose(page,'input');await page.goBack();console.log('GUIDE HISTORY BACK',page.url(),await page.locator('#scenario-toc [aria-current]').getAttribute('data-scenario'));await page.waitForFunction(()=>document.querySelector('[aria-current="page"][data-scenario]')?.dataset.scenario==='review');
  await page.goForward();console.log('GUIDE HISTORY FORWARD',page.url(),await page.locator('#scenario-toc [aria-current]').getAttribute('data-scenario'));await page.waitForFunction(()=>document.querySelector('[aria-current="page"][data-scenario]')?.dataset.scenario==='input');
  assert.equal(await page.locator('#breadcrumb').textContent(),'사용 예시 / 사용자 안내 / 입력할 위치 안내');

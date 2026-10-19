@@ -1,4 +1,3 @@
-import type { Positioning } from './element/positioning.js';
 'use client';
 
 import { createElement, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
@@ -14,6 +13,8 @@ import type { SidekickAttributes, SidekickEventMap } from './element/attributes.
 import type { Emotion } from './core/emotion.js';
 import type { Entrance } from './element/entrance.js';
 import type { BotBehavior } from './element/behavior.js';
+import type { Positioning } from './element/positioning.js';
+import type { SidekickPresence, SidekickTask, SidekickHome } from './element/lifecycle.js';
 
 function sameEntrance(a: Entrance | null, b: Entrance | null): boolean {
   if (!a || !b) return a === b;
@@ -47,12 +48,19 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
   behavior?: BotBehavior | null;
   entrance?: Entrance | null;
   positioning?: Positioning | null;
+  /** Declarative visibility; null releases lifecycle ownership. */
+  presence?: SidekickPresence | null;
+  /** Keyed asynchronous work, including its terminal outcome. */
+  task?: SidekickTask | null;
+  /** A return destination and optional resting appearance. */
+  home?: SidekickHome | null;
   emotion?: Emotion;
   emotionIntensity?: number;
   onEmotionChange?: SidekickEventHandler<'sidekick-emotion-change'>;
   onReactionEnd?: SidekickEventHandler<'sidekick-reaction-end'>;
   onBehaviorChange?: SidekickEventHandler<'sidekick-behavior-change'>;
   onBehaviorEnd?: SidekickEventHandler<'sidekick-behavior-end'>;
+  onLifecycleChange?: SidekickEventHandler<'sidekick-lifecycle-change'>;
   design?: AvatarDesign;
   shape?: MaterialShapeName;
   bodyColor?: string;
@@ -129,6 +137,7 @@ const eventProps = {
   onEnterEnd: 'sidekick-enter-end', onExitEnd: 'sidekick-exit-end',
   onMoveEnd: 'sidekick-move-end', onMoveProgress: 'sidekick-move-progress', onPlayEnd: 'sidekick-play-end', onAssetTransitionEnd: 'sidekick-transition-end',
   onBehaviorChange: 'sidekick-behavior-change', onBehaviorEnd: 'sidekick-behavior-end',
+  onLifecycleChange: 'sidekick-lifecycle-change',
   onReady: 'sidekick-ready', onDesignChange: 'sidekick-design-change', onMotionEnd: 'sidekick-motion-end',
   onShapeEnd: 'sidekick-shape-end', onBodyOrientationChange: 'sidekick-body-orientation-change', onZoomChange: 'sidekick-zoom-change', onActivate: 'sidekick-activate', onError: 'sidekick-error',
 } as const;
@@ -169,6 +178,49 @@ function copyBehavior(value: BotBehavior | null): BotBehavior | null {
   return Object.create(Object.getPrototypeOf(value), descriptors) as BotBehavior;
 }
 
+// Lifecycle declarations contain nested data and identity-bearing Element targets.
+// Inspect descriptors rather than reading values so invalid accessors can reach the
+// native validator without ever running during React comparison or snapshotting.
+// Only arrays and plain data records are traversed; DOM objects stay by identity,
+// without accessing DOM globals or importing the client-only lifecycle controller.
+function isDeclarativeRecord(value: object): boolean {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return Array.isArray(value) || prototype === Object.prototype || prototype === null;
+}
+
+function copyDeclarative<T>(value: T, seen = new WeakMap<object, object>()): T {
+  if (value === null || typeof value !== 'object' || !isDeclarativeRecord(value)) return value;
+  const existing = seen.get(value);
+  if (existing) return existing as T;
+  const result: object = Array.isArray(value) ? [] : Object.create(Object.getPrototypeOf(value));
+  seen.set(value, result);
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+    if (Object.hasOwn(descriptor, 'value')) descriptor.value = copyDeclarative(descriptor.value, seen);
+    Object.defineProperty(result, key, descriptor);
+  }
+  return result as T;
+}
+
+function sameDeclarative(previous: unknown, next: unknown, seen = new WeakMap<object, object>()): boolean {
+  if (Object.is(previous, next)) return true;
+  if (!previous || !next || typeof previous !== 'object' || typeof next !== 'object') return false;
+  if (!isDeclarativeRecord(previous) || !isDeclarativeRecord(next) || Object.getPrototypeOf(previous) !== Object.getPrototypeOf(next)) return false;
+  const paired = seen.get(previous);
+  if (paired) return paired === next;
+  seen.set(previous, next);
+  const keys = Reflect.ownKeys(previous);
+  if (keys.length !== Reflect.ownKeys(next).length) return false;
+  return keys.every(key => {
+    const before = Object.getOwnPropertyDescriptor(previous, key)!;
+    const after = Object.getOwnPropertyDescriptor(next, key);
+    if (!after || before.enumerable !== after.enumerable || Object.hasOwn(before, 'value') !== Object.hasOwn(after, 'value')) return false;
+    return Object.hasOwn(before, 'value')
+      ? sameDeclarative(before.value, after.value, seen)
+      : before.get === after.get && before.set === after.set;
+  });
+}
+
 // Keep validation local: eager core imports create additional shared browser chunks
 // and pull renderer dependencies into the SSR-safe React entry point.
 function validateBodyOrientation(value: unknown): void {
@@ -195,7 +247,7 @@ export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
   for (const name of ['camera', 'cameraYaw', 'cameraPitch', 'cameraRoll', 'cameraZoom', 'view', 'viewYaw', 'viewPitch', 'viewRoll', 'viewZoom', 'onCameraChange', 'onViewChange', 'camera-yaw', 'camera-pitch', 'camera-roll', 'camera-zoom', 'view-yaw', 'view-pitch', 'view-roll', 'view-zoom']) {
     if (Object.prototype.hasOwnProperty.call(props, name)) throw new TypeError(`${name} has been removed; use bodyOrientation, bodyYaw/bodyPitch/bodyRoll, zoom, onBodyOrientationChange or onZoomChange instead`);
   }
-  const { ref, design, accessories, bodyOrientation, motion, behavior: _behavior, entrance: _entrance, positioning: _positioning, ...html } = props;
+  const { ref, design, accessories, bodyOrientation, motion, behavior: _behavior, entrance: _entrance, positioning: _positioning, presence: _presence, task: _task, home: _home, ...html } = props;
   const element = useRef<SidekickElement | null>(null);
   const readyNotified = useRef(false);
   const deliveredReadyEvent = useRef<Event | null>(null);
@@ -209,6 +261,7 @@ export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
   const appliedPositioning = useRef<{ node: SidekickElement; value: Positioning | null } | null>(null);
   const appliedEntrance = useRef<{ node: SidekickElement; value: Entrance | null } | null>(null);
   const appliedBehavior = useRef<{ node: SidekickElement; value: BotBehavior | null } | null>(null);
+  const appliedLifecycle = useRef<Partial<Record<'home' | 'presence' | 'task', { node: SidekickElement; value: SidekickHome | SidekickPresence | SidekickTask | null }>>>({});
   const published = useRef<{ node: SidekickElement; ref: Ref<SidekickElement> | undefined; cleanup?: () => void } | null>(null);
   const attributes: Record<string, string> = {};
   if (design !== undefined) attributes.design = serialize(design);
@@ -317,6 +370,26 @@ export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
             }));
           }
         }
+        // Install the return destination before visibility or task work can start.
+        for (const name of ['home', 'presence', 'task'] as const) {
+          const requested = callbacks.current[name];
+          const previous = appliedLifecycle.current[name];
+          if (requested === undefined && previous?.node !== node) continue;
+          const value = requested ?? null;
+          try {
+            if (previous?.node !== node || !sameDeclarative(previous.value, value)) {
+              appliedLifecycle.current[name] = { node, value: copyDeclarative(value) };
+              // Keep the property's specific type correlated with its name.
+              if (name === 'home') node.home = value as SidekickHome | null;
+              else if (name === 'presence') node.presence = value as SidekickPresence | null;
+              else node.task = value as SidekickTask | null;
+            }
+          } catch (error: unknown) {
+            node.dispatchEvent(new CustomEvent('sidekick-error', {
+              detail: { message: error instanceof Error ? error.message : String(error), attribute: name }, bubbles: true, composed: true,
+            }));
+          }
+        }
         publish(node);
       }
       if ((readyEvent && deliveredReadyEvent.current !== readyEvent) || (!readyNotified.current && node.ready)) {
@@ -398,6 +471,8 @@ export type { Emotion, EmotionValue, EmotionOptions, ReactionOptions, EmotionSta
 export type { Entrance } from './element/entrance.js';
 
 export type { Positioning, PositionPlacement, ResolvedPositioning } from './element/positioning.js';
+
+export type { SidekickPresence, SidekickTask, SidekickTaskStatus, SidekickTerminalStatus, SidekickReaction, SidekickHome, SidekickRest, SidekickLifecycleDeclaration, SidekickLifecyclePhase, SidekickLifecycleState } from './element/lifecycle.js';
 
 function samePositioning(a: Positioning | null, b: Positioning | null): boolean {
   return a === b || !!a && !!b && a.target === b.target && (a.placement ?? 'bottom-right') === (b.placement ?? 'bottom-right') && (a.gap ?? 16) === (b.gap ?? 16) && (a.follow ?? true) === (b.follow ?? true) && (a.offset?.x ?? 0) === (b.offset?.x ?? 0) && (a.offset?.y ?? 0) === (b.offset?.y ?? 0);

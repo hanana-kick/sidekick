@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { guideIds, readGuideContext, readGuideSource, validateGuideContext, guideHref, technicalHref, lessonDestinations, navigationText } from '../playground/guide-navigation.js';
 import { scenarios } from '../playground/scenario-catalog.js';
 import { lessons } from '../playground/guide-lessons.js';
-for(const language of ['ko','en','zh-CN','ja'])test(`all 33 sections and progressive levels preserve typed context: ${language}`,()=>{
- assert.equal(guideIds.length,33);
+for(const language of ['ko','en','zh-CN','ja'])test(`all 34 sections and progressive levels preserve typed context: ${language}`,()=>{
+ assert.equal(guideIds.length,34);
  for(const id of guideIds)for(const level of [1,2,3,4]){
   const context={id,level,side:'right',gap:28,dwell:2300,intensity:0.3,duration:1700,event:0,scroll:640};
   const url=guideHref(context,language,true);assert.deepEqual(readGuideContext(url),context);assert.deepEqual(readGuideSource(url),context);

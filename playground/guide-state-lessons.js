@@ -1,6 +1,7 @@
 // Public declarative reference. Values are checked against src/element/attributes.ts,
 // src/element/behavior.ts and src/react.ts; this module adds no runtime API.
-export const stateTranslationRows=[];
+import { lifecycleLesson, lifecycleTranslationRows } from './guide-lifecycle-lesson.js';
+export const stateTranslationRows=[...lifecycleTranslationRows];
 const text=(ko,en,zh,ja)=>{stateTranslationRows.push([ko,ko,en,zh,ja]);return ko;};
 const major=text('봇의 상태','Bot state','机器人状态','ボットの状態');
 text('사용 예시','Usage examples','使用示例','使用例');
@@ -53,6 +54,7 @@ export const stateLessons=[
  text('대상이 없거나 너무 작거나 도착 공간이 부족하면 sidekick-error가 발생합니다. 자동으로 대상을 기다리거나 봇 크기를 줄이지 않습니다. 새 이동·행동·등장 명령, 설정 해제 또는 연결 해제는 진행 중인 등장을 취소할 수 있습니다.','A missing or undersized target, or insufficient destination room, emits sidekick-error. It does not wait for a target or scale the bot automatically. A new movement, behavior or entrance command, clearing the declaration, or disconnection can cancel an entrance in progress.','目标缺失、尺寸过小或到达空间不足会触发 sidekick-error。不会自动等待目标或缩小机器人。新的移动、行为或入场命令、清除声明或断开连接都可能取消正在进行的入场。','対象がない・小さすぎる・到着空間が不足する場合は sidekick-error が発生します。対象を自動で待ったり、ボットを縮小したりしません。新しい移動・行動・登場の指定、宣言の解除、接続解除は進行中の登場を取り消すことがあります。')],
  parameters:[row('entrance / entrance','Entrance | null · HTML JSON','null','화면 가장자리 또는 불투명 DOM 요소 뒤에서 한 번 등장하도록 선언합니다.','Declare a one-shot entrance from a viewport edge or behind an opaque DOM element.','声明从视口边缘或不透明 DOM 元素后方入场一次。','画面端または不透明な DOM 要素の背後から一度登場する宣言。')],
  examples:[['HTML 선언',`<sidekick-avatar placement="viewport" entrance='{"source":"viewport","edge":"left","at":0.3,"inset":24}'></sidekick-avatar>`],['React 선언',`<SidekickAvatar placement="viewport" entrance={{ source: 'viewport', edge: 'left', at: 0.3, inset: 24 }} />`],['JavaScript 설정',`bot.entrance = { source: 'element', target: '#panel', direction: 'right', at: 0.5, gap: 16 };`]],next:'loading'},
+ lifecycleLesson,
  {id:'state-facing',major,middle:tuning,title:text('시선·몸 방향','Gaze and body orientation','视线与身体朝向','視線と体の向き'),
  sentence:text('눈의 시선, 몸의 기준 방향, 마우스 추적을 구분합니다.','Eye gaze, authored body orientation and pointer tracking are separate controls.','眼睛视线、身体基准朝向和指针跟踪是不同的控制。','目の視線・体の基準方向・ポインター追従を分けて設定します。'),
  hint:text('body-*는 카메라 설정이 아니라 봇 몸의 방향입니다.','body-* configures the bot body, not a camera.','body-* 设置机器人身体朝向，而非相机。','body-* はカメラではなくボットの体の向きを設定します。'),
