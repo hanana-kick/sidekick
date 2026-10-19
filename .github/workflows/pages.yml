@@ -90,6 +90,12 @@ jobs:
           SIDEKICK_USECASES_LIVE_URL: https://sidekick.hananakick.cc
           SIDEKICK_HEADED: '1'
           SIDEKICK_SCREENSHOTS: artifacts
+      - name: Verify contextual Guide navigation on the published site
+        run: xvfb-run -a node --test --test-name-pattern='direct reload, source scroll' tests/guide-navigation-browser.test.mjs
+        env:
+          SIDEKICK_GUIDE_LIVE_URL: https://sidekick.hananakick.cc
+          SIDEKICK_HEADED: '1'
+          SIDEKICK_SCREENSHOTS: artifacts
       - name: Save live Pages screenshots
         if: always()
         uses: actions/upload-artifact@v4
