@@ -222,3 +222,24 @@ test('startup canvas stays hidden until a latest-revision draw barrier, includin
   assert.equal(avatar.diagnostics.acknowledgedRevision >= present.sequence, true);
   avatar.remove();
 });
+
+test('an obsolete startup draw acknowledgement cannot reveal a newer authored configuration', async () => {
+  const avatar = document.createElement('worker-test-avatar');
+  avatar.setActivity('still'); document.body.append(avatar);
+  const worker = workers.at(-1), canvas = avatar.shadowRoot.querySelector('canvas');
+  const reply = worker.reply.bind(worker);
+  let superseded = false;
+  worker.reply = (kind, data, sequence) => {
+    if (kind === 'complete' && !superseded) {
+      superseded = true;
+      avatar.setAttribute('shape', 'flower');
+      assert.equal(canvas.hidden, true);
+    }
+    return reply(kind, data, sequence);
+  };
+  await new Promise(resolve => avatar.addEventListener('sidekick-ready', resolve, { once: true }));
+  assert.equal(avatar.design.body.shape, 'flower');
+  assert.equal(worker.messages.filter(message => message.command?.kind === 'present').length, 2);
+  assert.equal(canvas.hidden, false);
+  avatar.remove();
+});
