@@ -43,6 +43,8 @@ export declare class AvatarRenderer {
     private bodyDeformation;
     private lag;
     private accessoryPose;
+    private authoredAccessoryPose;
+    private accessoryPoseTakeover;
     private disposed;
     private drawCount;
     private blinkGate;

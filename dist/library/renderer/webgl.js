@@ -126,6 +126,8 @@ export class AvatarRenderer {
     bodyDeformation = '';
     lag = new Map();
     accessoryPose = new Map();
+    authoredAccessoryPose = new Set();
+    accessoryPoseTakeover = new Map();
     disposed = false;
     drawCount = 0;
     blinkGate = new EyeBlinkGate();
@@ -361,8 +363,10 @@ export class AvatarRenderer {
         const authoredEquipment = new Set(design.accessories.map(poseKey));
         const visibleEquipment = new Set(equipment.filter(a => a.opacity > 0).map(a => poseKey(a.accessory)));
         for (const key of this.accessoryPose.keys())
-            if (!visibleEquipment.has(key))
+            if (!visibleEquipment.has(key)) {
                 this.accessoryPose.delete(key);
+                this.accessoryPoseTakeover.delete(key);
+            }
         const activeIds = new Set(equipment.map(({ accessory }) => accessory.id));
         for (const id of this.lag.keys())
             if (!activeIds.has(id))
@@ -391,9 +395,31 @@ export class AvatarRenderer {
             const key = poseKey(accessory);
             // The authored timeline drops removed tracks immediately. Preserve only
             // the outgoing mesh's last displayed offset while it remains visible.
-            const extra = authoredEquipment.has(key)
-                ? pose.accessories[accessory.id] ?? [0, 0, 0]
-                : this.accessoryPose.get(key) ?? [0, 0, 0];
+            const retained = this.accessoryPose.get(key);
+            let extra = retained ?? [0, 0, 0];
+            if (authoredEquipment.has(key)) {
+                const target = pose.accessories[accessory.id] ?? [0, 0, 0];
+                let takeover = this.accessoryPoseTakeover.get(key);
+                const returning = !!retained && !this.authoredAccessoryPose.has(key);
+                if (returning && !instant) {
+                    takeover = { from: [...retained], elapsed: 0 };
+                    this.accessoryPoseTakeover.set(key, takeover);
+                }
+                if (takeover && !instant) {
+                    if (!returning)
+                        takeover.elapsed += framingDelta;
+                    const t = Math.min(1, takeover.elapsed / .15), blend = t * t * (3 - 2 * t);
+                    extra = target.map((value, i) => takeover.from[i] + (value - takeover.from[i]) * blend);
+                    if (t === 1)
+                        this.accessoryPoseTakeover.delete(key);
+                }
+                else {
+                    extra = target;
+                    this.accessoryPoseTakeover.delete(key);
+                }
+            }
+            else
+                this.accessoryPoseTakeover.delete(key);
             this.accessoryPose.set(key, [...extra]);
             const rotation = accessory.rotation.map((v, i) => v + extra[i]);
             if (accessory.anchor.region === 'crown') {
@@ -493,10 +519,11 @@ export class AvatarRenderer {
                 localDraw(this.meshes.halo, parent, accessory.color, [0, 0, 0], [0.34, 0.34, 0.34]);
             }
         }
+        this.authoredAccessoryPose = authoredEquipment;
         gl.disable(gl.BLEND);
         gl.bindVertexArray(null);
     }
-    get animating() { return this.equipment.active || this.framingActive; }
+    get animating() { return this.equipment.active || this.framingActive || this.accessoryPoseTakeover.size > 0; }
     get stats() { return { drawCalls: this.drawCount, buffers: [...Object.values(this.meshes), ...Array.from(this.catalogMeshes.values(), item => item.mesh)].reduce(count => count + 2, 0) }; }
     /** Call immediately after render; the drawing buffer need not be preserved between frames. */
     readPixels() {
@@ -521,5 +548,7 @@ export class AvatarRenderer {
         this.gl.deleteProgram(this.program);
         this.lag.clear();
         this.accessoryPose.clear();
+        this.accessoryPoseTakeover.clear();
+        this.authoredAccessoryPose.clear();
     }
 }
