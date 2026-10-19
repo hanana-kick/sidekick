@@ -210,6 +210,7 @@ test('detach during shape transition cancels the old promise and reconnects at t
     const parent = a.parentElement, target = 'puffy';
     const transition = a.setShape(target, { duration: 5000 }); a.remove();
     const cancelled = await transition; parent.append(a);
+    if (!a.ready) await new Promise(resolve => a.addEventListener('sidekick-ready', resolve, { once: true }));
     const restored = (await a.capturePixelsAsync()).pixels, saved = a.design; a.design = { ...saved, body: { ...saved.body, shape: 'circle' } }; a.design = saved; const endpoint = (await a.capturePixelsAsync()).pixels;
     let difference = 0; for (let i = 3; i < restored.length; i += 4) if (restored[i] !== endpoint[i]) difference++;
     return { cancelled, difference, shape: a.design.body.shape, ready: a.ready };
@@ -406,7 +407,7 @@ test('detach/reconnect cancels motion and releases then recreates GPU resources'
     const parent = a.parentElement; const motion = a.motion.to({ face: { uv: [0.2, 0] } }, { duration: 3000 });
     a.remove(); const detached = a.diagnostics, cancelled = await motion;
     for (let i = 0; i < 3; i++) { parent.append(a); a.remove(); }
-    parent.append(a); await a.capturePixelsAsync(); return { detached, cancelled, reconnected: a.diagnostics, canvases: a.shadowRoot.querySelectorAll('canvas').length };
+    parent.append(a); if (!a.ready) await new Promise(resolve => a.addEventListener('sidekick-ready', resolve, { once: true })); await a.capturePixelsAsync(); return { detached, cancelled, reconnected: a.diagnostics, canvases: a.shadowRoot.querySelectorAll('canvas').length };
   });
   assert.equal(result.detached.buffers, 0); assert.equal(result.detached.running, false); assert.equal(result.cancelled.finished, false);
   assert.equal(result.reconnected.buffers, 8); assert.equal(result.reconnected.ready, true); assert.equal(result.canvases, 1);

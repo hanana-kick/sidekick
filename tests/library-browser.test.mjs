@@ -157,6 +157,7 @@ async function compareReactPixelsToNative(t, page, screenshotName) {
     native.setBodyOrientation({ yaw: 12, pitch: 5, roll: -4 }); native.lookAt({ space: 'view', x: 0.2, y: -0.1 });
     try {
       document.body.append(native);
+      if (!native.ready) await new Promise(resolve => native.addEventListener('sidekick-ready', resolve, { once: true }));
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const expected = (await native.capturePixelsAsync());
       let differingBytes = 0;
@@ -190,6 +191,7 @@ test('packed root import registers a bare element with real default pixels and n
     window.libraryAPI.defineSidekick(); window.libraryAPI.defineSidekick();
     window.libraryAPI.defineSidekick('test-sidekick');
     const alias = document.createElement('test-sidekick'); document.getElementById('sandbox').append(alias);
+    if (!alias.ready) await new Promise(resolve => alias.addEventListener('sidekick-ready', resolve, { once: true }));
     await alias.capturePixelsAsync(); const aliasReady = alias.ready; alias.remove();
     return { registered: customElements.get('sidekick-avatar') === window.libraryAPI.SidekickAvatar,
       design: element.design, defaults: window.libraryAPI.createDesign(), width: capture.width, height: capture.height,
@@ -375,6 +377,7 @@ test('complete declarative config has order-independent JSON, scalar, expression
     };
     const make = entries => { const element = document.createElement('sidekick-avatar'); for (const [key, value] of entries) element.setAttribute(key, value); document.getElementById('sandbox').append(element); return element; };
     const a = make(Object.entries(attrs)), b = make(Object.entries(attrs).reverse());
+    await Promise.all([a, b].map(element => element.ready ? Promise.resolve() : new Promise(resolve => element.addEventListener('sidekick-ready', resolve, { once: true }))));
     await Promise.all([a.capturePixelsAsync(), b.capturePixelsAsync()]);
     const snapshot = element => ({ design: element.design, bodyOrientation: element.bodyOrientation, zoom: element.zoom, pose: element.pose, paused: element.paused, activity: element.activity, interaction: element.interaction, tracking: element.mouseTracking, ready: element.ready });
     const result = { first: snapshot(a), reversed: snapshot(b) }; a.remove(); b.remove(); return result;
@@ -511,7 +514,7 @@ test('tracking listeners release on disconnect, reconnect once, and stop respond
       element.remove(); const gaze = element.pose.gaze;
       document.dispatchEvent(new PointerEvent('pointermove', { clientX: 9000, clientY: 9000, pointerType: 'mouse' }));
       rounds.push({ attachedListeners, detachedListeners: window.listenerAudit(element).globalPointer, unchanged: JSON.stringify(gaze) === JSON.stringify(element.pose.gaze), ready: element.ready, buffers: element.diagnostics.buffers });
-      parent.append(element); await element.capturePixelsAsync();
+      parent.append(element); if (!element.ready) await new Promise(resolve => element.addEventListener('sidekick-ready', resolve, { once: true })); await element.capturePixelsAsync();
     }
     return { rounds, finalListeners: window.listenerAudit(element).globalPointer, ready: element.ready, canvases: element.shadowRoot.querySelectorAll('canvas').length };
   });
@@ -705,6 +708,7 @@ test('Studio generated HTML and React snippets match live controls, copy the dis
     const template = document.createElement('template'); template.innerHTML = html;
     template.content.querySelectorAll('script').forEach(script => script.remove());
     const host = template.content.querySelector('sidekick-avatar'); document.getElementById('sandbox').append(host);
+    if (!host.ready) await new Promise(resolve => host.addEventListener('sidekick-ready', resolve, { once: true }));
     await host.capturePixelsAsync();
     const result = { ready: host.ready, design: host.design, bodyOrientation: host.bodyOrientation, zoom: host.zoom, paused: host.paused, tracking: host.mouseTracking, gaze: host.pose.gaze, interaction: host.interaction };
     host.remove(); return result;
@@ -990,7 +994,7 @@ test('named tracking precedence, viewport leave, reduced-motion changes and reco
     const parent = element.parentElement, rounds = [];
     for (let i = 0; i < 3; i++) {
       element.remove(); const detached = window.listenerAudit(element);
-      parent.append(element); await element.capturePixelsAsync();
+      parent.append(element); if (!element.ready) await new Promise(resolve => element.addEventListener('sidekick-ready', resolve, { once: true })); await element.capturePixelsAsync();
       rounds.push({ detached, connected: window.listenerAudit(element), mode: element.trackingMode });
     }
     element.removeAttribute('tracking-mode'); await Promise.resolve();
