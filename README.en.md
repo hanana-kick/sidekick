@@ -1070,9 +1070,10 @@ A modern browser supporting WebGL2 and Custom Elements is required. Graphics ini
 
 The global Guide selector chooses Custom Element or React for examples and parameter names. Bot state pages include settable fields, accepted values, defaults, a live preview and its complete source. Enable a field to override it; disabled fields retain the Studio scene. Preview changes do not overwrite saved Studio values.
 
-Studio is a separate editor built with **React 19, Vite 8, Tailwind CSS 4, and actual shadcn/ui Radix/Nova components**, using Slate color tokens. Sites consuming the core do not receive these UI dependencies. The following commands are for source development and require Node.js 22.22.2 or newer.
+Studio is a separate editor built with **React 19, Vite 8, Tailwind CSS 4, and actual shadcn/ui Radix/Nova components**, using Slate color tokens. Sites consuming the core do not receive these UI dependencies. The following commands are for source development and require Node.js 24 LTS. `.nvmrc` and CI both select Node.js 24, and `package.json` uses `devEngines` to validate source development. This requirement applies only to build/development tooling; browser/CDN consumers do not need Node.js.
 
 ```sh
+nvm use
 npm ci
 npm run dev
 # http://127.0.0.1:5173

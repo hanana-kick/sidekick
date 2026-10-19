@@ -1070,9 +1070,10 @@ React 在卸载时会清理封装监听器和元素。自行创建的 PNG 下载
 
 指南的全局选择器可选择 Custom Element 或 React，以相应格式显示示例和参数名称。机器人状态页面包含可设置字段、允许值、默认值、运行预览及其完整源代码。启用字段可覆盖该值，未启用的字段保留工作室场景。预览更改不会覆盖工作室保存的值。
 
-Studio 是独立编辑器，使用 **React 19 + Vite 8 + Tailwind CSS 4 + 真正的 shadcn/ui Radix/Nova 组件**及 Slate 颜色令牌实现。使用核心的网站不会引入这些 UI 依赖。以下命令面向源码开发者，需要 Node.js 22.22.2 或更高版本。
+Studio 是独立编辑器，使用 **React 19 + Vite 8 + Tailwind CSS 4 + 真正的 shadcn/ui Radix/Nova 组件**及 Slate 颜色令牌实现。使用核心的网站不会引入这些 UI 依赖。以下命令面向源码开发者，需要 Node.js 24 LTS。`.nvmrc` 和 CI 统一使用 Node.js 24，`package.json` 的 `devEngines` 验证源码开发环境。此要求仅适用于构建与开发工具，浏览器/CDN 使用方不需要 Node.js。
 
 ```sh
+nvm use
 npm ci
 npm run dev
 # http://127.0.0.1:5173

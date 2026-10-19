@@ -1070,9 +1070,10 @@ WebGL2 と Custom Elements に対応する最新のブラウザーが必要で�
 
 ガイドの全体セレクターで Custom Element または React を選ぶと、サンプルとパラメーター名がその形式で表示されます。ボットの状態ページには設定可能な項目、許容値、既定値、実行プレビューとその完全なソースがあります。項目を有効にすると値を上書きし、無効な項目は Studio のシーンを保持します。プレビューの変更は Studio の保存値を上書きしません。
 
-Studio は **React 19 + Vite 8 + Tailwind CSS 4 + 実際の shadcn/ui Radix/Nova コンポーネント**と Slate のカラートークンで実装した独立したエディターです。コアを使用する Web サイトには、これらの UI 依存関係は入りません。以下はソースを開発する人向けのコマンドで、Node.js 22.22.2 以降を使用します。
+Studio は **React 19 + Vite 8 + Tailwind CSS 4 + 実際の shadcn/ui Radix/Nova コンポーネント**と Slate のカラートークンで実装した独立したエディターです。コアを使用する Web サイトには、これらの UI 依存関係は入りません。以下はソースを開発する人向けのコマンドで、Node.js 24 LTS を使用します。`.nvmrc` と CI は Node.js 24 に統一し、`package.json` の `devEngines` でソース開発環境を検証します。この要件はビルド・開発ツールのみに適用され、ブラウザー/CDN での利用には Node.js は不要です。
 
 ```sh
+nvm use
 npm ci
 npm run dev
 # http://127.0.0.1:5173

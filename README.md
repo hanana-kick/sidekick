@@ -1070,9 +1070,10 @@ WebGL2와 Custom Elements를 지원하는 현대 브라우저가 필요합니다
 
 가이드의 전역 선택기에서 Custom Element 또는 React를 선택하면 전체 예제와 파라미터 이름이 해당 형식으로 표시됩니다. 봇의 상태 문서에는 설정 가능한 항목, 허용값, 기본값, 실행 미리보기와 해당 미리보기의 전체 소스가 포함됩니다. 항목을 활성화하여 값을 덮어쓰며, 비활성 항목은 Studio 장면을 유지합니다. 미리보기의 변경은 Studio 저장값에 기록되지 않습니다.
 
-Studio는 **React 19 + Vite 8 + Tailwind CSS 4 + 실제 shadcn/ui Radix/Nova 컴포넌트**, Slate 색상 토큰으로 구현한 별도 편집기입니다. 코어를 사용하는 웹사이트에는 이 UI 의존성이 들어가지 않습니다. 아래는 소스를 개발하는 사람을 위한 명령이며 Node.js 22.22.2 이상을 사용합니다.
+Studio는 **React 19 + Vite 8 + Tailwind CSS 4 + 실제 shadcn/ui Radix/Nova 컴포넌트**, Slate 색상 토큰으로 구현한 별도 편집기입니다. 코어를 사용하는 웹사이트에는 이 UI 의존성이 들어가지 않습니다. 아래는 소스를 개발하는 사람을 위한 명령이며 Node.js 24 LTS를 사용합니다. `.nvmrc`와 CI는 Node.js 24로 통일하며 `package.json`의 `devEngines`가 소스 개발 버전을 검사합니다. 이 조건은 빌드·개발 도구에만 적용되며 브라우저/CDN 사용에는 Node.js가 필요하지 않습니다.
 
 ```sh
+nvm use
 npm ci
 npm run dev
 # http://127.0.0.1:5173
