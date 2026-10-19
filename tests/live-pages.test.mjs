@@ -19,7 +19,7 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
     const executablePath = process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
     const browser = await chromium.launch({ executablePath, headless: process.env.SIDEKICK_HEADED !== '1', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
     t.after(() => browser.close());
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1040 }, reducedMotion: 'reduce' });
+    const page = await browser.newPage({ locale: 'ko-KR', viewport: { width: 1440, height: 1040 }, reducedMotion: 'reduce' });
     const errors = [], failures = [], requests = [], responses = [];
     page.on('pageerror', error => errors.push(error.stack ?? error.message));
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
@@ -73,7 +73,7 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
       });
       assert.ok(assets.modules.length > 0); assert.ok(assets.styles.length > 0 && assets.styles.every(style => style.rules > 0));
       assert.ok(assets.fonts.some(font => font.includes('Geist')), 'The bundled Geist font loaded');
-      assert.ok(assets.favicon.width > 0); assert.equal(assets.favicon.url, new URL('favicon.svg', canonical).href); assert.equal(assets.home, canonical);
+      assert.ok(assets.favicon.width > 0); assert.equal(assets.favicon.url, new URL('favicon.svg', canonical).href); assert.equal(assets.home, `${canonical}?lang=ko`);
       const expected = ['beret', 'halo', 'crown', 'glasses', 'sunglasses', 'moustache', 'goatee', 'bowTie', 'scarf', 'necklace', 'earring', 'starEarring'];
       assert.deepEqual([...new Set(assets.images.map(image => image.preset))].sort(), expected.sort());
       for (const image of assets.images) { assert.ok(image.width >= 72); assert.equal(image.url, new URL(`accessory-previews/${image.preset}.png`, canonical).href); }
@@ -129,7 +129,7 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
       if (screenshots) await page.screenshot({ path: `${screenshots}/live-pages-${name}-success.png` });
       // Follow the actual visible navigation and verify the newly published runtime.
       await page.locator('#api-playground-link').click();
-      assert.equal(page.url(), new URL('api-playground.html', canonical).href);
+      assert.equal(page.url(), new URL('api-playground.html?lang=ko', canonical).href);
       // Renderer readiness precedes asynchronous Studio session restoration.
       // Wait until the page has applied its initial position before testing flight.
       await page.waitForFunction(() => document.getElementById('bot')?.ready === true && document.getElementById('bot').hasAttribute('data-configured'));

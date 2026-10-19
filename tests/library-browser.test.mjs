@@ -18,7 +18,7 @@ before(async () => {
   if (screenshots) await mkdir(screenshots, { recursive: true });
   // One early smoke protects this suite from repeated startup timeouts. The
   // remaining independent entry paths retain their own full behavioral tests.
-  const smoke = await browser.newPage({ reducedMotion: 'reduce' });
+  const smoke = await browser.newPage({ locale: 'ko-KR', reducedMotion: 'reduce' });
   const diagnostics = observeStartup(smoke);
   try { await smoke.goto(entryURL('vanilla')); await assertAvatarReady(smoke, 'vanilla', diagnostics); }
   finally { await smoke.close(); }
@@ -81,7 +81,7 @@ async function assertAvatarReady(page, entry, diagnostics) {
 }
 async function pageFor(t, entry = 'vanilla', options = {}, url = entryURL(entry)) {
   const { forceMain = false, denyWorker = false, ...pageOptions } = options;
-  const page = await browser.newPage({ viewport: { width: 1080, height: 800 }, reducedMotion: 'reduce', ...pageOptions });
+  const page = await browser.newPage({ locale: 'ko-KR', viewport: { width: 1080, height: 800 }, reducedMotion: 'reduce', ...pageOptions });
   const diagnostics = observeStartup(page);
   t.after(async () => { await page.close(); assert.deepEqual(diagnostics.errors, [], 'No consumer browser errors or React hydration warnings'); });
   await page.addInitScript(() => {
@@ -800,7 +800,7 @@ for (const name of ['root', 'project']) for (const route of ['', 'playground/', 
     assert.ok(result.fonts.some(family => family.includes('Geist')), 'The actual bundled font loaded');
     assert.match(result.fontFamily, /Geist/);
     assert.equal(new URL(result.favicon.href).pathname, `${deployment.basePath}favicon.svg`); assert.equal(result.favicon.status, 200); assert.ok(result.favicon.width > 0);
-    assert.equal(result.home, deployment.url, 'Home works from both the directory and explicit nested index entry');
+    assert.equal(result.home, `${deployment.url}?lang=ko`, 'Home works from both the directory and explicit nested index entry');
     await page.waitForLoadState('networkidle');
     const diagnostics = assertDeploymentResources(page, deployment), successful = new Set(diagnostics.responses.map(response => response.url));
     for (const url of [...result.modules, ...result.stylesheets.map(sheet => sheet.href), ...result.images.map(image => image.src), result.favicon.href]) assert.ok(successful.has(url), `No successful response for ${url}`);

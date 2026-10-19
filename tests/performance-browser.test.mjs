@@ -25,7 +25,7 @@ after(async () => {
 });
 
 async function pageFor(t, backend = 'worker', instances = 1, options = {}) {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'no-preference', ...options });
+  const page = await browser.newPage({ locale: 'ko-KR', viewport: { width: 1280, height: 900 }, reducedMotion: 'no-preference', ...options });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   t.after(async () => { await page.close(); assert.deepEqual(errors, [], 'No uncaught browser exceptions'); });
   await page.addInitScript(({ backend }) => {

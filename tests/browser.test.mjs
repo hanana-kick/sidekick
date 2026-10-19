@@ -17,7 +17,7 @@ before(async () => {
   if (screenshots) await mkdir(screenshots, { recursive: true });
   // Fail the suite once if the built application cannot start. Do not import the
   // test API here: that could accidentally repair a tree-shaken auto-registration.
-  const smoke = await browser.newPage({ reducedMotion: 'reduce' });
+  const smoke = await browser.newPage({ locale: 'ko-KR', reducedMotion: 'reduce' });
   const diagnostics = observeStartup(smoke);
   try {
     if (offline) await loadOfflineFixture(smoke); else await smoke.goto(baseURL);
@@ -68,7 +68,7 @@ async function assertAvatarReady(page, diagnostics) {
   } finally { page.off('pageerror', onError); page.off('console', onConsole); }
 }
 async function pageFor(t, options = {}, beforeLoad) {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1040 }, reducedMotion: 'reduce', ...options });
+  const page = await browser.newPage({ locale: 'ko-KR', viewport: { width: 1440, height: 1040 }, reducedMotion: 'reduce', ...options });
   const diagnostics = observeStartup(page);
   t.after(async () => { await page.close(); assert.deepEqual(diagnostics.errors, [], 'Browser console/page errors'); });
   if (beforeLoad) await beforeLoad(page);
@@ -439,7 +439,7 @@ test('representative catalog shapes and curated accessories remain transparent a
 });
 
 test('WebGL unavailable produces a visible fallback, not a false ready state', async t => {
-  const page = await browser.newPage({ viewport: { width: 1024, height: 768 } }); t.after(() => page.close());
+  const page = await browser.newPage({ locale: 'ko-KR', viewport: { width: 1024, height: 768 } }); t.after(() => page.close());
   const disableWebGL = () => {
     window.Worker = undefined;
     const original = HTMLCanvasElement.prototype.getContext;
@@ -947,7 +947,7 @@ test('preview wheel zoom leaves settings-panel scrolling and bodyOrientation sli
 });
 
 test('scene editor renders OG preset, exports full-size PNG and roundtrips composition JSON', async () => {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+  const page = await browser.newPage({ locale: 'ko-KR', viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
   try {
     if (offline) await loadOfflineFixture(page); else await page.goto(baseURL);
     await page.waitForFunction(() => document.querySelector('#flat')?.diagnostics?.ready);

@@ -106,7 +106,7 @@ window.mountCdnReact = () => {
 }
 
 async function pageFor(t, entry, { blockBlob = false } = {}) {
-  const page = await browser.newPage({ viewport: { width: 900, height: 700 }, reducedMotion: 'no-preference' });
+  const page = await browser.newPage({ locale: 'ko-KR', viewport: { width: 900, height: 700 }, reducedMotion: 'no-preference' });
   const pageErrors = [], consoleErrors = [], failedRequests = [], remoteResponses = [];
   page.context().on('response', response => {
     if (response.url().startsWith(bundleBase) || response.url().startsWith(peerBase)) {

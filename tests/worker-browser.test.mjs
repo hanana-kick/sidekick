@@ -15,7 +15,7 @@ before(async () => {
 after(async () => { await browser?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
 
 async function pageFor(t, { entry = 'native', csp = '', failWorker = '', contextLoss = false, touch = false, auditGpu = false } = {}) {
-  const page = await browser.newPage({ viewport: { width: 1000, height: 800 }, reducedMotion: 'no-preference', hasTouch: touch }), errors = [];
+  const page = await browser.newPage({ locale: 'ko-KR', viewport: { width: 1000, height: 800 }, reducedMotion: 'no-preference', hasTouch: touch }), errors = [];
   page.on('pageerror', error => errors.push(error.message));
   t.after(async () => { await page.close(); assert.deepEqual(errors, [], 'No uncaught page exceptions'); });
   await page.addInitScript(({ failWorker }) => {

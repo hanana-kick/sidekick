@@ -11,7 +11,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
 async function pageFor(t, options = {}) {
-  const page = await browser.newPage({ viewport: { width: 900, height: 800 }, ...options });
+  const page = await browser.newPage({ locale: 'ko-KR', viewport: { width: 900, height: 800 }, ...options });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   t.after(async () => { await page.close(); assert.deepEqual(errors, []); });
   await page.goto(`${base}/api-playground.html`); await page.waitForFunction(() => document.getElementById('bot')?.ready && document.getElementById('status').textContent.includes('준비'));
@@ -164,7 +164,7 @@ test('moving anchored target preserves one natural-flight completion', async t=>
 });
 
 for (const fallback of [false, true]) test(`settled anchor pursues moving targets with inertia and idles offscreen (${fallback ? 'fallback' : 'worker'})`, async t => {
- const page=await browser.newPage({viewport:{width:900,height:800},reducedMotion:'no-preference'});
+ const page=await browser.newPage({ locale: 'ko-KR',viewport:{width:900,height:800},reducedMotion:'no-preference'});
  t.after(()=>page.close());
  if(fallback) await page.addInitScript(()=>{window.Worker=class{constructor(){throw new Error('test fallback');}};});
  await page.goto(`${base}/api-playground.html`);await page.waitForFunction(()=>document.getElementById('bot')?.hasAttribute('data-configured'));
