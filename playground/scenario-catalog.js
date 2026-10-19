@@ -1,3 +1,4 @@
+import { emotionScenarioGroup } from './emotion-scenarios.js';
 /** Application intentions, grouped by what the companion helps the user do. */
 export const scenarioGroups = [
   { id: 'work', title: '작업 상태', groups: [
@@ -31,5 +32,6 @@ export const scenarioGroups = [
     ] },
   ] },
 ];
+scenarioGroups.push(emotionScenarioGroup);
 export const scenarios = scenarioGroups.flatMap(major => major.groups.flatMap(middle => middle.cases.map(item => ({ ...item, major: major.title, middle: middle.title }))));
 export const scenarioById = id => scenarios.find(item => item.id === id) ?? scenarios[0];

@@ -23,8 +23,8 @@ async function choose(page,id){
  assert.equal(await page.locator('#demo-bot').count(),1);
  assert.equal(await page.locator('#scenario-toc [aria-current=page]').getAttribute('data-scenario'),id);
 }
-test('three-level contents provides all 12 actual scenarios and hash history navigation',async t=>{
- const page=await setup(t);assert.equal(await page.locator('#scenario-toc > details').count(),3);assert.equal(await page.locator('#scenario-toc h3').count(),8);assert.equal(await page.locator('#scenario-toc [data-scenario]').count(),20);
+test('three-level contents provides all 18 actual scenarios and hash history navigation',async t=>{
+ const page=await setup(t);assert.equal(await page.locator('#scenario-toc > details').count(),3);assert.equal(await page.locator('#scenario-toc h3').count(),9);assert.equal(await page.locator('#scenario-toc [data-scenario]').count(),26);
  await choose(page,'review');await choose(page,'input');await page.goBack();await page.waitForFunction(()=>document.querySelector('[aria-current="page"][data-scenario]')?.dataset.scenario==='review');
  await page.goForward();await page.waitForFunction(()=>document.querySelector('[aria-current="page"][data-scenario]')?.dataset.scenario==='input');
  assert.match(await page.locator('#breadcrumb').textContent(),/행동 선언.*사용자 안내.*입력할 위치/);
@@ -98,4 +98,34 @@ for(const locale of ['en','zh-CN','ja'])test(`Guide translates technical lessons
  const untranslated=await page.evaluate(()=>{const walker=document.createTreeWalker(document.querySelector('.catalog-layout'),NodeFilter.SHOW_TEXT),bad=[];let n;while(n=walker.nextNode())if(!n.parentElement.closest('pre,[hidden]')&&/[가-힣]/.test(n.nodeValue))bad.push(n.nodeValue);return bad;});assert.deepEqual(untranslated,[]);
  await page.goto(`${base}/guide.html?lang=${locale}#html-start`);await page.waitForSelector('#lesson-content:not([hidden])');assert.equal(await page.locator('#demo-bot').count(),0);assert.ok((await page.locator('#lesson-content pre').textContent()).includes('bot.behavior'));
  if(process.env.SIDEKICK_SCREENSHOTS)await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/guide-${locale}-html-start.png`});
+});
+
+test('emotion request outcomes and reactions preserve behavior with runnable displayed code',async t=>{
+ const page=await setup(t,undefined,'emotion-request');
+ await page.locator('[data-emotion-step="1"]').click();
+ assert.equal(await page.locator('#demo-bot').evaluate(b=>b.emotion),'concerned');
+ assert.match(await page.locator('#declaration-code').textContent(),/setEmotion\('concerned'/);
+ await page.locator('[data-emotion-step="2"]').click();
+ assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'wait');
+ await page.locator('[data-emotion-step="3"]').click();
+ assert.equal(await page.locator('#demo-bot').evaluate(b=>b.emotion),'happy');
+ await choose(page,'emotion-notification');
+ await page.locator('[data-emotion-step="0"]').click();
+ assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'wait');
+ await page.locator('[data-emotion-step="1"]').click();
+ assert.equal(await page.locator('#demo-bot').evaluate(b=>b.emotionState.reacting),false);
+});
+test('emotion guide options, rapid interruption and keyboard contents work on mobile',async t=>{
+ const page=await setup(t,{width:320,height:640},'emotion-interruption');
+ await page.locator('[data-level="2"]').click();
+ await page.locator('#guide-emotion-intensity').fill('0.2');await page.locator('#guide-emotion-duration').fill('2400');
+ await page.locator('[data-emotion-step="0"]').click();
+ assert.match(await page.locator('#declaration-code').textContent(),/intensity: 0.2, duration: 2400/);
+ await page.locator('[data-emotion-step="1"]').click();await page.locator('[data-emotion-step="2"]').click();
+ assert.equal(await page.locator('#demo-bot').evaluate(b=>b.emotion),'happy');
+ await page.locator('#toc-toggle').click();
+ await page.locator('[data-scenario="emotion-composition"]').focus();await page.keyboard.press('Enter');
+ await page.waitForSelector('#demo-bot[data-scenario="emotion-composition"][data-configured]');
+ assert.equal(await page.locator('#toc-toggle').getAttribute('aria-expanded'),'false');
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
 });

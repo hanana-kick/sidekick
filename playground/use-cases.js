@@ -1,3 +1,4 @@
+import { emotionFlowById, emotionMarkup, emotionCode, runEmotionAction, customizeEmotionAction } from './emotion-scenarios.js';
 import '../src/index.ts';
 import { mountSiteHeader } from './shared-header.js';
 import { loadStudioSession, applyStudioSession } from './studio-session.ts';
@@ -28,6 +29,7 @@ const labels = { idle:'준비', resolving:'대상 찾는 중', moving:'대상으
 const card = content => `<div class="app-card">${content}</div>`;
 const row = (id, title, description='') => `<button class="target-item" id="${id}" type="button">${`<span data-guide-i18n="${title}">${t(title)}</span>`}${description ? `<small data-guide-i18n="${description}">${t(description)}</small>` : ''}</button>`;
 function applicationMarkup(kind) {
+  const flow=emotionFlowById(kind);if(flow)return emotionMarkup(flow,t);
   switch(kind) {
     case 'loading': return card('<h3><span data-guide-i18n="내 프로젝트">내 프로젝트</span></h3><div id="loading-indicator" role="status"><div class="spinner"></div><span><span data-guide-i18n="프로젝트 불러오는 중…">프로젝트 불러오는 중…</span></span></div><button id="app-complete"><span data-guide-i18n="불러오기 완료">불러오기 완료</span></button>');
     case 'upload': return card('<h3><span data-guide-i18n="보고서 업로드">보고서 업로드</span></h3><div id="upload-progress"><span id="progress-label"><span data-guide-i18n="0% · 전송 대기">0% · 전송 대기</span></span><div class="progress-track"><i style="width:0%"></i></div></div><button id="app-progress"><span data-guide-i18n="진행률 +25%">진행률 +25%</span></button>');
@@ -44,12 +46,14 @@ function applicationMarkup(kind) {
   }
 }
 function declarationFor(item) {
+  if(emotionFlowById(item.id))return {type:'wait',target:'#emotion-target',side:'left',gap:6};
   const targets = {loading:'#loading-indicator',upload:'#upload-progress',success:'#save-result',failure:'#request-result',selection:'#selected-1',paragraph:'#paragraph-1',input:'#name-field',validation:'#email-field',action:'#next-action',onboarding:'#onboard-1'};
   if (item.id === 'review') return {type:'review',targets:'#demo-app .target-item',dwell:1400,side:'left',gap:6};
   if (item.id === 'search') return {type:'idle'};
   return {type: ['loading','upload','input','success'].includes(item.id) ? 'wait':'guide',target:targets[item.id],side:'left',gap:6};
 }
 function eventCode(kind) {
+ const flow=emotionFlowById(kind);if(flow)return emotionCode(flow,undefined,3);
  const celebrate=`bot.behavior = { type:'celebrate', duration:1600 };`;
  const guide=target=>`bot.behavior = { type:'guide', target:${target}, side:'left', gap:6 };`;
  const examples={
@@ -81,9 +85,22 @@ function botDeclare(entry,config) {
 }
 function stop() {
  if (!active) return;
- active.bot.stopBehavior?.(); setText('run-status','중단 · 다시 실행할 수 있습니다');
+ active.bot.stopBehavior?.();active.bot.cancelReaction?.(); setText('run-status','중단 · 다시 실행할 수 있습니다');
 }
 function bindApp(entry,item) {
+ const flow=emotionFlowById(item.id);
+ if(flow){
+  entry.emotionAction=flow.initial;
+  for(const button of document.querySelectorAll('[data-emotion-step]'))button.addEventListener('click',()=>{
+   if(!entry.ready)return;
+   const [label,preset]=flow.buttons[Number(button.dataset.emotionStep)];
+   for(const input of [$('guide-emotion-intensity'),$('guide-emotion-duration')])if(!input.checkValidity()){input.reportValidity();return;}
+   const action=level===2?customizeEmotionAction(preset,Number($('guide-emotion-intensity').value),Number($('guide-emotion-duration').value)):preset;entry.emotionAction=action;renderCurrentCode();
+   setText('emotion-feedback',label);
+   try{Promise.resolve(runEmotionAction(entry.bot,action)).catch(error=>{if(active===entry)$('run-status').textContent=error.message;});}catch(error){$('run-status').textContent=error.message;}
+  },{signal:entry.controller.signal});
+  return;
+ }
  const on=(id,fn)=>$(id)?.addEventListener('click',event=>{fn(event);localizeGuideBindings();},{signal:entry.controller.signal});
  const success=()=>declare({type:'celebrate',duration:1600});
  const guide=target=>{document.querySelectorAll('#demo-app .target-item').forEach(el=>el.toggleAttribute('data-active','#'+el.id===target));declare({type:'guide',target,side:'left',gap:6});};
@@ -130,7 +147,7 @@ async function activate(id) {
   if(state.type==='review')document.querySelectorAll('#demo-app .target-item').forEach((el,i)=>el.toggleAttribute('data-active',i===state.itemIndex));
  },{signal:controller.signal});
  $('demo-app').append(bot);
- try{if(!bot.ready)await ready;if(token!==generation)return;await applyStudioSession(bot,session.scene);if(token!==generation)return;bot.interaction='none';bot.zoom=Math.max(session.scene.zoom,2);entry.ready=true;bot.setAttribute('data-configured','');botDeclare(entry,entry.declaration);}
+ try{if(!bot.ready)await ready;if(token!==generation)return;await applyStudioSession(bot,session.scene);if(token!==generation)return;bot.interaction='none';bot.zoom=Math.max(session.scene.zoom,2);entry.ready=true;bot.setAttribute('data-configured','');botDeclare(entry,entry.declaration);if(emotionFlowById(item.id))runEmotionAction(bot,entry.emotionAction);}
  catch(error){if(token===generation)setText('run-status',error.message);}
 }
 const levelExplanations = {
@@ -141,6 +158,7 @@ const levelExplanations = {
 };
 function renderCurrentCode(){
  if(!active)return;
+ const flow=emotionFlowById(active.item.id);if(flow){$('declaration-code').textContent=emotionCode(flow,active.emotionAction,level);$('event-code').textContent=emotionCode(flow,undefined,3);document.querySelector('.declaration-panel details').open=level===3;return;}
  const declaration='const bot = document.querySelector("#demo-bot");\n\nbot.behavior = '+JSON.stringify(active.declaration,null,2)+';';
  $('declaration-code').textContent=level===4?manualCode():declaration;
  $('event-code').textContent=eventCode(active.item.id);
@@ -148,7 +166,8 @@ function renderCurrentCode(){
 }
 function renderLevel(){
  document.querySelectorAll('[data-level]').forEach(button=>button.setAttribute('aria-pressed',String(Number(button.dataset.level)===level)));
- setText('level-explanation',levelExplanations[level]);$('level-options').hidden=level!==2;$('manual-controls').hidden=level!==4;
+ const emotional=!!emotionFlowById(active?.item.id);
+ setText('level-explanation',emotional?{1:'행동과 감정을 각각 선언합니다. 앱의 결과 버튼을 누르면 같은 코드가 실행됩니다.',2:'강도와 반응 시간을 바꾸고 앱 이벤트를 실행해 비교하세요.',3:'앱 결과를 감정에 연결합니다. 이벤트 핸들러와 실행 코드는 동일한 선언에서 만들어집니다.',4:'이동·활동·눈·감정은 함께 조합할 수 있습니다. neutral은 감정 효과만 지웁니다.'}[level]:levelExplanations[level]);$('level-options').hidden=level!==2||emotional;$('emotion-options').hidden=level!==2||!emotional;$('manual-controls').hidden=level!==4||!!emotionFlowById(active?.item.id);
  $('dwell-field').hidden=active?.declaration.type!=='review';
  renderCurrentCode();
 }
@@ -207,7 +226,7 @@ function localizeGuide(){
 subscribeSiteLocale(localizeGuide);localizeGuideBindings();
 
 $('restart-demo').onclick=()=>activate(active?.item.id??'loading');$('stop-demo').onclick=stop;
-$('copy-code').onclick=async()=>{try{await navigator.clipboard.writeText($('declaration-code').textContent+(level===3?'\n\n'+eventCode(active.item.id).replace("const bot = document.querySelector('#demo-bot');\n",''):''));setText('copy-status','복사했습니다.');}catch{setText('copy-status','코드를 선택해서 복사해 주세요.');}};
+$('copy-code').onclick=async()=>{try{await navigator.clipboard.writeText($('declaration-code').textContent+(level===3&&!emotionFlowById(active.item.id)?'\n\n'+eventCode(active.item.id).replace("const bot = document.querySelector('#demo-bot');\n",''):''));setText('copy-status','복사했습니다.');}catch{setText('copy-status','코드를 선택해서 복사해 주세요.');}};
 window.addEventListener('hashchange',()=>activate(location.hash.slice(1)));
 window.addEventListener('pagehide',()=>{active?.controller.abort();active?.bot.remove();});
 activate(location.hash.slice(1)||'html-start');

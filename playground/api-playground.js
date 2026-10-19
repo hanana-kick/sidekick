@@ -88,6 +88,11 @@ function readAction() {
       const duration = numeric('activity-duration');
       return { method, args: [$('activity').value, ...(duration ? [{ duration }] : [])] };
     }
+    case 'emotion': {
+      const method=$('emotion-operation').value;
+      if(method==='cancelReaction')return {method,args:[]};
+      return {method,args:[$('emotion-name').value,{intensity:numeric('emotion-intensity'),...(method==='reactTo'?{duration:numeric('emotion-duration')}:{})}]};
+    }
     case 'expression': return { method: 'setExpression', args: [$('eye-side').value, $('expression').value, { duration: numeric('expression-duration') }] };
     case 'tracking': return { property: 'trackingMode', value: $('tracking-mode').value };
     case 'orientation': return { steps: [{ method: 'setBodyOrientation', args: [{ yaw: numeric('body-yaw'), pitch: numeric('body-pitch'), roll: numeric('body-roll') }] }, { property: 'zoom', value: numeric('zoom') }] };
@@ -119,6 +124,8 @@ function refresh() {
   const elementRelative = $('move-method').value === 'moveToElement';
   $('element-target-options').hidden = !elementRelative;
   $('activity-duration').disabled = $('activity-operation').value !== 'play'; $('activity').disabled = $('activity-operation').value === 'stop';
+  $('emotion-duration').disabled = $('emotion-operation').value !== 'reactTo';
+  $('emotion-name').disabled = $('emotion-intensity').disabled = $('emotion-operation').value === 'cancelReaction';
   $('entrance-coordinates').hidden = $('presence-operation').value === 'exit';
   try { renderCode(readAction()); $('execute').disabled = !initialized; }
   catch (error) { selectedAction = null; validationError = error; code = `// ${errorMessage(error)}`; $('invocation').textContent = code; clearNotice('copy-status'); $('execute').disabled = true; }

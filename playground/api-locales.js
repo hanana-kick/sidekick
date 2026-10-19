@@ -3,6 +3,22 @@ import { getSiteLocale } from './site-i18n.js';
 /** Explicit message keys. Columns are Korean, English, Simplified Chinese, Japanese. */
 export const API_LOCALES = Object.freeze(['ko', 'en', 'zh-CN', 'ja']);
 const messages = {
+"actionEmotion":["감정 / 반응","Emotion / reaction","情绪 / 反应","感情 / 反応"],
+"emotionOperation":["감정 실행","Emotion operation","情绪操作","感情の操作"],
+"emotionPersistent":["지속 감정","Persistent emotion","持续情绪","持続する感情"],
+"emotionTransient":["일시적인 반응","Temporary reaction","临时反应","一時的な反応"],
+"emotionCancel":["반응 취소","Cancel reaction","取消反应","反応を取り消す"],
+"emotionName":["감정","Emotion","情绪","感情"],
+"emotionIntensity":["감정 강도 · 0–1","Intensity · 0–1","强度 · 0–1","強さ · 0–1"],
+"emotionDuration":["반응 유지 시간 · ms","Reaction hold · ms","反应保持时间 · 毫秒","反応の維持時間 · ms"],
+"emotionHelp":["감정은 이동과 행동을 중단하지 않습니다. 일시적인 반응 후 기존 감정으로 돌아옵니다. neutral로 감정 효과를 해제합니다.","Emotion does not interrupt movement or behavior. Temporary reactions return to the baseline emotion. Neutral clears the emotional overlay.","情绪不会中断移动或行为。临时反应结束后恢复原有情绪。neutral 清除情绪叠加效果。","感情は移動や行動を中断しません。一時的な反応の後は元の感情に戻ります。neutral で感情の効果を消します。"],
+"emotion.neutral":["기본","Neutral","中性","ニュートラル"],
+"emotion.happy":["기쁨","Happy","开心","うれしい"],
+"emotion.sad":["슬픔","Sad","悲伤","悲しい"],
+"emotion.curious":["호기심","Curious","好奇","好奇心"],
+"emotion.surprised":["놀람","Surprised","惊讶","驚き"],
+"emotion.concerned":["걱정","Concerned","担忧","心配"],
+"emotion.excited":["신남","Excited","兴奋","わくわく"],
   pageTitle: ['Sidekick · API 플레이그라운드', 'Sidekick · API playground', 'Sidekick · API 演练场', 'Sidekick · API プレイグラウンド'],
   eyebrow: ['API 플레이그라운드', 'API PLAYGROUND', 'API 演练场', 'API プレイグラウンド'],
   title: ['무엇을 하게 할까요?', 'What should your companion do?', '想让伙伴做什么？', '何をしてもらいましょう？'],

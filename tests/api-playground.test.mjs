@@ -152,7 +152,7 @@ async function controllerFixture(t) {
     moveTo(...args) { this.calls.push({ method: 'moveTo', args }); this.point = args[0]; return Promise.resolve({ finished: true }); }
     moveBy(...args) { this.calls.push({ method: 'moveBy', args }); this.point = { x: this.point.x + args[0].x, y: this.point.y + args[0].y }; return Promise.resolve({ finished: true }); }
   }
-  for (const method of ['setExpression', 'setActivity', 'play', 'stop', 'setBodyOrientation', 'transitionTo', 'cancelMove', 'cancelTransition', 'enter', 'exit', 'detachAnchor', 'moveToElement']) Avatar.prototype[method] = function (...args) { this.calls.push({ method, args }); return Promise.resolve({ finished: true }); };
+  for (const method of ['setEmotion', 'reactTo', 'cancelReaction', 'setExpression', 'setActivity', 'play', 'stop', 'setBodyOrientation', 'transitionTo', 'cancelMove', 'cancelTransition', 'enter', 'exit', 'detachAnchor', 'moveToElement']) Avatar.prototype[method] = function (...args) { this.calls.push({ method, args }); return Promise.resolve({ finished: true }); };
   w.customElements.define('sidekick-avatar', Avatar);
   w.eval(source); await new Promise(resolve => setImmediate(resolve)); const bot = $('bot'); bot.calls.length = 0;
   const input = (id, value) => { $(id).value = String(value); $(id).dispatchEvent(new w.Event('input', { bubbles: true })); };
@@ -304,4 +304,20 @@ test('anchor defaults to one-time and detach button leaves draft, options and se
   assert.deepEqual(snapshot(), before); assert.equal(f.$('invocation').textContent, draft);
   f.input('action-kind', 'anchor'); assert.match(f.$('invocation').textContent, /avatar.detachAnchor\(\);/);
   f.$('execute').click(); assert.equal(f.bot.calls.at(-1).method, 'detachAnchor');
+});
+
+test('emotion draft executes exact generated calls and survives page click and operation changes', async t=>{
+ const { $,bot,input,pointer }=await controllerFixture(t);
+ input('action-kind','emotion');input('emotion-name','curious');input('emotion-intensity',0.4);
+ $('execute').click();await new Promise(r=>setImmediate(r));
+ assert.deepEqual(plain(bot.calls.at(-1)),{method:'setEmotion',args:['curious',{intensity:0.4}]});
+ assert.match($('invocation').textContent,/setEmotion\('curious', \{ intensity: 0.4 \}\)/);
+ input('emotion-operation','reactTo');input('emotion-name','surprised');input('emotion-duration',2300);
+ const draft=$('invocation').textContent;pointer('pointerdown',760,430);pointer('pointerup',760,430);
+ assert.equal($('action-kind').value,'emotion');assert.equal($('invocation').textContent,draft);
+ $('execute').click();await new Promise(r=>setImmediate(r));
+ assert.deepEqual(plain(bot.calls.at(-1)),{method:'reactTo',args:['surprised',{intensity:0.4,duration:2300}]});
+ assert.match(draft,/await avatar.reactTo/);
+ input('emotion-operation','cancelReaction');$('execute').click();
+ assert.equal(bot.calls.at(-1).method,'cancelReaction');
 });

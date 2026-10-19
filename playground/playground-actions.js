@@ -18,7 +18,7 @@ export function actionSource(action, target = 'avatar') {
   if (action.steps) return action.steps.map(step => actionSource(step, target)).join('\n');
   if (action.property) return `${target}.${action.property} = ${literal(action.value)};`;
   const call = `${target}.${action.method}(${(action.args ?? []).map((value, index) => argumentSource(action, value, index)).join(', ')});`;
-  return ['moveTo', 'moveToElement', 'moveBy', 'setExpression', 'transitionTo', 'enter', 'exit'].includes(action.method) ? `await ${call}` : call;
+  return ['moveTo', 'moveToElement', 'moveBy', 'setExpression', 'transitionTo', 'enter', 'exit', 'reactTo'].includes(action.method) ? `await ${call}` : call;
 }
 export function executeAction(avatar, action, createAccessory) {
   if (action.steps) { let result; for (const step of action.steps) result = executeAction(avatar, step, createAccessory); return result; }
