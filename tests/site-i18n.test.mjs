@@ -34,3 +34,16 @@ test('shared header changes language without remounting logo or deleting page st
   }
   assert.equal(calls,3); unsubscribe(); unmount(); setSiteLocale('ko'); assert.equal(getSiteLocale(),'ko'); assert.equal(host.children.length,0);
 });
+test('an explicit URL language is saved and switching keeps history state and hash', async () => {
+  const previousWindow = globalThis.window, previousDocument = globalThis.document;
+  const dom = new JSDOM('<input value="draft">', {url:'https://sidekick.test/guide.html?example=waiting&lang=ja#section'});
+  globalThis.window=dom.window;globalThis.document=dom.window.document;
+  try {
+    dom.window.history.replaceState({draft:42},'',dom.window.location.href);
+    const module=await import('../playground/site-i18n.js?test=persist');
+    assert.equal(module.getSiteLocale(),'ja');assert.equal(dom.window.localStorage.getItem(module.SITE_LOCALE_STORAGE_KEY),'ja');
+    module.setSiteLocale('zh-CN');
+    assert.equal(dom.window.location.hash,'#section');assert.equal(new URL(dom.window.location.href).searchParams.get('example'),'waiting');
+    assert.deepEqual(dom.window.history.state,{draft:42});assert.equal(dom.window.document.documentElement.lang,'zh-CN');
+  } finally { globalThis.window=previousWindow;globalThis.document=previousDocument;dom.window.close(); }
+});
