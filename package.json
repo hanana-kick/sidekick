@@ -41,6 +41,9 @@
     "dist/library",
     "dist/browser",
     "README.md",
+    "README.en.md",
+    "README.zh-CN.md",
+    "README.ja.md",
     "third_party/material-shapes"
   ],
   "scripts": {

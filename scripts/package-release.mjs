@@ -22,7 +22,7 @@ const browserFiles = ['sidekick.js', 'sidekick.iife.js', 'sidekick-react.js', 's
 const html = (title, body) => `<!doctype html>\n<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{font:16px system-ui;margin:32px;background:#f1f5f9;color:#0f172a}sidekick-avatar{width:280px;height:280px;display:block}</style><body>${body}</body></html>\n`;
 try {
   for (const file of browserFiles) await cp(join(root, 'dist/browser', file), join(stage, file));
-  await cp(join(root, 'README.md'), join(stage, 'README.md'));
+  for (const file of ['README.md', 'README.en.md', 'README.zh-CN.md', 'README.ja.md']) await cp(join(root, file), join(stage, file));
   await cp(join(root, 'third_party'), join(stage, 'third_party'), { recursive: true });
   await buildReactPeers(join(stage, 'vendor'));
   await writeFile(join(stage, 'esm.html'), html('Sidekick · ESM', `<h1>Sidekick · ESM</h1><sidekick-avatar shape="heart" body-color="#FFCC37" head-accessory="beret" left-smile="1" right-smile="1" tracking-mode="eyes-and-body" interaction="box" aria-label="나의 도우미"></sidekick-avatar><script type="module">import './sidekick.js';</script>`));
