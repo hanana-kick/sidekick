@@ -14,7 +14,7 @@ export const workflowRows = [
  ['입력 확인 완료','Input validated','输入验证通过','入力確認完了'],
 ];
 export function installApplicationWorkflow(app, bot, kind, options = {}) {
- const text = key => options.labels?.[key] ?? key;
+ const text = key => options.translate?.(key) ?? options.labels?.[key] ?? key;
  const get = id => app.querySelector('#' + id);
  const controller = new app.ownerDocument.defaultView.AbortController();
  const signal = controller.signal;
@@ -67,7 +67,7 @@ export function installApplicationWorkflow(app, bot, kind, options = {}) {
  }
  if (kind === 'review') {
   const rows=[...app.querySelectorAll('.target-item')];
-  rows.forEach(row=>{const badge=app.ownerDocument.createElement('small');badge.className='workflow-review-status';badge.textContent=text('검토 대기');row.append(badge);});
+  rows.forEach(row=>{const badge=app.ownerDocument.createElement('small');badge.className='workflow-review-status';badge.textContent=text('검토 대기');badge.dataset.workflowMessage='검토 대기';row.append(badge);});
   bot.addEventListener('sidekick-behavior-change', () => {
    const state=bot.behaviorState;if(state.type!=='review')return;
    rows.forEach((row,index)=>{const completed=index<state.completedItems;const current=index===state.itemIndex&&state.status!=='completed';const label=completed?'검토 완료':current?'검토 중':'검토 대기';row.dataset.outcome=completed?'success':current?'pending':'';const badge=row.querySelector('.workflow-review-status');badge.textContent=text(label);badge.dataset.workflowMessage=label;});

@@ -138,7 +138,7 @@ function bindApp(entry,item) {
   return;
  }
  if(workflowIds.includes(item.id)){
-  const cleanup=installApplicationWorkflow($('demo-app'),entry.bot,item.id,{declare,emotion:value=>{entry.applicationEmotion=value;if(entry.ready)entry.bot.setEmotion(value);},labels:Object.fromEntries(workflowRows.map(([key])=>[key,t(key)])),onEvent:id=>{entry.events.push(id);entry.events=entry.events.slice(-32);localizeGuideBindings();renderCurrentCode();updateContextLinks();}});
+  const cleanup=installApplicationWorkflow($('demo-app'),entry.bot,item.id,{declare,translate:t,emotion:value=>{entry.applicationEmotion=value;if(entry.ready)entry.bot.setEmotion(value);},labels:Object.fromEntries(workflowRows.map(([key])=>[key,t(key)])),onEvent:id=>{entry.events.push(id);entry.events=entry.events.slice(-32);localizeGuideBindings();renderCurrentCode();updateContextLinks();}});
   entry.controller.signal.addEventListener('abort',cleanup,{once:true});return;
  }
  const on=(id,fn)=>$(id)?.addEventListener('click',event=>{fn(event);entry.events.push(id);entry.events=entry.events.slice(-32);localizeGuideBindings();updateContextLinks();},{signal:entry.controller.signal});
