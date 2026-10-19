@@ -245,3 +245,18 @@ for (const action of ['moveTo', 'cancelMove']) test(`explicit ${action} supersed
   assert.equal(avatar.canvas.style.clipPath, '');
   if (action === 'moveTo') assert.deepEqual(avatar.position, { x: 123, y: 234 });
 });
+
+test('HTML JSON null clears the entrance declaration without rejecting the attribute transaction', async () => {
+  const { avatar, declaration, errors } = fixture();
+  avatar.setAttribute('entrance', JSON.stringify({ ...declaration, target: '#entrance-review-target' }));
+  // Use the fixture's direct Element declaration first: only JSON null is under test.
+  avatar.removeAttribute('entrance');
+  await drain();
+  avatar.entrance = declaration;
+  avatar.setAttribute('entrance', ' null ');
+  await drain();
+  assert.equal(avatar.entrance, null);
+  assert.equal(avatar.presenceState, 'visible');
+  assert.equal(avatar.canvas.style.clipPath, '');
+  assert.deepEqual(errors, []);
+});
