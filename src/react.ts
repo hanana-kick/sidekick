@@ -10,6 +10,7 @@ import type { TrackingMode } from './core/tracking.js';
 import type { MaterialShapeName } from './core/shapes.js';
 import type { SidekickAvatar as SidekickElement } from './element/avatar.js';
 import type { SidekickAttributes, SidekickEventMap } from './element/attributes.js';
+import type { Emotion } from './core/emotion.js';
 import type { BotBehavior } from './element/behavior.js';
 
 export type SidekickAvatarRef = SidekickElement;
@@ -36,6 +37,10 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
   onAssetTransitionEnd?: SidekickEventHandler<'sidekick-transition-end'>;
   /** Declarative intent, assigned as a property after the native element upgrades. */
   behavior?: BotBehavior | null;
+  emotion?: Emotion;
+  emotionIntensity?: number;
+  onEmotionChange?: SidekickEventHandler<'sidekick-emotion-change'>;
+  onReactionEnd?: SidekickEventHandler<'sidekick-reaction-end'>;
   onBehaviorChange?: SidekickEventHandler<'sidekick-behavior-change'>;
   onBehaviorEnd?: SidekickEventHandler<'sidekick-behavior-end'>;
   design?: AvatarDesign;
@@ -97,6 +102,7 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
 
 const tagName = 'sidekick-avatar';
 const attributeProps = {
+  emotion: 'emotion', emotionIntensity: 'emotion-intensity',
   placement: 'placement', positionX: 'position-x', positionY: 'position-y', movementBounds: 'movement-bounds', moveDuration: 'move-duration', moveEasing: 'move-easing', moveTravel: 'move-travel', moveMaxSpeed: 'move-max-speed', moveAcceleration: 'move-acceleration', moveDeceleration: 'move-deceleration',
   shape: 'shape', bodyColor: 'body-color', eyeColor: 'eye-color',
   expression: 'expression', leftExpression: 'left-expression', rightExpression: 'right-expression',
@@ -109,6 +115,7 @@ const attributeProps = {
   shapeDuration: 'shape-duration', shapeEasing: 'shape-easing', motionDuration: 'motion-duration', motionEasing: 'motion-easing', time: 'time',
 } as const satisfies Partial<Record<keyof SidekickAvatarProps, string>>;
 const eventProps = {
+  onEmotionChange: 'sidekick-emotion-change', onReactionEnd: 'sidekick-reaction-end',
   onEnterEnd: 'sidekick-enter-end', onExitEnd: 'sidekick-exit-end',
   onMoveEnd: 'sidekick-move-end', onMoveProgress: 'sidekick-move-progress', onPlayEnd: 'sidekick-play-end', onAssetTransitionEnd: 'sidekick-transition-end',
   onBehaviorChange: 'sidekick-behavior-change', onBehaviorEnd: 'sidekick-behavior-end',

@@ -1,3 +1,5 @@
+import { EMOTIONS } from '../core/emotion.js';
+import type { Emotion, EmotionValue, EmotionState, EmotionResult } from '../core/emotion.js';
 import type { BehaviorState, BehaviorResult } from './behavior.js';
 import type { PresenceResult } from './presence.js';
 import { ACTIVITIES, createAccessory, createDesign, equipAccessory, finite, parseDesign } from '../core/design.js';
@@ -19,6 +21,8 @@ import type { MaterialShapeName } from '../core/shapes.js';
 export type BooleanAttribute = boolean | '' | 'true' | 'false' | '1' | '0';
 export type NumericAttribute = number | `${number}`;
 export interface SidekickAttributes {
+  emotion?: Emotion;
+  'emotion-intensity'?: NumericAttribute;
   behavior?: string;
   placement?: AvatarPlacement;
   'position-x'?: NumericAttribute;
@@ -79,7 +83,7 @@ export interface SidekickAttributes {
 export type SidekickAttributeName = keyof SidekickAttributes;
 export const ACCESSORY_ATTRIBUTE_SLOTS = Object.freeze({ head: 'head', eyes: 'eyes', mouth: 'mouth', neck: 'neck', 'left-ear': 'leftEar', 'right-ear': 'rightEar' } as const);
 export const SIDEKICK_ATTRIBUTES = Object.freeze([
-  'behavior',
+  'emotion', 'emotion-intensity', 'behavior',
   'placement', 'position-x', 'position-y', 'movement-bounds', 'move-duration', 'move-easing', 'move-travel', 'move-max-speed', 'move-acceleration', 'move-deceleration',
   'design', 'shape', 'body-color', 'eye-color', 'expression', 'left-expression', 'right-expression',
   'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'accessories',
@@ -99,6 +103,8 @@ export interface SidekickDesignChangeDetail { design: AvatarDesign }
 export interface SidekickBodyOrientationChangeDetail { bodyOrientation: BodyOrientation }
 export interface SidekickZoomChangeDetail { zoom: number }
 export interface SidekickEventMap {
+  'sidekick-emotion-change': CustomEvent<EmotionState>;
+  'sidekick-reaction-end': CustomEvent<EmotionResult>;
   'sidekick-behavior-change': CustomEvent<BehaviorState>;
   'sidekick-behavior-end': CustomEvent<BehaviorResult>;
   'sidekick-enter-end': CustomEvent<PresenceResult>;
@@ -119,6 +125,7 @@ export interface SidekickEventMap {
 
 export type AttributeValues = ReadonlyMap<string, string>;
 export interface ResolvedAttributes {
+  emotion: EmotionValue;
   placement: AvatarPlacement;
   position: AvatarPosition;
   movementBounds: MovementBounds;
@@ -227,6 +234,7 @@ export function resolveSidekickAttributes(attributes: AttributeValues): Resolved
   const trackingMode = read('tracking-mode', parseTrackingMode, legacyTracking === undefined ? 'eyes-and-body' : legacyTracking ? 'eyes' : 'off');
   read('render-style', value => choice(value, ['flat', '3d']), 'flat');
   return {
+    emotion: { emotion: read('emotion', value => choice(value, EMOTIONS), 'neutral'), intensity: read('emotion-intensity', value => number(value, 0, 1, 'emotion-intensity'), 1) },
     placement: read('placement', value => choice(value, ['inline', 'viewport']), 'inline'),
     position: { x: read('position-x', value => number(value, -1e7, 1e7, 'position-x'), 0), y: read('position-y', value => number(value, -1e7, 1e7, 'position-y'), 0) },
     movementBounds: read('movement-bounds', value => choice(value, ['viewport', 'none']), 'viewport'),
