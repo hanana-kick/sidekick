@@ -1,3 +1,5 @@
+import { setSiteLocale, getSiteLocale } from '../playground/site-i18n.js';
+import { STUDIO_TEXT, STUDIO_SHAPES, STUDIO_ACCESSORIES, studioText, studioShapeLabel, studioAccessoryLabel, studioMessage } from '../playground/studio-locales.js';
 import { STUDIO_SESSION_KEY, loadStudioSession, applyStudioSession } from '../playground/studio-session.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -78,6 +80,7 @@ function store(saved: Record<string, string> = {}, failBackup = false) {
   return { values, writes, getItem: (key: string) => values.get(key) ?? null, setItem(key: string, value: string) { writes.push(key); if (failBackup && key.endsWith('.recovery')) throw new Error('quota'); values.set(key, value); } };
 }
 async function fixture(t: { after: (fn: () => Promise<void>) => void }, saved: Record<string, string> = {}, failBackup = false, strict = false) {
+  setSiteLocale('ko');
   const storage = store(saved, failBackup), controller = new StudioController(storage), container = document.createElement('div'); document.body.append(container);
   const root = createRoot(container);
   await act(async () => { const app = createElement(StudioApp, { controller }); root.render(strict ? createElement(StrictMode, {}, app) : app); });
@@ -102,11 +105,11 @@ function assertMinimal(design: AvatarDesign) {
 
 test('Studio exposes its active destination and the API playground in the top-level header', async t => {
   const f = await fixture(t);
-  const navigation = f.container.querySelector('.app-header nav[aria-label="Sidekick 페이지"]');
+  const navigation = f.container.querySelector('.app-header nav[aria-label="Sidekick 메뉴"]');
   assert.ok(navigation);
-  assert.equal(navigation.querySelector('[aria-current="page"]')?.textContent, 'Studio');
+  assert.equal(navigation.querySelector('[aria-current="page"]')?.textContent, '스튜디오');
   const api = f.node<HTMLAnchorElement>('api-playground-link');
-  assert.equal(api.textContent, 'API playground');
+  assert.equal(api.textContent, 'API 체험');
   assert.equal(new URL(api.href).pathname, '/api-playground.html');
 });
 
@@ -547,4 +550,69 @@ test('Studio bridge uses one default, rejects retired keys, and never overwrites
   const controller = new StudioController(broken);
   assert.equal(controller.getSnapshot().recovery?.raw, raw); assert.equal(broken.values.get(STUDIO_SESSION_KEY), raw); assert.deepEqual(broken.writes, []);
   assert.equal(loadStudioSession({ getItem() { throw Error('blocked'); } }).source, 'unavailable');
+});
+
+
+test('four explicit Studio catalogs cover every shape, accessory and UI key', () => {
+  for (const catalog of [STUDIO_TEXT, STUDIO_SHAPES, STUDIO_ACCESSORIES]) {
+    for (const labels of Object.values(catalog)) {
+      assert.equal(labels.length, 4);
+      assert.ok(labels.every(label => typeof label === 'string' && label.length > 0));
+    }
+  }
+  assert.equal(Object.keys(STUDIO_SHAPES).length, 35);
+  assert.equal(Object.keys(STUDIO_ACCESSORIES).length, 12);
+});
+
+test('live locale switching translates controls, shapes, accessories, status and snippets without changing scene or focus', async t => {
+  const f = await fixture(t);
+  await f.shape('heart'); await f.equipment('eyes', 'glasses');
+  const scene = f.controller.exportJSON(), avatar = f.avatar;
+  const writes = f.storage.writes.length, assignments = avatar.assignments;
+  const search = f.node<HTMLInputElement>('shape-search');
+  const heart = f.container.querySelector<HTMLElement>('[data-shape="heart"]')!;
+  search.value = 'heart'; search.dispatchEvent(new Event('input', { bubbles: true }));
+  heart.focus();
+  for (const locale of ['en', 'zh-CN', 'ja', 'ko'] as const) {
+    await act(async () => setSiteLocale(locale));
+    assert.equal(getSiteLocale(), locale);
+    const apiHref = f.container.querySelector<HTMLAnchorElement>('.stage-header a')!.href;
+    assert.equal(new URL(apiHref).searchParams.get('lang'), locale);
+    assert.equal(f.container.querySelector('h1')?.textContent, studioText('나만의 작은 동료.', locale));
+    assert.equal(f.node('appearance-tab').textContent, studioText('외형', locale));
+    assert.equal(f.node('appearance-tab').getAttribute('aria-selected'), 'true');
+    assert.equal(f.node('body-color').getAttribute('aria-label'), studioText('몸체 색상', locale));
+    assert.equal(heart.querySelector('.shape-tile-label')?.textContent, studioShapeLabel('heart', locale));
+    assert.equal(f.container.querySelector('[data-accessory="glasses"] span')?.textContent, studioAccessoryLabel('glasses', locale));
+    assert.equal(f.node('status').textContent, studioText('디자인이 이 브라우저에 저장되었습니다.', locale));
+    assert.ok(f.node('api-example').textContent?.includes(studioText('나의 도우미', locale)));
+    assert.equal(search.value, 'heart'); assert.equal(document.activeElement === heart, true);
+    assert.equal(f.node('flat') === avatar, true); assert.equal(avatar.assignments, assignments);
+    assert.equal(f.controller.exportJSON(), scene); assert.equal(f.storage.writes.length, writes);
+    const visibleCopy = f.container.cloneNode(true) as HTMLElement;
+    visibleCopy.querySelectorAll('.site-header-brand, textarea, pre').forEach(node => node.remove());
+    if (locale !== 'ko') assert.doesNotMatch(visibleCopy.textContent ?? '', /[가-힣]/);
+  }
+});
+
+test('localized sessions and validation messages update on language change without rereading storage', async t => {
+  const f = await fixture(t);
+  let reads = 0;
+  const session = loadStudioSession({ getItem() { reads++; return null; } });
+  const originalReads = reads;
+  await f.click(f.node('json-tab'));
+  await act(async () => f.controller.importJSON('{"sceneVersion": 3}'));
+  for (const locale of ['ko', 'en', 'zh-CN', 'ja'] as const) {
+    await act(async () => setSiteLocale(locale));
+    assert.equal(session.message, studioText('아직 저장된 Studio 설정이 없어 기본 봇을 표시합니다.', locale));
+    assert.equal(reads, originalReads);
+    assert.equal(f.node('json-tab').getAttribute('aria-selected'), 'true');
+    assert.equal(f.node('json-error').textContent, studioMessage(f.controller.getSnapshot().jsonError, locale));
+    const error = studioMessage('body.color: #RRGGBB 형식이 필요합니다.', locale);
+    assert.ok(error.startsWith('body.color: '));
+    if (locale !== 'ko') assert.doesNotMatch(error, /[가-힣]/);
+    assert.equal(studioMessage('100 × 200 장면 PNG를 내보냈습니다.', locale).includes('100 × 200'), true);
+    assert.equal(studioMessage('JSON copied.', locale), studioText('JSON을 복사했습니다.', locale));
+  }
+  await act(async () => setSiteLocale('ko'));
 });

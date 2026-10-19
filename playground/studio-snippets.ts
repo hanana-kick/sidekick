@@ -1,3 +1,4 @@
+import { studioText } from './studio-locales.js';
 import { parseScene } from '../src/core/scene.js';
 import type { SidekickScene } from '../src/core/scene.js';
 
@@ -18,7 +19,7 @@ export function sceneSnippets(input: SidekickScene): { html: string; react: stri
   const htmlAttributes = values.map(([name, , value]) => `  ${name}="${escapeHTMLAttribute(typeof value === 'object' ? JSON.stringify(value) : String(value))}"`).join('\n');
   const jsxProps = values.map(([, name, value]) => `      ${name}={${javascript(value)}}`).join('\n');
   return {
-    html: `<script type="module">\n  import '@hanana-kick/sidekick/auto';\n</script>\n\n<sidekick-avatar\n${htmlAttributes}\n  aria-label="나의 도우미"\n  style="width:200px;height:200px"\n></sidekick-avatar>`,
-    react: `import { SidekickAvatar } from '@hanana-kick/sidekick/react';\n\nexport default function Companion() {\n  return (\n    <SidekickAvatar\n${jsxProps}\n      aria-label="나의 도우미"\n      style={{ width: 200, height: 200 }}\n    />\n  );\n}\n`,
+    html: `<script type="module">\n  import '@hanana-kick/sidekick/auto';\n</script>\n\n<sidekick-avatar\n${htmlAttributes}\n  aria-label="${escapeHTMLAttribute(studioText('나의 도우미'))}"\n  style="width:200px;height:200px"\n></sidekick-avatar>`,
+    react: `import { SidekickAvatar } from '@hanana-kick/sidekick/react';\n\nexport default function Companion() {\n  return (\n    <SidekickAvatar\n${jsxProps}\n      aria-label="${escapeHTMLAttribute(studioText('나의 도우미'))}"\n      style={{ width: 200, height: 200 }}\n    />\n  );\n}\n`,
   };
 }

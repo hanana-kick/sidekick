@@ -1,5 +1,6 @@
+import { STUDIO_SHAPES, studioText, studioFormat, studioShapeLabel } from './studio-locales.js';
 import { MATERIAL_SHAPE_CUBICS } from '../src/core/material-shapes.js';
-import { MATERIAL_SHAPE_LABELS, MATERIAL_SHAPE_NAMES } from '../src/core/shapes.js';
+import { MATERIAL_SHAPE_NAMES } from '../src/core/shapes.js';
 import type { MaterialShapeName } from '../src/core/shapes.js';
 
 /** Use the exact normalized, Y-down official cubics. SVG uses the same Y axis. */
@@ -7,7 +8,7 @@ export function materialSilhouettePath(name: MaterialShapeName): string {
   const cubics = MATERIAL_SHAPE_CUBICS[name], first = cubics[0]!;
   return `M${first[0]} ${first[1]} ${cubics.map(c => `C${c[2]} ${c[3]} ${c[4]} ${c[5]} ${c[6]} ${c[7]}`).join(' ')} Z`;
 }
-function materialGroup(name: MaterialShapeName): string {
+function materialGroup(name: MaterialShapeName) {
   if (/cookie/i.test(name)) return '쿠키';
   if (/sunny/i.test(name)) return '별 햇살';
   if (/burst|boom/i.test(name)) return '별 방사형';
@@ -20,7 +21,7 @@ function materialGroup(name: MaterialShapeName): string {
 }
 export function matchingMaterialShapes(query: string): MaterialShapeName[] {
   const normalized = query.trim().toLocaleLowerCase();
-  return MATERIAL_SHAPE_NAMES.filter(name => `${name} ${MATERIAL_SHAPE_LABELS[name]} ${materialGroup(name)} ${/sunny|burst|boom/i.test(name) ? 'star 별' : ''}`.toLocaleLowerCase().includes(normalized));
+  return MATERIAL_SHAPE_NAMES.filter(name => `${name} ${STUDIO_SHAPES[name].join(' ')} ${materialGroup(name)} ${studioText(materialGroup(name))} ${/sunny|burst|boom/i.test(name) ? 'star 별 星 星星' : ''}`.toLocaleLowerCase().includes(normalized));
 }
 /** Arrow keys move focus only; native Enter/Space activate the focused button. */
 export function paletteNavigationIndex(key: string, index: number, count: number, columns: number): number | undefined {
@@ -58,15 +59,15 @@ export function createShapePalette(options: ShapePaletteOptions): ShapePalette {
   for (const name of MATERIAL_SHAPE_NAMES) {
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'shape-tile'; button.dataset.shape = name;
-    button.setAttribute('aria-label', `${MATERIAL_SHAPE_LABELS[name]} 몸체 도형`);
+    button.setAttribute('aria-label', studioFormat('{shape} 몸체 도형', { shape: studioShapeLabel(name) }));
     button.setAttribute('aria-pressed', 'false'); button.tabIndex = -1;
-    button.title = `${MATERIAL_SHAPE_LABELS[name]} · ${materialGroup(name)}`;
+    button.title = `${studioShapeLabel(name)} · ${studioText(materialGroup(name))}`;
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '-0.08 -0.08 1.16 1.16');
     svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', materialSilhouettePath(name)); svg.append(path);
-    const label = document.createElement('span'); label.className = 'shape-tile-label'; label.textContent = MATERIAL_SHAPE_LABELS[name];
+    const label = document.createElement('span'); label.className = 'shape-tile-label'; label.textContent = studioShapeLabel(name);
     const check = document.createElement('span'); check.className = 'shape-tile-check'; check.textContent = '✓'; check.setAttribute('aria-hidden', 'true');
     button.append(svg, label, check);
     button.addEventListener('focus', () => setRoving(button));
@@ -88,6 +89,9 @@ export function createShapePalette(options: ShapePaletteOptions): ShapePalette {
     const focused = [...buttons.values()].find(button => button === document.activeElement);
     const matches = new Set(matchingMaterialShapes(search.value));
     for (const [name, button] of buttons) {
+      button.setAttribute('aria-label', studioFormat('{shape} 몸체 도형', { shape: studioShapeLabel(name) }));
+      button.title = `${studioShapeLabel(name)} · ${studioText(materialGroup(name))}`;
+      button.children[1]!.textContent = studioShapeLabel(name);
       button.hidden = !matches.has(name);
       button.setAttribute('aria-pressed', String(name === selected));
     }
@@ -97,9 +101,9 @@ export function createShapePalette(options: ShapePaletteOptions): ShapePalette {
     // Never steal focus from search/reset/import. If a focused tile is filtered out,
     // move to a visible tile, or back to search when no results remain.
     if (focused?.hidden) (target ?? search).focus();
-    const countText = matches.size ? `${matches.size} / ${MATERIAL_SHAPE_NAMES.length}개 도형` : '검색 결과가 없습니다. 다른 이름이나 분류를 입력하세요.';
+    const countText = matches.size ? studioFormat('{count} / {total}개 도형', { count: matches.size, total: MATERIAL_SHAPE_NAMES.length }) : studioText('검색 결과가 없습니다. 다른 이름이나 분류를 입력하세요.');
     if (countStatus.textContent !== countText) countStatus.textContent = countText;
-    selectedStatus.textContent = `현재: ${MATERIAL_SHAPE_LABELS[selected]}`;
+    selectedStatus.textContent = studioFormat('현재: {shape}', { shape: studioShapeLabel(selected) });
   }
   search.addEventListener('input', () => sync(selected));
   return { sync };

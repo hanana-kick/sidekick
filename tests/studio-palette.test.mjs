@@ -1,7 +1,8 @@
+import { studioShapeLabel } from '../dist/playground/studio-locales.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShapePalette, materialSilhouettePath, matchingMaterialShapes, paletteNavigationIndex } from '../dist/playground/shape-palette.js';
-import { MATERIAL_SHAPE_NAMES, MATERIAL_SHAPE_LABELS } from '../dist/src/core/shapes.js';
+import { MATERIAL_SHAPE_NAMES } from '../dist/src/core/shapes.js';
 import { MATERIAL_SHAPE_CUBICS } from '../dist/src/core/material-shapes.js';
 
 // Deliberately layout-free: this fixture tests interaction contracts without
@@ -66,8 +67,8 @@ test('palette exposes stable native buttons, labels, exact SVG paths and one sel
   for (const button of f.container.children) {
     const name = button.dataset.shape;
     assert.equal(button.tagName, 'button'); assert.equal(button.type, 'button');
-    assert.equal(button.getAttribute('aria-label'), `${MATERIAL_SHAPE_LABELS[name]} 몸체 도형`);
-    assert.equal(button.children[1].textContent, MATERIAL_SHAPE_LABELS[name]);
+    assert.equal(button.getAttribute('aria-label'), `${studioShapeLabel(name)} 몸체 도형`);
+    assert.equal(button.children[1].textContent, studioShapeLabel(name));
     assert.equal(button.children[0].tagName, 'svg'); assert.equal(button.children[0].getAttribute('aria-hidden'), 'true');
     assert.equal(button.children[0].children[0].getAttribute('d'), materialSilhouettePath(name));
   }
@@ -108,7 +109,7 @@ test('search preserves selected shape and search focus, empty state and roving r
   assert.equal(f.button('verySunny').tabIndex, 0); assert.equal(f.button('square').hidden, true);
   f.search.value = 'no-such-material-shape'; f.search.dispatch('input');
   assert.equal(f.visible().length, 0); assert.match(f.countStatus.textContent, /검색 결과가 없습니다/);
-  assert.equal(f.selectedStatus.textContent, '현재: Very Sunny');
+  assert.equal(f.selectedStatus.textContent, '현재: 빛나는 태양');
   assert.equal(f.container.children.filter(button => button.tabIndex === 0).length, 0);
   assert.equal(f.document.activeElement, f.search);
   f.search.value = ''; f.search.dispatch('input'); assert.equal(f.visible().length, 35);

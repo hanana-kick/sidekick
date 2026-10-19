@@ -1,3 +1,4 @@
+import { studioText } from './studio-locales.js';
 import { createAccessory, createDesign, migrateDesign } from '../src/core/design.js';
 import { createScene, parseScene } from '../src/core/scene.js';
 import type { SidekickScene } from '../src/core/scene.js';
@@ -16,19 +17,19 @@ export interface StudioSession {
 }
 export function loadStudioSession(storage?: SessionStorage): StudioSession {
   const fallback = createScene({ design: defaultStudioDesign(), interaction: 'box' });
-  if (!storage) return { scene: fallback, source: 'unavailable', message: '브라우저 저장소를 사용할 수 없어 기본 봇을 표시합니다.' };
+  if (!storage) return { scene: fallback, source: 'unavailable', get message() { return studioText('브라우저 저장소를 사용할 수 없어 기본 봇을 표시합니다.'); } };
   let raw: string | null = null, key = STUDIO_SESSION_KEY;
   try {
     raw = storage.getItem(key);
-    if (raw !== null) return { scene: parseScene(raw), source: 'saved', message: 'Studio에서 설정한 봇입니다. 여기서 실행한 명령은 Studio 설정을 바꾸지 않습니다.' };
+    if (raw !== null) return { scene: parseScene(raw), source: 'saved', get message() { return studioText('Studio에서 설정한 봇입니다. 여기서 실행한 명령은 Studio 설정을 바꾸지 않습니다.'); } };
     key = STUDIO_DESIGN_KEY; raw = storage.getItem(key);
-    if (raw !== null) return { scene: createScene({ design: migrateDesign(raw).design, interaction: 'box' }), source: 'saved', message: 'Studio에서 저장한 디자인입니다. 여기서 실행한 명령은 Studio 설정을 바꾸지 않습니다.' };
-    return { scene: fallback, source: 'default', message: '아직 저장된 Studio 설정이 없어 기본 봇을 표시합니다.' };
+    if (raw !== null) return { scene: createScene({ design: migrateDesign(raw).design, interaction: 'box' }), source: 'saved', get message() { return studioText('Studio에서 저장한 디자인입니다. 여기서 실행한 명령은 Studio 설정을 바꾸지 않습니다.'); } };
+    return { scene: fallback, source: 'default', get message() { return studioText('아직 저장된 Studio 설정이 없어 기본 봇을 표시합니다.'); } };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return raw === null
-      ? { scene: fallback, source: 'unavailable', message: '브라우저 저장소를 읽을 수 없어 기본 봇을 표시합니다.' }
-      : { scene: fallback, source: 'invalid', message: '저장된 Studio 설정을 읽을 수 없어 기본 봇을 표시합니다. 원본은 보존됩니다. Studio의 JSON 탭에서 수정하세요.', invalid: { raw, key, error: message } };
+      ? { scene: fallback, source: 'unavailable', get message() { return studioText('브라우저 저장소를 읽을 수 없어 기본 봇을 표시합니다.'); } }
+      : { scene: fallback, source: 'invalid', get message() { return studioText('저장된 Studio 설정을 읽을 수 없어 기본 봇을 표시합니다. 원본은 보존됩니다. Studio의 JSON 탭에서 수정하세요.'); }, invalid: { raw, key, error: message } };
   }
 }
 export type SessionAvatar = Pick<SidekickAvatar, 'design' | 'trackingMode' | 'paused' | 'resetTracking' | 'motion' | 'setBodyOrientation' | 'zoom' | 'lookAt' | 'seek' | 'setActivity' | 'interaction'>;
