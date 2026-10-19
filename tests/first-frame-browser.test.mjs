@@ -82,3 +82,52 @@ for (const backend of ['worker', 'main']) for (const entry of ['html', 'preupgra
     assert.equal(await page.locator('#subject').evaluate(avatar => avatar.ready && !avatar.shadowRoot.querySelector('canvas').hidden), true);
   });
 }
+
+for (const [name, route, selector] of [
+  ['studio', '/', '#flat'],
+  ['guide', '/guide.html?lang=en#loading', '#demo-bot'],
+  ['state-element', '/guide.html?lang=en&framework=element#state-appearance', '#reference-bot'],
+  ['state-react', '/guide.html?lang=en&framework=react#state-appearance', '#reference-bot'],
+]) test(`saved Studio design is present in the first visible ${name} frame`, async t => {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'no-preference' });
+  t.after(() => page.close());
+  await page.goto(origin);
+  const scene = await page.evaluate(async () => {
+    const { createScene } = await import('/src/core/scene.js');
+    const { createDesign } = await import('/src/core/design.js');
+    return createScene({ design: createDesign({ body: { shape: 'heart', color: '#123456' }, accessories: [] }), zoom: 1.4, bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, activity: 'still', paused: true, trackingMode: 'off' });
+  });
+  await page.addInitScript(({ scene, selector }) => {
+    localStorage.setItem('sidekick.studio.scene.v3', JSON.stringify(scene));
+    window.startupSamples = [];
+    const sample = () => {
+      const avatar = document.querySelector(selector), canvas = avatar?.shadowRoot?.querySelector('canvas');
+      if (canvas && !canvas.hidden && getComputedStyle(canvas).display !== 'none') {
+        const output = document.createElement('canvas'); output.width = canvas.width; output.height = canvas.height;
+        const ctx = output.getContext('2d'); ctx.drawImage(canvas, 0, 0);
+        const rgba = ctx.getImageData(0, 0, output.width, output.height).data;
+        let pixels = 0; for (let i = 3; i < rgba.length; i += 4) if (rgba[i] > 127) pixels++;
+        window.startupSamples.push({ ready: avatar.ready, shape: avatar.design.body.shape, color: avatar.design.body.color, pixels });
+      }
+      if (window.startupSamples.length < 6) requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  }, { scene, selector });
+  await page.goto(origin + route);
+  let target = page;
+  if (name.startsWith('state')) {
+    await page.waitForSelector('.state-lab iframe');
+    await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => document.querySelector('[data-state-reference]')?.hasAttribute('data-configured'));
+    target = page.frames().find(frame => frame.url().includes('/state-preview.html'));
+    assert.ok(target);
+  }
+  await target.waitForFunction(() => window.startupSamples.length >= 6, null, { timeout: 20000 });
+  const frames = await target.evaluate(() => window.startupSamples);
+  assert.ok(frames.every(frame => frame.ready && frame.shape === 'heart' && frame.color === '#123456'), JSON.stringify(frames));
+  assert.ok(frames.every(frame => frame.pixels > 100), 'The first visible scene contains actual GPU pixels');
+  if (process.env.SIDEKICK_SCREENSHOTS) {
+    await mkdir(process.env.SIDEKICK_SCREENSHOTS, { recursive: true });
+    await page.screenshot({ path: `${process.env.SIDEKICK_SCREENSHOTS}/first-frame-saved-${name}.png` });
+  }
+});
