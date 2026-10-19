@@ -1,7 +1,7 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
 import { createAppServer } from '../scripts/serve.mjs';
 let browser, server, base;
@@ -16,6 +16,7 @@ for(const locale of ['ko','en','zh-CN','ja'])for(const path of ['','api-playgrou
  const page=await browser.newPage({viewport:{width:320,height:480},locale:'en-US',reducedMotion:'reduce'});t.after(()=>page.close());
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(`${base}/${path}?lang=${locale}`);await page.waitForSelector('#site-language');
+ if(screenshots)await page.screenshot({path:`${screenshots}/locale-${locale}-${path.replace('.html','')||'studio'}-initial-320x480.png`});
  assert.equal(await page.locator('html').getAttribute('lang'),locale);
  assert.equal(await page.locator('#site-language').inputValue(),locale);
  assert.equal(await page.locator('.product-nav a').count(),3);
@@ -40,16 +41,18 @@ for(const locale of ['ko','en','zh-CN','ja'])for(const path of ['','api-playgrou
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),true,id);
   }
   await page.locator('.preview-footer button').first().click();
+  if(screenshots)await page.screenshot({path:`${screenshots}/locale-${locale}-studio-before-assert-320x480.png`});
   const preview=await page.locator('.previews').boundingBox();
   assert.ok(preview&&preview.height>=110,`Visible character preview must stay useful: ${preview?.height}px`);
-  const tabLines=await page.locator('.settings-nav [data-slot=tabs-trigger]').evaluateAll(tabs=>tabs.map(tab=>{const style=getComputedStyle(tab);return {label:tab.textContent,height:tab.scrollHeight,width:tab.clientWidth,overflow:tab.scrollWidth>tab.clientWidth+1,lineHeight:parseFloat(style.lineHeight),padding:parseFloat(style.paddingTop)+parseFloat(style.paddingBottom)};}));
-  for(const tab of tabLines){assert.equal(tab.overflow,false,tab.label);assert.ok(tab.height-tab.padding<=tab.lineHeight*2+2,`Tab exceeds two lines: ${tab.label}`);}
+  const tabLines=await page.locator('.settings-nav [data-slot=tabs-trigger]').evaluateAll(tabs=>tabs.map(tab=>{const range=document.createRange();range.selectNodeContents(tab);const rects=[...range.getClientRects()].filter(rect=>rect.width>0&&rect.height>0);return {label:tab.textContent,width:tab.clientWidth,overflow:tab.scrollWidth>tab.clientWidth+1,lines:new Set(rects.map(rect=>Math.round(rect.top))).size,rects:rects.map(rect=>({top:rect.top,left:rect.left,width:rect.width,height:rect.height}))};}));
+  if(screenshots)await writeFile(`${screenshots}/locale-${locale}-studio-geometry.json`,JSON.stringify({preview,tabs:tabLines,viewport:await page.evaluate(()=>({innerWidth,clientWidth:document.documentElement.clientWidth}))},null,2));
+  for(const tab of tabLines){assert.equal(tab.overflow,false,JSON.stringify(tab));assert.ok(tab.lines<=2,`Tab exceeds two text lines: ${JSON.stringify(tab)}`);}
  }
  await page.waitForFunction(()=>{const bot=document.querySelector('#flat,#bot');return !bot||(bot.ready&&(bot.id!=='bot'||bot.hasAttribute('data-configured')));});
  if(screenshots){
-  await page.screenshot({path:`${screenshots}/locale-${locale}-${path.replace('.html','')||'studio'}-320x480.png`,fullPage:true});
+  await page.screenshot({path:`${screenshots}/locale-${locale}-${path.replace('.html','')||'studio'}-320x480.png`,fullPage:false});
   await page.setViewportSize({width:1280,height:900});
-  await page.screenshot({path:`${screenshots}/locale-${locale}-${path.replace('.html','')||'studio'}-1280x900.png`,fullPage:true});
+  await page.screenshot({path:`${screenshots}/locale-${locale}-${path.replace('.html','')||'studio'}-1280x900.png`,fullPage:false});
  }
  assert.deepEqual(errors,[]);
 });
