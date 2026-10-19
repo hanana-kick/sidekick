@@ -118,3 +118,5 @@ export const JSON_FIELDS = Object.freeze({
  accessories: [['[].id','string'],['[].preset','AccessoryPreset'],['[].slot','head | eyes | mouth | neck | leftEar | rightEar'],['[].color','#RRGGBB']],
  motion: [['body.rotation','[x, y, z] · −2π…2π rad'],['face.uv','[u, v] · −0.5…0.5'],['eyes.openness','0…1'],['eyes.left.weights / eyes.right.weights','{ smile?: 0…1, blink?: 0…1 }'],['accessories[id].rotation','[x, y, z] · −π…π rad']],
 });
+
+export { POSITION_PLACEMENTS };

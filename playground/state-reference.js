@@ -1,9 +1,8 @@
-import { POSITION_PLACEMENTS } from '../src/element/positioning.ts';
 import './state-reference.css';
 import { getFramework, subscribeFramework } from './site-framework.js';
 import { getSiteLocale, subscribeSiteLocale } from './site-i18n.js';
 import { guideHref } from './guide-navigation.js';
-import { STATE_FIELDS, JSON_FIELDS, STATE_IDS, FIELD_BY_KEY, READ_ONLY_STATE, fieldDefault, validateStateValue, compileReferenceAttributes, referenceSource } from './state-reference-schema.js';
+import { POSITION_PLACEMENTS, STATE_FIELDS, JSON_FIELDS, STATE_IDS, FIELD_BY_KEY, READ_ONLY_STATE, fieldDefault, validateStateValue, compileReferenceAttributes, referenceSource } from './state-reference-schema.js';
 import { stateLessons } from './guide-state-lessons.js';
 import { guideTranslations } from './guide-translations.js';
 import { stateCopy } from './state-reference-copy.js';
