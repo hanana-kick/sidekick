@@ -1,6 +1,11 @@
 name: Guide and multilingual interaction walkthrough
 on:
   workflow_dispatch:
+    inputs:
+      navigation_only:
+        description: 'Run only contextual Guide navigation checks'
+        type: boolean
+        default: false
   push:
     branches: [fix/usecase-ux]
 permissions:
@@ -18,7 +23,13 @@ jobs:
       - run: npm ci
       - run: npm run build:all
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
-      - run: xvfb-run -a node --test --test-concurrency=1 tests/site-i18n-browser.test.mjs tests/use-cases-browser.test.mjs tests/api-playground-browser.test.mjs tests/behavior-browser.test.mjs
+      - if: ${{ !inputs.navigation_only }}
+        run: xvfb-run -a node --test --test-concurrency=1 tests/site-i18n-browser.test.mjs tests/use-cases-browser.test.mjs tests/api-playground-browser.test.mjs tests/behavior-browser.test.mjs
+        env:
+          SIDEKICK_HEADED: '1'
+          SIDEKICK_SCREENSHOTS: artifacts
+      - if: ${{ inputs.navigation_only }}
+        run: xvfb-run -a node --test --test-concurrency=1 tests/guide-navigation-browser.test.mjs
         env:
           SIDEKICK_HEADED: '1'
           SIDEKICK_SCREENSHOTS: artifacts
