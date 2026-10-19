@@ -21,7 +21,7 @@ for(const locale of ['ko','en','zh-CN','ja'])for(const mode of ['element','react
    const code=await page.locator('[data-state-source]').textContent();assert.equal(await page.locator('[data-state-source]').getAttribute('data-framework'),mode);assert.match(code,mode==='react'?/SidekickAvatar id=/:/sidekick-avatar id=/);
    if(mode==='react')assert.doesNotMatch(code,/<sidekick-avatar/);else assert.doesNotMatch(code,/<SidekickAvatar/);
    assert.equal(await page.locator('.state-lab iframe').count(),1);assert.equal(await frame.locator('#reference-bot').count(),1);
-   const before=await snapshot(frame);await page.selectOption('#site-framework',mode==='react'?'element':'react');frame=await frameFor(page);await page.waitForTimeout(100);assert.deepEqual(await snapshot(frame),before,`${id} framework change preserves live values`);
+   await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await page.waitForTimeout(100);const before=await snapshot(frame);await page.selectOption('#site-framework',mode==='react'?'element':'react');frame=await frameFor(page);await page.waitForTimeout(100);assert.deepEqual(await snapshot(frame),before,`${id} framework change preserves live values`);
    await page.locator('[data-state-try]').click();await frameFor(page);assert.match(page.url(),/api-playground/);assert.equal((key==='behavior'?JSON.stringify(JSON.parse(await page.locator(`[data-state-control="${key}"]`).inputValue())):await page.locator(`[data-state-control="${key}"]`).inputValue()),value);assert.equal(await page.locator('[data-state-source]').getAttribute('data-framework'),mode==='react'?'element':'react');
    await page.locator('#guide-source-return').click();await frameFor(page);assert.equal(new URL(page.url()).hash,'#'+id);assert.equal(await page.locator(`[data-state-enable="${key}"]`).isChecked(),true);
   }
@@ -47,7 +47,7 @@ test('actual copied Custom Element and React source replay matching Studio confi
  try{
   for(const mode of ['element','react']){
    await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-appearance`);await frameFor(page);await edit(page,'shape','heart');await edit(page,'body-color','#345678');await edit(page,'left-smile','0.65');
-   const frame=await frameFor(page),expected=await snapshot(frame),source=await page.locator('[data-state-source]').textContent();
+   const frame=await frameFor(page);await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await page.waitForTimeout(100);const expected=await snapshot(frame),source=await page.locator('[data-state-source]').textContent();
    const replay=await browser.newPage({viewport:{width:400,height:320},reducedMotion:'reduce'});
    try{
     let html=source.replace("'@hanana-kick/sidekick/auto'",`'${base}/browser/sidekick.js'`);

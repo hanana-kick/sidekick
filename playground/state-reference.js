@@ -54,7 +54,7 @@ export function mountStateReference(host,id,{session}){
   if(state.length<=MAX_CONTEXT){url.searchParams.set('state',state);history.replaceState(history.state,'',url);const target=new URL(guideHref({id,level:1},getSiteLocale(),true,{id,level:1}),location.href);target.searchParams.set('state',state);target.searchParams.set('framework',mode);tryLink.href=target.href;tryLink.removeAttribute('aria-disabled');tryLink.title='';}
   else {tryLink.removeAttribute('href');tryLink.setAttribute('aria-disabled','true');tryLink.title=copy('truncated');}
  }
- function send(restart=false){updateSource();if(!mounted)return;revision++;status.setAttribute('role','status');status.textContent=copy('waiting');frame.contentWindow.postMessage({type:'state-reference-config',scene,values:edits,framework:getFramework(),revision,restart},location.origin);}
+ function send(restart=false){updateSource();if(!mounted)return;revision++;delete section.dataset.configured;status.setAttribute('role','status');status.textContent=copy('waiting');frame.contentWindow.postMessage({type:'state-reference-config',scene,values:edits,framework:getFramework(),revision,restart},location.origin);}
  function set(item,value){try{const valid=validateStateValue(item,value,scene,document);const next={...edits,[item.attribute]:valid};compileReferenceAttributes(scene,next);edits=next;send();}catch(err){error(err.message);}}
  for(const item of fields){
   const row=make('div','state-field',controls);row.dataset.stateField=item.attribute;
