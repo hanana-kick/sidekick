@@ -280,3 +280,35 @@ test('README loading, sequential review, and React status examples compile again
     assert.ok(source); typecheck(source, name, extension);
   }
 });
+
+test('React emotion attributes and listeners update without restarting the declared behavior', async t => {
+  const behavior={type:'idle'},events=[];
+  const f=await fixture(t,{behavior,emotion:'curious',emotionIntensity:.6,onEmotionChange:event=>events.push(event.detail)});
+  assert.equal(f.avatar.getAttribute('emotion'),'curious');assert.equal(f.avatar.getAttribute('emotion-intensity'),'0.6');
+  const before=f.avatar.writes.length;
+  await f.render({behavior,emotion:'happy',emotionIntensity:.8,onEmotionChange:event=>events.push(event.detail)});
+  assert.equal(f.avatar.writes.length,before);
+  f.avatar.dispatchEvent(new CustomEvent('sidekick-emotion-change',{detail:{emotion:'happy'}}));assert.equal(events.length,1);
+  await f.render({behavior});assert.equal(f.avatar.hasAttribute('emotion'),false);assert.equal(f.avatar.hasAttribute('emotion-intensity'),false);
+  assert.equal(f.avatar.writes.length,before);
+});
+
+test('public emotion native/React contracts expose typed fields, results and events', () => {
+  typecheck(`
+    import { SidekickAvatar } from '@hanana-kick/sidekick/react';
+    import type { Emotion, EmotionState, EmotionResult, SidekickAvatar as NativeAvatar } from '@hanana-kick/sidekick/register';
+    declare const bot: NativeAvatar;
+    const emotion: Emotion='curious'; bot.emotion=emotion; bot.emotionIntensity=.6;
+    bot.setEmotion('sad',{intensity:.3});
+    const reaction: Promise<EmotionResult>=bot.reactTo('happy',{duration:900,intensity:.9}); void reaction;
+    bot.cancelReaction(); const state: EmotionState=bot.emotionState; void state;
+    bot.addEventListener('sidekick-emotion-change',event=>{ const state:EmotionState=event.detail; void state; });
+    const view=<SidekickAvatar emotion={emotion} emotionIntensity={.6} onReactionEnd={event=>{const result:EmotionResult=event.detail;void result;}}/>;void view;
+    // @ts-expect-error unsupported emotion
+    bot.setEmotion('angry');
+    // @ts-expect-error duration is only available for transient reactions
+    bot.setEmotion('happy',{duration:900});
+    // @ts-expect-error emotion intensity is numeric
+    const bad=<SidekickAvatar emotionIntensity="strong"/>;
+  `,'emotion-types');
+});

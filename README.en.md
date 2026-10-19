@@ -71,6 +71,46 @@ React 19 is required only for the React wrapper. Supply the matching version of 
 
 Package modules use ESM. Runtime modules/types live in `dist/library/`, and ready-to-use browser bundles in `dist/browser/`. `dist/src/` is for internal tests. Browsers cannot resolve bare package specifiers directly, so use a bundler or import map for package imports. The HTML examples below use actual file URLs and do not need that setup.
 
+## Emotions and transient reactions
+
+Emotion is a presentation layer independent of **what the bot is doing**. It coordinates eyes, body lean and rhythm without cancelling waiting, reviewing, activity or movement. The application explicitly supplies the feeling; Sidekick does not infer a human user’s emotions.
+
+`neutral`, `happy`, `sad`, `curious`, `surprised`, `concerned`, `excited`. `intensity` ranges from 0 to 1 and defaults to 1. `neutral` releases the emotional overlay to the current design and behavior.
+
+
+```ts
+import type { SidekickAvatar } from '@hanana-kick/sidekick';
+const bot = document.querySelector<SidekickAvatar>('sidekick-avatar')!;
+bot.setEmotion('curious', { intensity: 0.6 });
+bot.behavior = { type: 'wait', target: '#loading' };
+await bot.reactTo('happy', { intensity: 0.9, duration: 1600 });
+bot.setEmotion('neutral');
+```
+
+```html
+<sidekick-avatar emotion="curious" emotion-intensity="0.6"></sidekick-avatar>
+```
+
+```tsx
+<SidekickAvatar emotion="curious" emotionIntensity={0.6}
+  behavior={{ type: 'wait', target: '#loading' }}
+  onEmotionChange={event => console.log(event.detail)}
+  onReactionEnd={event => console.log(event.detail.reason)} />
+```
+
+`setEmotion()` sets the persistent state and replaces an active reaction. `reactTo()` reacts for 1200ms by default, then returns to the persistent emotion. `duration` is the dwell time including the incoming blend (0–60000ms), not a wait for the outgoing blend to settle. `cancelReaction()` cancels only the reaction. A newer reaction, persistent setting or disconnection settles the previous reaction with `finished: false`; stale timers cannot overwrite newer state.
+
+The `emotion`/`emotionIntensity` properties read the persistent setting. `emotionState` includes the live reaction: `{ emotion, intensity, baseline: { emotion, intensity }, reacting }`. `sidekick-emotion-change` carries this state. `sidekick-reaction-end` and the Promise carry `{ finished, emotion, reason }`, where `reason` is `completed`, `replaced`, `cancelled` or `disconnected`. Completion means dwell ended, not that the return blend has visually settled.
+
+Emotion never writes or restores saved design, activity, gaze or body orientation. Manual changes remain underneath the overlay. Active emotion takes blending priority for eyes; automatic blinking remains. Target-directed behavior takes priority over secondary emotional gaze. Use `setEmotion('neutral')` to show authored eye expressions unchanged. Rendering sleeps offscreen while the reaction dwell uses wall-clock time. Reconnecting does not replay expired reactions.
+
+| HTML / API | React | Description |
+| --- | --- | --- |
+| `emotion` | `emotion` | Emotion name; default neutral |
+| `emotion-intensity` | `emotionIntensity` | Emotion strength 0–1; default 1 |
+| `sidekick-emotion-change` | `onEmotionChange` | Persistent emotion or transient reaction changed |
+| `sidekick-reaction-end` | `onReactionEnd` | Reaction completed, replaced, cancelled or disconnected |
+
 ## Using the CDN without a build
 
 The currently recommended CDN version is **0.10.0**. These URLs serve **already built JavaScript** committed to a GitHub tag through jsDelivr: no source build, npm installation, or npm account is needed. Pin an **exact tag**, not `main`, `latest`, or a version range. Earlier `v0.2.7` files have not been changed. Version 0.2.7 is also downloadable through the same CDN path, but cross-origin pages cannot create its worker and fall back to the main thread; use the current pinned version for new CDN integrations.

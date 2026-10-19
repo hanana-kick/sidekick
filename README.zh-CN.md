@@ -71,6 +71,46 @@ npm install /absolute/path/to/hanana-kick-sidekick-0.10.0.tgz
 
 软件包模块为 ESM，可执行模块及类型位于 `dist/library/`，可直接使用的浏览器包位于 `dist/browser/`。`dist/src/` 仅用于内部测试。浏览器无法直接解析裸 import 名称，因此导入软件包时请使用打包工具或 import map。下方 HTML 示例使用实际文件 URL，无需此配置。
 
+## 情绪与临时反应
+
+情绪是独立于机器人**正在做什么**的表现层。它协调眼睛、身体倾斜和节奏，不会取消等待、逐项检查、活动或移动。情绪由应用明确指定，Sidekick 不推断真实用户的情绪。
+
+`neutral`、`happy`、`sad`、`curious`、`surprised`、`concerned`、`excited`。`intensity` 范围为 0~1，默认 1。`neutral` 移除情绪叠加层，显示当前设计和行为。
+
+
+```ts
+import type { SidekickAvatar } from '@hanana-kick/sidekick';
+const bot = document.querySelector<SidekickAvatar>('sidekick-avatar')!;
+bot.setEmotion('curious', { intensity: 0.6 });
+bot.behavior = { type: 'wait', target: '#loading' };
+await bot.reactTo('happy', { intensity: 0.9, duration: 1600 });
+bot.setEmotion('neutral');
+```
+
+```html
+<sidekick-avatar emotion="curious" emotion-intensity="0.6"></sidekick-avatar>
+```
+
+```tsx
+<SidekickAvatar emotion="curious" emotionIntensity={0.6}
+  behavior={{ type: 'wait', target: '#loading' }}
+  onEmotionChange={event => console.log(event.detail)}
+  onReactionEnd={event => console.log(event.detail.reason)} />
+```
+
+`setEmotion()` 设置持续状态并替换正在进行的临时反应。`reactTo()` 默认保持 1200ms，然后回到持续情绪。`duration` 是包括进入过渡的保持时间（0~60000ms），并非等待返回过渡结束的时间。`cancelReaction()` 仅取消反应。新反应、持续设置或断开连接会使旧反应以 `finished: false` 结束；旧定时器不会覆盖新状态。
+
+`emotion`/`emotionIntensity` 属性返回持续设置。`emotionState` 包含当前临时反应：`{ emotion, intensity, baseline: { emotion, intensity }, reacting }`。`sidekick-emotion-change` 传递该状态。`sidekick-reaction-end` 和 Promise 返回 `{ finished, emotion, reason }`，其中 `reason` 为 `completed`、`replaced`、`cancelled` 或 `disconnected`。完成表示保持时间结束，而不是返回过渡已完全稳定。
+
+情绪不会改写或恢复保存的设计、活动、视线或身体方向。手动更改仍保留在叠加层下。情绪对眼睛具有优先混合权，自动眨眼仍有效。面向目标的行为优先于情绪的辅助视线。要原样显示手动眼睛表情，请调用 `setEmotion('neutral')`。离屏时渲染休眠，临时反应的保持时间仍按实际时间计算。重新连接不会重播已结束的反应。
+
+| HTML / API | React | 说明 |
+| --- | --- | --- |
+| `emotion` | `emotion` | 情绪名称，默认 neutral |
+| `emotion-intensity` | `emotionIntensity` | 情绪强度 0~1，默认 1 |
+| `sidekick-emotion-change` | `onEmotionChange` | 持续情绪或临时反应变化 |
+| `sidekick-reaction-end` | `onReactionEnd` | 临时反应完成、替换、取消或断开连接 |
+
 ## 通过 CDN 免构建使用
 
 目前推荐的 CDN 版本为 **0.10.0**。下列 URL 由 jsDelivr 提供已提交到 GitHub 标签中的**预构建 JS**，无需构建源码、安装 npm 或拥有 npm 账号。请固定**精确标签**，不要使用 `main`、`latest` 或版本范围。旧版 `v0.2.7` 文件未作修改。0.2.7 仍可通过相同的 CDN 路径下载，但在不同来源的页面上会因 worker 创建受限而回退到主线程，因此新的 CDN 集成请使用上述固定的当前版本。

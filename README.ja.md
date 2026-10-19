@@ -71,6 +71,46 @@ React 19 が必要なのは React ラッパーを使う場合だけです。Web 
 
 パッケージモジュールは ESM で、実行用モジュール/型は `dist/library/`、すぐに使えるブラウザーバンドルは `dist/browser/` にあります。`dist/src/` は内部テスト用です。ブラウザーは bare import 名を直接解決できないため、パッケージの import にはバンドラーまたは import map を使ってください。以下の HTML 例は実際のファイル URL を使うため、この設定は不要です。
 
+## 感情と一時的な反応
+
+感情は、ボットが**何をしているか**とは独立した表現レイヤーです。待機・順次確認・アクティビティ・移動を中断せず、目、体の傾き、リズムを連動させます。感情はアプリが明示的に指定し、実際のユーザーの感情を推測しません。
+
+`neutral`、`happy`、`sad`、`curious`、`surprised`、`concerned`、`excited`。`intensity` は 0〜1、既定値は 1 です。`neutral` は感情の重ね合わせを解除し、現在のデザインと動作を表示します。
+
+
+```ts
+import type { SidekickAvatar } from '@hanana-kick/sidekick';
+const bot = document.querySelector<SidekickAvatar>('sidekick-avatar')!;
+bot.setEmotion('curious', { intensity: 0.6 });
+bot.behavior = { type: 'wait', target: '#loading' };
+await bot.reactTo('happy', { intensity: 0.9, duration: 1600 });
+bot.setEmotion('neutral');
+```
+
+```html
+<sidekick-avatar emotion="curious" emotion-intensity="0.6"></sidekick-avatar>
+```
+
+```tsx
+<SidekickAvatar emotion="curious" emotionIntensity={0.6}
+  behavior={{ type: 'wait', target: '#loading' }}
+  onEmotionChange={event => console.log(event.detail)}
+  onReactionEnd={event => console.log(event.detail.reason)} />
+```
+
+`setEmotion()` は継続状態を設定し、実行中の一時反応を置き換えます。`reactTo()` は既定で 1200ms 反応し、その後継続感情に戻ります。`duration` は開始時の遷移を含む保持時間（0〜60000ms）であり、復帰遷移が落ち着くまで待つ時間ではありません。`cancelReaction()` は反応のみ取り消します。新しい反応、継続設定、切断は以前の反応を `finished: false` で終了させ、古いタイマーが新しい設定を上書きすることはありません。
+
+`emotion`/`emotionIntensity` プロパティは継続設定を返します。`emotionState` は一時反応を含む `{ emotion, intensity, baseline: { emotion, intensity }, reacting }` です。`sidekick-emotion-change` はこの状態を通知します。`sidekick-reaction-end` と Promise は `{ finished, emotion, reason }` を返し、`reason` は `completed`、`replaced`、`cancelled`、`disconnected` のいずれかです。完了は保持時間の終了であり、復帰遷移の視覚的な完了ではありません。
+
+感情は保存済みデザイン、アクティビティ、視線、体の方向を書き換えたり復元したりしません。手動変更は重ね合わせの下に保たれます。感情は目の混合で優先され、自動まばたきは維持されます。対象を見る動作は感情の補助的な視線より優先されます。手動の目の表情をそのまま表示するには `setEmotion('neutral')` を使用します。画面外では描画を休止しますが、反応の保持時間は実時間で進みます。再接続しても終了した反応を再生しません。
+
+| HTML / API | React | 説明 |
+| --- | --- | --- |
+| `emotion` | `emotion` | 感情名。既定 neutral |
+| `emotion-intensity` | `emotionIntensity` | 感情の強さ 0〜1。既定 1 |
+| `sidekick-emotion-change` | `onEmotionChange` | 継続感情または一時反応の変更 |
+| `sidekick-reaction-end` | `onReactionEnd` | 反応の完了・置換・取消・切断 |
+
 ## CDN を使ってビルドなしで利用する
 
 現在の CDN 推奨バージョンは **0.10.0** です。以下の URL は GitHub タグにコミットされた**ビルド済み JS** を jsDelivr が配信するため、ソースのビルド、npm のインストール、npm アカウントは不要です。`main`、`latest`、バージョン範囲ではなく、**正確なタグ**を固定してください。以前の `v0.2.7` のファイルは変更していません。0.2.7 も同じ CDN パスからダウンロードできますが、異なるオリジンのページでは worker の生成がブロックされてメインスレッドへフォールバックするため、CDN の新規利用では上記の現在の固定バージョンを使ってください。

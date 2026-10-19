@@ -71,6 +71,46 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 
 패키지 모듈은 ESM이며 실행용 모듈/타입은 `dist/library/`, 즉시 사용 가능한 브라우저 번들은 `dist/browser/`입니다. `dist/src/`는 내부 테스트용입니다. bare import 이름은 브라우저가 직접 해석하지 못하므로 패키지 import에는 번들러 또는 import map을 사용하세요. 아래 HTML 예제는 실제 파일 URL을 사용하여 이 설정이 필요 없습니다.
 
+## 감정과 일시적인 반응
+
+감정은 봇이 **무엇을 하는지**와 별개인 표현 계층입니다. 대기·검토 같은 행동이나 활동, 이동을 중단하지 않고 눈과 몸의 기울기·리듬을 함께 조절합니다. 실제 사용자의 감정을 추론하지 않으며 앱이 명시적으로 지정합니다.
+
+`neutral`, `happy`, `sad`, `curious`, `surprised`, `concerned`, `excited`. `intensity`는 0~1이며 기본값은 1입니다. `neutral`은 감정 효과를 제거하고 현재 디자인·행동의 표현을 보여줍니다.
+
+
+```ts
+import type { SidekickAvatar } from '@hanana-kick/sidekick';
+const bot = document.querySelector<SidekickAvatar>('sidekick-avatar')!;
+bot.setEmotion('curious', { intensity: 0.6 });
+bot.behavior = { type: 'wait', target: '#loading' };
+await bot.reactTo('happy', { intensity: 0.9, duration: 1600 });
+bot.setEmotion('neutral');
+```
+
+```html
+<sidekick-avatar emotion="curious" emotion-intensity="0.6"></sidekick-avatar>
+```
+
+```tsx
+<SidekickAvatar emotion="curious" emotionIntensity={0.6}
+  behavior={{ type: 'wait', target: '#loading' }}
+  onEmotionChange={event => console.log(event.detail)}
+  onReactionEnd={event => console.log(event.detail.reason)} />
+```
+
+`setEmotion()`은 지속 상태를 설정하며 진행 중인 일시 반응을 교체합니다. `reactTo()`는 기본 1200ms 동안 반응한 뒤 지속 감정으로 돌아갑니다. `duration`은 진입 전환을 포함한 유지 시간(0~60000ms)이며 복귀 전환 완료를 기다리는 시간이 아닙니다. `cancelReaction()`은 반응만 취소합니다. 새 반응·지속 감정·연결 해제는 이전 반응을 `finished: false`로 끝내며 오래된 타이머가 새 설정을 덮어쓰지 않습니다.
+
+`emotion`/`emotionIntensity` 프로퍼티는 지속 설정을 반환하고 `emotionState`는 `{ emotion, intensity, baseline: { emotion, intensity }, reacting }` 형태로 현재 반응까지 포함합니다. `sidekick-emotion-change`는 이 상태를 전달합니다. `sidekick-reaction-end`와 Promise 결과는 `{ finished, emotion, reason }`; `reason`은 `completed`, `replaced`, `cancelled`, `disconnected`입니다. 종료는 유지 시간 종료를 의미하며 복귀 화면이 완전히 정착했다는 뜻은 아닙니다.
+
+감정은 저장된 디자인, 활동, 시선, 몸 방향을 덮어쓰거나 복원하지 않습니다. 그동안의 수동 변경은 감정 아래에서 그대로 유지됩니다. 감정이 활성화되면 눈 표현에 우선 혼합되고 자동 깜빡임은 유지됩니다. 대상을 보는 행동은 감정의 보조 시선보다 우선합니다. 수동 눈 표현을 그대로 표시하려면 `setEmotion('neutral')`을 사용하세요. 화면 밖에서는 렌더링이 쉬며 일시 반응의 유지 시간은 실제 시간대로 흐릅니다. 다시 연결해도 끝난 반응을 재생하지 않습니다.
+
+| HTML / API | React | 설명 |
+| --- | --- | --- |
+| `emotion` | `emotion` | 감정 이름. 기본 neutral |
+| `emotion-intensity` | `emotionIntensity` | 감정 강도 0~1. 기본 1 |
+| `sidekick-emotion-change` | `onEmotionChange` | 지속 감정 또는 일시 반응 변경 |
+| `sidekick-reaction-end` | `onReactionEnd` | 일시 반응 완료·교체·취소·연결 해제 |
+
 ## CDN으로 빌드 없이 사용하기
 
 현재 CDN 권장 버전은 **0.10.0**입니다. 아래 URL은 GitHub 태그에 커밋된 **빌드 완료 JS**를 jsDelivr가 제공하므로 소스 빌드, npm 설치, npm 계정이 필요 없습니다. `main`, `latest`, 버전 범위 대신 **정확한 태그**를 고정하세요. 이전 `v0.2.7` 파일은 변경하지 않았습니다. 0.2.7도 같은 CDN 경로로 다운로드할 수 있지만, 다른 출처의 페이지에서는 worker 생성이 막혀 메인 스레드로 폴백하므로 신규 CDN 사용에는 위에 고정한 현재 버전을 사용하세요.

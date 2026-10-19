@@ -328,3 +328,45 @@ test('invalid imperative zoom assignments reject atomically without events or re
   }
   assert.deepEqual(events, []);
 });
+
+test('emotion layer leaves authored state and behavior ownership intact', async t => {
+  const bot = avatar(t);
+  bot.setActivity('thinking'); bot.setBodyOrientation({ yaw: 25 });
+  const original = bot.design;
+  bot.behavior = { type: 'idle' };
+  const behavior = bot.behaviorState;
+  bot.setEmotion('curious', { intensity: .6 });
+  const reaction = bot.reactTo('happy', { duration: 60000 });
+  assert.equal(bot.behaviorState.id, behavior.id);
+  assert.equal(bot.behaviorState.status, behavior.status);
+  assert.deepEqual(bot.design, original);
+  bot.stopBehavior();
+  assert.equal(bot.emotionState.emotion, 'happy', 'behavior cleanup must not overwrite reaction');
+  bot.setActivity('listening');
+  bot.cancelReaction();
+  assert.equal((await reaction).reason, 'cancelled');
+  assert.equal(bot.activity, 'listening', 'reaction cleanup must not restore stale activity');
+  assert.equal(bot.emotion, 'curious');
+  assert.equal(bot.emotionState.intensity, .6);
+  assert.equal(bot.bodyOrientation.yaw, 25);
+});
+
+test('emotion HTML transaction rejects invalid siblings without partial state changes', async t => {
+  const bot = avatar(t), events=[];
+  bot.addEventListener('sidekick-emotion-change',event=>events.push(event.detail));
+  bot.setAttribute('emotion','happy'); bot.setAttribute('emotion-intensity','2');await flush();
+  assert.equal(bot.emotion,'neutral');assert.equal(events.length,0);
+  bot.setAttribute('emotion-intensity','.75');await flush();
+  assert.equal(bot.emotion,'happy');assert.equal(bot.emotionIntensity,.75);assert.equal(events.length,1);
+  bot.removeAttribute('emotion'); bot.removeAttribute('emotion-intensity');await flush();
+  assert.equal(bot.emotion,'neutral');assert.equal(bot.emotionIntensity,1);
+});
+
+test('emotion fields can be set before connection and detach settles pending reaction once', async t => {
+  const bot=avatar(t,false);bot.emotion='sad';bot.emotionIntensity=.3;
+  document.body.append(bot);await flush();assert.equal(bot.emotion,'sad');assert.equal(bot.emotionIntensity,.3);
+  const events=[];bot.addEventListener('sidekick-reaction-end',event=>events.push(event.detail));
+  const result=bot.reactTo('surprised',{duration:60000});bot.remove();
+  assert.equal((await result).reason,'disconnected');assert.equal(events.length,1);
+  document.body.append(bot);await flush();assert.equal(bot.emotionState.emotion,'sad');assert.equal(bot.emotionState.reacting,false);
+});

@@ -362,3 +362,5 @@ export type { MoveToElementOptions, HorizontalAlignment, VerticalAlignment } fro
 export type { ElementAnchorState } from './element/element-anchor.js';
 
 export type { BotBehavior, BehaviorTarget, BehaviorSide, BehaviorPhase, BehaviorState, BehaviorResult, PerformOptions } from './element/behavior.js';
+
+export type { Emotion, EmotionValue, EmotionOptions, ReactionOptions, EmotionState, EmotionResult } from './core/emotion.js';
