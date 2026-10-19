@@ -78,7 +78,7 @@ if(technicalKinds[technicalLesson]){
  if(['manual-motion','performance'].includes(technicalLesson)){
   const option=document.createElement('option');option.value=technicalLesson;option.textContent=labels[technicalLesson==='performance'?'performance':'manual'];$('action-kind').append(option);
   const panel=document.createElement('div');panel.dataset.action=technicalLesson;
-  if(technicalLesson==='performance'){const label=document.createElement('label');label.className='check';const input=document.createElement('input');input.type='checkbox';input.id='render-paused';input.checked=true;label.append(input,document.createTextNode('paused'));panel.append(label);}
+  if(technicalLesson==='performance'){const label=document.createElement('label');label.className='check';const input=document.createElement('input');input.type='checkbox';input.id='render-paused';input.checked=true;label.append(input,document.createTextNode('paused'));const output=document.createElement('pre');output.id='renderer-diagnostics';const refresh=document.createElement('button');refresh.type='button';refresh.textContent='diagnostics';refresh.onclick=()=>{output.textContent=JSON.stringify(bot.diagnostics,null,2);};panel.append(label,refresh,output);}
   $('action-panel').append(panel);
  }
  const link=document.createElement('a');link.id='guide-source-return';link.href=guideHref(readGuideSource(location.href)??{id:technicalLesson,level:1},getSiteLocale());link.textContent=labels.back;document.querySelector('.intro').append(link);
@@ -163,6 +163,7 @@ function graph(movement, speed, acceleration) {
   $('motion-graph').dataset.phase = movement.phase;
 }
 function telemetry(detail = bot.movementState) {
+  if($('renderer-diagnostics'))$('renderer-diagnostics').textContent=JSON.stringify(bot.diagnostics,null,2);
   const movement = detail ?? { phase: 'idle', progress: 0 }, position = bot.position;
   const velocity = movement.velocity ?? { x: 0, y: 0 }, acceleration = movement.acceleration ?? { x: 0, y: 0 };
   const speed = movement.speed ?? Math.hypot(velocity.x, velocity.y), magnitude = Math.hypot(acceleration.x, acceleration.y);

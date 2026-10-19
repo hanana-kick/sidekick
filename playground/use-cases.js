@@ -45,7 +45,7 @@ function currentEvents(){
  if(id==='search')return active.events.includes('app-search')?['app-search']:[];
  return [];
 }
-function contextSnapshot(){return {id:currentId,level,side:active?.declaration.side??$('behavior-side').value,gap:active?.declaration.gap??Number($('behavior-gap').value),dwell:active?.declaration.dwell??Number($('behavior-dwell').value),intensity:Number($('guide-emotion-intensity').value),duration:Number($('guide-emotion-duration').value),event:active?.emotionEvent??-1,events:currentEvents(),inputValid:currentId==='input'&&active?.declaration.type==='celebrate',emailValid:currentId==='validation'&&active?.declaration.type==='celebrate',searchMatches:active?.searchMatches??[],emotionCustomized:active?.emotionCustomized??false,scroll:Math.round(scrollY)};}
+function contextSnapshot(){return {id:currentId,level,side:active?.declaration.side??$('behavior-side').value,gap:active?.declaration.gap??Number($('behavior-gap').value),dwell:active?.declaration.dwell??Number($('behavior-dwell').value),intensity:active?.emotionOptions?.intensity??Number($('guide-emotion-intensity').value),duration:active?.emotionOptions?.duration??Number($('guide-emotion-duration').value),event:active?.emotionEvent??-1,events:currentEvents(),inputValid:currentId==='input'&&active?.declaration.type==='celebrate',emailValid:currentId==='validation'&&active?.declaration.type==='celebrate',searchMatches:active?.searchMatches??[],emotionCustomized:active?.emotionCustomized??false,scroll:Math.round(scrollY)};}
 function updateContextLinks(){
  const context=contextSnapshot(), link=$('context-playground-link');
  if(link){link.href=lessonById(currentId)?technicalHref(currentId,getSiteLocale(),context):guideHref(context,getSiteLocale(),true,context);link.textContent=navText().try;}
@@ -124,7 +124,7 @@ function bindApp(entry,item) {
    entry.emotionEvent=Number(button.dataset.emotionStep);
    const [label,preset]=flow.buttons[entry.emotionEvent];
    for(const input of [$('guide-emotion-intensity'),$('guide-emotion-duration')])if(!input.checkValidity()){input.reportValidity();return;}
-   entry.emotionCustomized=level===2;
+   entry.emotionCustomized=level===2;entry.emotionOptions={intensity:Number($('guide-emotion-intensity').value),duration:Number($('guide-emotion-duration').value)};
    const action=level===2?customizeEmotionAction(preset,Number($('guide-emotion-intensity').value),Number($('guide-emotion-duration').value)):preset;entry.emotionAction=action;renderCurrentCode();
    setText('emotion-feedback',label);
    try{Promise.resolve(runEmotionAction(entry.bot,action)).catch(error=>{if(active===entry)$('run-status').textContent=error.message;});}catch(error){$('run-status').textContent=error.message;}
@@ -169,7 +169,7 @@ async function activate(id) {
  const initial=declarationFor(item);if(context&&('target' in initial||initial.type==='review')){initial.side=context.side??initial.side;initial.gap=context.gap??initial.gap;if(initial.type==='review')initial.dwell=context.dwell??initial.dwell;}
  declare(initial);bindApp(entry,item);
  // Restore only known app buttons. Exercise URLs never start a behavior until Run is pressed.
- if(context?.event>=0&&emotionFlowById(item.id)?.buttons[context.event]){entry.emotionEvent=context.event;const preset=emotionFlowById(item.id).buttons[context.event][1];entry.emotionCustomized=!!context.emotionCustomized;entry.emotionAction=context.emotionCustomized?customizeEmotionAction(preset,Number($('guide-emotion-intensity').value),Number($('guide-emotion-duration').value)):preset;}
+ if(context?.event>=0&&emotionFlowById(item.id)?.buttons[context.event]){entry.emotionEvent=context.event;const preset=emotionFlowById(item.id).buttons[context.event][1];entry.emotionCustomized=!!context.emotionCustomized;entry.emotionOptions={intensity:context.intensity??0.7,duration:context.duration??1200};entry.emotionAction=context.emotionCustomized?customizeEmotionAction(preset,Number($('guide-emotion-intensity').value),Number($('guide-emotion-duration').value)):preset;}
  if($('profile-name')&&context?.inputValid)$('profile-name').value='Example';
  if($('profile-email')&&context?.emailValid)$('profile-email').value='example@example.com';
  for(const event of context?.events??[])$(event)?.click();
