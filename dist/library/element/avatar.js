@@ -1,3 +1,4 @@
+import { EmotionController } from './emotion.js';
 import { BehaviorController, validateBehavior } from './behavior.js';
 import { observeElementAnchor } from './element-anchor.js';
 import { assertAnchorHierarchy, resolveElementTarget } from './element-target.js';
@@ -23,6 +24,22 @@ export class SidekickAvatar extends HTMLElementBase {
         super.addEventListener(type, listener, options); }
     removeEventListener(type, listener, options) { if (listener)
         super.removeEventListener(type, listener, options); }
+    emotionController = new EmotionController({
+        connected: () => this.isConnected,
+        change: state => { this.send({ kind: 'state', state: { emotion: { emotion: state.emotion, intensity: state.intensity } } }); this.emit('sidekick-emotion-change', state); },
+        end: result => this.emit('sidekick-reaction-end', result),
+        schedule: (callback, milliseconds) => setTimeout(callback, milliseconds),
+        clear: timer => clearTimeout(timer),
+    });
+    /** Persistent feeling. Transient reactions are available in emotionState. */
+    get emotion() { return this.emotionController.state.baseline.emotion; }
+    set emotion(value) { this.setEmotion(value, { intensity: this.emotionIntensity }); }
+    get emotionIntensity() { return this.emotionController.state.baseline.intensity; }
+    set emotionIntensity(value) { this.setEmotion(this.emotion, { intensity: value }); }
+    get emotionState() { return this.emotionController.state; }
+    setEmotion(value, options = {}) { this.emotionController.set(value, options); }
+    reactTo(value, options = {}) { return this.emotionController.react(value, options); }
+    cancelReaction() { this.emotionController.cancel(); }
     behaviorCommand = false;
     behaviorAttention = false;
     pendingBehavior;
@@ -55,7 +72,10 @@ export class SidekickAvatar extends HTMLElementBase {
             this.behaviorAttention = true;
             this.currentActivity = activity;
             this.trackingModeState = 'off';
-            this.resetTracking();
+            this.lastTrackedPointer = undefined;
+            this.pendingPointer = undefined;
+            this.trackedGaze = undefined;
+            this.gazeTarget = [...this.manualGaze];
             this.updateMouseTracking();
             this.syncState();
             const weights = eyeExpressionWeights(expression);
@@ -405,7 +425,8 @@ export class SidekickAvatar extends HTMLElementBase {
         const shapeChanged = next.body.shape !== previous.body.shape;
         const changedEyes = ['left', 'right'].filter(side => transition?.eyeSides?.includes(side) || next.eyes[side].weights.smile !== previous.eyes[side].weights.smile || next.eyes[side].weights.blink !== previous.eyes[side].weights.blink);
         const immediate = this.immediateMotion();
-        const timing = transition ? { ...transition, shape: { ...transition.shape, duration: immediate ? 0 : transition.shape.duration }, eyes: { ...transition.eyes, duration: immediate ? 0 : transition.eyes.duration } } : undefined;
+        const requested = transition ?? { shape: validateShapeMotionOptions({}), eyes: validateMotionOptions({}), eyeSides: changedEyes };
+        const timing = { ...requested, shape: { ...requested.shape, duration: immediate ? 0 : requested.shape.duration }, eyes: { ...requested.eyes, duration: immediate ? 0 : requested.eyes.duration } };
         let shapeRequest, eyeRequest;
         if (shapeChanged && timing)
             shapeRequest = this.request('shape').id;
@@ -670,6 +691,7 @@ export class SidekickAvatar extends HTMLElementBase {
         this.initializeRenderer();
     }
     disconnectedCallback() {
+        this.emotionController.cancel('disconnected');
         this.behaviorController.cancel('disconnected');
         this.connected = false;
         this.releaseAnchor(false);
@@ -817,6 +839,8 @@ export class SidekickAvatar extends HTMLElementBase {
                 }
                 if (touched('position-x', 'position-y'))
                     void this.moveTo({ x: touched('position-x') ? resolved.position.x : this.position.x, y: touched('position-y') ? resolved.position.y : this.position.y }, resolved.moveOptions);
+                if (touched('emotion', 'emotion-intensity'))
+                    this.setEmotion(touched('emotion') ? resolved.emotion.emotion : this.emotion, { intensity: touched('emotion-intensity') ? resolved.emotion.intensity : this.emotionIntensity });
                 if (touched('activity')) {
                     if (!this.playbackCommand)
                         this.playback.cancelPlayback();
@@ -873,7 +897,7 @@ export class SidekickAvatar extends HTMLElementBase {
         if (this.propertiesUpgraded)
             return;
         this.propertiesUpgraded = true;
-        for (const name of ['behavior', 'placement', 'movementBounds', 'design', 'bodyOrientation', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode']) {
+        for (const name of ['emotion', 'emotionIntensity', 'behavior', 'placement', 'movementBounds', 'design', 'bodyOrientation', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode']) {
             if (!Object.prototype.hasOwnProperty.call(this, name))
                 continue;
             const value = this[name];
@@ -1015,7 +1039,7 @@ export class SidekickAvatar extends HTMLElementBase {
     }
     runtimeState() {
         const rect = this.getBoundingClientRect();
-        return { attention: this.behaviorAttention, travel: this.travelPresentation, design: this.design, bodyOrientation: this.bodyOrientation, zoom: this.zoom, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
+        return { emotion: { emotion: this.emotionState.emotion, intensity: this.emotionState.intensity }, attention: this.behaviorAttention, travel: this.travelPresentation, design: this.design, bodyOrientation: this.bodyOrientation, zoom: this.zoom, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
     }
     syncState() {
         this.send({ kind: 'state', state: { attention: this.behaviorAttention, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze } });

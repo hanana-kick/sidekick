@@ -2,6 +2,7 @@
 import { createElement, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 const tagName = 'sidekick-avatar';
 const attributeProps = {
+    emotion: 'emotion', emotionIntensity: 'emotion-intensity',
     placement: 'placement', positionX: 'position-x', positionY: 'position-y', movementBounds: 'movement-bounds', moveDuration: 'move-duration', moveEasing: 'move-easing', moveTravel: 'move-travel', moveMaxSpeed: 'move-max-speed', moveAcceleration: 'move-acceleration', moveDeceleration: 'move-deceleration',
     shape: 'shape', bodyColor: 'body-color', eyeColor: 'eye-color',
     expression: 'expression', leftExpression: 'left-expression', rightExpression: 'right-expression',
@@ -14,6 +15,7 @@ const attributeProps = {
     shapeDuration: 'shape-duration', shapeEasing: 'shape-easing', motionDuration: 'motion-duration', motionEasing: 'motion-easing', time: 'time',
 };
 const eventProps = {
+    onEmotionChange: 'sidekick-emotion-change', onReactionEnd: 'sidekick-reaction-end',
     onEnterEnd: 'sidekick-enter-end', onExitEnd: 'sidekick-exit-end',
     onMoveEnd: 'sidekick-move-end', onMoveProgress: 'sidekick-move-progress', onPlayEnd: 'sidekick-play-end', onAssetTransitionEnd: 'sidekick-transition-end',
     onBehaviorChange: 'sidekick-behavior-change', onBehaviorEnd: 'sidekick-behavior-end',

@@ -13,3 +13,5 @@ export { MAX_SCENE_BYTES, createScene, parseScene, serializeScene, migrateScene 
 export type { SidekickScene, SceneInput, SceneMigration } from './core/scene.js';
 export { TRACKING_MODES } from './core/tracking.js';
 export type { TrackingMode } from './core/tracking.js';
+export { EMOTIONS } from './core/emotion.js';
+export type { Emotion, EmotionValue, EmotionOptions, ReactionOptions, EmotionState, EmotionResult } from './core/emotion.js';

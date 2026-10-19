@@ -1,3 +1,4 @@
+import type { Emotion, EmotionValue, EmotionState, EmotionResult } from '../core/emotion.js';
 import type { BehaviorState, BehaviorResult } from './behavior.js';
 import type { PresenceResult } from './presence.js';
 import type { Activity, AvatarDesign, Vec2 } from '../core/design.js';
@@ -11,6 +12,8 @@ import type { MaterialShapeName } from '../core/shapes.js';
 export type BooleanAttribute = boolean | '' | 'true' | 'false' | '1' | '0';
 export type NumericAttribute = number | `${number}`;
 export interface SidekickAttributes {
+    emotion?: Emotion;
+    'emotion-intensity'?: NumericAttribute;
     behavior?: string;
     placement?: AvatarPlacement;
     'position-x'?: NumericAttribute;
@@ -77,7 +80,7 @@ export declare const ACCESSORY_ATTRIBUTE_SLOTS: Readonly<{
     readonly 'left-ear': "leftEar";
     readonly 'right-ear': "rightEar";
 }>;
-export declare const SIDEKICK_ATTRIBUTES: readonly ["behavior", "placement", "position-x", "position-y", "movement-bounds", "move-duration", "move-easing", "move-travel", "move-max-speed", "move-acceleration", "move-deceleration", "design", "shape", "body-color", "eye-color", "expression", "left-expression", "right-expression", "smile", "blink", "left-smile", "right-smile", "left-blink", "right-blink", "accessories", "head-accessory", "head-color", "eyes-accessory", "eyes-color", "mouth-accessory", "mouth-color", "neck-accessory", "neck-color", "left-ear-accessory", "left-ear-color", "right-ear-accessory", "right-ear-color", "body-orientation", "body-yaw", "body-pitch", "body-roll", "zoom", "gaze-x", "gaze-y", "activity", "paused", "interaction", "mouse-tracking", "tracking-mode", "render-style", "shape-duration", "shape-easing", "motion-duration", "motion-easing", "motion", "time"];
+export declare const SIDEKICK_ATTRIBUTES: readonly ["emotion", "emotion-intensity", "behavior", "placement", "position-x", "position-y", "movement-bounds", "move-duration", "move-easing", "move-travel", "move-max-speed", "move-acceleration", "move-deceleration", "design", "shape", "body-color", "eye-color", "expression", "left-expression", "right-expression", "smile", "blink", "left-smile", "right-smile", "left-blink", "right-blink", "accessories", "head-accessory", "head-color", "eyes-accessory", "eyes-color", "mouth-accessory", "mouth-color", "neck-accessory", "neck-color", "left-ear-accessory", "left-ear-color", "right-ear-accessory", "right-ear-color", "body-orientation", "body-yaw", "body-pitch", "body-roll", "zoom", "gaze-x", "gaze-y", "activity", "paused", "interaction", "mouse-tracking", "tracking-mode", "render-style", "shape-duration", "shape-easing", "motion-duration", "motion-easing", "motion", "time"];
 export declare const REMOVED_ORIENTATION_ATTRIBUTES: Readonly<{
     camera: "body-orientation";
     'camera-yaw': "body-yaw";
@@ -106,6 +109,8 @@ export interface SidekickZoomChangeDetail {
     zoom: number;
 }
 export interface SidekickEventMap {
+    'sidekick-emotion-change': CustomEvent<EmotionState>;
+    'sidekick-reaction-end': CustomEvent<EmotionResult>;
     'sidekick-behavior-change': CustomEvent<BehaviorState>;
     'sidekick-behavior-end': CustomEvent<BehaviorResult>;
     'sidekick-enter-end': CustomEvent<PresenceResult>;
@@ -125,6 +130,7 @@ export interface SidekickEventMap {
 }
 export type AttributeValues = ReadonlyMap<string, string>;
 export interface ResolvedAttributes {
+    emotion: EmotionValue;
     placement: AvatarPlacement;
     position: AvatarPosition;
     movementBounds: MovementBounds;

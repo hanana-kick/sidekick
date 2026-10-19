@@ -26,6 +26,9 @@ export declare class RenderEngine {
     private timeline;
     private shape;
     private activityBlend;
+    private emotion;
+    private orientation;
+    private attention;
     private tracking;
     private velocity;
     private scheduled;
@@ -50,6 +53,10 @@ export declare class RenderEngine {
     capture(): PixelBuffer;
     private updateTracking;
     private gazeMoving;
+    private emotionTarget;
+    private emotionFrame;
+    private orientationTarget;
+    private presentationMoving;
     private animated;
     private paceIdle;
     private resetPacing;

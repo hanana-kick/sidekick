@@ -1,3 +1,4 @@
+import type { EmotionValue } from '../core/emotion.js';
 import type { TravelPresentation } from '../core/travel.js';
 import type { Activity, AvatarDesign, Vec2 } from '../core/design.js';
 import type { BodyOrientation } from '../core/body-orientation.js';
@@ -9,6 +10,7 @@ import type { PixelBuffer, SnapshotOptions } from '../core/pixels.js';
 /** Private wire format. A generation owns exactly one transferred surface. */
 export declare const PROTOCOL_VERSION = 1;
 export interface RuntimeState {
+    emotion?: EmotionValue;
     /** Semantic target attention suppresses unrelated activity eye wandering. */
     attention?: boolean;
     design: AvatarDesign;

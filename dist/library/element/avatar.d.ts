@@ -1,3 +1,4 @@
+import type { Emotion, EmotionOptions, EmotionState, EmotionResult, ReactionOptions } from '../core/emotion.js';
 import type { BotBehavior, BehaviorState, BehaviorResult, PerformOptions } from './behavior.js';
 import type { ElementAnchorState } from './element-anchor.js';
 import type { MoveToElementOptions } from './element-target.js';
@@ -24,6 +25,16 @@ export declare class SidekickAvatar extends HTMLElementBase {
     removeEventListener<K extends keyof SidekickEventMap>(type: K, listener: (this: SidekickAvatar, event: SidekickEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
     removeEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
     removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions): void;
+    private emotionController;
+    /** Persistent feeling. Transient reactions are available in emotionState. */
+    get emotion(): Emotion;
+    set emotion(value: Emotion);
+    get emotionIntensity(): number;
+    set emotionIntensity(value: number);
+    get emotionState(): EmotionState;
+    setEmotion(value: Emotion, options?: EmotionOptions): void;
+    reactTo(value: Emotion, options?: ReactionOptions): Promise<EmotionResult>;
+    cancelReaction(): void;
     private behaviorCommand;
     private behaviorAttention;
     private pendingBehavior;

@@ -1,3 +1,4 @@
+import { EMOTIONS } from '../core/emotion.js';
 import { ACTIVITIES, createAccessory, createDesign, equipAccessory, finite, parseDesign } from '../core/design.js';
 import { bodyOrientationPreset, createBodyOrientation } from '../core/body-orientation.js';
 import { ZOOM_RANGE } from '../core/zoom.js';
@@ -7,7 +8,7 @@ import { validateShapeMotionOptions } from '../core/shape-motion.js';
 import { parseTrackingMode } from '../core/tracking.js';
 export const ACCESSORY_ATTRIBUTE_SLOTS = Object.freeze({ head: 'head', eyes: 'eyes', mouth: 'mouth', neck: 'neck', 'left-ear': 'leftEar', 'right-ear': 'rightEar' });
 export const SIDEKICK_ATTRIBUTES = Object.freeze([
-    'behavior',
+    'emotion', 'emotion-intensity', 'behavior',
     'placement', 'position-x', 'position-y', 'movement-bounds', 'move-duration', 'move-easing', 'move-travel', 'move-max-speed', 'move-acceleration', 'move-deceleration',
     'design', 'shape', 'body-color', 'eye-color', 'expression', 'left-expression', 'right-expression',
     'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'accessories',
@@ -131,6 +132,7 @@ export function resolveSidekickAttributes(attributes) {
     const trackingMode = read('tracking-mode', parseTrackingMode, legacyTracking === undefined ? 'eyes-and-body' : legacyTracking ? 'eyes' : 'off');
     read('render-style', value => choice(value, ['flat', '3d']), 'flat');
     return {
+        emotion: { emotion: read('emotion', value => choice(value, EMOTIONS), 'neutral'), intensity: read('emotion-intensity', value => number(value, 0, 1, 'emotion-intensity'), 1) },
         placement: read('placement', value => choice(value, ['inline', 'viewport']), 'inline'),
         position: { x: read('position-x', value => number(value, -1e7, 1e7, 'position-x'), 0), y: read('position-y', value => number(value, -1e7, 1e7, 'position-y'), 0) },
         movementBounds: read('movement-bounds', value => choice(value, ['viewport', 'none']), 'viewport'),
