@@ -57,11 +57,13 @@ for(const lang of ['ko','en','zh-CN','ja'])test(`state-first reference and narro
  try{
   await page.goto(`${base}/guide.html?lang=${lang}`);await page.waitForSelector('.state-reference');
   assert.equal(await page.locator('#scenario-toc [aria-current="page"]').getAttribute('data-scenario'),'state-emotion');
+  if(process.env.SIDEKICK_SCREENSHOTS&&lang==='ko'){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.setViewportSize({width:1280,height:900});await page.screenshot({path:process.env.SIDEKICK_SCREENSHOTS+'/guide-state-ko-desktop.png',fullPage:true});await page.setViewportSize({width:320,height:740});}
   await page.locator('#toc-toggle').click();await page.locator('[data-scenario="state-appearance"]').click();
   assert.equal(await page.locator('.state-reference tbody tr').count(),12);
   assert.equal(await page.locator('#lesson-content pre').count(),3);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
-  assert.ok(await page.locator('.state-table-wrap').evaluate(el=>el.scrollWidth>=el.clientWidth));
+  assert.ok(await page.locator('.state-table-wrap').evaluate(el=>el.scrollWidth<=el.clientWidth+1),'reference fields are readable without horizontal scrolling');
+  assert.equal(await page.locator('.state-reference td[data-label]').count(),36);
   const text=await page.locator('.state-reference').textContent();if(lang!=='ko')assert.doesNotMatch(text,/[가-힣]/);
   if(process.env.SIDEKICK_SCREENSHOTS){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.screenshot({path:process.env.SIDEKICK_SCREENSHOTS+`/guide-state-${lang}-320.png`,fullPage:true});}
   await page.locator('[data-lesson-destination]').click();await page.waitForSelector('#demo-bot[data-configured]');assert.equal(readGuideSource(page.url()).id,'state-appearance');

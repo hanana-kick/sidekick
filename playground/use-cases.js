@@ -257,7 +257,7 @@ function renderLesson(lesson){
   const caption=document.createElement('caption');caption.dataset.guideI18n=lesson.title;caption.textContent=t(lesson.title);table.append(caption);
   const head=table.createTHead().insertRow();
   for(const label of ['HTML attribute / React prop','타입·허용값','기본값','동작과 적용 범위']){const cell=document.createElement('th');cell.scope='col';cell.dataset.guideI18n=label;cell.textContent=t(label);head.append(cell);}
-  const body=table.createTBody();for(const fields of lesson.parameters){const row=body.insertRow();fields.forEach((value,index)=>{const cell=document.createElement(index===0?'th':'td');if(index===0)cell.scope='row';cell.dataset.guideI18n=value;cell.textContent=t(value);row.append(cell);});}wrap.append(table);host.append(wrap);
+  const body=table.createTBody();for(const fields of lesson.parameters){const row=body.insertRow();fields.forEach((value,index)=>{const cell=document.createElement(index===0?'th':'td');if(index===0)cell.scope='row';else{cell.dataset.guideColumnLabel=['','타입·허용값','기본값','동작과 적용 범위'][index];cell.dataset.label=t(cell.dataset.guideColumnLabel);}cell.dataset.guideI18n=value;cell.textContent=t(value);row.append(cell);});}wrap.append(table);host.append(wrap);
  }
  if(lesson.install){const install=document.createElement('pre');install.textContent=lesson.install;host.append(install);}
  for(const [label,code] of lesson.examples??[['',lesson.code]]){if(label){const heading=document.createElement('h2');heading.dataset.guideI18n=label;heading.textContent=t(label);host.append(heading);}const pre=document.createElement('pre');pre.textContent=code;pre.tabIndex=0;host.append(pre);}
@@ -265,6 +265,7 @@ function renderLesson(lesson){
 }
 // Explicit bindings only: never scan or replace arbitrary application content.
 function localizeGuideBindings(){
+ for(const element of document.querySelectorAll('[data-guide-column-label]'))element.dataset.label=t(element.dataset.guideColumnLabel);
  for(const element of document.querySelectorAll('[data-guide-i18n]'))element.textContent=t(element.dataset.guideI18n);
  for(const element of document.querySelectorAll('[data-guide-placeholder]'))element.setAttribute('placeholder',t(element.dataset.guidePlaceholder));
  for(const element of document.querySelectorAll('[data-guide-label]'))element.setAttribute('aria-label',t(element.dataset.guideLabel));
