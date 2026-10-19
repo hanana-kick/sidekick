@@ -142,7 +142,7 @@ async function controllerFixture(t) {
   const dom = new JSDOM(html, { url: 'https://sidekick.test/api-playground.html', runScripts: 'outside-only', pretendToBeVisual: true });
   t.after(() => dom.window.close());
   const w = dom.window, $ = id => w.document.getElementById(id);
-  Object.assign(w, { apiText, applyApiLocale, apiError, getSiteLocale, subscribeSiteLocale: callback => { const cleanup = subscribeSiteLocale(callback); t.after(cleanup); return cleanup; }, structuredClone, codeForAction, executeAction, createAccessory, MATERIAL_SHAPE_LABELS: { heart: 'Heart', ghostish: 'Ghost' }, mountSiteHeader() {}, loadStudioSession: () => ({ message: 'Default scene', scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), applyStudioSession: async () => {} });
+  Object.assign(w, { mountGuideExercise:async()=>false, apiText, applyApiLocale, apiError, getSiteLocale, subscribeSiteLocale: callback => { const cleanup = subscribeSiteLocale(callback); t.after(cleanup); return cleanup; }, structuredClone, codeForAction, executeAction, createAccessory, MATERIAL_SHAPE_LABELS: { heart: 'Heart', ghostish: 'Ghost' }, mountSiteHeader() {}, loadStudioSession: () => ({ message: 'Default scene', scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), applyStudioSession: async () => {} });
   w.matchMedia = () => ({ matches: false, addEventListener() {} });
   class Avatar extends w.HTMLElement {
     ready = true; calls = []; point = { x: 0, y: 0 }; activity = 'idle'; trackingMode = 'eyes-and-body'; zoom = 1;

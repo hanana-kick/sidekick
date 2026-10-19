@@ -1,3 +1,5 @@
+import './use-cases.css';
+import { readGuideContext, readGuideSource, guideHref, technicalHref, lessonDestinations, navigationText, guideIds } from './guide-navigation.js';
 import { emotionFlowById, emotionMarkup, emotionCode, runEmotionAction, customizeEmotionAction } from './emotion-scenarios.js';
 import '../src/index.ts';
 import { mountSiteHeader } from './shared-header.js';
@@ -9,7 +11,12 @@ import { guideTranslations } from './guide-translations.js';
 const $ = id => document.getElementById(id);
 const t = key => guideTranslations[getSiteLocale()]?.[key] ?? key;
 function setText(id,key){const element=$(id);element.dataset.guideI18n=key;element.textContent=t(key);}
-mountSiteHeader($('site-header-brand'), 'guide');
+const exerciseMode = document.documentElement.dataset.guideExercise === 'true';
+if (!exerciseMode) mountSiteHeader($('site-header-brand'), 'guide');
+let restoringContext = true;
+const incomingContext = readGuideContext(location.href);
+const sourceContext=readGuideSource(location.href);
+const navText = () => navigationText[getSiteLocale()];
 new ResizeObserver(([entry]) => document.documentElement.style.setProperty('--header-height', `${entry.target.getBoundingClientRect().height}px`)).observe(document.querySelector('.app-header'));
 let storage; try { storage = localStorage; } catch {}
 const session = loadStudioSession(storage);
@@ -24,7 +31,28 @@ $('scenario-toc').addEventListener('click', event => {
   if (location.hash === link.hash) { event.preventDefault(); activate(link.hash.slice(1)); }
 });
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && $('toc-toggle').getAttribute('aria-expanded') === 'true') { $('toc-toggle').setAttribute('aria-expanded', 'false'); $('toc-toggle').focus(); } });
-let active, generation = 0, level = 1;
+let active, generation = 0, level = incomingContext?.level ?? 1;
+let restorationContext = null;
+let currentId = guideIds.includes(location.hash.slice(1))?location.hash.slice(1):'html-start';
+function currentEvents(){
+ if(!active)return [];
+ const id=active.item.id,config=active.declaration;
+ if(['loading','success','input','action','validation'].includes(id))return config.type==='celebrate'?[{loading:'app-complete',success:'app-save',input:'app-confirm',action:'next-action',validation:'app-validate'}[id]]:[];
+ if(id==='failure')return config.type==='celebrate'?['app-retry','app-complete']:config.type==='wait'?['app-retry']:[];
+ if(id==='upload')return Array(Math.min(4,Math.round(Number($('progress-label').dataset.progress??0)/25))).fill('app-progress');
+ if(id==='selection')return config.target?.startsWith('#selected-')?[config.target.slice(1)]:[];
+ if(['paragraph','onboarding'].includes(id)){const index=Number(config.target?.split('-').at(-1)??1);return Array(Math.max(0,Math.min(2,index-1))).fill('app-next');}
+ if(id==='search')return active.events.includes('app-search')?['app-search']:[];
+ return [];
+}
+function contextSnapshot(){return {id:currentId,level,side:active?.declaration.side??$('behavior-side').value,gap:active?.declaration.gap??Number($('behavior-gap').value),dwell:active?.declaration.dwell??Number($('behavior-dwell').value),intensity:Number($('guide-emotion-intensity').value),duration:Number($('guide-emotion-duration').value),event:active?.emotionEvent??-1,events:currentEvents(),inputValid:currentId==='input'&&active?.declaration.type==='celebrate',emailValid:currentId==='validation'&&active?.declaration.type==='celebrate',searchMatches:active?.searchMatches??[],emotionCustomized:active?.emotionCustomized??false,scroll:Math.round(scrollY)};}
+function updateContextLinks(){
+ const context=contextSnapshot(), link=$('context-playground-link');
+ if(link){link.href=lessonById(currentId)?technicalHref(currentId,getSiteLocale(),context):guideHref(context,getSiteLocale(),true,context);link.textContent=navText().try;}
+ if(!restoringContext){const url=new URL(guideHref(context,getSiteLocale(),exerciseMode,sourceContext),location.href);history.replaceState(history.state,'',url);}
+ const back=$('guide-source-return');if(back)back.href=guideHref(sourceContext??incomingContext??context,getSiteLocale());
+}
+
 const labels = { idle:'준비', resolving:'대상 찾는 중', moving:'대상으로 이동 중', acting:'행동 중', completed:'완료', cancelled:'중단', error:'실행 오류' };
 const card = content => `<div class="app-card">${content}</div>`;
 const row = (id, title, description='') => `<button class="target-item" id="${id}" type="button">${`<span data-guide-i18n="${title}">${t(title)}</span>`}${description ? `<small data-guide-i18n="${description}">${t(description)}</small>` : ''}</button>`;
@@ -93,15 +121,17 @@ function bindApp(entry,item) {
   entry.emotionAction=flow.initial;
   for(const button of document.querySelectorAll('[data-emotion-step]'))button.addEventListener('click',()=>{
    if(!entry.ready)return;
-   const [label,preset]=flow.buttons[Number(button.dataset.emotionStep)];
+   entry.emotionEvent=Number(button.dataset.emotionStep);
+   const [label,preset]=flow.buttons[entry.emotionEvent];
    for(const input of [$('guide-emotion-intensity'),$('guide-emotion-duration')])if(!input.checkValidity()){input.reportValidity();return;}
+   entry.emotionCustomized=level===2;
    const action=level===2?customizeEmotionAction(preset,Number($('guide-emotion-intensity').value),Number($('guide-emotion-duration').value)):preset;entry.emotionAction=action;renderCurrentCode();
    setText('emotion-feedback',label);
    try{Promise.resolve(runEmotionAction(entry.bot,action)).catch(error=>{if(active===entry)$('run-status').textContent=error.message;});}catch(error){$('run-status').textContent=error.message;}
   },{signal:entry.controller.signal});
   return;
  }
- const on=(id,fn)=>$(id)?.addEventListener('click',event=>{fn(event);localizeGuideBindings();},{signal:entry.controller.signal});
+ const on=(id,fn)=>$(id)?.addEventListener('click',event=>{fn(event);entry.events.push(id);entry.events=entry.events.slice(-32);localizeGuideBindings();updateContextLinks();},{signal:entry.controller.signal});
  const success=()=>declare({type:'celebrate',duration:1600});
  const guide=target=>{document.querySelectorAll('#demo-app .target-item').forEach(el=>el.toggleAttribute('data-active','#'+el.id===target));declare({type:'guide',target,side:'left',gap:6});};
  on('app-complete',()=>{const target=$(item.id==='loading'?'loading-indicator':'request-result');target.dataset.guideI18n='완료되었습니다.';target.textContent=t('완료되었습니다.');success();});
@@ -113,7 +143,7 @@ function bindApp(entry,item) {
  on('app-next',()=>{index=Math.min(item.id==='paragraph'?1:2,index+1);guide(`#${item.id==='paragraph'?'paragraph':'onboard'}-${index+1}`);$('app-next').disabled=index===(item.id==='paragraph'?1:2);if($('app-previous'))$('app-previous').disabled=false;});
  on('app-previous',()=>{index=Math.max(0,index-1);guide(`#onboard-${index+1}`);$('app-previous').disabled=index===0;$('app-next').disabled=false;});
  if($('app-previous'))$('app-previous').disabled=true;
- on('app-search',()=>{const query=$('search-query').value.trim();const matches=['계정 설정','알림 설정','계정 삭제'].filter(title=>title.toLowerCase().includes(query.toLowerCase())||(guideTranslations[getSiteLocale()]?.[title]??title).toLowerCase().includes(query.toLowerCase()));$('search-results').innerHTML=matches.map((title,i)=>row('search-'+i,title)).join('')||'<p data-guide-i18n="검색 결과가 없습니다.">'+t('검색 결과가 없습니다.')+'</p>';declare(matches.length?{type:'review',targets:'#search-results .target-item',dwell:1400,side:'left',gap:6}:{type:'idle'});});
+ on('app-search',()=>{const query=$('search-query').value.trim();const titles=['계정 설정','알림 설정','계정 삭제'];const matches=titles.filter((title,index)=>restoringContext&&restorationContext?.searchMatches?restorationContext.searchMatches.includes(index):title.toLowerCase().includes(query.toLowerCase())||(guideTranslations[getSiteLocale()]?.[title]??title).toLowerCase().includes(query.toLowerCase()));entry.searchMatches=matches.map(title=>titles.indexOf(title));$('search-results').innerHTML=matches.map((title,i)=>row('search-'+i,title)).join('')||'<p data-guide-i18n="검색 결과가 없습니다.">'+t('검색 결과가 없습니다.')+'</p>';declare(matches.length?{type:'review',targets:'#search-results .target-item',dwell:1400,side:'left',gap:6}:{type:'idle'});});
  on('app-confirm',()=>{const valid=$('profile-name').value.trim();setText('input-result',valid?'입력이 완료되었습니다.':'이름을 먼저 입력해 주세요.');if(valid)success();});
  $('profile-email')?.setAttribute('type','email');
  on('app-validate',()=>{const valid=$('profile-email').checkValidity()&&!!$('profile-email').value;setText('validation-result',valid?'올바른 이메일입니다.':'이메일 형식으로 수정해 주세요.');valid?success():guide('#email-field');});
@@ -121,6 +151,10 @@ function bindApp(entry,item) {
 }
 async function activate(id) {
  const lesson=lessonById(id);const item=lesson??scenarioById(id);const token=++generation;
+ currentId=item.id;const restored=readGuideContext(location.href);const context=restored?.id===item.id?restored:null;
+ level=context?.level??1;
+ for(const [field,key,fallback] of [['behavior-side','side','left'],['behavior-gap','gap',6],['behavior-dwell','dwell',1400],['guide-emotion-intensity','intensity',0.7],['guide-emotion-duration','duration',1200]])$(field).value=String(context?.[key]??fallback);
+ restoringContext=true;restorationContext=context;
  window.scrollTo({top:0,behavior:'instant'});
  if(active){active.controller.abort();active.bot.stopBehavior?.();active.bot.remove();} active=null;
  $('lesson-content').hidden=!lesson;document.querySelector('.scenario-workspace').hidden=!!lesson;$('progressive-guide').hidden=!!lesson;
@@ -128,11 +162,21 @@ async function activate(id) {
  document.querySelectorAll('[data-scenario]').forEach(link=>{if(link.dataset.scenario===item.id){link.setAttribute('aria-current','page');link.closest('details').open=true;}else link.removeAttribute('aria-current');});
  $('breadcrumb').textContent=(lessonById(item.id)?[item.major,item.middle,item.title]:['행동 선언',item.major,item.title]).map(t).join(' / ');
  setText('scenario-title',item.title);setText('scenario-sentence',item.sentence);setText('scenario-hint',item.hint);
- if(lesson){renderLesson(lesson);localizeGuideBindings();return;}
+ if(lesson){renderLesson(lesson);localizeGuideBindings();restoringContext=false;updateContextLinks();return;}
  $('demo-app').innerHTML=applicationMarkup(item.id);$('event-code').textContent=eventCode(item.id);delete $('copy-status').dataset.guideI18n;$('copy-status').textContent='';setText('run-status','봇 준비 중…');
  const bot=document.createElement('sidekick-avatar');bot.id='demo-bot';bot.dataset.scenario=item.id;bot.className='demo-bot';bot.setAttribute('placement','inline');bot.setAttribute('interaction','none');bot.setAttribute('movement-bounds','none');
- const entry=active={bot,controller,item,ready:false};
- declare(declarationFor(item));bindApp(entry,item);renderLevel();localizeGuideBindings();
+ const entry=active={bot,controller,item,ready:false,events:[],emotionEvent:-1};
+ const initial=declarationFor(item);if(context&&('target' in initial||initial.type==='review')){initial.side=context.side??initial.side;initial.gap=context.gap??initial.gap;if(initial.type==='review')initial.dwell=context.dwell??initial.dwell;}
+ declare(initial);bindApp(entry,item);
+ // Restore only known app buttons. Exercise URLs never start a behavior until Run is pressed.
+ if(context?.event>=0&&emotionFlowById(item.id)?.buttons[context.event]){entry.emotionEvent=context.event;const preset=emotionFlowById(item.id).buttons[context.event][1];entry.emotionCustomized=!!context.emotionCustomized;entry.emotionAction=context.emotionCustomized?customizeEmotionAction(preset,Number($('guide-emotion-intensity').value),Number($('guide-emotion-duration').value)):preset;}
+ if($('profile-name')&&context?.inputValid)$('profile-name').value='Example';
+ if($('profile-email')&&context?.emailValid)$('profile-email').value='example@example.com';
+ for(const event of context?.events??[])$(event)?.click();
+ if(context&&('target' in entry.declaration||entry.declaration.type==='review')){entry.declaration.side=context.side??entry.declaration.side;entry.declaration.gap=context.gap??entry.declaration.gap;if(entry.declaration.type==='review')entry.declaration.dwell=context.dwell??entry.declaration.dwell;declare(entry.declaration);}
+ renderCurrentCode();restoringContext=false;updateContextLinks();
+
+ renderLevel();localizeGuideBindings();
  const ready=new Promise((resolve,reject)=>{
   const timer=setTimeout(()=>reject(new Error('봇 초기화 시간이 초과되었습니다. 다시 실행해 주세요.')),12000);
   const finish=()=>{clearTimeout(timer);resolve();};
@@ -147,7 +191,10 @@ async function activate(id) {
   if(state.type==='review')document.querySelectorAll('#demo-app .target-item').forEach((el,i)=>el.toggleAttribute('data-active',i===state.itemIndex));
  },{signal:controller.signal});
  $('demo-app').append(bot);
- try{if(!bot.ready)await ready;if(token!==generation)return;await applyStudioSession(bot,session.scene);if(token!==generation)return;bot.interaction='none';bot.zoom=Math.max(session.scene.zoom,2);entry.ready=true;bot.setAttribute('data-configured','');botDeclare(entry,entry.declaration);if(emotionFlowById(item.id))runEmotionAction(bot,entry.emotionAction);}
+ try{if(!bot.ready)await ready;if(token!==generation)return;await applyStudioSession(bot,session.scene);if(token!==generation)return;bot.interaction='none';bot.zoom=Math.max(session.scene.zoom,2);entry.ready=true;bot.setAttribute('data-configured','');
+ const resume=()=>{bot.stopBehavior();botDeclare(entry,entry.declaration);if(emotionFlowById(item.id))runEmotionAction(bot,entry.emotionAction);};
+ if(exerciseMode){entry.resume=resume;setText('run-status','준비');}else resume();
+ if(context?.scroll&&!exerciseMode)window.scrollTo({top:context.scroll,behavior:'instant'});}
  catch(error){if(token===generation)setText('run-status',error.message);}
 }
 const levelExplanations = {
@@ -157,7 +204,7 @@ const levelExplanations = {
   4:'연출을 직접 만들 때는 의미 행동을 중단하고 이동, 시선, 표정 API를 순서대로 사용합니다. 다시 선언으로 돌아갈 수도 있습니다.',
 };
 function renderCurrentCode(){
- if(!active)return;
+ if(!active)return;updateContextLinks();
  const flow=emotionFlowById(active.item.id);if(flow){$('declaration-code').textContent=emotionCode(flow,active.emotionAction,level);$('event-code').textContent=emotionCode(flow,undefined,3);document.querySelector('.declaration-panel details').open=level===3;return;}
  const declaration='const bot = document.querySelector("#demo-bot");\n\nbot.behavior = '+JSON.stringify(active.declaration,null,2)+';';
  $('declaration-code').textContent=level===4?manualCode():declaration;
@@ -205,14 +252,16 @@ function renderLesson(lesson){
  for(const text of lesson.paragraphs){const p=document.createElement('p');p.dataset.guideI18n=text;p.textContent=t(text);host.append(p);}
  if(lesson.install){const install=document.createElement('pre');install.textContent=lesson.install;host.append(install);}
  const pre=document.createElement('pre');pre.textContent=lesson.code;pre.tabIndex=0;host.append(pre);
- const link=document.createElement('a');link.href='#'+lesson.next;link.dataset.guideI18n='관련 예제를 직접 실행하기 →';link.textContent=t('관련 예제를 직접 실행하기 →');host.append(link);
+ const target=lessonDestinations[lesson.id];const link=document.createElement('a');link.dataset.lessonDestination=lesson.id;link.href=technicalHref(lesson.id,getSiteLocale(),contextSnapshot());link.textContent=target.id?navText().related+': '+t(scenarioById(target.id).title)+' · '+target.level:navText()[{appearance:'studio',placement:'placement','element-anchor':'anchor','manual-motion':'manual',performance:'performance'}[lesson.id]];host.append(link);
 }
 // Explicit bindings only: never scan or replace arbitrary application content.
 function localizeGuideBindings(){
  for(const element of document.querySelectorAll('[data-guide-i18n]'))element.textContent=t(element.dataset.guideI18n);
  for(const element of document.querySelectorAll('[data-guide-placeholder]'))element.setAttribute('placeholder',t(element.dataset.guidePlaceholder));
  for(const element of document.querySelectorAll('[data-guide-label]'))element.setAttribute('aria-label',t(element.dataset.guideLabel));
- document.title='Sidekick · '+t('가이드');
+ if(!exerciseMode)document.title='Sidekick · '+t('가이드');
+ for(const link of document.querySelectorAll('[data-lesson-destination]'))link.href=technicalHref(link.dataset.lessonDestination,getSiteLocale(),contextSnapshot());
+ updateContextLinks();
  for(const link of document.querySelectorAll('.catalog-layout a[href]'))if(!link.getAttribute('href').startsWith('#')){const url=new URL(link.href);url.searchParams.set('lang',getSiteLocale());link.href=url.href;}
 }
 function localizeGuide(){
@@ -225,8 +274,12 @@ function localizeGuide(){
 }
 subscribeSiteLocale(localizeGuide);localizeGuideBindings();
 
-$('restart-demo').onclick=()=>activate(active?.item.id??'loading');$('stop-demo').onclick=stop;
+$('restart-demo').onclick=()=>{if(exerciseMode&&active?.resume){if(level===4&&!emotionFlowById(active.item.id))$('run-manual').click();else active.resume();return;}activate(active?.item.id??'loading');};$('stop-demo').onclick=stop;
 $('copy-code').onclick=async()=>{try{await navigator.clipboard.writeText($('declaration-code').textContent+(level===3&&!emotionFlowById(active.item.id)?'\n\n'+eventCode(active.item.id).replace("const bot = document.querySelector('#demo-bot');\n",''):''));setText('copy-status','복사했습니다.');}catch{setText('copy-status','코드를 선택해서 복사해 주세요.');}};
 window.addEventListener('hashchange',()=>activate(location.hash.slice(1)));
 window.addEventListener('pagehide',()=>{active?.controller.abort();active?.bot.remove();});
+if(!exerciseMode&&sourceContext){const back=document.createElement('a');back.id='guide-source-return';back.textContent=navText().back;back.href=guideHref(sourceContext,getSiteLocale());$('scenario-main').prepend(back);}
+if((location.hash&&!guideIds.includes(location.hash.slice(1)))||(new URL(location.href).searchParams.has('context')&&!incomingContext)){const warning=document.createElement('p');warning.id='invalid-guide-context';warning.setAttribute('role','alert');warning.textContent=navText().invalid;$('scenario-main').prepend(warning);}
 activate(location.hash.slice(1)||'html-start');
+window.addEventListener('scroll',()=>{if(!restoringContext)updateContextLinks();},{passive:true});
+for(const field of ['behavior-side','behavior-gap','behavior-dwell','guide-emotion-intensity','guide-emotion-duration'])$(field).addEventListener('change',updateContextLinks);

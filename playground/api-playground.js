@@ -5,6 +5,11 @@ import { createAccessory, MATERIAL_SHAPE_LABELS } from '../src/index.ts';
 import { codeForAction, executeAction } from './playground-actions.js';
 import { loadStudioSession, applyStudioSession } from './studio-session.ts';
 
+import { mountGuideExercise } from './guide-exercise.js';
+import { navigationText, guideHref, readGuideSource } from './guide-navigation.js';
+
+mountGuideExercise().then(exercise => {
+if (!exercise) {
 const $ = id => document.getElementById(id);
 mountSiteHeader($('site-header-brand'), 'api');
 const bot = $('bot');
@@ -50,6 +55,7 @@ function refreshLocale() {
     if (error) { entry.querySelector('strong').textContent = t('error'); entry.querySelector('pre').textContent = JSON.stringify(errorMessage(error), null, 2); }
   }
   if (validationError) { code = `// ${errorMessage(validationError)}`; $('invocation').textContent = code; }
+  const back=$('guide-source-return');if(back&&technicalKinds[technicalLesson]){back.textContent=navigationText[getSiteLocale()].back;back.href=guideHref(readGuideSource(location.href)??{id:technicalLesson,level:1},getSiteLocale());}
   showPreference(); telemetry();
 }
 
@@ -65,6 +71,18 @@ for (const value of Object.keys(MATERIAL_SHAPE_LABELS)) {
   const option = document.createElement('option'); option.value = value; option.dataset.apiI18n = `shape.${value}`; option.textContent = t(`shape.${value}`); $('shape').append(option);
 }
 $('shape').value = 'heart'; $('head-accessory').value = 'beret'; $('eyes-accessory').value = 'glasses';
+const technicalLesson=new URL(location.href).searchParams.get('lesson');
+const technicalKinds={'placement':'movement','element-anchor':'movement','manual-motion':'manual-motion','performance':'performance'};
+if(technicalKinds[technicalLesson]){
+ const labels=navigationText[getSiteLocale()];
+ if(['manual-motion','performance'].includes(technicalLesson)){
+  const option=document.createElement('option');option.value=technicalLesson;option.textContent=labels[technicalLesson==='performance'?'performance':'manual'];$('action-kind').append(option);
+  const panel=document.createElement('div');panel.dataset.action=technicalLesson;
+  if(technicalLesson==='performance'){const label=document.createElement('label');label.className='check';const input=document.createElement('input');input.type='checkbox';input.id='render-paused';input.checked=true;label.append(input,document.createTextNode('paused'));panel.append(label);}
+  $('action-panel').append(panel);
+ }
+ const link=document.createElement('a');link.id='guide-source-return';link.href=guideHref(readGuideSource(location.href)??{id:technicalLesson,level:1},getSiteLocale());link.textContent=labels.back;document.querySelector('.intro').append(link);
+}
 function movementOptions() {
   const duration = numeric('duration'), travel = $('travel').value;
   if (travel === 'none') return { duration, easing: $('easing').value, travel };
@@ -80,6 +98,8 @@ function readAction() {
       if (!target) throw apiError('targetMissing');
       return { method: 'moveToElement', args: [selector, { x: numeric('target-x'), y: numeric('target-y'), alignX: $('align-x').value, alignY: $('align-y').value, anchor: $('element-anchor').checked, ...movementOptions() }] };
     } return { method: $('move-method').value, args: [{ x: numeric('target-x'), y: numeric('target-y') }, movementOptions()] };
+    case 'performance': return {property:'paused',value:$('render-paused').checked};
+    case 'manual-motion': return {sequential:true,steps:[{method:'stopBehavior',args:[]},{property:'trackingMode',value:'off'},{method:'moveTo',args:[{x:120,y:80},{maxSpeed:1350,acceleration:1800,deceleration:2200}]},{method:'lookAt',args:[{space:'view',x:0.7,y:0}]},{method:'setExpression',args:['both','smile',{duration:250}]}]};
     case 'anchor': return { method: 'detachAnchor', args: [] };
     case 'activity': {
       const method = $('activity-operation').value;
@@ -221,6 +241,12 @@ async function initialize() {
   $('target-x').value = String(point.x); $('target-y').value = String(point.y); $('entrance-x').value = String(point.x); $('entrance-y').value = String(point.y);
   bot.setAttribute('data-configured', '');
   initialized = true; initializing = false;
+  if(technicalKinds[technicalLesson]){
+   $('action-kind').value=technicalKinds[technicalLesson];
+   if(technicalLesson==='element-anchor'){$('move-method').value='moveToElement';$('target-selector').value='#action-panel';$('align-x').value='right';$('align-y').value='center';$('element-anchor').checked=true;$('target-x').value='16';$('target-y').value='0';}
+   if(technicalLesson==='placement'){$('target-x').value='120';$('target-y').value='80';}
+   if(technicalLesson==='performance')$('diagnostics').open=true;
+  }
   refresh(); telemetry(); notice('status', 'ready');
 }
 bot.addEventListener('sidekick-ready', initialize); if (bot.ready) initialize();
@@ -230,3 +256,6 @@ function showPreference() { $('motion-preference').textContent = t(preference.ma
 preference.addEventListener('change', showPreference);
 subscribeSiteLocale(refreshLocale); refreshLocale(); refresh();
 $('install-code').textContent = `npm install github:hanana-kick/sidekick#v0.11.1\n\n<!-- HTML: Start with the companion configured in Studio -->\n<sidekick-avatar id="bot" placement="viewport"\n  style="width:180px;height:180px;pointer-events:none">\n</sidekick-avatar>\n<script type="module">\n  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.1/dist/browser/sidekick.js';\n  const scene = ${JSON.stringify(studioSession.scene, null, 2)};\n  const bot = document.querySelector('#bot');\n  bot.design = scene.design;\n  bot.setActivity(scene.activity);\n  bot.bodyOrientation = scene.bodyOrientation;\n  bot.zoom = scene.zoom;\n  bot.trackingMode = scene.trackingMode;\n  bot.paused = scene.paused;\n  bot.lookAt({ space: 'view', ...scene.gaze });\n  bot.seek(scene.time);\n  await bot.motion.to(scene.motion, { duration: 0 });\n  // Insert the invocation code above here.\n</script>`;
+
+}
+});

@@ -55,7 +55,7 @@ async function fixture(t, initialLocale = 'ko') {
   t.after(() => dom.window.close());
   const w = dom.window, $ = id => w.document.getElementById(id);
   const changeLocale = value => { locale = value; for (const callback of listeners) callback(); };
-  Object.assign(w, {
+  Object.assign(w, { mountGuideExercise:async()=>false,
     structuredClone, codeForAction, executeAction, apiError, apiText,
     getSiteLocale: () => locale, subscribeSiteLocale: callback => { listeners.add(callback); return () => listeners.delete(callback); },
     applyApiLocale: root => applyApiLocale(root, locale),

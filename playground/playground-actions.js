@@ -21,6 +21,7 @@ export function actionSource(action, target = 'avatar') {
   return ['moveTo', 'moveToElement', 'moveBy', 'setExpression', 'transitionTo', 'enter', 'exit', 'reactTo'].includes(action.method) ? `await ${call}` : call;
 }
 export function executeAction(avatar, action, createAccessory) {
+  if (action.steps && action.sequential) return (async()=>{let result;for(const step of action.steps)result=await executeAction(avatar,step,createAccessory);return result;})();
   if (action.steps) { let result; for (const step of action.steps) result = executeAction(avatar, step, createAccessory); return result; }
   if (action.property) { avatar[action.property] = action.value; return; }
   const args = structuredClone(action.args ?? []);
