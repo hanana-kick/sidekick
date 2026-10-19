@@ -51,3 +51,13 @@ test('saved scene seed is complete before a preview element is inserted',()=>{
  const saved=createScene({design:createDesign({body:{shape:'heart',color:'#123456'}}),zoom:1.4,bodyOrientation:{yaw:23,pitch:12,roll:4}});
  const dom=new JSDOM();try{const element=dom.window.document.createElement('sidekick-avatar');seedStudioSession(element,saved);assert.equal(element.isConnected,false);assert.deepEqual(JSON.parse(element.getAttribute('design')),saved.design);assert.equal(element.getAttribute('zoom'),'1.4');assert.equal(element.getAttribute('body-yaw'),'23');assert.deepEqual(studioSceneAttributes(saved),compileReferenceAttributes(saved,{}));}finally{dom.window.close();}
 });
+
+test('standalone state pages and target-based pages emit matching preview layouts',()=>{
+ for(const framework of ['element','react']){
+  const standalone=referenceSource(scene,{},framework,'state-appearance');
+  assert.match(standalone,/#reference-target,#reference-list\{display:none\}/);
+  const positional=referenceSource(scene,{},framework,'state-position');
+  assert.doesNotMatch(positional,/#reference-target,#reference-list\{display:none\}/);
+  assert.match(positional,/height:calc\(100vh - 32px\)/);
+ }
+});
