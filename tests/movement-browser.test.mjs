@@ -174,7 +174,11 @@ for (const fallback of [false, true]) test(`settled anchor pursues moving target
   const target=document.createElement('div');target.style.cssText='position:fixed;left:200px;top:300px;width:100px;height:100px';document.body.append(target);
   await bot.moveToElement(target,{anchor:true,duration:0});
   const events=[];bot.addEventListener('sidekick-move-end',e=>events.push(e.detail));
-  const origin=bot.position;target.style.left='600px';await wait(100);const chasing=bot.position;
+  const origin=bot.position;target.style.left='600px';
+  // A wall-clock100ms can expire before the first software-GPU RAF on CI.
+  // Observe an actual movement step, without weakening the inertial bound.
+  await new Promise((resolve,reject)=>{const deadline=performance.now()+5000;const sample=()=>{if(bot.position.x>origin.x)resolve();else if(performance.now()>deadline)reject(new Error('Anchor pursuit did not advance on RAF'));else requestAnimationFrame(sample);};requestAnimationFrame(sample);});
+  const chasing=bot.position;
   await wait(2300);const settled=bot.position;
   target.style.left='1400px';await wait(2300);const sleeping=bot.position;
   await wait(500);const still=bot.position;

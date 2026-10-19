@@ -303,8 +303,10 @@ test('independent expression transitions persist and rapid edits finish both eye
   const page = await pageFor(t, { reducedMotion: 'no-preference' });
   const result = await page.locator('#flat').evaluate(async a => {
     a.setActivity('still'); a.style.width = '256px'; a.style.height = '256px';
+    // Set up an exact authored baseline before testing independent live tracks.
+    a.paused = true;
     a.design = window.fixtureAPI.createDesign({ eyes: { left: { weights: { blink: 0.3 } }, right: { weights: { blink: 0.1 } } } });
-    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await a.capturePixelsAsync(); a.paused = false;
     const left = a.setExpression('left', 'smile', { duration: 800 });
     const initial = a.pose.eyes;
     // Observe an actual rendered animation step; wall-clock sleeps can expire before

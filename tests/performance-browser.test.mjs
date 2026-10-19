@@ -259,7 +259,10 @@ test('wide and tall capped surfaces preserve a circle in display pixels at DPR 1
     const page = await pageFor(t, backend, 1, { deviceScaleFactor: dpr }), cdp = await page.context().newCDPSession(page);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
     const measurements = await page.evaluate(async () => {
-      const avatar = window.avatars[0]; avatar.design = window.api.createDesign({ body: { shape: 'circle' } });
+      const avatar = window.avatars[0];
+      // Measure settled circle geometry, not an in-flight design/equipment fade.
+      avatar.paused = true; avatar.design = window.api.createDesign({ body: { shape: 'circle' } });
+      await avatar.capturePixelsAsync(); avatar.paused = false;
       const sizes = [[600, 600], [2400, 600], [600, 2400], [1023, 600], [1025, 600], [2047, 600], [2049, 600]], measurements = [];
       for (const [width, height] of sizes) {
         avatar.style.width = `${width}px`; avatar.style.height = `${height}px`;
