@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { SidekickAvatar } from '../src/react.ts';
 import { parseScene } from '../src/core/scene.ts';
-import { FIELD_BY_KEY, compileReferenceAttributes, validateStateValue, attributeText, referenceReactProps, REFERENCE_CSS, REFERENCE_TARGET_HTML } from './state-reference-schema.js';
+import { FIELD_BY_KEY, compileReferenceAttributes, validateStateValue, attributeText, referenceReactProps, REFERENCE_CSS, referenceCSS, REFERENCE_TARGET_HTML } from './state-reference-schema.js';
 const style=document.createElement('style');style.textContent=REFERENCE_CSS;document.head.append(style);
 const root=document.getElementById('reference-root');
 root.innerHTML=REFERENCE_TARGET_HTML;
@@ -14,7 +14,7 @@ let reactRoot=null, bot=null, framework=null, last={}, generation=0, suspended=f
 const notify=(type,data={})=>parent.postMessage({type,...data},location.origin);
 function remove(){generation++;if(reactRoot){reactRoot.unmount();reactRoot=null;}bot?.remove();bot=null;last={};}
 function apply(message){
- currentRevision=message.revision;
+ currentRevision=message.revision;style.textContent=referenceCSS(message.id);
  const scene=parseScene(message.scene), edits={};
  if(!message.values||typeof message.values!=='object'||Array.isArray(message.values))throw new TypeError('Invalid fields');
  for(const [key,value] of Object.entries(message.values)){const field=FIELD_BY_KEY.get(key);if(!field)throw new TypeError('Unknown field');edits[key]=validateStateValue(field,value,scene,document);}
