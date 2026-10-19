@@ -21,7 +21,7 @@ let storage; try { storage = localStorage; } catch {}
 const session = loadStudioSession(storage);
 $('session-status').textContent=t(session.message);
 const lessonGroups = major => [...new Set(lessons.filter(x=>x.major===major).map(x=>x.middle))].map(title=>({title,cases:lessons.filter(x=>x.major===major&&x.middle===title)}));
-const navigationGroups = [{title:'빠르게 시작',groups:lessonGroups('빠르게 시작')},{title:'행동 선언',groups:scenarioGroups.map(group=>({title:group.title,cases:group.groups.flatMap(x=>x.cases)}))},{title:'직접 제어',groups:lessonGroups('직접 제어')}];
+const navigationGroups = [{title:'봇의 상태',groups:lessonGroups('봇의 상태')},{title:'사용 예시',groups:scenarioGroups.map(group=>({title:group.title,cases:group.groups.flatMap(x=>x.cases)}))},{title:'직접 제어',groups:lessonGroups('직접 제어')}];
 $('scenario-toc').innerHTML = '<h2 data-guide-i18n="가이드 목차">'+t('가이드 목차')+'</h2>' + navigationGroups.map(major => `<details open><summary data-guide-i18n="${major.title}">${t(major.title)}</summary>${major.groups.map(middle => `<section><h3 data-guide-i18n="${middle.title}">${t(middle.title)}</h3>${middle.cases.map(item => `<a href="#${item.id}" data-scenario="${item.id}" data-guide-i18n="${item.title}">${t(item.title)}</a>`).join('')}</section>`).join('')}</details>`).join('');
 $('toc-toggle').onclick = () => $('toc-toggle').setAttribute('aria-expanded', String($('toc-toggle').getAttribute('aria-expanded') !== 'true'));
 $('scenario-toc').addEventListener('click', event => {
@@ -32,7 +32,7 @@ $('scenario-toc').addEventListener('click', event => {
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && $('toc-toggle').getAttribute('aria-expanded') === 'true') { $('toc-toggle').setAttribute('aria-expanded', 'false'); $('toc-toggle').focus(); } });
 let active, generation = 0, level = incomingContext?.level ?? 1;
 let restorationContext = null;
-let currentId = guideIds.includes(location.hash.slice(1))?location.hash.slice(1):'html-start';
+let currentId = guideIds.includes(location.hash.slice(1))?location.hash.slice(1):'state-emotion';
 function currentEvents(){
  if(!active)return [];
  const id=active.item.id,config=active.declaration;
@@ -160,7 +160,7 @@ async function activate(id) {
  $('lesson-content').hidden=!lesson;document.querySelector('.scenario-workspace').hidden=!!lesson;$('progressive-guide').hidden=!!lesson;
  const controller=new AbortController();
  document.querySelectorAll('[data-scenario]').forEach(link=>{if(link.dataset.scenario===item.id){link.setAttribute('aria-current','page');link.closest('details').open=true;}else link.removeAttribute('aria-current');});
- $('breadcrumb').textContent=(lessonById(item.id)?[item.major,item.middle,item.title]:['행동 선언',item.major,item.title]).map(t).join(' / ');
+ $('breadcrumb').textContent=(lessonById(item.id)?[item.major,item.middle,item.title]:['사용 예시',item.major,item.title]).map(t).join(' / ');
  setText('scenario-title',item.title);setText('scenario-sentence',item.sentence);setText('scenario-hint',item.hint);
  if(lesson){renderLesson(lesson);localizeGuideBindings();restoringContext=false;updateContextLinks();return;}
  $('demo-app').innerHTML=applicationMarkup(item.id);$('event-code').textContent=eventCode(item.id);delete $('copy-status').dataset.guideI18n;$('copy-status').textContent='';setText('run-status','봇 준비 중…');
@@ -250,8 +250,17 @@ $('return-declaration').onclick=()=>{level=1;renderLevel();if(active?.ready)botD
 function renderLesson(lesson){
  const host=$('lesson-content');host.replaceChildren();
  for(const text of lesson.paragraphs){const p=document.createElement('p');p.dataset.guideI18n=text;p.textContent=t(text);host.append(p);}
+ if(lesson.parameters){
+  const setup=document.createElement('a');setup.href='#html-start';setup.dataset.guideI18n='설치·초기화 문서';setup.textContent=t('설치·초기화 문서');host.append(setup);
+  const wrap=document.createElement('div');wrap.className='state-table-wrap';wrap.tabIndex=0;
+  const table=document.createElement('table');table.className='state-reference';
+  const caption=document.createElement('caption');caption.dataset.guideI18n=lesson.title;caption.textContent=t(lesson.title);table.append(caption);
+  const head=table.createTHead().insertRow();
+  for(const label of ['HTML attribute / React prop','타입·허용값','기본값','동작과 적용 범위']){const cell=document.createElement('th');cell.scope='col';cell.dataset.guideI18n=label;cell.textContent=t(label);head.append(cell);}
+  const body=table.createTBody();for(const fields of lesson.parameters){const row=body.insertRow();fields.forEach((value,index)=>{const cell=document.createElement(index===0?'th':'td');if(index===0)cell.scope='row';cell.dataset.guideI18n=value;cell.textContent=t(value);row.append(cell);});}wrap.append(table);host.append(wrap);
+ }
  if(lesson.install){const install=document.createElement('pre');install.textContent=lesson.install;host.append(install);}
- const pre=document.createElement('pre');pre.textContent=lesson.code;pre.tabIndex=0;host.append(pre);
+ for(const [label,code] of lesson.examples??[['',lesson.code]]){if(label){const heading=document.createElement('h2');heading.dataset.guideI18n=label;heading.textContent=t(label);host.append(heading);}const pre=document.createElement('pre');pre.textContent=code;pre.tabIndex=0;host.append(pre);}
  const target=lessonDestinations[lesson.id];const link=document.createElement('a');link.dataset.lessonDestination=lesson.id;link.href=technicalHref(lesson.id,getSiteLocale(),contextSnapshot());link.textContent=target.id?navText().related+': '+t(scenarioById(target.id).title)+' · '+target.level:navText()[{appearance:'studio',placement:'placement','element-anchor':'anchor','manual-motion':'manual',performance:'performance'}[lesson.id]];host.append(link);
 }
 // Explicit bindings only: never scan or replace arbitrary application content.
@@ -267,8 +276,8 @@ function localizeGuideBindings(){
 }
 function localizeGuide(){
  $('session-status').textContent=t(session.message);
- const item=lessonById(location.hash.slice(1))??active?.item??lessonById('html-start');
- if(item)$('breadcrumb').textContent=(lessonById(item.id)?[item.major,item.middle,item.title]:['행동 선언',item.major,item.title]).map(t).join(' / ');
+ const item=lessonById(location.hash.slice(1))??active?.item??lessonById('state-emotion');
+ if(item)$('breadcrumb').textContent=(lessonById(item.id)?[item.major,item.middle,item.title]:['사용 예시',item.major,item.title]).map(t).join(' / ');
  localizeGuideBindings();
  const progress=$('progress-label')?.dataset.progress;if(progress!==undefined)$('progress-label').textContent=progress+'% · '+t(Number(progress)===100?'업로드 완료':'전송 중');
  if(active){renderLevel();const state=active.bot.behaviorState;if(state&&!$('run-status').dataset.guideI18n)$('run-status').textContent=t(labels[state.status]??state.status)+(state.itemCount?' · '+state.completedItems+'/'+state.itemCount:'');}
@@ -277,12 +286,12 @@ subscribeSiteLocale(localizeGuide);localizeGuideBindings();
 
 $('restart-demo').onclick=()=>{if(exerciseMode&&active?.resume){if(level===4&&!emotionFlowById(active.item.id))$('run-manual').click();else active.resume();return;}const context=contextSnapshot();delete context.events;delete context.event;delete context.emotionCustomized;delete context.inputValid;delete context.emailValid;delete context.searchMatches;history.replaceState(history.state,'',guideHref(context,getSiteLocale(),false,sourceContext));activate(active?.item.id??'loading');};$('stop-demo').onclick=stop;
 $('copy-code').onclick=async()=>{try{await navigator.clipboard.writeText($('declaration-code').textContent+(level===3&&!emotionFlowById(active.item.id)?'\n\n'+eventCode(active.item.id).replace("const bot = document.querySelector('#demo-bot');\n",''):''));setText('copy-status','복사했습니다.');}catch{setText('copy-status','코드를 선택해서 복사해 주세요.');}};
-window.addEventListener('hashchange',()=>{const id=location.hash.slice(1)||'html-start';if(currentId!==id)activate(id);});
-window.addEventListener('popstate',()=>activate(location.hash.slice(1)||'html-start'));
-window.addEventListener('pageshow',event=>{if(event.persisted)activate(location.hash.slice(1)||'html-start');});
+window.addEventListener('hashchange',()=>{const id=location.hash.slice(1)||'state-emotion';if(currentId!==id)activate(id);});
+window.addEventListener('popstate',()=>activate(location.hash.slice(1)||'state-emotion'));
+window.addEventListener('pageshow',event=>{if(event.persisted)activate(location.hash.slice(1)||'state-emotion');});
 window.addEventListener('pagehide',()=>{active?.controller.abort();active?.bot.remove();});
 if(!exerciseMode&&sourceContext){const back=document.createElement('a');back.id='guide-source-return';back.textContent=navText().back;back.href=guideHref(sourceContext,getSiteLocale());$('scenario-main').prepend(back);}
 if((location.hash&&!guideIds.includes(location.hash.slice(1)))||(new URL(location.href).searchParams.has('context')&&!incomingContext)){const warning=document.createElement('p');warning.id='invalid-guide-context';warning.setAttribute('role','alert');warning.textContent=navText().invalid;$('scenario-main').prepend(warning);}
-activate(location.hash.slice(1)||'html-start');
+activate(location.hash.slice(1)||'state-emotion');
 window.addEventListener('scroll',()=>{if(!restoringContext)updateContextLinks();},{passive:true});
 for(const field of ['behavior-side','behavior-gap','behavior-dwell','guide-emotion-intensity','guide-emotion-duration'])$(field).addEventListener('change',updateContextLinks);

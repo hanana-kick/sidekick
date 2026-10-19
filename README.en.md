@@ -19,22 +19,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 To pin a version, specify a release tag:
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.11.2
+npm install https://github.com/hanana-kick/sidekick.git#v0.11.3
 ```
 
-The repository includes built ESM, type declarations, and browser bundles, so **consumers do not need to build Sidekick from source.** Commit your dependencies and lockfile so your team uses the same version. The package name is `@hanana-kick/sidekick`, and this version is `0.11.2`. **It has not been published to the npm registry: do not run `npm install @hanana-kick/sidekick` using the name alone.**
+The repository includes built ESM, type declarations, and browser bundles, so **consumers do not need to build Sidekick from source.** Commit your dependencies and lockfile so your team uses the same version. The package name is `@hanana-kick/sidekick`, and this version is `0.11.3`. **It has not been published to the npm registry: do not run `npm install @hanana-kick/sidekick` using the name alone.**
 
 For an HTML site without npm, download the prebuilt files from [GitHub Releases](https://github.com/hanana-kick/sidekick/releases). ESM, classic `<script>` JavaScript, and a dedicated rendering worker are provided. The browser core requires no React, bundler, Node.js, separate CSS, or fonts.
 
 ### Downloading from GitHub Releases
 
 1. Open [Releases](https://github.com/hanana-kick/sidekick/releases).
-2. Under the chosen tag's **Assets**, download `sidekick-browser-0.11.2.zip` or `hanana-kick-sidekick-0.11.2.tgz`. For another version, use the filename matching its tag. The automatically generated **Source code (zip/tar.gz)** archives contain source code, not the browser distribution ZIP.
+2. Under the chosen tag's **Assets**, download `sidekick-browser-0.11.3.zip` or `hanana-kick-sidekick-0.11.3.tgz`. For another version, use the filename matching its tag. The automatically generated **Source code (zip/tar.gz)** archives contain source code, not the browser distribution ZIP.
 3. For a plain HTML site, extract the browser ZIP and copy the following files into your site's static directory. Read the included `START-HERE.txt` and open your preferred `esm.html`, `classic.html`, or `react.html` example. `/vendor/sidekick/` in the examples is **a path on your site**; adjust it to your deployment.
 
 | Built file | Purpose | Required files/dependencies |
 | --- | --- | --- |
-| `sidekick-browser-0.11.2.zip` | Plain HTML/React browser distribution | Includes `esm.html`, `classic.html`, `react.html`, the six JS files below, optional `vendor/`, README, and notices |
+| `sidekick-browser-0.11.3.zip` | Plain HTML/React browser distribution | Includes `esm.html`, `classic.html`, `react.html`, the six JS files below, optional `vendor/`, README, and notices |
 | `sidekick.js` | Browser ESM for `import` and `<script type="module">` | Keep `sidekick.worker.js` in the same directory |
 | `sidekick.iife.js` | Classic `<script>` exposing `window.Sidekick` | Keep `sidekick.worker.js` alongside it; do not use `type="module"` |
 | `sidekick-react.js` | ESM component for React 19 | Keep `sidekick-element.js`, `sidekick-fallback.js`, and `sidekick.worker.js` alongside it, and provide the `react` peer |
@@ -42,7 +42,7 @@ For an HTML site without npm, download the prebuilt files from [GitHub Releases]
 | `sidekick-fallback.js` | Renderer loaded by the React element when workers are unavailable | Do not import directly; keep all files on the same version |
 | `sidekick.worker.js` | Dedicated OffscreenCanvas worker | Place beside the browser entry files; do not load with a separate script tag |
 | `vendor/react.js`, `vendor/react-dom-client.js` | Optional React 19/ReactDOM ESM in the browser ZIP | For the no-build React example below, connected via an import map; unnecessary when your app already provides React |
-| `hanana-kick-sidekick-0.11.2.tgz` | Package for an existing npm-based project | Built ESM, type declarations, browser bundles, and notices |
+| `hanana-kick-sidekick-0.11.3.tgz` | Package for an existing npm-based project | Built ESM, type declarations, browser bundles, and notices |
 | `SHA256SUMS` | Verify ZIP and tarball download integrity | Checksum file in the same release |
 
 Keep the README and third-party license/attribution notices included in the ZIP. **Download GitHub Release assets and serve them from your own site.** Their download URLs are not browser JavaScript hosting URLs; asset MIME/CORS behavior differs from static hosting. The `src`/`import` paths below refer to your site's copies of the downloaded files.
@@ -54,7 +54,7 @@ Both `sidekick.js` and `sidekick.iife.js` export the complete public core/elemen
 Install the downloaded release tarball in your project. This command neither compiles Sidekick source nor builds Studio.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.11.2.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.11.3.tgz
 ```
 
 React 19 is required only for the React wrapper. Supply the matching version of `react-dom` yourself to mount the page. Core-only projects do not require React.
@@ -123,12 +123,12 @@ Paused or reduced-motion mode settles immediately at the target. Reading setting
 
 ## Using the CDN without a build
 
-The currently recommended CDN version is **0.11.2**. These URLs serve **already built JavaScript** committed to a GitHub tag through jsDelivr: no source build, npm installation, or npm account is needed. Pin an **exact tag**, not `main`, `latest`, or a version range. Earlier `v0.2.7` files have not been changed. Version 0.2.7 is also downloadable through the same CDN path, but cross-origin pages cannot create its worker and fall back to the main thread; use the current pinned version for new CDN integrations.
+The currently recommended CDN version is **0.11.3**. These URLs serve **already built JavaScript** committed to a GitHub tag through jsDelivr: no source build, npm installation, or npm account is needed. Pin an **exact tag**, not `main`, `latest`, or a version range. Earlier `v0.2.7` files have not been changed. Version 0.2.7 is also downloadable through the same CDN path, but cross-origin pages cannot create its worker and fall back to the main thread; use the current pinned version for new CDN integrations.
 
 ### Plain HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.2/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
@@ -140,7 +140,7 @@ The currently recommended CDN version is **0.11.2**. These URLs serve **already 
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.2/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -156,15 +156,15 @@ Prebuilt ESM for matching React and ReactDOM 19.3.1 is provided. Declare the imp
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.2/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.2/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.2/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
@@ -1230,7 +1230,7 @@ The API playground enables “Default maximum speed · 1350 CSS px/s” by defau
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.2/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { maxSpeed: 320, acceleration: 900, deceleration: 1200 });
@@ -1267,7 +1267,7 @@ This stage absolutely positions a small 144px canvas in `inline` mode; there is 
 <button id="flight-stop" type="button">활동 중단</button>
 <p id="flight-status" aria-live="off">idle</p>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.2/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/dist/browser/sidekick.js';
   const stage = document.getElementById('flight-stage');
   const bot = document.getElementById('flight-avatar');
   const status = document.getElementById('flight-status');
@@ -1427,13 +1427,13 @@ export function Example() {
 
 ### Guide: from simple use to deep customization
 
-The [Guide](https://sidekick.hananakick.cc/guide.html) offers progressive learning and runnable examples from installation through declarative behaviors to low-level API composition. The old use-cases.html address redirects to the guide. Studio, API playground, and Guide share the same navigation.
+The [Guide](https://sidekick.hananakick.cc/guide.html) documents declarative bot state first, followed by usage examples and direct control. The old use-cases.html address redirects to the guide. Studio, API playground, and Guide share the same navigation.
 
 Guide example links retain the source section, learning level, applied options, and application outcome. The API playground opens the same target DOM, event controls, and executable code. Opening a link does not start a behavior; use the run button. The return link restores the source section, level, and scroll position. Installation, appearance, coordinates, anchoring, lifecycle, and performance sections link to their corresponding example or dedicated controls. URLs contain only allowlisted example settings and outcomes, never entered names, email addresses, search text, or arbitrary JavaScript.
 
-- **Quick start**: HTML/React initialization and using bots saved in Studio.
-- **Declare behaviors**: 12 service scenarios covering loading/upload waits, result reactions, list review, reading/search, forms, and onboarding. Typed behavior objects declare intent; this is not an LLM natural-language interpreter.
-- **Direct control**: DOM placement/anchors, movement/gaze/expression composition, lifecycle/error handling, and OffscreenCanvas performance.
+- **[Bot state](https://sidekick.hananakick.cc/guide.html?lang=en#state-emotion)**: Define emotion, position/target and behavior first, then gaze/orientation, appearance/eyes and transition/execution settings. Reference tables cover types, accepted values, defaults and ownership, with HTML/React/JavaScript declarations.
+- **[Usage examples](https://sidekick.hananakick.cc/guide.html?lang=en#loading)**: Compose state in 18 app scenarios covering loading, uploads, review, forms, onboarding and emotional reactions. Input is a typed declaration, not natural-language interpretation.
+- **[Direct control](https://sidekick.hananakick.cc/guide.html?lang=en#html-start)**: Installation and initialization prerequisites, followed by DOM placement/anchoring, movement/gaze/expressions, lifecycle and rendering controls.
 
 Each scenario progresses through **simple usage → adjust options → connect app events → compose actions directly**. See the running bot alongside the actual executable code and copy it. Installation/concept lessons are distinguished from live demos. A three-level table of contents and URL hashes link directly to each step; navigation collapses on mobile.
 

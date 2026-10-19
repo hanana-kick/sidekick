@@ -168,3 +168,22 @@ test('scroll persistence cannot overwrite a pending route and popstate restores 
     assert.equal(page.$('demo-bot'), bot, 'Following hashchange must not restart the same route');
   } finally { page.close(); }
 });
+
+for(const lesson of lessons.lessons.filter(item=>item.id.startsWith('state-')))test(`state reference ${lesson.id} renders fields before examples and preserves links`,async()=>{
+ const page=await mount({id:lesson.id,level:1});try{
+  assert.deepEqual([...page.w.document.querySelectorAll('#scenario-toc > details > summary')].map(x=>x.textContent),['Bot state','Usage examples','Direct control']);
+  assert.deepEqual([...page.w.document.querySelectorAll('#scenario-toc [data-scenario]')].slice(0,3).map(x=>x.dataset.scenario),['state-emotion','state-position','state-behavior']);
+  assert.equal(page.$('lesson-content').querySelectorAll('tbody tr').length,lesson.parameters.length);
+  assert.equal(page.$('lesson-content').querySelectorAll('pre').length,3);
+  const target=page.$('lesson-content').querySelector('[data-lesson-destination]');assert.equal(navigation.readGuideSource(target.href).id,lesson.id);
+  assert.ok(catalog.scenarios.some(item=>'#'+item.id===new URL(target.href).hash));
+  assert.equal(page.$('demo-bot'),null);
+ }finally{page.close();}
+});
+test('all state reference prose is translated and declaration attribute keys are supported',()=>{
+ const attributeSource=readFileSync(new URL('../src/element/attributes.ts',import.meta.url),'utf8');
+ for(const lesson of lessons.lessons.filter(item=>item.id.startsWith('state-'))){
+  for(const locale of ['ko','en','zh-CN','ja'])for(const key of [lesson.major,lesson.middle,lesson.title,lesson.sentence,lesson.hint,...lesson.paragraphs,...lesson.parameters.map(row=>row[3])])assert.ok(guideTranslations[locale][key],`${locale}: ${key}`);
+  for(const row of lesson.parameters){const keys=row[0].split(' / ')[0].split(', ');for(const key of keys){if(['type','targets','duration','dwell','timeout'].includes(key)||key.startsWith('behavior.'))continue;assert.ok(attributeSource.includes("'"+key+"'")||attributeSource.includes(key+'?:'),key);}}
+ }
+});

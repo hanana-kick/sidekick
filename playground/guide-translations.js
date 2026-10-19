@@ -1,6 +1,8 @@
+import { stateTranslationRows } from './guide-state-lessons.js';
 // Stable source keys followed by explicit technical-documentation copy: ko, en, zh-CN, ja.
 // Keys are not display text. Keeping them stable preserves controls and executable examples.
 const rows = [
+...stateTranslationRows,
 ["setExpression()과 setEyeWeights()는 지정한 눈의 감정 표현을 대체하고 다른 눈과 몸의 감정 동작은 유지합니다. 새 setEmotion() 또는 reactTo() 호출은 양쪽 눈을 다시 제어합니다.","setExpression()과 setEyeWeights()는 지정한 눈의 감정 표현을 대체하고 다른 눈과 몸의 감정 동작은 유지합니다. 새 setEmotion() 또는 reactTo() 호출은 양쪽 눈을 다시 제어합니다.","setExpression() and setEyeWeights() replace emotion for the specified eyes while preserving the other eye and emotional body motion. A new setEmotion() or reactTo() call controls both eyes again.","setExpression() 和 setEyeWeights() 会替换指定眼睛的情绪表情，同时保留另一只眼睛与身体的情绪动作。再次调用 setEmotion() 或 reactTo() 会重新控制双眼。","setExpression() と setEyeWeights() は指定した目の感情表現を置き換え、もう一方の目と体の感情動作を維持します。新たな setEmotion() または reactTo() の呼び出しで両目を再び制御します。"],
 ["생각하기로 전환","생각하기로 전환","Switch to thinking","切换为思考","考える動作に切り替える"],
 ["말하기로 전환","말하기로 전환","Switch to speaking","切换为说话","話す動作に切り替える"],
@@ -89,12 +91,12 @@ const rows = [
 ["봇이 저장된 결과를 바라보며 완료를 축하하고 있다.","저장 완료 이벤트에 celebrate 행동을 연결합니다.","Map a save-completion event to a celebrate behavior.","将保存完成事件映射到 celebrate 行为。","保存完了イベントに celebrate 行動を割り当てます。"],
 ["봇이 실패한 작업을 알려주고 재시도를 기다리고 있다.","요청 실패를 표시하고 재시도 이벤트에 대기 행동을 연결합니다.","Display a request failure and map retry events to a waiting behavior.","显示请求失败，并将重试事件映射到等待行为。","リクエスト失敗を表示し、再試行イベントに待機行動を割り当てます。"],
 ["봇이 리스트의 각 항목을 차례로 검토하고 있다.","review 행동으로 목록의 각 요소를 순서대로 방문합니다.","Use review to visit list elements sequentially.","使用 review 依次访问列表元素。","review でリスト要素を順番に移動します。"],
-["봇이 사용자가 선택한 항목을 바라보며 집중하고 있다.","선택 이벤트가 발생하면 attention 행동의 대상을 변경합니다.","Update the attention target when a selection event occurs.","选择事件发生时更新 attention 行为的目标。","選択イベント時に attention の対象を変更します。"],
-["봇이 지금 읽고 있는 문단을 안내하고 있다.","사용자가 지정한 문단을 attention 행동의 대상으로 설정합니다.","Set the user-selected paragraph as the attention target.","将用户选择的段落设为 attention 的目标。","ユーザーが指定した段落を attention の対象に設定します。"],
+["봇이 사용자가 선택한 항목을 바라보며 집중하고 있다.","선택 이벤트가 발생하면 guide 행동의 대상을 변경합니다.","Update the guide target when a selection event occurs.","选择事件发生时更新 guide 行为的目标。","選択イベント時に guide の対象を変更します。"],
+["봇이 지금 읽고 있는 문단을 안내하고 있다.","사용자가 지정한 문단을 guide 행동의 대상으로 설정합니다.","Set the user-selected paragraph as the guide target.","将用户选择的段落设为 guide 的目标。","ユーザーが指定した段落を guide の対象に設定します。"],
 ["봇이 새로 검색된 결과를 차례로 살펴보고 있다.","검색 결과 요소를 review 행동의 대상 목록으로 전달합니다.","Pass search-result elements as the target list for review.","将搜索结果元素作为 review 的目标列表传入。","検索結果要素を review の対象一覧として渡します。"],
 ["봇이 입력란을 바라보며 사용자의 입력을 기다리고 있다.","입력 요소를 대상으로 대기하고 입력 완료 이벤트에서 종료합니다.","Wait at an input element and stop on input completion.","在输入元素旁等待，并在输入完成事件发生时结束。","入力要素で待機し、入力完了イベントで終了します。"],
-["봇이 수정이 필요한 입력란을 알려주고 있다.","앱의 검증 결과에 따라 attention 대상을 지정합니다.","Set the attention target from application validation results.","根据应用验证结果指定 attention 的目标。","アプリの検証結果に応じて attention の対象を指定します。"],
-["봇이 다음에 누를 버튼을 안내하고 있다.","다음 작업 버튼을 attention 대상으로 지정합니다.","Set the next-action button as the attention target.","将下一步操作按钮指定为 attention 的目标。","次の操作ボタンを attention の対象に指定します。"],
+["봇이 수정이 필요한 입력란을 알려주고 있다.","앱의 검증 결과에 따라 guide 대상을 지정합니다.","Set the guide target from application validation results.","根据应用验证结果指定 guide 的目标。","アプリの検証結果に応じて guide の対象を指定します。"],
+["봇이 다음에 누를 버튼을 안내하고 있다.","다음 작업 버튼을 guide 대상으로 지정합니다.","Set the next-action button as the guide target.","将下一步操作按钮指定为 guide 的目标。","次の操作ボタンを guide の対象に指定します。"],
 ["봇이 현재 온보딩 단계의 요소를 안내하고 있다.","현재 단계에 해당하는 DOM 요소를 대상으로 지정합니다.","Set the DOM element associated with the current step as the target.","将当前步骤对应的 DOM 元素指定为目标。","現在の手順に対応する DOM 要素を対象に指定します。"],
 ["데이터를 불러오는 동안 기다리고, 완료 버튼을 누르면 작업을 마칩니다.","데이터를 불러오는 동안 기다리고, 완료 버튼을 누르면 작업을 마칩니다.","Wait while data loads; press Complete to finish.","加载数据时等待，点击完成按钮结束。","データの読み込みを待ち、完了ボタンで終了します。"],
 ["진행률을 올려 보세요. 실제 파일을 전송하지 않는 업로드 시나리오입니다.","버튼으로 업로드 진행률을 변경합니다. 실제 파일 전송은 수행하지 않습니다.","Buttons update simulated upload progress. No files are transmitted.","通过按钮更新模拟上传进度，不传输实际文件。","ボタンで模擬アップロードの進捗を更新します。ファイル送信は行いません。"],
@@ -105,7 +107,7 @@ const rows = [
 ["다음 문단을 누를 때만 읽는 위치를 옮깁니다. 자동 검토와 다른 사용자 주도 흐름입니다.","다음 문단을 누를 때만 읽는 위치를 옮깁니다. 자동 검토와 다른 사용자 주도 흐름입니다.","Only Next paragraph changes the reading position. This flow is user-driven.","只有点击下一段才会移动阅读位置。这是用户驱动的流程。","次の段落を押したときだけ移動する、ユーザー主導の流れです。"],
 ["검색어로 결과를 좁힌 뒤 검토하세요. 결과가 없으면 검토를 시작하지 않습니다.","검색어로 결과를 필터링한 후 review를 실행합니다. 결과가 없으면 실행하지 않습니다.","Filter results by query before running review. Empty results do not start a review.","按查询词筛选结果后执行 review。结果为空时不执行。","検索語で絞り込んでから review を実行します。結果が空の場合は実行しません。"],
 ["이름을 입력하고 확인하면 기다림을 끝냅니다. 입력값은 서버로 보내지 않습니다.","이름을 입력하고 확인하면 기다림을 끝냅니다. 입력값은 서버로 보내지 않습니다.","Enter a name and confirm to finish waiting. No data is sent to a server.","输入姓名并确认以结束等待。输入内容不会发送至服务器。","名前を入力して確認すると待機を終了します。サーバーには送信しません。"],
-["형식 검사를 실행하면 문제가 있는 입력란으로 관심을 옮깁니다.","형식 검사를 실행하면 문제가 있는 입력란으로 관심을 옮깁니다.","Validate the format to draw attention to the invalid field.","运行格式检查，将注意力转向有问题的输入框。","形式を確認すると、問題のある入力欄へ注目を移します。"],
+["형식 검사를 실행하면 문제가 있는 입력란으로 관심을 옮깁니다.","형식 검사를 실행하면 문제가 있는 입력란으로 관심을 옮깁니다.","Validate the format to draw guide to the invalid field.","运行格式检查，将注意力转向有问题的输入框。","形式を確認すると、問題のある入力欄へ注目を移します。"],
 ["다음 행동 버튼을 누르면 안내를 마치고 완료를 표시합니다.","다음 행동 버튼을 누르면 안내를 마치고 완료를 표시합니다.","Press the next-action button to finish guidance and show completion.","点击下一步操作按钮，结束引导并显示完成。","次の操作ボタンを押すと、案内を終えて完了を表示します。"],
 ["이전·다음 버튼으로 단계를 바꾸세요. 각 단계는 실제로 다른 요소를 안내합니다.","이전·다음 버튼으로 단계를 변경합니다. 각 단계는 서로 다른 DOM 요소를 대상으로 합니다.","Previous and Next change the step. Each step targets a different DOM element.","上一步和下一步按钮切换步骤。各步骤以不同的 DOM 元素为目标。","前へ・次へボタンで手順を変更します。各手順の対象は異なる DOM 要素です。"],
 ["1. 간단하게 사용","1. 기본 선언","1. Basic declaration","1. 基本声明","1. 基本宣言"],
@@ -182,7 +184,7 @@ const rows = [
 ["모바일 우선 레이아웃","모바일 우선 레이아웃","Mobile-first layout","移动优先布局","モバイル優先のレイアウト"],
 ["제품 소개 읽기","문단 탐색 예제","Paragraph navigation example","段落导航示例","段落移動の例"],
 ["1. 시작","1. 시작","1. Start","1. 开始","1. 開始"],
-["작은 동료가 사용자의 작업을 함께합니다.","이 문단은 attention 행동의 첫 번째 대상입니다.","This paragraph is the first attention target.","此段落是 attention 行为的第一个目标。","この段落は attention の最初の対象です。"],
+["작은 동료가 사용자의 작업을 함께합니다.","이 문단은 guide 행동의 첫 번째 대상입니다.","This paragraph is the first guide target.","此段落是 guide 行为的第一个目标。","この段落は guide の最初の対象です。"],
 ["2. 행동","2. 행동","2. Behavior","2. 行为","2. 行動"],
 ["할 일을 선언하면 동작과 시선이 연결됩니다.","다음 버튼을 누르면 두 번째 문단을 대상으로 지정합니다.","Next assigns the second paragraph as the target.","点击下一步将第二段指定为目标。","次へボタンは2番目の段落を対象に指定します。"],
 ["다음 문단","다음 문단","Next paragraph","下一段","次の段落"],

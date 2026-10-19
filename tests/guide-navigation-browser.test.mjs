@@ -10,7 +10,7 @@ import {readGuideSource,guideHref} from '../playground/guide-navigation.js';
 let browser,server,base;
 before(async()=>{server=createAppServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));base=process.env.SIDEKICK_GUIDE_LIVE_URL??`http://127.0.0.1:${server.address().port}`;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??(existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined),headless:process.env.SIDEKICK_HEADED!=='1',args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});});
 after(async()=>{await browser?.close();await new Promise(r=>server?.close(r));});
-for(const lang of ['ko','en','zh-CN','ja'])test(`actual contextual link clicks for all 26 Guide sections: ${lang}`,{timeout:180000},async()=>{
+for(const lang of ['ko','en','zh-CN','ja'])test(`actual contextual link clicks for all 32 Guide sections: ${lang}`,{timeout:180000},async()=>{
  const page=await browser.newPage({viewport:{width:1280,height:900},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error('GUIDE PAGE ERROR',e.stack)});page.on('console',m=>{if(m.type()==='error')console.error('GUIDE CONSOLE',m.text())});
  try{
   for(const item of scenarios){
@@ -50,5 +50,21 @@ test('direct reload, source scroll, history, manual level and invalid context',a
   await page.locator('#guide-source-return').click();await page.waitForSelector('#demo-bot[data-configured]');assert.equal(new URL(page.url()).hash,'#onboarding');
   await page.goBack();await page.waitForSelector('#demo-bot[data-configured]');assert.match(page.url(),/api-playground/);
   await page.goto(`${base}/api-playground.html?context=%7Bbad`);await page.waitForSelector('#invalid-guide-context');assert.equal(await page.locator('#bot').count(),0);
+ }finally{await page.close();}
+});
+for(const lang of ['ko','en','zh-CN','ja'])test(`state-first reference and narrow-screen table: ${lang}`,async()=>{
+ const page=await browser.newPage({viewport:{width:320,height:740},reducedMotion:'reduce'});
+ try{
+  await page.goto(`${base}/guide.html?lang=${lang}`);await page.waitForSelector('.state-reference');
+  assert.equal(await page.locator('#scenario-toc [aria-current="page"]').getAttribute('data-scenario'),'state-emotion');
+  await page.locator('#toc-toggle').click();await page.locator('[data-scenario="state-appearance"]').click();
+  assert.equal(await page.locator('.state-reference tbody tr').count(),12);
+  assert.equal(await page.locator('#lesson-content pre').count(),3);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  assert.ok(await page.locator('.state-table-wrap').evaluate(el=>el.scrollWidth>=el.clientWidth));
+  const text=await page.locator('.state-reference').textContent();if(lang!=='ko')assert.doesNotMatch(text,/[가-힣]/);
+  if(process.env.SIDEKICK_SCREENSHOTS){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.screenshot({path:process.env.SIDEKICK_SCREENSHOTS+`/guide-state-${lang}-320.png`,fullPage:true});}
+  await page.locator('[data-lesson-destination]').click();await page.waitForSelector('#demo-bot[data-configured]');assert.equal(readGuideSource(page.url()).id,'state-appearance');
+  await page.locator('#guide-source-return').click();await page.waitForSelector('.state-reference');assert.equal(new URL(page.url()).hash,'#state-appearance');
  }finally{await page.close();}
 });
