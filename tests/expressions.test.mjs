@@ -153,9 +153,12 @@ test('unrelated design edits preserve animation, changed expressions replace sta
   assert.equal(runtime.timeline.active, true); near(avatar.pose.eyes.left.smile, 0.25);
   runtime.advanceMotion(750); assert.deepEqual(await moving, { finished: true });
   const pending = avatar.setExpression('right', 'blink', { duration: 1000 });
-  runtime.advanceMotion(200);
+  runtime.advanceMotion(200); const beforeReplacement = avatar.pose.eyes.right;
   avatar.design = patchDesign(avatar.design, { eyes: { right: { expression: 'neutral', openness: 0.7 } } });
-  assert.deepEqual(await pending, { finished: false }); assert.equal(runtime.timeline.active, false);
+  assert.deepEqual(await pending, { finished: false }); assert.equal(runtime.timeline.active, true);
+  assert.deepEqual(avatar.pose.eyes.right, beforeReplacement, 'replacement starts at the displayed eye pose');
+  runtime.advanceMotion(399); assert.equal(runtime.timeline.active, true);
+  runtime.advanceMotion(1); assert.equal(runtime.timeline.active, false);
   assert.deepEqual(avatar.pose.eyes.right, { openness: 0.7, smile: 0 });
   runtime.advanceMotion(1000); assert.deepEqual(avatar.pose.eyes.right, { openness: 0.7, smile: 0 });
 });
@@ -200,12 +203,20 @@ test('one-eye design edits preserve the shared openness clock and invalid design
   assert.deepEqual(avatar.pose, before); assert.equal(runtime.timeline.active, true);
   avatar.design = patchDesign(avatar.design, { eyes: { right: { expression: 'smile' } } });
   near(avatar.pose.openness, before.openness);
-  assert.deepEqual(avatar.pose.eyes, { left: before.eyes.left, right: { openness: 1, smile: 1 } });
-  assert.equal(runtime.timeline.active, true); runtime.advanceMotion(700);
+  assert.deepEqual(avatar.pose.eyes, before.eyes, 'neither eye jumps when the right target changes');
+  assert.equal(avatar.design.eyes.right.weights.smile, 1, 'authored target persists synchronously');
+  runtime.advanceMotion(400);
+  assert.deepEqual(avatar.pose.eyes.right, { openness: 1, smile: 1 });
+  assert.ok(avatar.pose.eyes.left.smile > before.eyes.left.smile && avatar.pose.eyes.left.smile < 1);
+  assert.ok(avatar.pose.openness > 0 && avatar.pose.openness < before.openness);
+  assert.equal(runtime.timeline.active, true); runtime.advanceMotion(300);
   assert.deepEqual(await pending, { finished: true }); near(avatar.pose.openness, 0);
   assert.deepEqual(avatar.pose.eyes.left, { openness: 1, smile: 1 }); assert.equal(runtime.timeline.active, false);
+  const beforeBoth = avatar.pose;
   avatar.design = patchDesign(avatar.design, { eyes: { left: { expression: 'blink' }, right: { expression: 'blink' } } });
-  near(avatar.pose.openness, 1); assert.deepEqual(avatar.pose.eyes, { left: { openness: 0, smile: 0 }, right: { openness: 0, smile: 0 } });
+  near(avatar.pose.openness, 0); assert.deepEqual(avatar.pose.eyes, beforeBoth.eyes);
+  runtime.advanceMotion(400);
+  near(avatar.pose.openness, 0); assert.deepEqual(avatar.pose.eyes, { left: { openness: 0, smile: 0 }, right: { openness: 0, smile: 0 } });
 });
 
 test('eye commands preserve body, face, global openness, and accessory clocks', async () => {
@@ -265,8 +276,13 @@ test('editing one persisted eye leaves the other eye and body clocks untouched',
   const body = avatar.motion.to({ body: { rotation: [0, 1, 0] } }, { duration: 1200, easing: 'linear' });
   runtime.advanceMotion(300);
   avatar.design = patchDesign(avatar.design, { eyes: { right: { expression: 'blink' } } });
-  near(avatar.pose.eyes.left.smile, 0.3); near(avatar.pose.rotation[1], 0.25); near(avatar.pose.eyes.right.openness, 0);
-  runtime.advanceMotion(700); assert.deepEqual(await left, { finished: true }); near(avatar.pose.rotation[1], 1000 / 1200);
+  near(avatar.pose.eyes.left.smile, 0.3); near(avatar.pose.rotation[1], 0.25); near(avatar.pose.eyes.right.openness, 1);
+  runtime.advanceMotion(200);
+  near(avatar.pose.eyes.left.smile, 0.5); near(avatar.pose.rotation[1], 500 / 1200);
+  assert.ok(avatar.pose.eyes.right.openness > 0 && avatar.pose.eyes.right.openness < 1);
+  runtime.advanceMotion(200); near(avatar.pose.eyes.right.openness, 0);
+  near(avatar.pose.eyes.left.smile, .7); near(avatar.pose.rotation[1], 700 / 1200);
+  runtime.advanceMotion(300); assert.deepEqual(await left, { finished: true }); near(avatar.pose.rotation[1], 1000 / 1200);
   runtime.advanceMotion(200); assert.deepEqual(await body, { finished: true });
 });
 
