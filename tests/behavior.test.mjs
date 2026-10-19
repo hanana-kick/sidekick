@@ -388,3 +388,73 @@ test('a watch callback that synchronously reports target loss cannot issue a sta
   assert.equal(cleaned, 1);
   assert.deepEqual(f.state(), f.authored);
 });
+
+test('the real avatar API starts detached declarations, restores authored state, validates attributes atomically, and honors newer playback intent', async () => {
+  const dom = new JSDOM('<body><div id="target"></div></body>', { pretendToBeVisual: true });
+  const originals = new Map();
+  class Observer { observe() {} unobserve() {} disconnect() {} }
+  const globals = {
+    HTMLElement: dom.window.HTMLElement, CustomEvent: dom.window.CustomEvent,
+    requestAnimationFrame: callback => dom.window.requestAnimationFrame(callback), cancelAnimationFrame: handle => dom.window.cancelAnimationFrame(handle),
+    ResizeObserver: Observer, IntersectionObserver: Observer,
+    matchMedia: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }),
+  };
+  for (const [key, value] of Object.entries(globals)) {
+    originals.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
+    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+  }
+  let bot, html;
+  try {
+    const { SidekickAvatar } = await import('../dist/src/element/avatar.js');
+    // Keep the actual lifecycle and public API. Only the unavailable GPU renderer is replaced.
+    class RuntimeTestAvatar extends SidekickAvatar { initializeRenderer() {} }
+    dom.window.customElements.define('behavior-runtime-avatar', RuntimeTestAvatar);
+    const rect = (left, top, width, height) => ({ left, top, width, height, right: left + width, bottom: top + height, x: left, y: top });
+    const target = dom.window.document.getElementById('target');
+    target.getBoundingClientRect = () => rect(400, 200, 180, 80);
+    target.getClientRects = () => [target.getBoundingClientRect()];
+    bot = dom.window.document.createElement('behavior-runtime-avatar');
+    bot.getBoundingClientRect = () => rect(bot.position.x, bot.position.y, 120, 120);
+    bot.getClientRects = () => [bot.getBoundingClientRect()];
+    bot.placement = 'viewport'; bot.movementBounds = 'none';
+    bot.setActivity('still'); bot.trackingMode = 'eyes'; bot.bodyOrientation = { yaw: 17, pitch: 8, roll: -5 };
+    await bot.setExpression('both', 'smile', { duration: 0 });
+    const authored = { activity: bot.activity, tracking: bot.trackingMode, orientation: bot.bodyOrientation, design: bot.design };
+    const ends = [], errors = [];
+    bot.addEventListener('sidekick-behavior-end', event => ends.push(event.detail));
+    bot.addEventListener('sidekick-error', event => errors.push(event.detail));
+    bot.behavior = { type: 'wait', target: '#target', side: 'left', gap: 24 };
+    assert.equal(bot.behavior.target, '#target'); assert.equal(ends.length, 0);
+    dom.window.document.body.append(bot); await flush();
+    assert.equal(bot.behaviorState.status, 'acting'); assert.equal(bot.activity, 'thinking');
+    assert.equal(bot.elementAnchor.target, target); assert.deepEqual(bot.position, { x: 256, y: 180 });
+    const activeId = bot.behaviorState.id;
+    bot.setAttribute('shape', 'heart'); bot.setAttribute('behavior', '{broken'); await flush();
+    assert.equal(bot.behaviorState.id, activeId); assert.equal(bot.behaviorState.status, 'acting');
+    assert.equal(bot.design.body.shape, authored.design.body.shape); assert.equal(errors.length, 1);
+    bot.stopBehavior(); await flush();
+    assert.deepEqual({ activity: bot.activity, tracking: bot.trackingMode, orientation: bot.bodyOrientation, design: bot.design }, authored);
+    assert.equal(bot.elementAnchor, null); assert.equal(ends.length, 1);
+
+    const playing = bot.play('thinking');
+    let nested;
+    bot.addEventListener('sidekick-play-end', () => { nested = bot.perform({ type: 'celebrate', duration: 10000 }); }, { once: true });
+    const outer = bot.perform({ type: 'error', duration: 10000 });
+    assert.equal((await outer).status, 'cancelled');
+    assert.equal(bot.behavior.type, 'celebrate'); assert.equal(bot.behaviorState.status, 'acting'); assert.equal(bot.activity, 'celebrating');
+    bot.stopBehavior(); assert.equal((await nested).status, 'cancelled'); assert.equal((await playing).finished, false);
+
+    html = dom.window.document.createElement('behavior-runtime-avatar');
+    html.setAttribute('behavior', JSON.stringify({ type: 'idle' })); await flush();
+    assert.equal(html.behavior.type, 'idle');
+    dom.window.document.body.append(html); await flush();
+    assert.equal(html.behaviorState.status, 'acting');
+    html.remove(); assert.equal(html.behaviorState.status, 'cancelled'); assert.equal(html.behavior, null);
+  } finally {
+    bot?.remove(); html?.remove(); await flush(); dom.window.close();
+    for (const [key, descriptor] of originals) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else delete globalThis[key];
+    }
+  }
+});
