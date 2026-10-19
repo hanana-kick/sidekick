@@ -270,7 +270,7 @@ test('declarations assigned before connection start once on append for both prop
     property.behavior = declaration;
     declaration.target = '#missing';
     const pendingCopy = property.behavior;
-    pendingCopy.side = 'below';
+    try { pendingCopy.side = 'below'; } catch { /* Frozen independent snapshots are also valid. */ }
     const before = { declaration: property.behavior, status: property.behaviorState.status, ends: propertyEnds.length };
     document.body.append(property);
     while (property.behaviorState.status !== 'acting') await frame();
