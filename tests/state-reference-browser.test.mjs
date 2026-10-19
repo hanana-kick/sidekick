@@ -6,7 +6,7 @@ import {chromium} from 'playwright-core';
 import ts from 'typescript';
 import {createAppServer} from '../scripts/serve.mjs';
 let browser,server,base;
-before(async()=>{server=createAppServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));base=`http://127.0.0.1:${server.address().port}`;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??(existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined),headless:process.env.SIDEKICK_HEADED!=='1',args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});});
+before(async()=>{server=createAppServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));base=process.env.SIDEKICK_STATE_LIVE_URL??`http://127.0.0.1:${server.address().port}`;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??(existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined),headless:process.env.SIDEKICK_HEADED!=='1',args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});});
 after(async()=>{await browser?.close();await new Promise(r=>server?.close(r));});
 const cases=[['state-emotion','emotion','curious'],['state-position','position-x','28'],['state-behavior','behavior',JSON.stringify({type:'idle'})],['state-facing','body-yaw','25'],['state-appearance','shape','heart'],['state-execution','activity','thinking']];
 async function frameFor(page){await page.waitForSelector('[data-state-reference][data-configured]');const frame=page.frames().find(f=>f.url().includes('/state-preview.html'));assert.ok(frame);await frame.waitForFunction(()=>document.querySelector('#reference-bot')?.ready);return frame;}

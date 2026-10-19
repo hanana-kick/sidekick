@@ -41,3 +41,7 @@ test('selected-only full source embeds exact config, explicit false, no code eva
  assert.match(react,/"paused": false/);assert.match(react,/"emotionIntensity": 0.35/);assert.match(react,/SidekickAvatar id="reference-bot"/);assert.doesNotMatch(react,/<sidekick-avatar/);
  const props=JSON.parse(react.split('const avatarProps = ')[1].split(';\n\nexport')[0]);assert.deepEqual(props,referenceReactProps(compileReferenceAttributes(scene,edits)));
 });
+
+test('numeric control seeds satisfy native HTML step constraints',()=>{
+ const dom=new JSDOM();try{for(const field of ALL_STATE_FIELDS.filter(item=>item.kind==='number')){const input=dom.window.document.createElement('input');input.type='number';input.min=String(field.min);input.max=String(field.max);input.step=String(field.step);input.value=String(fieldDefault(field,scene));assert.equal(input.checkValidity(),true,field.attribute);}}finally{dom.window.close();}
+});
