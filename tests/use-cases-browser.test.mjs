@@ -27,7 +27,7 @@ test('three-level contents provides all 18 actual scenarios and hash history nav
  const page=await setup(t);assert.equal(await page.locator('#scenario-toc > details').count(),3);assert.equal(await page.locator('#scenario-toc h3').count(),9);assert.equal(await page.locator('#scenario-toc [data-scenario]').count(),26);
  await choose(page,'review');await choose(page,'input');await page.goBack();await page.waitForFunction(()=>document.querySelector('[aria-current="page"][data-scenario]')?.dataset.scenario==='review');
  await page.goForward();await page.waitForFunction(()=>document.querySelector('[aria-current="page"][data-scenario]')?.dataset.scenario==='input');
- assert.match(await page.locator('#breadcrumb').textContent(),/행동 선언.*사용자 안내.*입력할 위치/);
+ assert.equal(await page.locator('#breadcrumb').textContent(),'행동 선언 / 사용자 안내 / 입력할 위치 안내');
 });
 test('loading declaration and app completion execute exactly the displayed semantic command',async t=>{
  const page=await setup(t);assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'wait');
@@ -92,11 +92,17 @@ test('guide progresses from one declaration to live options, events and direct c
 test('legacy use-case URL preserves hash and redirects to canonical Guide',async t=>{
  const page=await setup(t);await page.goto(`${base}/use-cases.html?lang=ko#review`);await page.waitForSelector('#demo-bot[data-configured][data-scenario="review"]');assert.match(page.url(),/\/guide\.html\?lang=ko#review$/);
 });
-for(const locale of ['en','zh-CN','ja'])test(`Guide translates technical lessons and live scenarios in ${locale}`,async t=>{
+for(const locale of ['ko','en','zh-CN','ja'])test(`Guide translates technical lessons and live scenarios in ${locale}`,async t=>{
  const page=await setup(t,{width:390,height:844});await page.selectOption('#site-language',locale);
  await choose(page,'loading');await page.locator('[data-level="2"]').click();
- const untranslated=await page.evaluate(()=>{const walker=document.createTreeWalker(document.querySelector('.catalog-layout'),NodeFilter.SHOW_TEXT),bad=[];let n;while(n=walker.nextNode())if(!n.parentElement.closest('pre,[hidden]')&&/[가-힣]/.test(n.nodeValue))bad.push(n.nodeValue);return bad;});assert.deepEqual(untranslated,[]);
+ const untranslated=await page.evaluate(()=>{const walker=document.createTreeWalker(document.querySelector('.catalog-layout'),NodeFilter.SHOW_TEXT),bad=[];let n;while(n=walker.nextNode())if(!n.parentElement.closest('pre,[hidden]')&&/[가-힣]/.test(n.nodeValue))bad.push(n.nodeValue);return bad;});if(locale!=='ko')assert.deepEqual(untranslated,[]);
+ const basicLabels={ko:'1. 기본 선언',en:'1. Basic declaration','zh-CN':'1. 基本声明',ja:'1. 基本宣言'};
+ assert.equal(await page.locator('[data-level="1"]').textContent(),basicLabels[locale]);
  await page.goto(`${base}/guide.html?lang=${locale}#html-start`);await page.waitForSelector('#lesson-content:not([hidden])');assert.equal(await page.locator('#demo-bot').count(),0);assert.ok((await page.locator('#lesson-content pre').textContent()).includes('bot.behavior'));
+ const lessonTitles={ko:'HTML 초기화와 행동 선언',en:'HTML initialization and behavior declaration','zh-CN':'HTML 初始化与行为声明',ja:'HTML の初期化と行動宣言'};
+ assert.equal(await page.locator('#scenario-title').textContent(),lessonTitles[locale]);
+ const visibleProse=await page.locator('.catalog-layout').innerText();
+ assert.doesNotMatch(visibleProse,/한 줄로 행동 선언|가장 간단한 시작|작은 동료가 사용자의|coordinated for you/);
  if(process.env.SIDEKICK_SCREENSHOTS)await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/guide-${locale}-html-start.png`});
 });
 
