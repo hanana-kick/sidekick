@@ -31,10 +31,13 @@ after(async()=>{await browser?.close();if(server)await new Promise(resolve=>serv
 async function newPage(t,width){
  const page=await browser.newPage({viewport:{width,height:900},locale:'en-US',reducedMotion:'reduce'}),errors=[];
  page.on('pageerror',error=>errors.push(error.message));
+ page.on('console',message=>{if(message.type()==='error')console.error('EXAMPLE CONSOLE',page.url(),message.text());});
+ page.on('requestfailed',request=>console.error('EXAMPLE REQUEST',request.url(),request.failure()?.errorText));
  t.after(async()=>{await page.close();assert.deepEqual(errors,[]);});return page;
 }
 async function settled(page){
- await page.waitForFunction(()=>{const bot=document.querySelector('#demo-bot');return bot?.ready&&['acting','completed'].includes(bot.behaviorState?.status);});
+ try{await page.waitForFunction(()=>{const bot=document.querySelector('#demo-bot');return bot?.ready&&['acting','completed'].includes(bot.behaviorState?.status);});}
+ catch(error){console.error('EXAMPLE STATE',page.url(),await page.evaluate(()=>{const b=document.querySelector('#demo-bot');return {defined:!!customElements.get('sidekick-avatar'),ready:b?.ready,behavior:b?.behavior,state:b?.behaviorState,box:b?.getBoundingClientRect().toJSON(),text:document.querySelector('#demo-app')?.innerText};}));await screenshot(page,'failed-'+new URL(page.url()).pathname.split('/').at(-1));throw error;}
  await page.waitForTimeout(80);
 }
 async function layout(page,label){
@@ -97,11 +100,15 @@ for(const framework of ['element','react'])for(const width of [320,375])test(`al
   if(['loading','upload'].includes(item.id)){
    const result=item.id==='loading'?'#loading-indicator':'#progress-label';
    await copy.waitForFunction(selector=>document.querySelector(selector)?.dataset.outcome==='success',result);
-   assert.equal(await copy.locator('#demo-bot').evaluate(bot=>bot.emotion),'happy');await layout(copy,`Completed ${framework} ${item.id} ${width}`);
+   assert.equal(await copy.locator('#demo-bot').evaluate(bot=>bot.emotion),'happy');await layout(copy,`Completed ${framework} ${item.id} ${width}`);await screenshot(copy,`layout-copy-${framework}-${width}-${item.id}-completed`);
   }
   if(item.id==='failure'){
    await copy.locator('#app-retry').click();await copy.waitForFunction(()=>document.querySelector('#request-result')?.dataset.outcome==='success');
    assert.equal(await copy.locator('#demo-bot').evaluate(bot=>bot.emotion),'happy');
+  }
+  if(item.id==='review'){
+   await copy.waitForFunction(()=>document.querySelector('#demo-bot')?.behaviorState.status==='completed');
+   assert.equal(await copy.locator('#review-result').textContent(),'3/3');await layout(copy,`Reviewed ${framework} ${width}`);await screenshot(copy,`layout-copy-${framework}-${width}-review-completed`);
   }
   if(item.id==='input'){
    await copy.fill('#profile-name','Example');await copy.locator('#app-confirm').click();assert.equal(await copy.locator('#demo-bot').evaluate(bot=>bot.behavior.type),'celebrate');

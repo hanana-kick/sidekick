@@ -23,8 +23,20 @@ jobs:
       - run: npm ci
       - run: npm run build:all
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - name: Verify all live and copied example layouts
+        if: ${{ !inputs.navigation_only }}
+        run: xvfb-run -a node --test --test-concurrency=1 tests/framework-example-layout-browser.test.mjs
+        env:
+          SIDEKICK_HEADED: '1'
+          SIDEKICK_SCREENSHOTS: example-layout-artifacts
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && !inputs.navigation_only }}
+        with:
+          name: example-layout-visuals
+          path: example-layout-artifacts/
+          if-no-files-found: ignore
       - if: ${{ !inputs.navigation_only }}
-        run: xvfb-run -a node --test --test-concurrency=1 tests/framework-example-layout-browser.test.mjs tests/site-i18n-browser.test.mjs tests/use-cases-browser.test.mjs tests/api-playground-browser.test.mjs tests/behavior-browser.test.mjs
+        run: xvfb-run -a node --test --test-concurrency=1 tests/site-i18n-browser.test.mjs tests/use-cases-browser.test.mjs tests/api-playground-browser.test.mjs tests/behavior-browser.test.mjs
         env:
           SIDEKICK_HEADED: '1'
           SIDEKICK_SCREENSHOTS: artifacts

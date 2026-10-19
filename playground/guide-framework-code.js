@@ -6,12 +6,15 @@ export const exampleStyles = `
   --demo-bot-size: clamp(64px, 20vw, 120px);
   --behavior-gap: 6px;
   --example-padding: 12px;
+  --example-ink: #172033;
+  --example-muted: #667085;
+  --example-border: #e0e5ec;
   position: relative; isolation: isolate; width: 100%; min-width: 0;
-  min-height: 280px; box-sizing: border-box;
+  min-height: 240px; box-sizing: border-box;
   padding: max(20px, calc(var(--demo-bot-size) / 2)) var(--example-padding);
   padding-left: calc(var(--demo-bot-size) + var(--behavior-gap) + var(--example-padding));
-  font: 14px/1.5 system-ui, sans-serif; color: #0f172a;
-  overflow-wrap: anywhere;
+  font: 14px/1.55 system-ui, sans-serif; color: var(--example-ink);
+  background: #f5f7fa; overflow-wrap: anywhere;
 }
 #demo-app *, #demo-app *::before, #demo-app *::after { box-sizing: border-box; }
 #demo-app [hidden] { display: none !important; }
@@ -20,41 +23,60 @@ export const exampleStyles = `
 #demo-app[data-side="above"] { padding: calc(var(--demo-bot-size) + var(--behavior-gap) + var(--example-padding)) max(var(--example-padding), calc(var(--demo-bot-size) / 2)) var(--example-padding); }
 #demo-app[data-side="below"] { padding: var(--example-padding) max(var(--example-padding), calc(var(--demo-bot-size) / 2)) calc(var(--demo-bot-size) + var(--behavior-gap) + var(--example-padding)); }
 #demo-app > .demo-bot { position: absolute; left: 0; top: 0; width: var(--demo-bot-size); height: var(--demo-bot-size); pointer-events: none; z-index: 3; }
-#demo-app .app-card { min-width: 0; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; background: #f8fafc; }
-#demo-app h3 { font-size: 15px; line-height: 1.5; margin: 0 0 12px; }
-#demo-app p { margin: 12px 0; font-size: 13px; }
-#demo-app label { display: block; min-width: 0; }
+#demo-app .app-card { min-width: 0; border: 1px solid var(--example-border); border-radius: 12px; padding: 18px; background: #fff; box-shadow: 0 2px 5px #17203305; }
+#demo-app h3 { font-size: 15px; font-weight: 650; line-height: 1.45; letter-spacing: -.015em; margin: 0 0 16px; }
+#demo-app p { margin: 12px 0; font-size: 13px; line-height: 1.65; color: #526075; }
+#demo-app .app-card > :last-child { margin-bottom: 0; }
+#demo-app .app-card > p:empty { margin: 0; }
+#demo-app label { display: block; min-width: 0; font-size: 12px; font-weight: 600; color: #475467; }
 #demo-app button, #demo-app input { font: inherit; color: inherit; }
-#demo-app button { min-width: 0; max-width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; background: #fff; cursor: pointer; white-space: normal; overflow-wrap: anywhere; }
-#demo-app button:hover { background: #f1f5f9; }
+#demo-app button { min-width: 0; max-width: 100%; min-height: 40px; border: 1px solid #cfd6e0; border-radius: 8px; padding: 10px 14px; background: #fff; color: var(--example-ink); font-size: 13px; line-height: 1.4; font-weight: 600; cursor: pointer; white-space: normal; overflow-wrap: anywhere; transition: background-color .15s, border-color .15s; }
+#demo-app button:where(:hover):not(:disabled) { background: #f5f7fa; border-color: #aeb9c8; }
 #demo-app button:disabled { cursor: default; opacity: .5; }
-#demo-app button:focus-visible, #demo-app input:focus-visible { outline: 3px solid #eab308; outline-offset: 3px; }
-#demo-app .app-card > button { margin-top: 12px; }
-#demo-app input { display: block; width: 100%; min-width: 0; max-width: 100%; margin-top: 4px; padding: 9px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; }
-#demo-app .target-item { display: block; width: 100%; min-width: 0; text-align: left; padding: 10px 12px; margin: 8px 0; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
-#demo-app .target-item[aria-current="true"], #demo-app .target-item[data-active] { border-color: #eab308; background: #fefce8; }
-#demo-app .target-item small { display: block; color: #64748b; font-size: 11px; }
-#demo-app .target-item p { margin: 5px 0; }
-#demo-app .spinner { width: 28px; height: 28px; border: 3px solid #e2e8f0; border-top-color: #eab308; border-radius: 50%; animation: example-spin 1s linear infinite; margin: 15px 0; }
-#demo-app .progress-track { height: 8px; border-radius: 8px; background: #e2e8f0; overflow: hidden; margin: 14px 0; }
-#demo-app .progress-track i { display: block; background: #eab308; height: 100%; transition: width .3s; }
-#demo-app .app-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-#demo-app .emotion-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
-#demo-app .emotion-actions button { margin: 0; padding: 9px; font-size: 12px; min-height: 40px; text-align: left; }
-#demo-app .emotion-scene > #emotion-feedback { margin-bottom: 0; }
-#demo-app .app-card [data-outcome="success"] { border-color: #86efac; background: #f0fdf4; color: #166534; }
-#demo-app .app-card [data-outcome="error"] { border-color: #fca5a5; background: #fef2f2; color: #991b1b; }
-#demo-app .app-card p[data-outcome], #demo-app #loading-indicator[data-outcome] { padding: 10px; border: 1px solid; border-radius: 6px; }
-#demo-app input[aria-invalid="true"] { border-color: #dc2626; }
-#demo-app .workflow-review-status { font-weight: 600; }
-#demo-app .target-item[data-outcome="success"]::before { content: '✓ '; color: #15803d; }
+#demo-app button:focus-visible, #demo-app input:focus-visible { outline: 3px solid #dca610; outline-offset: 3px; }
+#demo-app .app-card > button:not(.target-item), #demo-app .app-actions > #app-next { background: var(--example-ink); border-color: var(--example-ink); color: #fff; }
+#demo-app .app-card > button:not(.target-item):hover:not(:disabled), #demo-app .app-actions > #app-next:hover:not(:disabled) { background: #344054; border-color: #344054; }
+#demo-app .app-card > button:not(.target-item) { margin-top: 12px; }
+#demo-app input { display: block; width: 100%; min-width: 0; max-width: 100%; min-height: 42px; margin-top: 6px; padding: 10px 12px; border: 1px solid #cfd6e0; border-radius: 8px; background: #fff; color: var(--example-ink); font-size: 14px; font-weight: 400; line-height: 1.5; }
+#demo-app input::placeholder { color: var(--example-muted); opacity: 1; }
+#demo-app .target-item { display: block; width: 100%; min-width: 0; text-align: left; padding: 12px; margin: 8px 0; border: 1px solid var(--example-border); border-radius: 9px; background: #fff; color: var(--example-ink); font-size: 13px; line-height: 1.5; }
+#demo-app h3 + .target-item { margin-top: 0; }
+#demo-app .target-item[aria-current="true"], #demo-app .target-item[data-active] { border-color: #d9b64d; background: #fffbeb; box-shadow: inset 3px 0 #dca610; }
+#demo-app .target-item small { display: block; margin-top: 4px; color: var(--example-muted); font-size: 12px; line-height: 1.5; font-weight: 400; }
+#demo-app .target-item p { margin: 6px 0 0; }
+#demo-app #loading-indicator { display: flex; align-items: center; gap: 10px; min-height: 48px; font-size: 13px; color: #526075; }
+#demo-app .spinner { flex: 0 0 auto; width: 22px; height: 22px; border: 2px solid var(--example-border); border-top-color: #c99816; border-radius: 50%; animation: example-spin 1s linear infinite; }
+#demo-app #progress-label { display: block; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; color: #526075; }
+#demo-app .progress-track { height: 8px; border-radius: 99px; background: #e9edf2; overflow: hidden; margin: 14px 0 4px; }
+#demo-app .progress-track i { display: block; background: #d6aa22; height: 100%; border-radius: inherit; transition: width .3s; }
+#demo-app [aria-valuenow="100"] .progress-track i { background: #258358; }
+#demo-app #search-results { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--example-border); color: var(--example-muted); font-size: 13px; }
+#demo-app #search-results > :first-child { margin-top: 0; }
+#demo-app #review-result { font-variant-numeric: tabular-nums; }
+#demo-app .app-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+#demo-app .emotion-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+#demo-app .emotion-actions button { margin: 0; padding: 10px 12px; font-size: 12px; min-height: 42px; text-align: left; }
+#demo-app .emotion-scene > #emotion-feedback { margin: 12px 0 0; color: var(--example-muted); font-size: 12px; }
+#demo-app .app-card p[data-outcome], #demo-app #loading-indicator[data-outcome] { padding: 10px 12px; border: 1px solid var(--outcome-border, var(--example-border)); border-radius: 8px; }
+#demo-app .app-card [data-outcome="pending"] { --outcome-border: #dce3ed; border-color: var(--outcome-border); background: #f5f7fa; color: #475467; }
+#demo-app .app-card [data-outcome="success"] { --outcome-border: #b8dec9; border-color: var(--outcome-border); background: #f0faf4; color: #1f6b45; }
+#demo-app .app-card [data-outcome="error"] { --outcome-border: #efc1bd; border-color: var(--outcome-border); background: #fff5f4; color: #a12d27; }
+#demo-app .target-item[data-active][data-outcome="pending"] { border-color: #d9b64d; background: #fffbeb; }
+#demo-app #progress-label[data-outcome] { background: transparent; }
+#demo-app #progress-label[data-outcome="success"] { color: #1f6b45; }
+#demo-app input[aria-invalid="true"] { border-color: #c84840; background: #fffbfa; }
+#demo-app .target-item .workflow-review-status { display: inline-block; margin-top: 8px; padding: 2px 7px; border-radius: 5px; background: #f0f2f5; color: #526075; font-size: 11px; font-weight: 600; }
+#demo-app .target-item[data-outcome="pending"] .workflow-review-status { background: #fff1bd; color: #7c5b0b; }
+#demo-app .target-item[data-outcome="success"] .workflow-review-status { background: #dbf0e3; color: #1f6b45; }
+#demo-app .target-item[data-outcome="success"]::before { content: '✓ '; color: #1f6b45; }
 @keyframes example-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
   #demo-app .spinner { animation: none; }
-  #demo-app .progress-track i { transition: none; }
+  #demo-app .progress-track i, #demo-app button { transition: none; }
 }
 @media (max-width: 700px) {
-  #demo-app .app-card { padding: 12px; }
+  #demo-app .app-card { padding: 14px; }
+  #demo-app input { font-size: 16px; }
   /* Buttons use the full width below the companion/target pair. */
   #demo-app:has(.emotion-scene) { padding-left: var(--example-padding); padding-right: var(--example-padding); }
   #demo-app .emotion-card { margin-left: calc(var(--demo-bot-size) + var(--behavior-gap)); min-height: var(--demo-bot-size); }
@@ -112,7 +134,7 @@ export function reactExample(source, markup='', {design, name='Example', layout}
  body=body.replace(/(document\.querySelector\([^\n]+?\)|item|bot)\.addEventListener\(/g,'listen($1, ');
  body=body.replaceAll('document.querySelector','root.querySelector');
  const jsx=markupToJsx(markup),{side,gap}=layoutAttributes(layout);
- return `import { useEffect, useRef } from 'react';\nimport { SidekickAvatar } from '@hanana-kick/sidekick/react';\n${design?`\nconst design = ${JSON.stringify(design,null,2)};\n`:''}\nconst exampleStyles = ${JSON.stringify(exampleStyles)};\n\n${installExampleLayout.toString()}\n\nexport default function ${name}() {\n  const ref = useRef(null);\n  const appRef = useRef(null);\n  useEffect(() => {\n    const bot = ref.current;\n    const root = appRef.current;\n    if (!bot || !root) return;\n    let disposed = false, started = false;\n    const cleanup = [installExampleLayout(bot)];\n    function listen(target, type, listener) {\n      target?.addEventListener(type, listener);\n      cleanup.push(() => target?.removeEventListener(type, listener));\n    }\n    async function start() {\n      if (disposed || started) return;\n      started = true;\n${indent(body,6)}${body.includes('const disposeWorkflow =')?'\n      cleanup.push(disposeWorkflow);':''}\n    }\n    const ready = () => { void start().catch(console.error); };\n    if (bot.ready) ready();\n    else listen(bot, 'sidekick-ready', ready);\n    return () => {\n      disposed = true;\n      cleanup.forEach(remove => remove());\n      bot.stopBehavior();\n      bot.cancelMove();\n      bot.cancelReaction();\n      bot.detachAnchor();\n    };\n  }, []);\n  return <div ref={appRef} id="demo-app" data-side=${JSON.stringify(side)} style={{ '--behavior-gap': '${gap}px' }}>\n    <style>{exampleStyles}</style>\n${indent(jsx,4)}\n    <SidekickAvatar ref={ref} id="demo-bot" className="demo-bot" placement="inline" movementBounds="none" interaction="none"${design?' design={design}':''} />\n  </div>;\n}`;
+ return `import { useEffect, useRef } from 'react';\nimport { SidekickAvatar } from '@hanana-kick/sidekick/react';\n${design?`\nconst design = ${JSON.stringify(design,null,2)};\n`:''}\nconst exampleStyles = ${JSON.stringify(exampleStyles)};\n\nconst installExampleLayout = ${installExampleLayout.toString()};\n\nexport default function ${name}() {\n  const ref = useRef(null);\n  const appRef = useRef(null);\n  useEffect(() => {\n    const bot = ref.current;\n    const root = appRef.current;\n    if (!bot || !root) return;\n    let disposed = false, started = false;\n    const cleanup = [installExampleLayout(bot)];\n    function listen(target, type, listener) {\n      target?.addEventListener(type, listener);\n      cleanup.push(() => target?.removeEventListener(type, listener));\n    }\n    async function start() {\n      if (disposed || started) return;\n      started = true;\n${indent(body,6)}${body.includes('const disposeWorkflow =')?'\n      cleanup.push(disposeWorkflow);':''}\n    }\n    const ready = () => { void start().catch(console.error); };\n    if (bot.ready) ready();\n    else listen(bot, 'sidekick-ready', ready);\n    return () => {\n      disposed = true;\n      cleanup.forEach(remove => remove());\n      bot.stopBehavior();\n      bot.cancelMove();\n      bot.cancelReaction();\n      bot.detachAnchor();\n    };\n  }, []);\n  return <div ref={appRef} id="demo-app" data-side=${JSON.stringify(side)} style={{ '--behavior-gap': '${gap}px' }}>\n    <style>{exampleStyles}</style>\n${indent(jsx,4)}\n    <SidekickAvatar ref={ref} id="demo-bot" className="demo-bot" placement="inline" movementBounds="none" interaction="none"${design?' design={design}':''} />\n  </div>;\n}`;
 }
 export function scenarioCode(source, markup, options) {
  if(options?.document&&options?.translate){const template=options.document.createElement('template');template.innerHTML=markup;for(const element of template.content.querySelectorAll('[data-guide-i18n]'))element.textContent=options.translate(element.dataset.guideI18n);for(const element of template.content.querySelectorAll('[data-guide-placeholder]'))element.setAttribute('placeholder',options.translate(element.dataset.guidePlaceholder));markup=template.innerHTML;}
@@ -124,7 +146,7 @@ export function scenarioCode(source, markup, options) {
 
  if(getFramework()==='react')return reactExample(source,markup,options);
  const body=source.replace(/const bot = document\.querySelector\(['"]#demo-bot['"]\);\s*/g,''),{side,gap}=layoutAttributes(options?.layout);
- return `<style>\n${exampleStyles}\n</style>\n<div id="demo-app" data-side="${side}" style="--behavior-gap:${gap}px">\n${markup}\n  <sidekick-avatar id="demo-bot" class="demo-bot" placement="inline" movement-bounds="none" interaction="none"></sidekick-avatar>\n</div>\n<script type="module">\nimport 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.1/dist/browser/sidekick.js';\nconst bot = document.querySelector('#demo-bot');\n${options?.design?'bot.design = '+JSON.stringify(options.design,null,2)+';\n':''}${installExampleLayout.toString()}\nconst cleanup = [installExampleLayout(bot)];\nlet disposed = false, started = false;\nasync function start() {\n  if (disposed || started) return;\n  started = true;\n${indent(body,2)}${body.includes('const disposeWorkflow =')?'\n  cleanup.push(disposeWorkflow);':''}\n}\nconst ready = () => { void start().catch(console.error); };\nfunction disposeExample() {\n  if (disposed) return;\n  disposed = true;\n  observer.disconnect();\n  bot.removeEventListener('sidekick-ready', ready);\n  window.removeEventListener('pagehide', disposeExample);\n  cleanup.forEach(remove => remove());\n  bot.stopBehavior();\n  bot.cancelMove();\n  bot.cancelReaction();\n  bot.detachAnchor();\n}\nconst observer = new MutationObserver(() => { if (!bot.isConnected) disposeExample(); });\nobserver.observe(document, { childList: true, subtree: true });\nwindow.addEventListener('pagehide', disposeExample, { once: true });\nif (bot.ready) ready();\nelse bot.addEventListener('sidekick-ready', ready, { once: true });\n</script>`;
+ return `<style>\n${exampleStyles}\n</style>\n<div id="demo-app" data-side="${side}" style="--behavior-gap:${gap}px">\n${markup}\n  <sidekick-avatar id="demo-bot" class="demo-bot" placement="inline" movement-bounds="none" interaction="none"></sidekick-avatar>\n</div>\n<script type="module">\nimport 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.2/dist/browser/sidekick.js';\nconst bot = document.querySelector('#demo-bot');\n${options?.design?'bot.design = '+JSON.stringify(options.design,null,2)+';\n':''}const installExampleLayout = ${installExampleLayout.toString()};\nconst cleanup = [installExampleLayout(bot)];\nlet disposed = false, started = false;\nasync function start() {\n  if (disposed || started) return;\n  started = true;\n${indent(body,2)}${body.includes('const disposeWorkflow =')?'\n  cleanup.push(disposeWorkflow);':''}\n}\nconst ready = () => { void start().catch(console.error); };\nfunction disposeExample() {\n  if (disposed) return;\n  disposed = true;\n  observer.disconnect();\n  bot.removeEventListener('sidekick-ready', ready);\n  window.removeEventListener('pagehide', disposeExample);\n  cleanup.forEach(remove => remove());\n  bot.stopBehavior();\n  bot.cancelMove();\n  bot.cancelReaction();\n  bot.detachAnchor();\n}\nconst observer = new MutationObserver(() => { if (!bot.isConnected) disposeExample(); });\nobserver.observe(document, { childList: true, subtree: true });\nwindow.addEventListener('pagehide', disposeExample, { once: true });\nif (bot.ready) ready();\nelse bot.addEventListener('sidekick-ready', ready, { once: true });\n</script>`;
 }
 const reactLessons={
  'html-start': `import { useState } from 'react';\nimport { SidekickAvatar } from '@hanana-kick/sidekick/react';\n\nexport default function LoadingCompanion() {\n  const [done, setDone] = useState(false);\n  return <>\n    <div id="loading">{done ? 'Done' : 'Loading'}</div>\n    <SidekickAvatar placement="viewport" behavior={done\n      ? { type: 'celebrate' }\n      : { type: 'wait', target: '#loading' }} />\n    <button onClick={() => setDone(true)}>Complete</button>\n  </>;\n}`,
