@@ -61,6 +61,7 @@ export class RenderEngine {
     rendererDelta = 0;
     dirty = true;
     resizePending = false;
+    equipmentImmediate = false;
     disposed = false;
     frames = 0;
     revision = 0;
@@ -142,6 +143,7 @@ export class RenderEngine {
             }
             case 'design': {
                 const next = command.design, previous = this.state.design;
+                this.equipmentImmediate ||= command.transition?.equipmentImmediate ?? false;
                 if (next.body.shape !== previous.body.shape) {
                     if (command.transition)
                         this.complete(command.shapeRequest, this.shape.to(next.body.shape, command.transition.shape));
@@ -282,10 +284,10 @@ export class RenderEngine {
     animated() {
         if (this.state.paused)
             return this.tracking.settling;
-        return this.presentationMoving() || this.activityBlend.active || this.timeline.active || this.shape.active || this.gazeMoving() || this.tracking.active || (!this.state.reduced && this.state.activity !== 'still');
+        return this.renderer.animating || this.presentationMoving() || this.activityBlend.active || this.timeline.active || this.shape.active || this.gazeMoving() || this.tracking.active || (!this.state.reduced && this.state.activity !== 'still');
     }
     paceIdle() {
-        return !this.dirty && !this.presentationMoving() && this.state.activity === 'idle' && !this.state.paused && !this.state.reduced && !this.activityBlend.active && !this.timeline.active && !this.shape.active && !this.gazeMoving() && !this.tracking.active;
+        return !this.dirty && !this.renderer.animating && !this.presentationMoving() && this.state.activity === 'idle' && !this.state.paused && !this.state.reduced && !this.activityBlend.active && !this.timeline.active && !this.shape.active && !this.gazeMoving() && !this.tracking.active;
     }
     resetPacing() { this.idleDrawElapsed = 0; this.rendererDelta = 0; }
     wake() {
@@ -377,11 +379,12 @@ export class RenderEngine {
         activityFrame.gaze = activityFrame.gaze.map((value, i) => (value + emotion.gaze[i]) * (1 - this.attention.values[0]));
         const [yaw, pitch, roll] = this.orientation.values;
         const started = performance.now();
-        this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, activityFrame, travel, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', bodyOrientation: { yaw: yaw, pitch: pitch, roll: roll }, zoom: this.state.zoom });
+        this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, instant: this.state.paused || this.state.reduced, equipmentImmediate: this.equipmentImmediate, activityFrame, travel, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', bodyOrientation: { yaw: yaw, pitch: pitch, roll: roll }, zoom: this.state.zoom });
         const duration = performance.now() - started;
         this.renderCpu.lastMs = duration;
         this.renderCpu.totalMs += duration;
         this.renderCpu.maxMs = Math.max(this.renderCpu.maxMs, duration);
+        this.equipmentImmediate = false;
         this.dirty = false;
         this.frames++;
         this.resetPacing();

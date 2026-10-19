@@ -31,6 +31,7 @@ export interface RuntimeState {
     dpr: number;
 }
 export interface DesignTransition {
+    equipmentImmediate?: boolean;
     shape: ShapeMotionOptions;
     eyes: MotionOptions;
     eyeSides?: readonly ('left' | 'right')[];

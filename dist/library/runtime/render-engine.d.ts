@@ -4,6 +4,7 @@ import type { AvatarDesign } from '../core/design.js';
 import type { RuntimeCommand, RuntimeEvent, RuntimeSnapshot, RuntimeState } from './protocol.js';
 export interface RuntimeRenderer {
     readonly canvas: HTMLCanvasElement | OffscreenCanvas;
+    readonly animating?: boolean;
     readonly stats: {
         drawCalls: number;
         buffers: number;
@@ -37,6 +38,7 @@ export declare class RenderEngine {
     private rendererDelta;
     private dirty;
     private resizePending;
+    private equipmentImmediate;
     private disposed;
     private frames;
     private revision;

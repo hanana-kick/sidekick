@@ -13,6 +13,10 @@ export interface RenderState {
     style: RenderStyle;
     /** Optional runtime activity crossfade; direct renderer clients keep the standard loop. */
     activityFrame?: ActivityFrame;
+    /** Snap presentation while paused; authored state remains immediate either way. */
+    instant?: boolean;
+    /** Existing whole-canvas transitions already hide the equipment swap. */
+    equipmentImmediate?: boolean;
     travel?: TravelPresentation;
     bodyOrientation?: Partial<BodyOrientation>;
     zoom?: number;
@@ -41,6 +45,9 @@ export declare class AvatarRenderer {
     private disposed;
     private drawCount;
     private blinkGate;
+    private equipment;
+    private framingActive;
+    private framingTarget;
     private framingKey;
     private frameSpan;
     private displayAspect?;
@@ -51,6 +58,7 @@ export declare class AvatarRenderer {
     resize(width: number, height: number, dpr?: number): void;
     private draw;
     render(input: AvatarDesign, state: RenderState): void;
+    get animating(): boolean;
     get stats(): {
         drawCalls: number;
         buffers: number;
