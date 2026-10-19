@@ -13,7 +13,7 @@ import { EyeBlinkGate, composeEyePose } from '../core/expressions.js';
 import { clamp, multiply, orthographic, spring, transform } from '../core/math.js';
 import type { Mat4 } from '../core/math.js';
 import { deformBodyPoint, sampleAccessorySurface, BODY_SIZE } from '../core/surface.js';
-import { BODY_DEPTH_RANGE, MOUNT_OFFSET_RANGE, accessoryMountProfile, resolveShapeProfile } from '../core/shape-profiles.js';
+import { BODY_DEPTH_RANGE, accessoryMountProfile, resolveShapeProfile } from '../core/shape-profiles.js';
 import type { ShapeProfile } from '../core/shape-profiles.js';
 import { torus } from './geometry.js';
 import { projectEyes } from './eye-projection.js';
@@ -21,8 +21,7 @@ import { glassesGeometry } from './glasses-geometry.js';
 import type { GlassesGeometry } from './glasses-geometry.js';
 import { beretGeometry, beretBandColor } from './beret-geometry.js';
 import type { BeretGeometry } from './beret-geometry.js';
-import { catalogAccessoryGeometry, accessoryDetailColor, CATALOG_ACCESSORY_EXTENT } from './catalog-accessory-geometry.js';
-import type { CatalogAccessoryPreset } from './catalog-accessory-geometry.js';
+import { catalogAccessoryGeometry, accessoryDetailColor } from './catalog-accessory-geometry.js';
 import { bodyGeometry } from './body-geometry.js';
 import { shapeContour } from '../core/contours.js';
 import type { ShapeContour } from '../core/contours.js';
@@ -160,10 +159,6 @@ export class AvatarRenderer {
   private drawCount = 0;
   private blinkGate = new EyeBlinkGate();
   private equipment = new AccessoryTransition<ResolvedAccessoryDesign>();
-  private framingActive = false;
-  private framingTarget = 2.4;
-  private framingKey = '';
-  private frameSpan = 2.4;
   private displayAspect?: number;
   private inputSignature = '';
   private resolvedInput?: ReturnType<typeof resolveDesign>;
@@ -281,20 +276,13 @@ export class AvatarRenderer {
       gl.bindVertexArray(null);
       this.bodyContour = contour; this.bodyDeformation = String(profile.depth);
     }
-    // Shape-independent envelope: selecting/retargeting a contour cannot pump zoom.
-    const framingKey = JSON.stringify(this.equipment.envelope);
-    if (framingKey !== this.framingKey) {
-      const radius = Math.hypot(BODY_SIZE[0] * 0.5 / Math.sqrt(0.88), BODY_SIZE[1] * 0.56, BODY_DEPTH_RANGE[1] * 0.5 / Math.sqrt(0.88));
-      const accessory = Math.max(0, ...this.equipment.envelope.map(a => a.anchor.offset + MOUNT_OFFSET_RANGE[1] + (CATALOG_ACCESSORY_EXTENT[a.preset as CatalogAccessoryPreset] ?? .43) * a.scale));
-      this.framingTarget = Math.max(Math.max(...BODY_SIZE) * 1.25 + 0.9, (radius + accessory) * 2 + 0.34);
-      if (!this.framingKey) this.frameSpan = this.framingTarget;
-      this.framingKey = framingKey;
-    }
+    // A fixed, body-referenced frame keeps CSS/world scale independent of
+    // equipment, including outgoing meshes during a fade. This is the original
+    // unequipped frame with padding for the supported catalog and activity poses.
+    // Equipment must not silently act as zoom; callers control magnification.
+    const radius = Math.hypot(BODY_SIZE[0] * 0.5 / Math.sqrt(0.88), BODY_SIZE[1] * 0.56, BODY_DEPTH_RANGE[1] * 0.5 / Math.sqrt(0.88));
+    const span = Math.max(Math.max(...BODY_SIZE) * 1.25 + 0.9, radius * 2 + 0.34) / zoom;
     const framingDelta = Number.isFinite(state.delta) ? Math.max(0, Math.min(state.delta, 0.25)) : 0;
-    this.frameSpan = instant ? this.framingTarget : this.frameSpan + (this.framingTarget - this.frameSpan) * (1 - Math.exp(-framingDelta / 0.07));
-    if (Math.abs(this.framingTarget - this.frameSpan) < 0.0001) this.frameSpan = this.framingTarget;
-    this.framingActive = this.frameSpan !== this.framingTarget;
-    const span = this.frameSpan / zoom;
     const height = span * Math.max(1, 1 / aspect), width = height * aspect;
     gl.viewport(0, 0, this.canvas.width, this.canvas.height); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(this.program); gl.uniformMatrix4fv(this.uniforms.projection, false, orthographic(width, height));
@@ -449,7 +437,7 @@ export class AvatarRenderer {
     gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
   }
-  get animating(): boolean { return this.equipment.active || this.framingActive || this.accessoryPoseTakeover.size > 0; }
+  get animating(): boolean { return this.equipment.active || this.accessoryPoseTakeover.size > 0; }
   get stats(): { drawCalls: number; buffers: number } { return { drawCalls: this.drawCount, buffers: [...Object.values(this.meshes), ...Array.from(this.catalogMeshes.values(), item => item.mesh)].reduce(count => count + 2, 0) }; }
   /** Call immediately after render; the drawing buffer need not be preserved between frames. */
   readPixels(): Uint8Array {
