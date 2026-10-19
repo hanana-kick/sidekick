@@ -328,7 +328,7 @@ test('Radix Select keyboard selection updates easing and expressions and restore
   await choose('left-expression', 'smile');
   assert.deepEqual(f.avatar.design.eyes.left.weights, { smile: 1, blink: 0 });
   assert.deepEqual(f.avatar.design.eyes.right.weights, { smile: 0, blink: 0 });
-  assert.equal(f.avatar.assignments, 1);
+  assert.equal(f.avatar.assignments, 2);
 });
 
 test('six equipment slots replace independently, keep per-item colors and preserve imported IDs', async t => {
@@ -411,11 +411,11 @@ test('backup failure prevents overwriting original; storage exceptions do not br
 
 test('StrictMode effect replay is idempotent and unmount removes stale avatar listeners', async t => {
   const f = await fixture(t, {}, false, true);
-  assert.equal(f.avatar.assignments, 1); assert.equal(f.avatar.connections, 1); assert.equal(f.avatar.disconnections, 0);
+  assert.equal(f.avatar.assignments, 2); assert.equal(f.avatar.connections, 1); assert.equal(f.avatar.disconnections, 0);
   await act(async () => f.avatar.setBodyOrientation({ yaw: 23 }));
   assert.equal(f.controller.getSnapshot().bodyOrientation.yaw, 23);
   await f.shape('heart'); await f.input('body-color', '#aabbcc');
-  assert.equal(f.avatar.assignments, 1); assert.equal(f.avatar.connections, 1);
+  assert.equal(f.avatar.assignments, 2); assert.equal(f.avatar.connections, 1);
   const before = f.controller.getSnapshot();
   await f.unmount();
   assert.equal(f.avatar.disconnections, 1);

@@ -47,3 +47,12 @@ export function applyStudioSession(avatar: SessionAvatar, input: SidekickScene):
   avatar.interaction = scene.interaction; avatar.paused = scene.paused; avatar.trackingMode = scene.trackingMode;
   return motion;
 }
+
+/** Snapshot attributes applied before insertion, so the first frame uses the saved scene. */
+export function studioSceneAttributes(input: SidekickScene): Record<string, unknown> {
+ const scene = parseScene(input);
+ return { design: scene.design, 'body-yaw': scene.bodyOrientation.yaw, 'body-pitch': scene.bodyOrientation.pitch, 'body-roll': scene.bodyOrientation.roll, zoom: scene.zoom, activity: scene.activity, paused: scene.paused, 'tracking-mode': scene.trackingMode, interaction: scene.interaction, 'render-style': scene.renderStyle, 'gaze-x': scene.gaze.x, 'gaze-y': scene.gaze.y, time: scene.time, motion: scene.motion, 'shape-duration': scene.shapeDuration, 'shape-easing': scene.shapeEasing, 'motion-duration': scene.motionDuration, 'motion-easing': scene.motionEasing };
+}
+export function seedStudioSession(element: HTMLElement, scene: SidekickScene): void {
+ for (const [key, value] of Object.entries(studioSceneAttributes(scene))) element.setAttribute(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+}

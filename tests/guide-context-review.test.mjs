@@ -40,7 +40,7 @@ async function mount(context, { exercise = false, source = null, hash } = {}) {
     guideTranslations,
     getSiteLocale: () => 'en', subscribeSiteLocale: () => () => {},
     loadStudioSession: () => ({ scene: createScene(), message: 'mock' }),
-    applyStudioSession: async () => {}, mountSiteHeader: () => {},
+    seedStudioSession:()=>{}, applyStudioSession: async () => {}, mountSiteHeader: () => {},
   });
   w.mountStateReference=w.eval('(function(){'+readFileSync(new URL('../playground/state-reference.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/export /g,'')+';return mountStateReference;})()');
   class Bot extends w.HTMLElement {

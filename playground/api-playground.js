@@ -4,7 +4,7 @@ import { apiText, applyApiLocale, apiError } from './api-locales.js';
 import { mountSiteHeader } from './shared-header.js';
 import { createAccessory, MATERIAL_SHAPE_LABELS } from '../src/index.ts';
 import { codeForAction, executeAction } from './playground-actions.js';
-import { loadStudioSession, applyStudioSession } from './studio-session.ts';
+import { loadStudioSession, applyStudioSession, seedStudioSession } from './studio-session.ts';
 
 import { mountGuideExercise } from './guide-exercise.js';
 import { navigationText, guideHref, readGuideSource } from './guide-navigation.js';
@@ -16,6 +16,7 @@ mountSiteHeader($('site-header-brand'), 'api');
 const bot = $('bot');
 let storage; try { storage = localStorage; } catch {}
 const studioSession = loadStudioSession(storage);
+seedStudioSession(bot, studioSession.scene);
 $('studio-session-status').textContent = studioSession.message;
 let initialized = false, initializing = false, gesture = null, selectedAction = null, code = '', lastAction = null, lastCode = '', execution = 0;
 const samples = [];

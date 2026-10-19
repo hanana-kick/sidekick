@@ -1,3 +1,4 @@
+import { studioSceneAttributes, seedStudioSession } from '../playground/studio-session.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -44,4 +45,9 @@ test('selected-only full source embeds exact config, explicit false, no code eva
 
 test('numeric control seeds satisfy native HTML step constraints',()=>{
  const dom=new JSDOM();try{for(const field of ALL_STATE_FIELDS.filter(item=>item.kind==='number')){const input=dom.window.document.createElement('input');input.type='number';input.min=String(field.min);input.max=String(field.max);input.step=String(field.step);input.value=String(fieldDefault(field,scene));assert.equal(input.checkValidity(),true,field.attribute);}}finally{dom.window.close();}
+});
+
+test('saved scene seed is complete before a preview element is inserted',()=>{
+ const saved=createScene({design:createDesign({body:{shape:'heart',color:'#123456'}}),zoom:1.4,bodyOrientation:{yaw:23,pitch:12,roll:4}});
+ const dom=new JSDOM();try{const element=dom.window.document.createElement('sidekick-avatar');seedStudioSession(element,saved);assert.equal(element.isConnected,false);assert.deepEqual(JSON.parse(element.getAttribute('design')),saved.design);assert.equal(element.getAttribute('zoom'),'1.4');assert.equal(element.getAttribute('body-yaw'),'23');assert.deepEqual(studioSceneAttributes(saved),compileReferenceAttributes(saved,{}));}finally{dom.window.close();}
 });

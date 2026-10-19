@@ -62,7 +62,7 @@ async function fixture(t, initialLocale = 'ko') {
     getSiteLocale: () => locale, subscribeSiteLocale: callback => { listeners.add(callback); return () => listeners.delete(callback); },
     applyApiLocale: root => applyApiLocale(root, locale),
     createAccessory: preset => ({ preset }), MATERIAL_SHAPE_LABELS: Object.fromEntries(shapeNames.map(name => [name, name])),
-    mountSiteHeader() {}, loadStudioSession: () => ({ get message() { return apiText('ready', {}, locale); }, scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), applyStudioSession: async () => {},
+    mountSiteHeader() {}, loadStudioSession: () => ({ get message() { return apiText('ready', {}, locale); }, scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), seedStudioSession:()=>{}, applyStudioSession: async () => {},
   });
   const preference = { matches: false, addEventListener() {} }; w.matchMedia = () => preference;
   class Avatar extends w.HTMLElement {

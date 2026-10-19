@@ -5,7 +5,7 @@ import { readGuideContext, readGuideSource, guideHref, technicalHref, lessonDest
 import { emotionFlowById, emotionMarkup, emotionCode, runEmotionAction, customizeEmotionAction } from './emotion-scenarios.js';
 import '../src/index.ts';
 import { mountSiteHeader } from './shared-header.js';
-import { loadStudioSession, applyStudioSession } from './studio-session.ts';
+import { loadStudioSession, applyStudioSession, seedStudioSession } from './studio-session.ts';
 import { scenarioGroups, scenarioById } from './scenario-catalog.js';
 import { lessons, lessonById } from './guide-lessons.js';
 import { getSiteLocale, subscribeSiteLocale } from './site-i18n.js';
@@ -169,7 +169,7 @@ async function activate(id) {
  setText('scenario-title',item.title);setText('scenario-sentence',item.sentence);setText('scenario-hint',item.hint);
  if(lesson){renderLesson(lesson);localizeGuideBindings();restoringContext=false;updateContextLinks();return;}
  $('demo-app').innerHTML=applicationMarkup(item.id);$('event-code').textContent=eventCode(item.id);delete $('copy-status').dataset.guideI18n;$('copy-status').textContent='';setText('run-status','봇 준비 중…');
- const bot=document.createElement('sidekick-avatar');bot.id='demo-bot';bot.dataset.scenario=item.id;bot.className='demo-bot';bot.setAttribute('placement','inline');bot.setAttribute('interaction','none');bot.setAttribute('movement-bounds','none');
+ const bot=document.createElement('sidekick-avatar');bot.id='demo-bot';bot.dataset.scenario=item.id;bot.className='demo-bot';seedStudioSession(bot,session.scene);bot.setAttribute('placement','inline');bot.setAttribute('interaction','none');bot.setAttribute('movement-bounds','none');
  const entry=active={bot,controller,item,ready:false,events:[],emotionEvent:-1};
  const initial=declarationFor(item);if(context&&('target' in initial||initial.type==='review')){initial.side=context.side??initial.side;initial.gap=context.gap??initial.gap;if(initial.type==='review')initial.dwell=context.dwell??initial.dwell;}
  declare(initial);bindApp(entry,item);
