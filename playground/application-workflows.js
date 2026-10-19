@@ -18,6 +18,16 @@ export function installApplicationWorkflow(app, bot, kind, options = {}) {
  const get = id => app.querySelector('#' + id);
  const controller = new app.ownerDocument.defaultView.AbortController();
  const signal = controller.signal;
+ // Local demonstration workload. Replace these delays with real application results.
+ const timers = new Set();
+ let running = false;
+ const later = (callback, delay) => {
+  const timer = setTimeout(() => { timers.delete(timer); if (!signal.aborted && running) callback(); }, delay);
+  timers.add(timer);
+ };
+ const stop = () => { running = false; for (const timer of timers) clearTimeout(timer); timers.clear(); };
+ signal.addEventListener('abort', stop, { once:true });
+ const actions = new Map();
  const declare = options.declare ?? (value => { bot.behavior = value; });
  const emotion = options.emotion ?? (value => bot.setEmotion(value));
  const feedback = (id, message, state) => {
@@ -25,14 +35,17 @@ export function installApplicationWorkflow(app, bot, kind, options = {}) {
   element.textContent = text(message); element.dataset.workflowMessage = message;
   element.dataset.outcome = state; element.setAttribute('role','status');
  };
- const listen = (id, callback) => get(id)?.addEventListener('click', () => {
-  callback(); options.onEvent?.(id);
- }, { signal });
- const complete = () => { declare({type:'celebrate',duration:1600}); emotion('happy'); };
+ const dispatch = id => { if (signal.aborted) return; actions.get(id)?.(); options.onEvent?.(id); };
+ const listen = (id, callback) => {
+  actions.set(id, callback);
+  get(id)?.addEventListener('click', () => dispatch(id), { signal });
+ };
+ const disable = id => { if (get(id)) get(id).disabled = true; };
+ const complete = () => { stop(); declare({type:'celebrate',duration:1600}); emotion('happy'); };
  let progress = 0;
  if (kind === 'loading') listen('app-complete', () => {
   feedback('loading-indicator','데이터 준비 완료','success');
-  get('app-complete').disabled = true; complete();
+  disable('app-complete'); complete();
  });
  if (kind === 'upload') listen('app-progress', () => {
   progress = Math.min(100,progress+25);
@@ -42,7 +55,7 @@ export function installApplicationWorkflow(app, bot, kind, options = {}) {
   get('progress-label').textContent = `${progress}% · ${text(message)}`;
   const track = get('upload-progress');track.setAttribute('role','progressbar');track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuemax','100');track.setAttribute('aria-valuenow',String(progress));
   track.querySelector('i').style.width = `${progress}%`;
-  if (progress === 100) {get('app-progress').disabled=true;complete();}
+  if (progress === 100) {disable('app-progress');complete();}
   else emotion('curious');
  });
  if (kind === 'success') listen('app-save', () => {
@@ -50,11 +63,12 @@ export function installApplicationWorkflow(app, bot, kind, options = {}) {
  });
  if (kind === 'failure') {
   listen('app-retry', () => {
-   feedback('request-result','연결 중','pending');get('app-retry').disabled=true;get('app-complete').hidden=false;
+   feedback('request-result','연결 중','pending');get('app-retry').disabled=true;
    declare({type:'wait',target:'#request-result',side:'left',gap:6});emotion('curious');
+   if (running) later(() => dispatch('app-complete'), 1400);
   });
   listen('app-complete', () => {
-   feedback('request-result','응답 확인됨','success');get('app-complete').disabled=true;complete();
+   feedback('request-result','응답 확인됨','success');disable('app-complete');complete();
   });
  }
  if (kind === 'validation') {
@@ -67,7 +81,7 @@ export function installApplicationWorkflow(app, bot, kind, options = {}) {
  }
  if (kind === 'review') {
   const rows=[...app.querySelectorAll('.target-item')];
-  rows.forEach(row=>{const badge=app.ownerDocument.createElement('small');badge.className='workflow-review-status';badge.textContent=text('검토 대기');badge.dataset.workflowMessage='검토 대기';row.append(badge);});
+  rows.forEach(row=>{const badge=row.querySelector('.workflow-review-status')??app.ownerDocument.createElement('small');badge.className='workflow-review-status';badge.textContent=text('검토 대기');badge.dataset.workflowMessage='검토 대기';row.append(badge);});
   bot.addEventListener('sidekick-behavior-change', () => {
    const state=bot.behaviorState;if(state.type!=='review')return;
    rows.forEach((row,index)=>{const completed=index<state.completedItems;const current=index===state.itemIndex&&state.status!=='completed';const label=completed?'검토 완료':current?'검토 중':'검토 대기';row.dataset.outcome=completed?'success':current?'pending':'';const badge=row.querySelector('.workflow-review-status');badge.textContent=text(label);badge.dataset.workflowMessage=label;});
@@ -75,8 +89,20 @@ export function installApplicationWorkflow(app, bot, kind, options = {}) {
    if(state.status==='completed')emotion('happy');
   },{signal});
  }
- return () => controller.abort();
+ const start = () => {
+  stop(); if (signal.aborted) return; running = true;
+  if (kind === 'loading' && get('loading-indicator').dataset.outcome !== 'success') later(() => dispatch('app-complete'), 1800);
+  if (kind === 'upload' && progress < 100) {
+   const tick = () => { dispatch('app-progress'); if (progress < 100) later(tick, 700); };
+   later(tick, 700);
+  }
+  if (kind === 'failure' && get('request-result').dataset.outcome === 'pending') later(() => dispatch('app-complete'), 1400);
+ };
+ const dispose = () => controller.abort();
+ dispose.start = start; dispose.stop = stop; dispose.restore = dispatch;
+ if (options.autoStart !== false) start();
+ return dispose;
 }
-export function workflowSource(kind, labels) {
- return `${installApplicationWorkflow.toString()}\nconst disposeWorkflow = installApplicationWorkflow(bot.parentElement, bot, ${JSON.stringify(kind)}, { labels: ${JSON.stringify(labels)} });\n// Call disposeWorkflow() when removing this example.`;
+export function workflowSource(kind, labels, events = []) {
+ return `${installApplicationWorkflow.toString()}\nconst workflowPlacement = { side:bot.behavior?.side, gap:bot.behavior?.gap };\nconst disposeWorkflow = installApplicationWorkflow(bot.parentElement, bot, ${JSON.stringify(kind)}, { labels: ${JSON.stringify(labels)}, autoStart:false });\nfor (const event of ${JSON.stringify(events)}) disposeWorkflow.restore(event);\nif (workflowPlacement.side && ('target' in bot.behavior || 'targets' in bot.behavior)) bot.behavior = { ...bot.behavior, ...workflowPlacement };\ndisposeWorkflow.start();\n// Call disposeWorkflow() when removing this example.`;
 }

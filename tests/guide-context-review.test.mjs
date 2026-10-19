@@ -122,7 +122,8 @@ test('source identity and scroll remain same-origin through destination edits an
   const context = { id: 'loading', level: 3 };
   let page = await mount(context, { exercise: true, source: origin });
   try {
-    page.$('app-complete').click();
+    page.$('restart-demo').click();
+    await new Promise(resolve=>setTimeout(resolve,1900));
     const back = new URL(page.$('guide-source-return').href);
     assert.equal(back.origin, 'https://example.com');
     assert.equal(back.pathname, '/nested/guide.html');

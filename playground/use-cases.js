@@ -1,6 +1,6 @@
 import { workflowIds, workflowRows, installApplicationWorkflow, workflowSource } from './application-workflows.js';
 import { getFramework, subscribeFramework, frameworkHref } from './site-framework.js';
-import { scenarioCode, lessonCode } from './guide-framework-code.js';
+import { scenarioCode, lessonCode, installExampleStyles } from './guide-framework-code.js';
 import { mountStateReference } from './state-reference.js';
 import { readGuideContext, readGuideSource, guideHref, technicalHref, lessonDestinations, navigationText, guideIds } from './guide-navigation.js';
 import { emotionFlowById, emotionMarkup, emotionCode, runEmotionAction, customizeEmotionAction } from './emotion-scenarios.js';
@@ -11,6 +11,7 @@ import { scenarioGroups, scenarioById } from './scenario-catalog.js';
 import { lessons, lessonById } from './guide-lessons.js';
 import { getSiteLocale, subscribeSiteLocale } from './site-i18n.js';
 import { guideTranslations } from './guide-translations.js';
+installExampleStyles(document);
 const $ = id => document.getElementById(id);
 const t = key => guideTranslations[getSiteLocale()]?.[key] ?? key;
 function setText(id,key){const element=$(id);element.dataset.guideI18n=key;element.textContent=t(key);}
@@ -64,10 +65,10 @@ const row = (id, title, description='') => `<button class="target-item" id="${id
 function applicationMarkup(kind) {
   const flow=emotionFlowById(kind);if(flow)return emotionMarkup(flow,t);
   switch(kind) {
-    case 'loading': return card('<h3><span data-guide-i18n="내 프로젝트">내 프로젝트</span></h3><div id="loading-indicator" role="status"><div class="spinner"></div><span><span data-guide-i18n="프로젝트 불러오는 중…">프로젝트 불러오는 중…</span></span></div><button id="app-complete"><span data-guide-i18n="불러오기 완료">불러오기 완료</span></button>');
-    case 'upload': return card('<h3><span data-guide-i18n="보고서 업로드">보고서 업로드</span></h3><div id="upload-progress"><span id="progress-label"><span data-guide-i18n="0% · 전송 대기">0% · 전송 대기</span></span><div class="progress-track"><i style="width:0%"></i></div></div><button id="app-progress"><span data-guide-i18n="진행률 +25%">진행률 +25%</span></button>');
+    case 'loading': return card('<h3><span data-guide-i18n="내 프로젝트">내 프로젝트</span></h3><div id="loading-indicator" role="status"><div class="spinner"></div><span><span data-guide-i18n="프로젝트 불러오는 중…">프로젝트 불러오는 중…</span></span></div>');
+    case 'upload': return card('<h3><span data-guide-i18n="보고서 업로드">보고서 업로드</span></h3><div id="upload-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="progress-label"><span id="progress-label"><span data-guide-i18n="0% · 전송 대기">0% · 전송 대기</span></span><div class="progress-track"><i style="width:0%"></i></div></div>');
     case 'success': return card('<h3><span data-guide-i18n="문서 저장">문서 저장</span></h3><p id="save-result"><span data-guide-i18n="수정한 내용이 있습니다.">수정한 내용이 있습니다.</span></p><button id="app-save"><span data-guide-i18n="저장하기">저장하기</span></button>');
-    case 'failure': return card('<h3><span data-guide-i18n="데이터 동기화">데이터 동기화</span></h3><p id="request-result"><span data-guide-i18n="연결이 끊겨 동기화하지 못했습니다.">연결이 끊겨 동기화하지 못했습니다.</span></p><button id="app-retry"><span data-guide-i18n="다시 시도">다시 시도</span></button><button id="app-complete" hidden><span data-guide-i18n="응답 성공">응답 성공</span></button>');
+    case 'failure': return card('<h3><span data-guide-i18n="데이터 동기화">데이터 동기화</span></h3><p id="request-result"><span data-guide-i18n="연결이 끊겨 동기화하지 못했습니다.">연결이 끊겨 동기화하지 못했습니다.</span></p><button id="app-retry"><span data-guide-i18n="다시 시도">다시 시도</span></button>');
     case 'review': return card('<h3><span data-guide-i18n="배포 전 확인 목록">배포 전 확인 목록</span></h3>'+row('review-1','디자인 확인','색상 · 간격 · 글자')+row('review-2','접근성 확인','키보드 · 대비 · 이름')+row('review-3','최종 결과 확인','변경 사항 · 배포')+'<p id="review-result"><span data-guide-i18n="검토 시작">검토 시작</span></p>');
     case 'selection': return card('<h3><span data-guide-i18n="확인할 항목 선택">확인할 항목 선택</span></h3>'+row('selected-1','첫 번째 제안','간단한 시작 화면')+row('selected-2','두 번째 제안','상세한 대시보드')+row('selected-3','세 번째 제안','모바일 우선 레이아웃'));
     case 'paragraph': return card('<h3><span data-guide-i18n="제품 소개 읽기">제품 소개 읽기</span></h3><article class="target-item" id="paragraph-1"><strong><span data-guide-i18n="1. 시작">1. 시작</span></strong><p><span data-guide-i18n="작은 동료가 사용자의 작업을 함께합니다.">작은 동료가 사용자의 작업을 함께합니다.</span></p></article><article class="target-item" id="paragraph-2"><strong><span data-guide-i18n="2. 행동">2. 행동</span></strong><p><span data-guide-i18n="할 일을 선언하면 동작과 시선이 연결됩니다.">할 일을 선언하면 동작과 시선이 연결됩니다.</span></p></article><button id="app-next"><span data-guide-i18n="다음 문단">다음 문단</span></button>');
@@ -85,8 +86,8 @@ function declarationFor(item) {
   if (item.id === 'search') return {type:'idle'};
   return {type: ['loading','upload','input','success'].includes(item.id) ? 'wait':'guide',target:targets[item.id],side:'left',gap:6};
 }
-function eventCode(kind) {
- if(workflowIds.includes(kind))return workflowSource(kind,Object.fromEntries(workflowRows.map(([key])=>[key,t(key)])));
+function eventCode(kind, events = []) {
+ if(workflowIds.includes(kind))return workflowSource(kind,Object.fromEntries(workflowRows.map(([key])=>[key,t(key)])),events);
  const flow=emotionFlowById(kind);if(flow)return emotionCode(flow,undefined,3);
  const celebrate=`bot.behavior = { type:'celebrate', duration:1600 };`;
  const guide=target=>`bot.behavior = { type:'guide', target:${target}, side:'left', gap:6 };`;
@@ -110,7 +111,7 @@ function eventCode(kind) {
 function declare(config) {
  if (!active) return;
  active.declaration = config;
- $('demo-app').dataset.side=config.side??'left';$('demo-app').style.setProperty('--behavior-gap',`${config.gap??6}px`);
+ if('target' in config||config.type==='review'||!active.layout){active.layout={side:config.side??'left',gap:config.gap??6};$('demo-app').dataset.side=active.layout.side;$('demo-app').style.setProperty('--behavior-gap',`${active.layout.gap}px`);}
  renderCurrentCode();
  if (active.ready) { botDeclare(active,config); }
 }
@@ -119,7 +120,7 @@ function botDeclare(entry,config) {
 }
 function stop() {
  if (!active) return;
- active.bot.stopBehavior?.();active.bot.cancelReaction?.(); setText('run-status','중단 · 다시 실행할 수 있습니다');
+ active.stopped=true;active.workflow?.stop();active.bot.stopBehavior?.();active.bot.cancelReaction?.(); setText('run-status','중단 · 다시 실행할 수 있습니다');
 }
 function bindApp(entry,item) {
  const flow=emotionFlowById(item.id);
@@ -138,8 +139,8 @@ function bindApp(entry,item) {
   return;
  }
  if(workflowIds.includes(item.id)){
-  const cleanup=installApplicationWorkflow($('demo-app'),entry.bot,item.id,{declare,translate:t,emotion:value=>{entry.applicationEmotion=value;if(entry.ready)entry.bot.setEmotion(value);},labels:Object.fromEntries(workflowRows.map(([key])=>[key,t(key)])),onEvent:id=>{entry.events.push(id);entry.events=entry.events.slice(-32);localizeGuideBindings();renderCurrentCode();updateContextLinks();}});
-  entry.controller.signal.addEventListener('abort',cleanup,{once:true});return;
+  const cleanup=installApplicationWorkflow($('demo-app'),entry.bot,item.id,{autoStart:false,declare,translate:t,emotion:value=>{entry.applicationEmotion=value;if(entry.ready)entry.bot.setEmotion(value);},labels:Object.fromEntries(workflowRows.map(([key])=>[key,t(key)])),onEvent:id=>{entry.events.push(id);entry.events=entry.events.slice(-32);localizeGuideBindings();renderCurrentCode();updateContextLinks();}});
+  entry.workflow=cleanup;entry.controller.signal.addEventListener('abort',cleanup,{once:true});return;
  }
  const on=(id,fn)=>$(id)?.addEventListener('click',event=>{fn(event);entry.events.push(id);entry.events=entry.events.slice(-32);localizeGuideBindings();updateContextLinks();},{signal:entry.controller.signal});
  const success=()=>declare({type:'celebrate',duration:1600});
@@ -159,7 +160,7 @@ function bindApp(entry,item) {
  on('app-validate',()=>{const valid=$('profile-email').checkValidity()&&!!$('profile-email').value;setText('validation-result',valid?'올바른 이메일입니다.':'이메일 형식으로 수정해 주세요.');valid?success():guide('#email-field');});
  on('next-action',()=>{setText('action-result','프로젝트가 준비되었습니다.');success();});
 }
-async function activate(id) {
+async function activate(id, runRequested = false) {
  disposeStateReference?.(); disposeStateReference=undefined;
  const lesson=lessonById(id);const item=lesson??scenarioById(id);const token=++generation;
  currentId=item.id;const restored=readGuideContext(location.href);const context=restored?.id===item.id?restored:null;
@@ -183,7 +184,7 @@ async function activate(id) {
  if(context?.event>=0&&emotionFlowById(item.id)?.buttons[context.event]){entry.emotionEvent=context.event;const preset=emotionFlowById(item.id).buttons[context.event][1];entry.emotionCustomized=!!context.emotionCustomized;entry.emotionOptions={intensity:context.intensity??0.7,duration:context.duration??1200};entry.emotionAction=context.emotionCustomized?customizeEmotionAction(preset,Number($('guide-emotion-intensity').value),Number($('guide-emotion-duration').value)):preset;}
  if($('profile-name')&&context?.inputValid)$('profile-name').value='Example';
  if($('profile-email')&&context?.emailValid)$('profile-email').value='example@example.com';
- for(const event of context?.events??[])$(event)?.click();
+ for(const event of context?.events??[]){if(entry.workflow)entry.workflow.restore(event);else $(event)?.click();}
  if(context&&('target' in entry.declaration||entry.declaration.type==='review')){entry.declaration.side=context.side??entry.declaration.side;entry.declaration.gap=context.gap??entry.declaration.gap;if(entry.declaration.type==='review')entry.declaration.dwell=context.dwell??entry.declaration.dwell;declare(entry.declaration);}
  renderCurrentCode();restoringContext=false;updateContextLinks();
 
@@ -201,12 +202,13 @@ async function activate(id) {
   $('run-status').textContent=`${t(labels[state.status]??state.status)}${state.itemCount?` · ${state.completedItems}/${state.itemCount}`:''}`;
   if(state.type==='review')document.querySelectorAll('#demo-app .target-item').forEach((el,i)=>el.toggleAttribute('data-active',i===state.itemIndex));
  },{signal:controller.signal});
+ const resume=()=>{entry.stopped=false;entry.started=true;entry.workflow?.stop();if(entry.layout){$('demo-app').dataset.side=entry.layout.side;$('demo-app').style.setProperty('--behavior-gap',`${entry.layout.gap}px`);}if(entry.ready){bot.stopBehavior();botDeclare(entry,entry.declaration);if(entry.applicationEmotion)bot.setEmotion(entry.applicationEmotion);if(emotionFlowById(item.id))runEmotionAction(bot,entry.emotionAction);}entry.workflow?.start();};
+ entry.resume=resume;
  $('demo-app').append(bot);
  try{if(!bot.ready)await ready;if(token!==generation)return;await applyStudioSession(bot,session.scene);if(token!==generation)return;bot.interaction='none';bot.zoom=session.scene.zoom;entry.ready=true;bot.setAttribute('data-configured','');
- const resume=()=>{bot.stopBehavior();botDeclare(entry,entry.declaration);if(entry.applicationEmotion)bot.setEmotion(entry.applicationEmotion);if(emotionFlowById(item.id))runEmotionAction(bot,entry.emotionAction);};
- if(exerciseMode){entry.resume=resume;setText('run-status','준비');}else resume();
+ if(entry.stopped){setText('run-status','중단 · 다시 실행할 수 있습니다');}else if(exerciseMode&&!runRequested&&!entry.started){setText('run-status','준비');}else resume();
  if(context?.scroll&&!exerciseMode)window.scrollTo({top:context.scroll,behavior:'instant'});}
- catch(error){if(token===generation)setText('run-status',error.message);}
+ catch(error){if(token===generation){setText('run-status',error.message);if(!entry.stopped&&(!exerciseMode||runRequested||entry.started))resume();}}
 }
 const levelExplanations = {
   1:'가장 간단한 시작입니다. 무엇을 할지 선언하면 이동, 시선, 표정과 활동을 함께 처리합니다.',
@@ -218,9 +220,10 @@ function renderCurrentCode(){
  if(!active)return;updateContextLinks();
  const flow=emotionFlowById(active.item.id);
  const declaration=flow?emotionCode(flow,active.emotionAction,level===3?1:level):level===4?manualCode():'const bot = document.querySelector("#demo-bot");\n\nbot.behavior = '+JSON.stringify(active.declaration,null,2)+';';
- const events=eventCode(active.item.id);
- const source=level===3?declaration+'\n'+events:declaration;
- $('declaration-code').textContent=scenarioCode(source,applicationMarkup(active.item.id),{scene:session.scene,document,translate:t});
+ const events=eventCode(active.item.id,currentEvents());
+ const source=level===3||(workflowIds.includes(active.item.id)&&level!==4)?declaration+'\n'+events:declaration;
+ const markup=active.item.id==='validation'&&active.declaration.type==='celebrate'?applicationMarkup(active.item.id).replace('value="hello"','value="example@example.com"'):applicationMarkup(active.item.id);
+ $('declaration-code').textContent=scenarioCode(source,markup,{scene:session.scene,layout:level===4&&!flow?{side:'left',gap:6}:active.layout,document,translate:t});
  $('event-code').textContent='';
  document.querySelector('.declaration-panel details').hidden=true;
  document.querySelector('.declaration-panel details').open=level===3;
@@ -254,13 +257,13 @@ await bot.setExpression('both', 'smile', { duration:250 });
 $('run-manual').onclick=async()=>{
  const entry=active;if(!entry?.ready)return;
  const target=document.querySelector(entry.declaration.target??entry.declaration.targets??'#demo-app .app-card');if(!target)return;
- $('demo-app').dataset.side='left';$('demo-app').style.setProperty('--behavior-gap','6px');entry.bot.stopBehavior();entry.bot.trackingMode='off';setText('run-status','직접 조합 실행 중');
+ entry.workflow?.stop();$('demo-app').dataset.side='left';$('demo-app').style.setProperty('--behavior-gap','6px');entry.bot.stopBehavior();entry.bot.trackingMode='off';setText('run-status','직접 조합 실행 중');
  const result=await entry.bot.moveToElement(target,{alignX:'left',alignY:'center',x:-entry.bot.offsetWidth-6,y:0});
  if(active!==entry||!result.finished)return;
  entry.bot.lookAt({space:'view',x:1,y:0});await entry.bot.setExpression('both','smile',{duration:250});
  if(active===entry)setText('run-status','직접 조합 완료');
 };
-$('return-declaration').onclick=()=>{level=1;renderLevel();if(active?.ready)botDeclare(active,active.declaration);};
+$('return-declaration').onclick=()=>{level=1;renderLevel();if(active?.ready)active.resume();};
 function renderLesson(lesson){
  const host=$('lesson-content');host.replaceChildren();
  for(const text of lesson.paragraphs){const p=document.createElement('p');p.dataset.guideI18n=text;p.textContent=t(text);host.append(p);}
@@ -295,12 +298,12 @@ function localizeGuide(){
 }
 subscribeSiteLocale(localizeGuide);localizeGuideBindings();
 
-$('restart-demo').onclick=()=>{if(exerciseMode&&active?.resume){if(level===4&&!emotionFlowById(active.item.id))$('run-manual').click();else active.resume();return;}const context=contextSnapshot();delete context.events;delete context.event;delete context.emotionCustomized;delete context.inputValid;delete context.emailValid;delete context.searchMatches;history.replaceState(history.state,'',guideHref(context,getSiteLocale(),false,sourceContext));activate(active?.item.id??'loading');};$('stop-demo').onclick=stop;
+$('restart-demo').onclick=()=>{if(exerciseMode&&active?.resume&&!active.started&&level!==4){active.resume();return;}if(exerciseMode&&level===4&&active&&!emotionFlowById(active.item.id)){$('run-manual').click();return;}const context=contextSnapshot();delete context.events;delete context.event;delete context.emotionCustomized;delete context.inputValid;delete context.emailValid;delete context.searchMatches;history.replaceState(history.state,'',guideHref(context,getSiteLocale(),exerciseMode,sourceContext));activate(active?.item.id??'loading',true);};$('stop-demo').onclick=stop;
 $('copy-code').onclick=async()=>{try{await navigator.clipboard.writeText($('declaration-code').textContent);setText('copy-status','복사했습니다.');}catch{setText('copy-status','코드를 선택해서 복사해 주세요.');}};
 window.addEventListener('hashchange',()=>{const id=location.hash.slice(1)||'state-emotion';if(currentId!==id)activate(id);});
 window.addEventListener('popstate',()=>activate(location.hash.slice(1)||'state-emotion'));
 window.addEventListener('pageshow',event=>{if(event.persisted)activate(location.hash.slice(1)||'state-emotion');});
-window.addEventListener('pagehide',()=>{disposeStateReference?.();active?.controller.abort();active?.bot.remove();});
+window.addEventListener('pagehide',()=>{disposeStateReference?.();active?.controller.abort();active?.bot.stopBehavior?.();active?.bot.remove();});
 if(!exerciseMode&&sourceContext){const back=document.createElement('a');back.id='guide-source-return';back.textContent=navText().back;back.href=guideHref(sourceContext,getSiteLocale());$('scenario-main').prepend(back);}
 if((location.hash&&!guideIds.includes(location.hash.slice(1)))||(new URL(location.href).searchParams.has('context')&&!incomingContext)){const warning=document.createElement('p');warning.id='invalid-guide-context';warning.setAttribute('role','alert');warning.textContent=navText().invalid;$('scenario-main').prepend(warning);}
 activate(location.hash.slice(1)||'state-emotion');

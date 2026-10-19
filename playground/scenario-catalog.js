@@ -3,12 +3,12 @@ import { emotionScenarioGroup } from './emotion-scenarios.js';
 export const scenarioGroups = [
   { id: 'work', title: '작업 상태', groups: [
     { id: 'waiting', title: '대기와 진행', cases: [
-      { id: 'loading', title: '로딩 인디케이터 주시', sentence: '봇이 로딩 인디케이터를 보면서 기다리고 있다.', kind: 'wait', app: 'loading', hint: '데이터를 불러오는 동안 기다리고, 완료 버튼을 누르면 작업을 마칩니다.' },
-      { id: 'upload', title: '파일 업로드 기다리기', sentence: '봇이 업로드 진행 상황을 보면서 기다리고 있다.', kind: 'wait', app: 'upload', hint: '진행률을 올려 보세요. 실제 파일을 전송하지 않는 업로드 시나리오입니다.' },
+      { id: 'loading', title: '로딩 인디케이터 주시', sentence: '봇이 로딩 인디케이터를 보면서 기다리고 있다.', kind: 'wait', app: 'loading', hint: '로컬 데이터 불러오기를 모의합니다. 실행하면 대기 후 자동으로 완료됩니다.' },
+      { id: 'upload', title: '파일 업로드 기다리기', sentence: '봇이 업로드 진행 상황을 보면서 기다리고 있다.', kind: 'wait', app: 'upload', hint: '실행하면 진행률이 자동으로 증가하고 완료됩니다. 실제 파일은 전송하지 않습니다.' },
     ] },
     { id: 'results', title: '결과 피드백', cases: [
       { id: 'success', title: '저장 완료 축하', sentence: '봇이 저장된 결과를 바라보며 완료를 축하하고 있다.', kind: 'celebrate', app: 'success', hint: '저장을 누르면 결과 카드와 봇이 함께 성공 상태로 바뀝니다.' },
-      { id: 'failure', title: '실패 후 재시도 안내', sentence: '봇이 실패한 작업을 알려주고 재시도를 기다리고 있다.', kind: 'attention', app: 'failure', hint: '실패한 요청을 확인하고 재시도하면 대기 상태로 돌아갑니다.' },
+      { id: 'failure', title: '실패 후 재시도 안내', sentence: '봇이 실패한 작업을 알려주고 재시도를 기다리고 있다.', kind: 'attention', app: 'failure', hint: '재시도를 누르면 연결 대기 후 자동으로 성공합니다. 실제 네트워크 요청은 하지 않습니다.' },
     ] },
   ] },
   { id: 'content', title: '콘텐츠 검토', groups: [

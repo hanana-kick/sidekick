@@ -32,7 +32,7 @@ test('three-level contents provides all 33 guide entries and hash history naviga
 test('loading declaration and app completion execute exactly the displayed semantic command',async t=>{
  const page=await setup(t);assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'wait');
  assert.match(await page.locator('#declaration-code').textContent(),/"target": "#loading-indicator"/);
- await page.locator('#app-complete').click();assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'celebrate');assert.match(await page.locator('#declaration-code').textContent(),/"type": "celebrate"/);
+ await page.waitForFunction(()=>document.querySelector('#loading-indicator').dataset.outcome==='success');assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'celebrate');assert.match(await page.locator('#declaration-code').textContent(),/"type": "celebrate"/);
  await page.locator('#restart-demo').click();await page.waitForSelector('#demo-bot[data-configured]');assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'wait');
  await page.locator('#stop-demo').click();assert.match(await page.locator('#run-status').textContent(),/중단/);
 });
@@ -50,7 +50,7 @@ test('selection, paragraph and onboarding change focus only on application actio
  await choose(page,'onboarding');await page.locator('#app-next').click();assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.target),'#onboard-2');await page.locator('#app-previous').click();assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.target),'#onboard-1');
 });
 test('upload, validation and input expose genuine application outcomes',async t=>{
- const page=await setup(t,undefined,'upload');for(let i=0;i<4;i++)await page.locator('#app-progress').click();assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'celebrate');
+ const page=await setup(t,undefined,'upload');await page.waitForFunction(()=>document.querySelector('#progress-label').dataset.progress==='100');assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'celebrate');
  await choose(page,'validation');await page.locator('#app-validate').click();assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'guide');await page.fill('#profile-email','hello@example.com');await page.locator('#app-validate').click();assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'celebrate');
  await choose(page,'input');await page.locator('#app-confirm').click();assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'wait');await page.fill('#profile-name','테스트');await page.locator('#app-confirm').click();assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'celebrate');
 });
@@ -157,4 +157,31 @@ test('compact mobile emotion examples keep the avatar and last action visible to
   assert.ok(geometry.lastTop>=geometry.fixedBottom&&geometry.lastBottom<=geometry.height,`${route}: last action and avatar must be visible together`);
   if(process.env.SIDEKICK_SCREENSHOTS)await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/compact-320-${route}.png`});
  }
+});
+
+test('automatic workloads complete from Run; Stop, rerun and navigation cancel old work',async t=>{
+ const page=await setup(t, {width:375,height:812}, 'upload');
+ await page.locator('#context-playground-link').click();await page.waitForSelector('#demo-bot[data-configured]');
+ assert.match(page.url(),/api-playground/);
+ await page.waitForTimeout(900);assert.equal(await page.locator('#progress-label').getAttribute('data-progress'),null,'exercise does not start by opening its URL');
+ await page.locator('#restart-demo').click();
+ await page.waitForFunction(()=>Number(document.querySelector('#progress-label').dataset.progress)>0);
+ await page.locator('#stop-demo').click();const paused=await page.locator('#progress-label').getAttribute('data-progress');
+ await page.waitForTimeout(1600);assert.equal(await page.locator('#progress-label').getAttribute('data-progress'),paused);
+ await page.locator('#restart-demo').click();await page.waitForSelector('#demo-bot[data-configured]');
+ await page.waitForFunction(()=>document.querySelector('#progress-label').dataset.progress==='100');
+ assert.match(await page.locator('#progress-label').textContent(),/100%/);
+ assert.equal(await page.locator('#upload-progress').getAttribute('aria-valuenow'),'100');
+ await page.waitForFunction(()=>document.querySelector('#demo-bot').behaviorState.status==='completed');
+ await page.locator('#restart-demo').click();await page.waitForSelector('#demo-bot[data-configured]');
+ await page.waitForFunction(()=>document.querySelector('#progress-label').dataset.progress==='25');
+ await page.goto(`${base}/guide.html#failure`);await page.waitForSelector('#demo-bot[data-configured]');
+ await page.waitForTimeout(1600);assert.equal(await page.locator('#app-retry').isEnabled(),true,'retry remains an explicit user action');
+ await page.locator('#app-retry').click();assert.equal(await page.locator('#request-result').getAttribute('data-outcome'),'pending');
+ await page.waitForFunction(()=>document.querySelector('#request-result').dataset.outcome==='success');
+ await choose(page,'loading');await page.locator('#stop-demo').click();await page.waitForTimeout(2200);
+ assert.notEqual(await page.locator('#loading-indicator').getAttribute('data-outcome'),'success');
+ await page.locator('#restart-demo').click();await page.waitForSelector('#demo-bot[data-configured]');
+ await choose(page,'input');await page.waitForTimeout(2200);
+ assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'wait','old loading completion cannot affect the new scenario');
 });
