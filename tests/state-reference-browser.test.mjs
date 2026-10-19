@@ -141,3 +141,20 @@ test('copied entrance examples replay the exact source declaration and canvas ge
   }
  }finally{await page.close();}
 });
+test('reference workspace aligns headings and preview at desktop and narrow widths', {timeout:120000}, async()=>{
+ const page=await browser.newPage({reducedMotion:'reduce'});
+ try{
+  for(const width of [1280,390,320])for(const locale of ['ko','en','zh-CN','ja']){
+   await page.setViewportSize({width,height:900});
+   await page.goto(`${base}/guide.html?lang=${locale}#state-emotion`);const frame=await frameFor(page);
+   await page.locator('.state-lab').scrollIntoViewIfNeeded();
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+   const boxes=await page.locator('.state-lab-grid').evaluate(grid=>{const bounds=selector=>{const r=grid.querySelector(selector).getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};return{controls:bounds('.state-lab-control-panel>h3'),preview:bounds('.state-lab-preview>h3'),frame:bounds('iframe')};});
+   if(width===1280)assert.ok(Math.abs(boxes.controls.y-boxes.preview.y)<2,'column headings share a baseline');
+   else assert.ok(boxes.preview.y<boxes.controls.y,'preview precedes controls on mobile');
+   const center=await frame.locator('#reference-bot').evaluate(bot=>{const b=bot.getBoundingClientRect();return Math.abs(b.x+b.width/2-innerWidth/2);});assert.ok(center<2,`preview bot centered: ${width}/${locale}`);
+   assert.equal(await page.locator('.state-lab-preview [data-state-source]').count(),1,'source belongs to the preview');
+   if(process.env.SIDEKICK_SCREENSHOTS&&locale==='ko'){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.locator('.state-lab').evaluate(el=>window.scrollTo(0,scrollY+el.getBoundingClientRect().top-100));await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/state-alignment-${width}.png`});}
+  }
+ }finally{await page.close();}
+});

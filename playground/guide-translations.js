@@ -1,7 +1,9 @@
+import { workflowRows } from './application-workflows.js';
 import { stateTranslationRows } from './guide-state-lessons.js';
 // Stable source keys followed by explicit technical-documentation copy: ko, en, zh-CN, ja.
 // Keys are not display text. Keeping them stable preserves controls and executable examples.
 const rows = [
+...workflowRows.map(([ko,...others])=>[ko,ko,...others]),
 ...stateTranslationRows,
 ["setExpression()과 setEyeWeights()는 지정한 눈의 감정 표현을 대체하고 다른 눈과 몸의 감정 동작은 유지합니다. 새 setEmotion() 또는 reactTo() 호출은 양쪽 눈을 다시 제어합니다.","setExpression()과 setEyeWeights()는 지정한 눈의 감정 표현을 대체하고 다른 눈과 몸의 감정 동작은 유지합니다. 새 setEmotion() 또는 reactTo() 호출은 양쪽 눈을 다시 제어합니다.","setExpression() and setEyeWeights() replace emotion for the specified eyes while preserving the other eye and emotional body motion. A new setEmotion() or reactTo() call controls both eyes again.","setExpression() 和 setEyeWeights() 会替换指定眼睛的情绪表情，同时保留另一只眼睛与身体的情绪动作。再次调用 setEmotion() 或 reactTo() 会重新控制双眼。","setExpression() と setEyeWeights() は指定した目の感情表現を置き換え、もう一方の目と体の感情動作を維持します。新たな setEmotion() または reactTo() の呼び出しで両目を再び制御します。"],
 ["생각하기로 전환","생각하기로 전환","Switch to thinking","切换为思考","考える動作に切り替える"],

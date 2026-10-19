@@ -30,7 +30,7 @@ export function mountStateReference(host,id,{session}){
  bindText(make('h2'),'title');bindText(make('p'),'intro');
  const toolbar=make('div','state-lab-tools');const reset=bindText(make('button','',toolbar),'reset');reset.type='button';
  const rerun=bindText(make('button','',toolbar),'run');rerun.type='button';
- const grid=make('div','state-lab-grid');const controls=make('div','state-lab-controls',grid);controls.setAttribute('aria-label',copy('controls'));
+ const grid=make('div','state-lab-grid');const controlPanel=make('div','state-lab-control-panel',grid);bindText(make('h3','',controlPanel),'controls');const controls=make('div','state-lab-controls',controlPanel);controls.setAttribute('aria-label',copy('controls'));
  const preview=make('div','state-lab-preview',grid);bindText(make('h3','',preview),'preview');
  const frame=make('iframe','',preview);frame.title=copy('preview');frame.src='./state-preview.html';frame.setAttribute('sandbox','allow-scripts allow-same-origin');
  bindText(make('p','',preview),'scope');const status=make('p','state-lab-status',preview);status.setAttribute('role','status');status.textContent=copy('waiting');
@@ -40,8 +40,8 @@ export function mountStateReference(host,id,{session}){
  const tableWrap=make('div','state-table-wrap',details);tableWrap.tabIndex=0;const table=make('table','state-reference',tableWrap);bindText(make('caption','',table),'controls');const head=table.createTHead().insertRow();
  for(const key of ['parameter','type','initial','effect'])bindText(make('th','',head),key).scope='col';
  const body=table.createTBody();
- const sourceHeading=bindText(make('h3'),'source');const tools=make('div','state-lab-tools');const copyButton=bindText(make('button','',tools),'copy');copyButton.type='button';const tryLink=bindText(make('a','state-try',tools),'try');tryLink.dataset.stateTry='';const copyStatus=make('span','',tools);copyStatus.setAttribute('role','status');
- bindText(make('p'),'sourceNote');const source=make('pre','state-lab-source');source.tabIndex=0;source.dataset.stateSource='';
+ const sourcePanel=make('details','state-lab-source-panel',preview);sourcePanel.open=(window.matchMedia?.('(min-width: 1051px)').matches ?? true);const sourceHeading=bindText(make('summary','',sourcePanel),'source');const tools=make('div','state-lab-tools',sourcePanel);const copyButton=bindText(make('button','',tools),'copy');copyButton.type='button';const tryLink=bindText(make('a','state-try',tools),'try');tryLink.dataset.stateTry='';const copyStatus=make('span','',tools);copyStatus.setAttribute('role','status');
+ bindText(make('p','',sourcePanel),'sourceNote');const source=make('pre','state-lab-source',sourcePanel);source.tabIndex=0;source.dataset.stateSource='';
  bindText(make('h3'),'readOnly');bindText(make('p'),'readOnlyNote');make('p','state-lab-readonly').textContent=READ_ONLY_STATE.join(' · ');
  const names=[];
  function fieldType(item){return item.values?.join(' | ')??(item.kind==='number'?`number · ${item.min}…${item.max} ${item.unit}`:item.kind==='json'?`JSON${item.nullable?' | null':''}`:item.kind);}

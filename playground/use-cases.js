@@ -1,3 +1,4 @@
+import { workflowIds, workflowRows, installApplicationWorkflow, workflowSource } from './application-workflows.js';
 import { getFramework, subscribeFramework, frameworkHref } from './site-framework.js';
 import { scenarioCode, lessonCode } from './guide-framework-code.js';
 import { mountStateReference } from './state-reference.js';
@@ -85,6 +86,7 @@ function declarationFor(item) {
   return {type: ['loading','upload','input','success'].includes(item.id) ? 'wait':'guide',target:targets[item.id],side:'left',gap:6};
 }
 function eventCode(kind) {
+ if(workflowIds.includes(kind))return workflowSource(kind,Object.fromEntries(workflowRows.map(([key])=>[key,t(key)])));
  const flow=emotionFlowById(kind);if(flow)return emotionCode(flow,undefined,3);
  const celebrate=`bot.behavior = { type:'celebrate', duration:1600 };`;
  const guide=target=>`bot.behavior = { type:'guide', target:${target}, side:'left', gap:6 };`;
@@ -134,6 +136,10 @@ function bindApp(entry,item) {
    try{Promise.resolve(runEmotionAction(entry.bot,action)).catch(error=>{if(active===entry)$('run-status').textContent=error.message;});}catch(error){$('run-status').textContent=error.message;}
   },{signal:entry.controller.signal});
   return;
+ }
+ if(workflowIds.includes(item.id)){
+  const cleanup=installApplicationWorkflow($('demo-app'),entry.bot,item.id,{declare,emotion:value=>{entry.applicationEmotion=value;if(entry.ready)entry.bot.setEmotion(value);},labels:Object.fromEntries(workflowRows.map(([key])=>[key,t(key)])),onEvent:id=>{entry.events.push(id);entry.events=entry.events.slice(-32);localizeGuideBindings();renderCurrentCode();updateContextLinks();}});
+  entry.controller.signal.addEventListener('abort',cleanup,{once:true});return;
  }
  const on=(id,fn)=>$(id)?.addEventListener('click',event=>{fn(event);entry.events.push(id);entry.events=entry.events.slice(-32);localizeGuideBindings();updateContextLinks();},{signal:entry.controller.signal});
  const success=()=>declare({type:'celebrate',duration:1600});
@@ -197,7 +203,7 @@ async function activate(id) {
  },{signal:controller.signal});
  $('demo-app').append(bot);
  try{if(!bot.ready)await ready;if(token!==generation)return;await applyStudioSession(bot,session.scene);if(token!==generation)return;bot.interaction='none';bot.zoom=session.scene.zoom;entry.ready=true;bot.setAttribute('data-configured','');
- const resume=()=>{bot.stopBehavior();botDeclare(entry,entry.declaration);if(emotionFlowById(item.id))runEmotionAction(bot,entry.emotionAction);};
+ const resume=()=>{bot.stopBehavior();botDeclare(entry,entry.declaration);if(entry.applicationEmotion)bot.setEmotion(entry.applicationEmotion);if(emotionFlowById(item.id))runEmotionAction(bot,entry.emotionAction);};
  if(exerciseMode){entry.resume=resume;setText('run-status','준비');}else resume();
  if(context?.scroll&&!exerciseMode)window.scrollTo({top:context.scroll,behavior:'instant'});}
  catch(error){if(token===generation)setText('run-status',error.message);}
@@ -283,6 +289,7 @@ function localizeGuide(){
  const item=lessonById(location.hash.slice(1))??active?.item??lessonById('state-emotion');
  if(item)$('breadcrumb').textContent=(lessonById(item.id)?[item.major,item.middle,item.title]:['사용 예시',item.major,item.title]).map(t).join(' / ');
  localizeGuideBindings();
+ for(const el of document.querySelectorAll('[data-workflow-message]'))el.textContent=t(el.dataset.workflowMessage);
  const progress=$('progress-label')?.dataset.progress;if(progress!==undefined)$('progress-label').textContent=progress+'% · '+t(Number(progress)===100?'업로드 완료':'전송 중');
  if(active){renderLevel();const state=active.bot.behaviorState;if(state&&!$('run-status').dataset.guideI18n)$('run-status').textContent=t(labels[state.status]??state.status)+(state.itemCount?' · '+state.completedItems+'/'+state.itemCount:'');}
 }

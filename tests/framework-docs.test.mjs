@@ -1,3 +1,4 @@
+import {workflowIds,workflowRows,workflowSource} from '../playground/application-workflows.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
@@ -12,7 +13,7 @@ const source=readFileSync(new URL('../playground/use-cases.js',import.meta.url),
 const extract=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end));
 const getMarkup=new Function('emotionFlowById','emotionMarkup','t', `const card=content=>'<div class="app-card">'+content+'</div>'; const row=(id,title,description='')=>'<button id="'+id+'" class="target-item">'+title+description+'</button>';${extract('function applicationMarkup(', 'function declarationFor(')};return applicationMarkup;`)(emotionFlowById,emotionMarkup,key=>key);
 const getDeclaration=new Function('emotionFlowById',extract('function declarationFor(', 'function eventCode(')+';return declarationFor;')(emotionFlowById);
-const getEvents=new Function('emotionFlowById','emotionCode',extract('function eventCode(', 'function declare(')+';return eventCode;')(emotionFlowById,emotionCode);
+const getEvents=new Function('emotionFlowById','emotionCode','workflowIds','workflowRows','workflowSource','t',extract('function eventCode(', 'function declare(')+';return eventCode;')(emotionFlowById,emotionCode,workflowIds,workflowRows,workflowSource,key=>key);
 const dom=new JSDOM('<!doctype html>');globalThis.document=dom.window.document;
 test('framework validation and links preserve route, locale, bounded context and hash',()=>{
  assert.equal(framework.normalizeFramework('React'),null);assert.equal(framework.getFramework(),'element');

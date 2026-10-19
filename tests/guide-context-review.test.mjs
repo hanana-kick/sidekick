@@ -1,3 +1,4 @@
+import * as workflows from '../playground/application-workflows.js';
 import * as framework from '../playground/site-framework.js';
 import * as frameworkCode from '../playground/guide-framework-code.js';
 import test from 'node:test';
@@ -36,7 +37,7 @@ async function mount(context, { exercise = false, source = null, hash } = {}) {
   w.IntersectionObserver=class { observe() {} disconnect() {} };
   w.ResizeObserver = class { observe() {} };
   w.scrollTo = () => {};
-  Object.assign(w, stateSchema, {stateCopy,stateLessons}, navigation, emotions, catalog, lessons, framework, frameworkCode, {
+  Object.assign(w, workflows, stateSchema, {stateCopy,stateLessons}, navigation, emotions, catalog, lessons, framework, frameworkCode, {
     guideTranslations,
     getSiteLocale: () => 'en', subscribeSiteLocale: () => () => {},
     loadStudioSession: () => ({ scene: createScene(), message: 'mock' }),
