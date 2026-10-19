@@ -11,7 +11,7 @@ const messages = {
 "emotionName":["감정","Emotion","情绪","感情"],
 "emotionIntensity":["감정 강도 · 0–1","Intensity · 0–1","强度 · 0–1","強さ · 0–1"],
 "emotionDuration":["반응 유지 시간 · ms","Reaction hold · ms","反应保持时间 · 毫秒","反応の維持時間 · ms"],
-"emotionHelp":["감정은 이동과 행동을 중단하지 않습니다. 일시적인 반응 후 기존 감정으로 돌아옵니다. neutral로 감정 효과를 해제합니다.","Emotion does not interrupt movement or behavior. Temporary reactions return to the baseline emotion. Neutral clears the emotional overlay.","情绪不会中断移动或行为。临时反应结束后恢复原有情绪。neutral 清除情绪叠加效果。","感情は移動や行動を中断しません。一時的な反応の後は元の感情に戻ります。neutral で感情の効果を消します。"],
+"emotionHelp":["감정은 이동과 행동을 중단하지 않습니다. 눈을 직접 지정하면 해당 눈만 제어하며 반응 완료·취소 후에도 유지됩니다. 새 setEmotion() 또는 reactTo() 호출은 양쪽 눈을 다시 제어합니다. neutral은 감정 효과를 해제합니다.","Emotion does not interrupt movement or behavior. Direct eye commands control the affected eyes and persist after reaction completion or cancellation. A new setEmotion() or reactTo() call controls both eyes again. Neutral releases the emotional overlay.","情绪不会中断移动或行为。直接指定眼睛仅控制对应眼睛，反应完成或取消后仍然保持。再次调用 setEmotion() 或 reactTo() 会重新控制双眼。neutral 解除情绪叠加层。","感情は移動や行動を中断しません。目の直接指定は対象の目を制御し、反応の完了・取消後も維持されます。新たな setEmotion() または reactTo() の呼び出しで両目を再び制御します。neutral は感情の重ね合わせを解除します。"],
 "emotion.neutral":["기본","Neutral","中性","ニュートラル"],
 "emotion.happy":["기쁨","Happy","开心","うれしい"],
 "emotion.sad":["슬픔","Sad","悲伤","悲しい"],

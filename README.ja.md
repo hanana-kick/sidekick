@@ -102,7 +102,9 @@ bot.setEmotion('neutral');
 
 `emotion`/`emotionIntensity` プロパティは継続設定を返します。`emotionState` は一時反応を含む `{ emotion, intensity, baseline: { emotion, intensity }, reacting }` です。`sidekick-emotion-change` はこの状態を通知します。`sidekick-reaction-end` と Promise は `{ finished, emotion, reason }` を返し、`reason` は `completed`、`replaced`、`cancelled`、`disconnected` のいずれかです。完了は保持時間の終了であり、復帰遷移の視覚的な完了ではありません。
 
-感情は保存済みデザイン、アクティビティ、視線、体の方向を書き換えたり復元したりしません。手動変更は重ね合わせの下に保たれます。感情は目の混合で優先され、自動まばたきは維持されます。対象を見る動作は感情の補助的な視線より優先されます。手動の目の表情をそのまま表示するには `setEmotion('neutral')` を使用します。画面外では描画を休止しますが、反応の保持時間は実時間で進みます。再接続しても終了した反応を再生しません。
+感情は保存済みデザイン、アクティビティ、視線、体の方向を書き換えたり復元したりしません。明示的な `setExpression()`、`setEyeWeights()`、`motion.to({ eyes: … })`、`updateDesign()` またはデザインの置き換えによる目の変更、および HTML/React の目の制御は、対象の目の表示制御を引き継ぎます。左目だけを変更すると、右目の感情表現と体の感情動作は維持されます。これらの目の指定は感情が有効な間も表示されるため、先に感情を解除する必要はありません。
+
+新たに明示的に `setEmotion()` または `reactTo()` を呼び出すと、同じ感情を再指定した場合も、両目の制御を感情に戻します。反応の完了や `cancelReaction()` は継続感情に戻しますが、反応開始後に手動変更した目の制御を取り戻しません。`setEmotion('neutral')` は感情の重ね合わせを解除します。自動まばたきと従来の共有 `eyes.openness` 制限は独立して適用され、開く指定の目も閉じることがあります。対象を見る動作は感情の補助的な視線より優先されます。画面外では描画を休止しますが、反応の保持時間は実時間で進みます。再接続しても終了した反応を再生しません。
 
 | HTML / API | React | 説明 |
 | --- | --- | --- |

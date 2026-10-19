@@ -1,6 +1,7 @@
 // Stable source keys followed by explicit technical-documentation copy: ko, en, zh-CN, ja.
 // Keys are not display text. Keeping them stable preserves controls and executable examples.
 const rows = [
+["setExpression()과 setEyeWeights()는 지정한 눈의 감정 표현을 대체하고 다른 눈과 몸의 감정 동작은 유지합니다. 새 setEmotion() 또는 reactTo() 호출은 양쪽 눈을 다시 제어합니다.","setExpression()과 setEyeWeights()는 지정한 눈의 감정 표현을 대체하고 다른 눈과 몸의 감정 동작은 유지합니다. 새 setEmotion() 또는 reactTo() 호출은 양쪽 눈을 다시 제어합니다.","setExpression() and setEyeWeights() replace emotion for the specified eyes while preserving the other eye and emotional body motion. A new setEmotion() or reactTo() call controls both eyes again.","setExpression() 和 setEyeWeights() 会替换指定眼睛的情绪表情，同时保留另一只眼睛与身体的情绪动作。再次调用 setEmotion() 或 reactTo() 会重新控制双眼。","setExpression() と setEyeWeights() は指定した目の感情表現を置き換え、もう一方の目と体の感情動作を維持します。新たな setEmotion() または reactTo() の呼び出しで両目を再び制御します。"],
 ["생각하기로 전환","생각하기로 전환","Switch to thinking","切换为思考","考える動作に切り替える"],
 ["말하기로 전환","말하기로 전환","Switch to speaking","切换为说话","話す動作に切り替える"],
 ["감정과 앱 흐름","감정과 앱 흐름","Emotion and app flows","情绪与应用流程","感情とアプリの流れ"],
@@ -23,7 +24,7 @@ const rows = [
 ["버튼을 빠르게 번갈아 누르세요. 이전 반응의 복귀가 최신 감정을 덮지 않아야 합니다.","전환 중 다른 반응을 실행하면 새 반응이 우선합니다. 이전 반응의 복귀 처리는 최신 감정을 덮어쓰지 않습니다.","A new reaction takes priority during a transition. Restoration of an earlier reaction does not overwrite the latest emotion.","切换过程中执行新反应时，新反应优先。旧反应的恢复操作不会覆盖最新情绪。","切り替え中は新しい反応を優先します。以前の反応の復帰処理は最新の感情を上書きしません。"],
 ["이동·감정·양쪽 눈 조합","이동·감정·양쪽 눈 조합","Compose movement, emotion and each eye","组合移动、情绪与双眼","移動・感情・左右の目を組み合わせる"],
 ["움직이는 동안 감정과 각 눈의 표정을 함께 바꿉니다.","움직이는 동안 감정과 각 눈의 표정을 함께 바꿉니다.","Change emotion and individual eye expressions while moving.","移动时同时改变情绪和每只眼睛的表情。","移動しながら感情と左右それぞれの目の表情を変えます。"],
-["이동은 감정과 독립적입니다. 감정을 초기화하면 직접 지정한 눈 표정을 확인할 수 있습니다.","이동은 감정과 독립적입니다. 감정을 초기화하면 직접 지정한 눈 표정을 확인할 수 있습니다.","Movement is independent of emotion. Clear emotion to see the eye expressions you set directly.","移动独立于情绪。清除情绪后可查看直接设置的眼部表情。","移動は感情と独立しています。感情をリセットすると直接指定した目の表情を確認できます。"],
+["눈을 직접 지정하면 해당 눈의 감정 표현만 대체합니다. 반응 완료·취소 후에도 수동 눈 제어가 유지되며, 새 setEmotion() 또는 reactTo() 호출은 양쪽 눈을 다시 제어합니다.","눈을 직접 지정하면 해당 눈의 감정 표현만 대체합니다. 반응 완료·취소 후에도 수동 눈 제어가 유지되며, 새 setEmotion() 또는 reactTo() 호출은 양쪽 눈을 다시 제어합니다.","Direct eye commands replace emotion only for the affected eyes. Manual eye control persists after reaction completion or cancellation; a new setEmotion() or reactTo() call controls both eyes again.","直接指定眼睛仅替换对应眼睛的情绪表情。反应完成或取消后仍保留手动控制；再次调用 setEmotion() 或 reactTo() 会重新控制双眼。","目の直接指定は対象の目の感情表現だけを置き換えます。反応の完了・取消後も手動制御を維持し、新たな setEmotion() または reactTo() の呼び出しで両目を再び制御します。"],
 ["요청 시작","요청 시작","Start request","开始请求","リクエスト開始"],
 ["요청 실패","요청 실패","Fail request","请求失败","リクエスト失敗"],
 ["재시도","재시도","Retry","重试","再試行"],

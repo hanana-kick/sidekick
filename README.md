@@ -102,7 +102,9 @@ bot.setEmotion('neutral');
 
 `emotion`/`emotionIntensity` 프로퍼티는 지속 설정을 반환하고 `emotionState`는 `{ emotion, intensity, baseline: { emotion, intensity }, reacting }` 형태로 현재 반응까지 포함합니다. `sidekick-emotion-change`는 이 상태를 전달합니다. `sidekick-reaction-end`와 Promise 결과는 `{ finished, emotion, reason }`; `reason`은 `completed`, `replaced`, `cancelled`, `disconnected`입니다. 종료는 유지 시간 종료를 의미하며 복귀 화면이 완전히 정착했다는 뜻은 아닙니다.
 
-감정은 저장된 디자인, 활동, 시선, 몸 방향을 덮어쓰거나 복원하지 않습니다. 그동안의 수동 변경은 감정 아래에서 그대로 유지됩니다. 감정이 활성화되면 눈 표현에 우선 혼합되고 자동 깜빡임은 유지됩니다. 대상을 보는 행동은 감정의 보조 시선보다 우선합니다. 수동 눈 표현을 그대로 표시하려면 `setEmotion('neutral')`을 사용하세요. 화면 밖에서는 렌더링이 쉬며 일시 반응의 유지 시간은 실제 시간대로 흐릅니다. 다시 연결해도 끝난 반응을 재생하지 않습니다.
+감정은 저장된 디자인, 활동, 시선, 몸 방향을 덮어쓰거나 복원하지 않습니다. 명시적인 `setExpression()`, `setEyeWeights()`, `motion.to({ eyes: … })`, `updateDesign()` 또는 디자인 교체를 통한 눈 변경, HTML/React 눈 제어는 지정한 눈의 표시 제어권을 가져옵니다. 왼쪽 눈만 변경하면 오른쪽 눈의 감정 표현과 몸의 감정 동작은 유지됩니다. 감정이 활성화된 상태에서도 이 눈 명령이 표시되므로 먼저 감정을 해제할 필요가 없습니다.
+
+새로 명시적으로 호출한 `setEmotion()` 또는 `reactTo()`는 같은 감정을 다시 지정해도 양쪽 눈의 제어권을 감정으로 돌려줍니다. 반응 완료나 `cancelReaction()`은 지속 감정으로 돌아가지만, 반응 시작 이후 수동으로 변경한 눈의 제어권을 다시 가져오지 않습니다. `setEmotion('neutral')`은 감정 효과를 해제합니다. 자동 깜빡임과 기존 공유 `eyes.openness` 제한은 독립적으로 유지되며, 열린 눈도 닫을 수 있습니다. 대상을 보는 행동은 감정의 보조 시선보다 우선합니다. 화면 밖에서는 렌더링이 쉬며 일시 반응의 유지 시간은 실제 시간대로 흐릅니다. 다시 연결해도 끝난 반응을 재생하지 않습니다.
 
 | HTML / API | React | 설명 |
 | --- | --- | --- |

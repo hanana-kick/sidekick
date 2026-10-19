@@ -102,7 +102,9 @@ bot.setEmotion('neutral');
 
 `emotion`/`emotionIntensity` 属性返回持续设置。`emotionState` 包含当前临时反应：`{ emotion, intensity, baseline: { emotion, intensity }, reacting }`。`sidekick-emotion-change` 传递该状态。`sidekick-reaction-end` 和 Promise 返回 `{ finished, emotion, reason }`，其中 `reason` 为 `completed`、`replaced`、`cancelled` 或 `disconnected`。完成表示保持时间结束，而不是返回过渡已完全稳定。
 
-情绪不会改写或恢复保存的设计、活动、视线或身体方向。手动更改仍保留在叠加层下。情绪对眼睛具有优先混合权，自动眨眼仍有效。面向目标的行为优先于情绪的辅助视线。要原样显示手动眼睛表情，请调用 `setEmotion('neutral')`。离屏时渲染休眠，临时反应的保持时间仍按实际时间计算。重新连接不会重播已结束的反应。
+情绪不会改写或恢复保存的设计、活动、视线或身体方向。显式调用 `setExpression()`、`setEyeWeights()`、`motion.to({ eyes: … })`，通过 `updateDesign()` 或替换设计修改眼睛，以及使用 HTML/React 眼睛控件，都会接管对应眼睛的显示控制。仅修改左眼时，右眼的情绪表情和身体的情绪动作保持不变。这些眼睛指令在情绪激活时也会显示，无需先清除情绪。
+
+再次显式调用 `setEmotion()` 或 `reactTo()` 会将双眼的控制权交回情绪，即使指定的是同一种情绪。反应完成或 `cancelReaction()` 会恢复持续情绪，但不会重新接管反应开始后手动修改的眼睛。`setEmotion('neutral')` 会解除情绪叠加层。自动眨眼和旧版共享 `eyes.openness` 限制仍独立生效，可以关闭原本睁开的眼睛。面向目标的行为优先于情绪的辅助视线。离屏时渲染休眠，临时反应的保持时间仍按实际时间计算。重新连接不会重播已结束的反应。
 
 | HTML / API | React | 说明 |
 | --- | --- | --- |
