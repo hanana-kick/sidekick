@@ -6,10 +6,12 @@ export function mountSiteHeader(host, activePage, base = './') {
   brand.className = 'brand'; brand.href = base;
 
   const avatar = doc.createElement('sidekick-avatar');
+  // Preserve the original logo's screen scale under body-referenced framing:
+  // 2 × (2.568286993103977 / 3.9982869931039766). User avatars keep their zoom.
   for (const [name, value] of Object.entries({
     class: 'brand-avatar', shape: 'ghostish', 'body-color': '#FFCC37',
     'head-accessory': 'beret', 'eyes-accessory': 'glasses', 'neck-accessory': 'bowTie',
-    expression: 'smile', 'zoom': '2', paused: '', interaction: 'none', 'tracking-mode': 'off',
+    expression: 'smile', 'zoom': '1.2846936688304844', paused: '', interaction: 'none', 'tracking-mode': 'off',
     'aria-hidden': 'true', tabindex: '-1',
   })) avatar.setAttribute(name, value);
   // Keep renderer failure text from overflowing the compact logo slot.

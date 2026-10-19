@@ -49,10 +49,6 @@ export declare class AvatarRenderer {
     private drawCount;
     private blinkGate;
     private equipment;
-    private framingActive;
-    private framingTarget;
-    private framingKey;
-    private frameSpan;
     private displayAspect?;
     private inputSignature;
     private resolvedInput?;

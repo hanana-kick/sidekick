@@ -432,3 +432,37 @@ test('worker WebGL performs zero RAF/draw/upload work fully outside and resumes 
   assert.equal(await page.locator('#avatar').evaluate(avatar => avatar.diagnostics.running), false, 'Visibility return must not clear explicit pause');
   t.diagnostic(JSON.stringify({ initial, active, outside, resumed, paused, methodology: 'Actual dedicated-worker RAF and WebGL2 calls; polling evaluations are test instrumentation, not renderer scheduling.' }));
 });
+
+for (const fallback of [false, true]) test(`equipment preserves rendered body size and surface dimensions (${fallback ? 'main' : 'worker'})`, async t => {
+  const page = await pageFor(t, { failWorker: fallback ? 'constructor' : '' });
+  const result = await page.evaluate(async () => {
+    const { MATERIAL_SHAPE_NAMES, createDesign, createAccessory } = await import('/src/core/design.js');
+    const bot = document.getElementById('avatar'); bot.paused = true;
+    const measure = async () => {
+      const { width, height, pixels } = await bot.capturePixelsAsync();
+      let minX = width, minY = height, maxX = -1, maxY = -1;
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        // The default #FFCC37 body; black glasses and eyes are excluded.
+        if (pixels[i + 3] > 240 && pixels[i] > 180 && pixels[i + 1] > 120 && pixels[i + 2] < 100) {
+          minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+        }
+      }
+      return { width, height, bounds: [minX, minY, maxX, maxY] };
+    };
+    const cases = [];
+    for (const shape of MATERIAL_SHAPE_NAMES) {
+      bot.design = createDesign({ body: { shape }, accessories: [] }); const bare = await measure();
+      bot.design = createDesign({ body: { shape }, accessories: [createAccessory('glasses')] }); const glasses = await measure();
+      bot.design = createDesign({ body: { shape }, accessories: [] }); const removed = await measure();
+      cases.push({ shape, bare, glasses, removed });
+    }
+    return { backend: bot.diagnostics.backend, cases };
+  });
+  assert.equal(result.backend, fallback ? 'main' : 'worker');
+  for (const { shape, bare, glasses, removed } of result.cases) {
+    assert.ok(bare.bounds[2] > bare.bounds[0], `${shape} body is visible`);
+    assert.deepEqual(glasses, bare, `${shape}: glasses must not resize body or canvas`);
+    assert.deepEqual(removed, bare, `${shape}: removal must restore identical bounds`);
+  }
+});

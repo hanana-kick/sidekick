@@ -103,3 +103,47 @@ test('centered zoom changes only projection, preserves aspect and never uploads 
     renderer.dispose();
   }
 });
+
+test('equipment never changes the body projection, including fades and interrupted swaps', () => {
+  for (const shape of MATERIAL_SHAPE_NAMES) {
+    const fixture = countingCanvas(), renderer = new AvatarRenderer(fixture.canvas);
+    let projection, bodyModel, first;
+    fixture.gl.uniformMatrix4fv = (location, _, matrix) => {
+      if (location.name === 'projection') { projection = [...matrix]; first = true; }
+      if (location.name === 'model' && first) { bodyModel = [...matrix]; first = false; }
+    };
+    const frame = { ...state(shape), reduced: false, bodyOrientation: { yaw: 43, pitch: -28, roll: 12 }, delta: 1 / 60 };
+    renderer.resize(600, 400, 2);
+    renderer.render(createDesign({ body: { shape } }), frame);
+    const expectedProjection = projection, expectedBody = bodyModel;
+    // Complete and interrupted transitions, including removal to the bare body.
+    for (const preset of ['glasses', 'beret', 'crown', 'sunglasses', 'halo', undefined]) {
+      const design = createDesign({ body: { shape }, accessories: preset ? [createAccessory(preset)] : [] });
+      for (let i = 0; i < 24; i++) {
+        renderer.render(design, frame);
+        assert.deepEqual(projection, expectedProjection, `${shape}/${preset}/frame${i}`);
+        assert.deepEqual(bodyModel, expectedBody, `${shape}/${preset}/body${i}`);
+      }
+      // Start a removal but interrupt it before it completes.
+      renderer.render(createDesign({ body: { shape } }), frame);
+      assert.deepEqual(projection, expectedProjection);
+    }
+    renderer.dispose();
+  }
+});
+
+test('fresh equipped renderers and all aspect/DPR/zoom combinations use the bare-body scale', () => {
+  for (const [width, height, dpr, zoom] of [[512,512,1,1], [900,300,2,1.3], [300,900,3,.8], [4096,512,2,2]]) {
+    let expected;
+    for (const preset of [undefined, 'glasses', 'beret', 'crown', 'halo', 'scarf']) {
+      const fixture = countingCanvas(), renderer = new AvatarRenderer(fixture.canvas);
+      let projection;
+      fixture.gl.uniformMatrix4fv = (location, _, matrix) => { if (location.name === 'projection') projection = [...matrix]; };
+      renderer.resize(width,height,dpr);
+      renderer.render(createDesign({ body: { shape: 'ghostish' }, accessories: preset ? [createAccessory(preset)] : [] }), {...state('ghostish'), zoom});
+      expected ??= projection;
+      assert.deepEqual(projection, expected, `${preset}/${width}x${height}@${dpr}/zoom${zoom}`);
+      renderer.dispose();
+    }
+  }
+});
