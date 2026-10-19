@@ -125,6 +125,7 @@ export class AvatarRenderer {
     bodyContour;
     bodyDeformation = '';
     lag = new Map();
+    accessoryPose = new Map();
     disposed = false;
     drawCount = 0;
     blinkGate = new EyeBlinkGate();
@@ -356,6 +357,12 @@ export class AvatarRenderer {
         this.draw(body, bodyRoot, design.body.color);
         gl.uniform1i(this.uniforms.eyesOn, 0);
         const localDraw = (mesh, parent, color, position, size, rotation = [0, 0, 0]) => this.draw(mesh, multiply(parent, transform(position, rotation, size)), color);
+        const poseKey = (a) => `${a.slot}:${a.id}:${a.preset}`;
+        const authoredEquipment = new Set(design.accessories.map(poseKey));
+        const visibleEquipment = new Set(equipment.filter(a => a.opacity > 0).map(a => poseKey(a.accessory)));
+        for (const key of this.accessoryPose.keys())
+            if (!visibleEquipment.has(key))
+                this.accessoryPose.delete(key);
         const activeIds = new Set(equipment.map(({ accessory }) => accessory.id));
         for (const id of this.lag.keys())
             if (!activeIds.has(id))
@@ -381,7 +388,13 @@ export class AvatarRenderer {
             const oldLag = this.lag.get(accessory.id) ?? [roll, 0];
             const lag = state.reduced ? [roll, 0] : spring(oldLag[0], oldLag[1], roll, state.delta, 11);
             this.lag.set(accessory.id, lag);
-            const extra = pose.accessories[accessory.id] ?? [0, 0, 0];
+            const key = poseKey(accessory);
+            // The authored timeline drops removed tracks immediately. Preserve only
+            // the outgoing mesh's last displayed offset while it remains visible.
+            const extra = authoredEquipment.has(key)
+                ? pose.accessories[accessory.id] ?? [0, 0, 0]
+                : this.accessoryPose.get(key) ?? [0, 0, 0];
+            this.accessoryPose.set(key, [...extra]);
             const rotation = accessory.rotation.map((v, i) => v + extra[i]);
             if (accessory.anchor.region === 'crown') {
                 if (accessory.preset !== 'beret')
@@ -507,5 +520,6 @@ export class AvatarRenderer {
         this.catalogMeshes.clear();
         this.gl.deleteProgram(this.program);
         this.lag.clear();
+        this.accessoryPose.clear();
     }
 }

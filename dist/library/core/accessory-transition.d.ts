@@ -10,5 +10,6 @@ export declare class AccessoryTransition<T extends AccessoryDesign> {
     get active(): boolean;
     /** Includes outgoing and requested mounts for conservative framing. */
     get envelope(): T[];
+    private aim;
     sample(target: readonly T[], delta: number, instant?: boolean): AccessoryPresentation<T>[];
 }
