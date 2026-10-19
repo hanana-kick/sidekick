@@ -33,7 +33,7 @@ for (const fallback of [false, true]) for (const mobile of [false, true]) test(`
       await sample('Mid-flight expression reversal', () => { void bot.setExpression('both', 'neutral', { duration: 400 }); setTimeout(() => void bot.setExpression('both', 'smile', { duration: 400 }), 110); });
       await sample('Rapid state changes', () => { bot.setActivity('thinking'); setTimeout(() => bot.setActivity('speaking'), 70); setTimeout(() => bot.setActivity('listening'), 140); });
       await sample('Happy', () => bot.setEmotion('happy'));
-      await sample('Surprised → concerned', () => { void bot.reactTo('surprised', { duration: 260 }); setTimeout(() => void bot.reactTo('concerned', { duration: 350 }), 130); }, 900);
+      await sample('Surprised → concerned → happy baseline', () => { void bot.reactTo('surprised', { duration: 260 }); setTimeout(() => void bot.reactTo('concerned', { duration: 350 }), 130); }, 900);
       await sample('Sad', () => bot.setEmotion('sad'));
       await sample('Curious', () => bot.setEmotion('curious'));
       await sample('Excited', () => bot.setEmotion('excited'));
