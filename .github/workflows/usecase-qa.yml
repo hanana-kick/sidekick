@@ -1,4 +1,4 @@
-name: Use Cases interaction walkthrough
+name: Guide and multilingual interaction walkthrough
 on:
   workflow_dispatch:
   push:
@@ -8,7 +8,7 @@ permissions:
 jobs:
   walkthrough:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,7 +18,7 @@ jobs:
       - run: npm ci
       - run: npm run build:all
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
-      - run: xvfb-run -a node --test --test-concurrency=1 tests/use-cases-browser.test.mjs tests/api-playground-browser.test.mjs tests/movement-browser.test.mjs
+      - run: xvfb-run -a node --test --test-concurrency=1 tests/site-i18n-browser.test.mjs tests/use-cases-browser.test.mjs tests/api-playground-browser.test.mjs tests/behavior-browser.test.mjs
         env:
           SIDEKICK_HEADED: '1'
           SIDEKICK_SCREENSHOTS: artifacts
