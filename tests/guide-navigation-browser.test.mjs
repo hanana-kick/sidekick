@@ -21,6 +21,7 @@ for(const lang of ['ko','en','zh-CN','ja'])test(`actual contextual link clicks f
    const code=await page.locator('#declaration-code').textContent();
    await page.locator('#context-playground-link').click();await page.waitForSelector('#demo-bot[data-configured]');
    assert.match(page.url(),/api-playground.html/);assert.equal(await page.locator('.app-header').count(),1);assert.equal(await page.locator('.catalog-nav').isVisible(),false);assert.equal(await page.locator('#context-playground-link').isVisible(),false);
+   if(process.env.SIDEKICK_SCREENSHOTS&&lang==='en'&&item.id==='review'){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.screenshot({path:process.env.SIDEKICK_SCREENSHOTS+'/contextual-guide-desktop.png',fullPage:true});}
    assert.equal(await page.locator('#declaration-code').textContent(),code,item.id);assert.equal(await page.locator('[data-level="2"]').getAttribute('aria-pressed'),'true');
    assert.equal(await page.locator('#demo-bot').evaluate(bot=>bot.behavior),null,'URL does not automatically execute behavior');
    await page.locator('#restart-demo').click();await page.waitForFunction(()=>document.querySelector('#demo-bot').behavior!==null);
