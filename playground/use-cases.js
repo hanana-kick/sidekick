@@ -191,7 +191,7 @@ async function activate(id) {
   if(state.type==='review')document.querySelectorAll('#demo-app .target-item').forEach((el,i)=>el.toggleAttribute('data-active',i===state.itemIndex));
  },{signal:controller.signal});
  $('demo-app').append(bot);
- try{if(!bot.ready)await ready;if(token!==generation)return;await applyStudioSession(bot,session.scene);if(token!==generation)return;bot.interaction='none';bot.zoom=Math.max(session.scene.zoom,2);entry.ready=true;bot.setAttribute('data-configured','');
+ try{if(!bot.ready)await ready;if(token!==generation)return;await applyStudioSession(bot,session.scene);if(token!==generation)return;bot.interaction='none';bot.zoom=session.scene.zoom;entry.ready=true;bot.setAttribute('data-configured','');
  const resume=()=>{bot.stopBehavior();botDeclare(entry,entry.declaration);if(emotionFlowById(item.id))runEmotionAction(bot,entry.emotionAction);};
  if(exerciseMode){entry.resume=resume;setText('run-status','준비');}else resume();
  if(context?.scroll&&!exerciseMode)window.scrollTo({top:context.scroll,behavior:'instant'});}
