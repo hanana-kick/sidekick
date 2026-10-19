@@ -154,6 +154,8 @@ export class AvatarRenderer {
   private bodyDeformation = '';
   private lag = new Map<string, [number, number]>();
   private accessoryPose = new Map<string, Vec3>();
+  private authoredAccessoryPose = new Set<string>();
+  private accessoryPoseTakeover = new Map<string, { from: Vec3; elapsed: number }>();
   private disposed = false;
   private drawCount = 0;
   private blinkGate = new EyeBlinkGate();
@@ -334,7 +336,9 @@ export class AvatarRenderer {
     const poseKey = (a: ResolvedAccessoryDesign): string => `${a.slot}:${a.id}:${a.preset}`;
     const authoredEquipment = new Set(design.accessories.map(poseKey));
     const visibleEquipment = new Set(equipment.filter(a => a.opacity > 0).map(a => poseKey(a.accessory)));
-    for (const key of this.accessoryPose.keys()) if (!visibleEquipment.has(key)) this.accessoryPose.delete(key);
+    for (const key of this.accessoryPose.keys()) if (!visibleEquipment.has(key)) {
+      this.accessoryPose.delete(key); this.accessoryPoseTakeover.delete(key);
+    }
     const activeIds = new Set(equipment.map(({ accessory }) => accessory.id));
     for (const id of this.lag.keys()) if (!activeIds.has(id)) this.lag.delete(id);
     const activeSlots = new Set(equipment.map(({ accessory }) => accessory.slot));
@@ -352,9 +356,23 @@ export class AvatarRenderer {
       const key = poseKey(accessory);
       // The authored timeline drops removed tracks immediately. Preserve only
       // the outgoing mesh's last displayed offset while it remains visible.
-      const extra: Vec3 = authoredEquipment.has(key)
-        ? pose.accessories[accessory.id] ?? [0, 0, 0]
-        : this.accessoryPose.get(key) ?? [0, 0, 0];
+      const retained = this.accessoryPose.get(key);
+      let extra: Vec3 = retained ?? [0, 0, 0];
+      if (authoredEquipment.has(key)) {
+        const target: Vec3 = pose.accessories[accessory.id] ?? [0, 0, 0];
+        let takeover = this.accessoryPoseTakeover.get(key);
+        const returning = !!retained && !this.authoredAccessoryPose.has(key);
+        if (returning && !instant) {
+          takeover = { from: [...retained], elapsed: 0 };
+          this.accessoryPoseTakeover.set(key, takeover);
+        }
+        if (takeover && !instant) {
+          if (!returning) takeover.elapsed += framingDelta;
+          const t = Math.min(1, takeover.elapsed / .15), blend = t * t * (3 - 2 * t);
+          extra = target.map((value, i) => takeover!.from[i]! + (value - takeover!.from[i]!) * blend) as Vec3;
+          if (t === 1) this.accessoryPoseTakeover.delete(key);
+        } else { extra = target; this.accessoryPoseTakeover.delete(key); }
+      } else this.accessoryPoseTakeover.delete(key);
       this.accessoryPose.set(key, [...extra]);
       const rotation = accessory.rotation.map((v, i) => v + extra[i]!) as Vec3;
       if (accessory.anchor.region === 'crown') { if (accessory.preset !== 'beret') rotation[1] -= (lag[0] - roll) * accessory.follow; }
@@ -427,10 +445,11 @@ export class AvatarRenderer {
         localDraw(this.meshes.halo, parent, accessory.color, [0, 0, 0], [0.34, 0.34, 0.34]);
       }
     }
+    this.authoredAccessoryPose = authoredEquipment;
     gl.disable(gl.BLEND);
     gl.bindVertexArray(null);
   }
-  get animating(): boolean { return this.equipment.active || this.framingActive; }
+  get animating(): boolean { return this.equipment.active || this.framingActive || this.accessoryPoseTakeover.size > 0; }
   get stats(): { drawCalls: number; buffers: number } { return { drawCalls: this.drawCount, buffers: [...Object.values(this.meshes), ...Array.from(this.catalogMeshes.values(), item => item.mesh)].reduce(count => count + 2, 0) }; }
   /** Call immediately after render; the drawing buffer need not be preserved between frames. */
   readPixels(): Uint8Array {
@@ -447,6 +466,6 @@ export class AvatarRenderer {
     for (const mesh of Object.values(this.meshes)) this.deleteMesh(mesh);
     for (const cached of this.catalogMeshes.values()) this.deleteMesh(cached.mesh);
     this.catalogMeshes.clear();
-    this.gl.deleteProgram(this.program); this.lag.clear(); this.accessoryPose.clear();
+    this.gl.deleteProgram(this.program); this.lag.clear(); this.accessoryPose.clear(); this.accessoryPoseTakeover.clear(); this.authoredAccessoryPose.clear();
   }
 }

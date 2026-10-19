@@ -146,3 +146,22 @@ test('rapid retargets keep cubic coverage finite and bounded, including zero-alp
   }
   t.sample([c], 0); t.sample([c], .25); assert.equal(t.active, false);
 });
+
+test('restoring a fading accessory eases retained rotation back to the authored baseline', () => {
+  const fixture = countingCanvas(), r = new AvatarRenderer(fixture.canvas), pose = initialPose();
+  const design = createDesign({ accessories: [createAccessory('halo')] });
+  const frame = { pose, activity: 'still' as const, time: 0, delta: 0, reduced: false, style: 'flat' as const };
+  let lastModel: number[] = [];
+  fixture.gl.uniformMatrix4fv = (location: { name: string }, _transpose: boolean, value: number[]) => { if (location.name === 'model') lastModel = [...value]; };
+  r.render(design, frame); const baseline = lastModel.slice();
+  pose.accessories.halo = [.3, .2, .4]; r.render(design, frame); const rotated = lastModel.slice();
+  delete pose.accessories.halo;
+  r.render(createDesign(), frame); r.render(design, frame);
+  assert.deepEqual(lastModel, rotated); assert.equal(r.animating, true);
+  r.render(design, { ...frame, delta: .075 });
+  assert.notDeepEqual(lastModel, rotated); assert.notDeepEqual(lastModel, baseline);
+  r.render(design, { ...frame, delta: .075 });
+  assert.deepEqual(lastModel, baseline); assert.equal(r.animating, false);
+  assert.deepEqual(pose.accessories, {}, 'renderer never recreates removed authored tracks');
+  r.dispose();
+});
