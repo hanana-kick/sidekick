@@ -1557,6 +1557,8 @@ Only one example runs at a time to avoid unnecessary renderers. Instances are re
 - `offset`: optional `{ x, y }` adjustment; omitted axes default to zero; negative values are allowed.
 - `follow`: defaults to `true`; pursues scroll, size and layout changes using inertia. `false` samples once. Pursuit becomes idle while both the current and destination boxes are offscreen.
 
+When positioning and position-x/position-y are supplied together, positioning takes precedence. A later explicit coordinate-only change relinquishes the binding.
+
 The initial declaration is staged before the first visible frame. Later changes use the existing movement acceleration/deceleration settings. Equivalent declarations do not restart movement. Missing or removed targets emit `sidekick-error` and detach. A different node matching the same selector is not rebound automatically.
 
 `positioning = null` detaches and brakes. Explicit `moveTo`, `moveBy`, `moveToElement`, `cancelMove`, `detachAnchor`, `enter` or `exit` relinquishes declarative positioning. Assign a new declaration to resume. React equivalent prop rerenders preserve manual control; set `null` first or change the declaration to reapply.

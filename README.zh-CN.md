@@ -1557,6 +1557,8 @@ export function Example() {
 - `offset`：可选 `{ x, y }` 偏移，省略的轴为 0，可以使用负数。
 - `follow`：默认 `true`，通过惯性跟随滚动、尺寸和布局变化。`false` 仅读取一次位置。当前位置和目标位置均在屏幕外时进入空闲状态。
 
+同时提供 positioning 和 position-x/position-y 时，以 positioning 为准。之后仅显式修改坐标会解除绑定。
+
 初始位置在第一帧显示前应用，后续修改使用现有移动加速和减速设置。相同声明不会重启动画。目标缺失或移除时触发 `sidekick-error` 并解除绑定；不会自动绑定匹配同一选择器的新节点。
 
 `positioning = null` 解除绑定并减速。显式调用 `moveTo`、`moveBy`、`moveToElement`、`cancelMove`、`detachAnchor`、`enter` 或 `exit` 会解除声明式位置控制。重新指定声明可恢复。React 的相同 prop 重渲染不会覆盖手动控制；先设为 `null` 或修改声明后重新应用。
