@@ -130,7 +130,7 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
       if (screenshots) await page.screenshot({ path: `${screenshots}/live-pages-${name}-success.png` });
       // Follow the actual visible navigation and verify the newly published runtime.
       await page.locator('#api-playground-link').click();
-      assert.equal(page.url(), new URL('api-playground.html?lang=ko', canonical).href);
+      assert.equal(page.url(), new URL('api-playground.html?lang=ko&framework=element', canonical).href);
       // Renderer readiness precedes asynchronous Studio session restoration.
       // Wait until the page has applied its initial position before testing flight.
       await page.waitForFunction(() => document.getElementById('bot')?.ready === true && document.getElementById('bot').hasAttribute('data-configured'));
