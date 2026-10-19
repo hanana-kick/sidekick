@@ -45,6 +45,7 @@ test('direct reload, source scroll, history, manual level and invalid context',a
   assert.match(await page.locator('#declaration-code').textContent(),/#onboard-3/);assert.equal(readGuideSource(page.url()).scroll,640);
   await page.reload();await page.waitForSelector('#demo-bot[data-configured]');assert.match(await page.locator('#declaration-code').textContent(),/#onboard-3/);
   await page.locator('#restart-demo').click();await page.waitForFunction(()=>document.querySelector('#run-status').textContent.includes('complete')||document.querySelector('#run-status').textContent.includes('완료'));assert.equal(await page.locator('#demo-bot').evaluate(bot=>bot.behavior),null);
+  await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));await page.waitForTimeout(100);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),true,'Mobile exercise must not overflow horizontally');
   if(process.env.SIDEKICK_SCREENSHOTS){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.screenshot({path:process.env.SIDEKICK_SCREENSHOTS+'/contextual-guide-mobile.png',fullPage:true});}
   await page.locator('#guide-source-return').click();await page.waitForSelector('#demo-bot[data-configured]');assert.equal(new URL(page.url()).hash,'#onboarding');
   await page.goBack();await page.waitForSelector('#demo-bot[data-configured]');assert.match(page.url(),/api-playground/);
