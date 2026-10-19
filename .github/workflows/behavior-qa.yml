@@ -16,7 +16,7 @@ jobs:
       - run: npm ci
       - run: npm run build:all
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
-      - run: xvfb-run -a node --test --test-concurrency=1 tests/behavior-browser.test.mjs
+      - run: xvfb-run -a node --test --test-concurrency=1 tests/behavior-browser.test.mjs tests/animation-continuity-browser.test.mjs
         env:
           SIDEKICK_HEADED: '1'
           SIDEKICK_SCREENSHOTS: artifacts
