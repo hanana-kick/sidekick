@@ -15,6 +15,7 @@ $('scenario-toc').addEventListener('click', event => {
   $('toc-toggle').setAttribute('aria-expanded', 'false');
   if (location.hash === link.hash) { event.preventDefault(); activate(link.hash.slice(1)); }
 });
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && $('toc-toggle').getAttribute('aria-expanded') === 'true') { $('toc-toggle').setAttribute('aria-expanded', 'false'); $('toc-toggle').focus(); } });
 let active, generation = 0;
 const labels = { idle:'준비', resolving:'대상 찾는 중', moving:'대상으로 이동 중', acting:'행동 중', completed:'완료', cancelled:'중단', error:'실행 오류' };
 const card = content => `<div class="app-card">${content}</div>`;
@@ -93,6 +94,7 @@ function bindApp(entry,item) {
 }
 async function activate(id) {
  const item=scenarioById(id);const token=++generation;
+ window.scrollTo({top:0,behavior:'instant'});
  if(active){active.controller.abort();active.bot.stopBehavior?.();active.bot.remove();}
  const controller=new AbortController();
  document.querySelectorAll('[data-scenario]').forEach(link=>{if(link.dataset.scenario===item.id){link.setAttribute('aria-current','page');link.closest('details').open=true;}else link.removeAttribute('aria-current');});
