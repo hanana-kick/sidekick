@@ -2,6 +2,7 @@ import type { Emotion, EmotionOptions, EmotionState, EmotionResult, ReactionOpti
 import type { BotBehavior, BehaviorState, BehaviorResult, PerformOptions } from './behavior.js';
 import type { ElementAnchorState } from './element-anchor.js';
 import type { MoveToElementOptions } from './element-target.js';
+import type { Entrance } from './entrance.js';
 import type { EnterOptions, ExitOptions, PresenceResult, PresenceState } from './presence.js';
 import type { PlayOptions, AssetTransitionTarget } from './playback.js';
 import type { TravelPresentation } from '../core/travel.js';
@@ -73,6 +74,16 @@ export declare class SidekickAvatar extends HTMLElementBase {
     detachAnchor(): void;
     private releaseAnchor;
     private attachAnchor;
+    private entranceDeclaration;
+    private entranceApplied;
+    private entranceRevision;
+    private entranceCleanup?;
+    private refreshEntranceClip?;
+    get entrance(): Entrance | null;
+    set entrance(value: Entrance | null);
+    private resumeEntranceBehavior;
+    private clearEntrance;
+    private startEntrance;
     private presenceHidden;
     private presence;
     get presenceState(): PresenceState;

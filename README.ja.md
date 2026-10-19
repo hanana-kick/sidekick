@@ -6,7 +6,7 @@
 
 - [インストール](#インストール) · [HTML](#html-で直接使う) · [React](#react-で使う)
 - [すべての属性](#html-属性と-react-props) · [デザインとアクセサリー](#デザイン-json-とアクセサリー) · [アニメーション/API](#アニメーションと命令型-api)
-- [宣言型の動作](#宣言型の動作-behavior) · [画面内の移動/飛行](#レンダリング移動の標準-v03) · [イベント/クリーンアップ](#イベントとクリーンアップ) · [SSR](#ssr-とブラウザー対応) · [Studio/開発](#studio-と開発)
+- [宣言型の動作](#宣言型の動作-behavior) · [画面内の移動/飛行](#レンダリング移動の標準-v03) · [イベント/クリーンアップ](#イベントとクリーンアップ) · [SSR](#ssr-とブラウザー対応) · [Studio/開発](#studio-と開発) · [宣言型の登場](#宣言型の登場-entrance)
 
 ## インストール
 
@@ -509,6 +509,7 @@ const design = createDesign({
 
 | HTML 属性 | React prop | React の型 | 許可される値 / 既定値 |
 | --- | --- | --- | --- |
+| `entrance` | `entrance` | `Entrance \| null` | HTML JSON、準備完了後に一度実行、同じ値では再生し直さない、`null` または削除で解除 |
 | `behavior` | `behavior` | `BotBehavior \| null` | HTML では JSON 文字列、React では実際のオブジェクト/Element。`null` または削除で動作をキャンセル。以下の宣言型の動作を参照 |
 | `activity` | `activity` | `Activity` | `idle` / `thinking` / `listening` / `speaking` / `celebrating` / `still`。既定は `idle` |
 | `paused` | `paused` | `boolean` | 既定は `false`。繰り返しモーションを一時停止 |
@@ -587,6 +588,99 @@ bot.setAttribute('tracking-mode', 'off');
 bot.removeAttribute('body-color'); // design의 색 또는 기본 색으로 복원
 bot.setAttribute('head-accessory', 'none'); // design에 모자가 있어도 해제
 ```
+
+## 宣言型の登場 (entrance)
+
+`entrance` は、ボットの準備完了後に画面端または同じ文書の DOM 要素の背後から一度登場する宣言です。HTML の JSON 属性・JavaScript property・React prop は同じ `Entrance` オブジェクトを使います。設定済みの外観を維持し、移動の手動手順や `enter()` の呼び出しは不要です。
+
+HTML または React に `placement="viewport"` を指定します。ボットとその祖先には CSS transform を使わず、ボットには padding や border を付けません。対象の回転・skew・3D 変換も未対応です。`behavior` を同時に宣言した場合は登場の完了後に開始します。
+
+### 画面の端から登場
+
+`edge` は進入する辺です。`at` は残りの直交空間の割合で、`left`/`right` では縦位置、`top`/`bottom` では横位置を指定します。`0` は先頭辺の整列、`0.5` は中央、`1` は末尾辺の整列です。`inset` は到着後のキャンバスと画面端の CSS ピクセル距離です。
+
+```html
+<script type="module">
+  import '@hanana-kick/sidekick/auto';
+</script>
+<sidekick-avatar placement="viewport"
+  style="width:96px;height:96px"
+  entrance='{"source":"viewport","edge":"left","at":0.3,"inset":24}'>
+</sidekick-avatar>
+```
+
+```tsx
+import { SidekickAvatar } from '@hanana-kick/sidekick/react';
+
+export default function EdgeEntrance() {
+  return <SidekickAvatar placement="viewport" style={{ width: 96, height: 96 }}
+    entrance={{ source: 'viewport', edge: 'left', at: 0.3, inset: 24 }} />;
+}
+```
+
+### DOM 要素の背後から登場
+
+`target` は同じ文書のセレクターまたは `Element` です。HTML の JSON ではセレクターを使います。`direction` は対象から出てくる側を指定します。`at` は対象とキャンバスの同じ割合位置を揃え、`gap` は到着後の両者の CSS ピクセル距離です。例の矩形をボットより先に描画してください。
+
+```html
+<script type="module">
+  import '@hanana-kick/sidekick/auto';
+</script>
+<style>
+  #entrance-card { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); box-sizing: border-box; width: min(240px, 44vw); height: min(240px, 44vw); display: grid; place-items: center; background: #e2e8f0; border: 1px solid #94a3b8; }
+  #entrance-bot { width: min(96px, 18vw); height: min(96px, 18vw); }
+</style>
+<div id="entrance-card">#entrance-card</div>
+<sidekick-avatar id="entrance-bot" placement="viewport"
+  entrance='{"source":"element","target":"#entrance-card","direction":"right","at":0.5,"gap":16}'>
+</sidekick-avatar>
+```
+
+```tsx
+import { SidekickAvatar } from '@hanana-kick/sidekick/react';
+
+export default function CardEntrance() {
+  return <>
+    <style>{`
+      #entrance-card { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); box-sizing: border-box; width: min(240px, 44vw); height: min(240px, 44vw); display: grid; place-items: center; background: #e2e8f0; border: 1px solid #94a3b8; }
+  #entrance-bot { width: min(96px, 18vw); height: min(96px, 18vw); }
+    `}</style>
+    <div id="entrance-card">#entrance-card</div>
+    <SidekickAvatar id="entrance-bot" placement="viewport"
+      entrance={{ source: 'element', target: '#entrance-card', direction: 'right', at: 0.5, gap: 16 }} />
+  </>;
+}
+```
+
+対象は不透明で、キャンバス以上の幅と高さを持ち、選んだ方向の到着位置が画面内に収まる空間が必要です。キャンバスのマスクは対象の矩形を使い、透明部分・角丸・複雑な輪郭には沿いません。対象のスタイル・`z-index`・DOM 位置は変更せず、ボットのサイズも自動では変更しません。
+
+### 値と実行規則
+
+| 項目 | 型と許容値 | 既定値と範囲 |
+| --- | --- | --- |
+| `source` | `string` | `viewport` または `element`、必須 |
+| `edge` | `string` | `left \| right \| top \| bottom`、必須 |
+| `target` | `Element \| string` | 同じ文書の対象、`element` で必須 |
+| `direction` | `string` | `left \| right \| top \| bottom`、`element` で必須 |
+| `at` | `number` | `0…1`、既定値 `0.5` |
+| `inset` | `number` | `0…10000` CSS px、既定値 `24` |
+| `gap` | `number` | `0…10000` CSS px、既定値 `16` |
+
+宣言はマウントしたボットの準備完了後に一度実行します。内容が異なる宣言は新しい登場を開始しますが、オブジェクト参照だけの変更や既定値の省略では再生し直しません。以下の二度目の代入は最初と同じ内容のため再実行しません。`null`・属性の削除・React prop の削除は宣言を解除し、進行中の登場を取り消します。解除後に同じ設定を適用すると再実行できます。
+
+```ts
+import type { Entrance, SidekickAvatar } from '@hanana-kick/sidekick';
+
+const bot = document.querySelector<SidekickAvatar>('#entrance-bot')!;
+const entrance: Entrance = {
+  source: 'element', target: '#entrance-card', direction: 'top', at: 0.75, gap: 16,
+};
+bot.entrance = entrance;
+bot.entrance = { ...entrance };
+bot.entrance = null;
+```
+
+形式が不正または範囲外のオブジェクトは拒否します。実行時に対象がない・小さすぎる・到着空間が不足する場合は `sidekick-error` が発生し、対象を自動では待ちません。新しい移動・行動・登場の指定や接続解除は進行中の登場を取り消すことがあります。`entrance` はページの配置設定であり、保存する Studio シーンには含まれません。
 
 ## 宣言型の動作 (behavior)
 

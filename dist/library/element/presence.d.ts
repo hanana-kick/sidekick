@@ -40,7 +40,7 @@ export declare class AvatarPresence {
     get current(): PresenceState;
     get bypassBounds(): boolean;
     constructor(host: PresenceHost);
-    enter(point: AvatarPosition, input?: EnterOptions): Promise<PresenceResult>;
+    enter(point: AvatarPosition, input?: EnterOptions, start?: AvatarPosition): Promise<PresenceResult>;
     exit(input?: ExitOptions): Promise<PresenceResult>;
     /** Superseding normal moves reveal the bot without restarting its activity or resetting momentum. */
     reveal(): number;
@@ -48,6 +48,7 @@ export declare class AvatarPresence {
     recovered(revision: number): void;
     interrupt(): number;
     cancel(): void;
+    retarget(point: AvatarPosition): void;
     resize(): void;
     private run;
     private finish;

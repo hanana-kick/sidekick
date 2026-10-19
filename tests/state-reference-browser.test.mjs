@@ -62,3 +62,82 @@ test('actual copied Custom Element and React source replay matching Studio confi
   }
  }finally{await page.close();}
 });
+
+async function entranceSettled(frame, declaration) {
+ await frame.waitForFunction(expected=>{
+  const bot=document.querySelector('#reference-bot');
+  return bot?.ready&&JSON.stringify(bot.entrance)===JSON.stringify(expected)&&bot.presenceState==='visible'&&bot.movementState.phase==='idle';
+ },declaration);
+ return frame.locator('#reference-bot').evaluate(bot=>{
+  const rect=element=>{const {left,top,width,height}=element.getBoundingClientRect();return {left,top,width,height};};
+  return {entrance:bot.entrance,design:bot.design,position:bot.position,box:rect(bot),target:rect(document.querySelector('#reference-target')),viewport:{width:innerWidth,height:innerHeight}};
+ });
+}
+function assertEntranceGeometry(actual) {
+ const {entrance:c,box:b,target:t,viewport:v}=actual,at=c.at??.5;
+ let x,y;
+ if(c.source==='viewport'){
+  x=at*(v.width-b.width);y=at*(v.height-b.height);
+  if(c.edge==='left')x=c.inset;if(c.edge==='right')x=v.width-b.width-c.inset;
+  if(c.edge==='top')y=c.inset;if(c.edge==='bottom')y=v.height-b.height-c.inset;
+ }else{
+  x=t.left+(t.width-b.width)*at;y=t.top+(t.height-b.height)*at;
+  if(c.direction==='left')x=t.left-b.width-c.gap;if(c.direction==='right')x=t.left+t.width+c.gap;
+  if(c.direction==='top')y=t.top-b.height-c.gap;if(c.direction==='bottom')y=t.top+t.height+c.gap;
+ }
+ assert.ok(Math.abs(b.left-x)<1,`entrance x ${b.left} ≈ ${x}`);assert.ok(Math.abs(b.top-y)<1,`entrance y ${b.top} ≈ ${y}`);
+}
+for(const locale of ['ko','en','zh-CN','ja'])for(const mode of ['element','react'])test(`declarative entrance source, geometry and configured bot: ${locale}/${mode}`,{timeout:120000},async()=>{
+ const {createScene}=await import('../dist/src/core/scene.js'),{createDesign}=await import('../dist/src/core/design.js');
+ const scene=createScene({design:createDesign({body:{shape:'heart',color:'#345678'}}),trackingMode:'off',activity:'still'});
+ const page=await browser.newPage({viewport:{width:1280,height:900},reducedMotion:'reduce'}),errors=[];
+ page.on('pageerror',error=>errors.push(error.message));
+ await page.addInitScript(scene=>localStorage.setItem('sidekick.studio.scene.v3',JSON.stringify(scene)),scene);
+ try{
+  await page.goto(`${base}/guide.html?lang=${locale}&framework=${mode}#state-entrance`);const frame=await frameFor(page);
+  await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
+  const change=async(key,value)=>{const input=page.locator(`[data-entrance-control="${key}"]`);if(await input.evaluate(e=>e.tagName)==='SELECT')await input.selectOption(value);else{await input.fill(value);await input.dispatchEvent('change');}};
+  for(const source of ['element','viewport']){
+   await change('source',source);
+   for(const side of ['left','right','top','bottom']){
+    await change('side',side);await change('at','0.3');await change('distance','12');
+    const declaration=source==='element'?{source,target:'#reference-target',direction:side,at:.3,gap:12}:{source,edge:side,at:.3,inset:12};
+    const actual=await entranceSettled(frame,declaration);assertEntranceGeometry(actual);assert.deepEqual(actual.design,scene.design);
+    const code=await page.locator('[data-state-source]').textContent();assert.doesNotMatch(code,/\.enter\(/);
+    if(mode==='react'){const props=JSON.parse(code.split('const avatarProps = ')[1].split(';\n\nexport')[0]);assert.deepEqual(props.entrance,declaration);assert.equal(props.placement,'viewport');assert.doesNotMatch(code,/<sidekick-avatar/);}
+    else{const payload=await page.evaluate(source=>JSON.parse(new DOMParser().parseFromString(source,'text/html').querySelector('sidekick-avatar').getAttribute('entrance')),code);assert.deepEqual(payload,declaration);assert.doesNotMatch(code,/<SidekickAvatar/);}
+   }
+  }
+  await page.setViewportSize({width:320,height:640});await change('source','element');
+  const mobile=await entranceSettled(frame,{source:'element',target:'#reference-target',direction:'right',at:.5,gap:16});assertEntranceGeometry(mobile);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
+  assert.equal(await page.evaluate(()=>localStorage.getItem('sidekick.studio.scene.v3')),JSON.stringify(scene));
+  await page.locator('[data-state-try]').click();await frameFor(page);assert.equal(await page.inputValue('[data-entrance-control="source"]'),'element');
+  assert.deepEqual(errors,[]);
+ }finally{await page.close();}
+});
+
+test('copied entrance examples replay the exact source declaration and canvas geometry', {timeout:120000},async()=>{
+ const page=await browser.newPage({viewport:{width:1280,height:900},reducedMotion:'reduce'});
+ try{
+  for(const mode of ['element','react'])for(const source of ['element','viewport']){
+   await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-entrance`);const frame=await frameFor(page);await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
+   await page.selectOption('[data-entrance-control="source"]',source);
+   const declaration=source==='element'?{source,target:'#reference-target',direction:'right',at:.5,gap:16}:{source,edge:'left',at:.5,inset:24};
+   const expected=await entranceSettled(frame,declaration),code=await page.locator('[data-state-source]').textContent();
+   const replay=await browser.newPage({viewport:expected.viewport,reducedMotion:'reduce'});
+   try{
+    let html=code.replace("'@hanana-kick/sidekick/auto'",`'${base}/browser/sidekick.js'`);
+    if(mode==='react'){
+     const output=ts.transpileModule(`import React from 'react';\nimport {createRoot} from 'react-dom/client';\n${code}\ncreateRoot(document.getElementById('root')).render(<StateExample />);`,{compilerOptions:{jsx:ts.JsxEmit.React,module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+     const imports={react:`${base}/react.js`,'react-dom/client':`${base}/react-dom-client.js`,'@hanana-kick/sidekick/react':`${base}/browser/sidekick-react.js`};
+     html=`<!doctype html><div id="root"></div><script type="importmap">${JSON.stringify({imports})}</script><script type="module">${output}</script>`;
+     for(const name of ['react','react-dom-client'])await replay.route(`${base}/${name}.js`,async route=>route.fulfill({contentType:'text/javascript',body:await readFile(new URL(`../cdn/react-19.3.1/${name}.js`,import.meta.url),'utf8')}));
+    }
+    await replay.route(`${base}/entrance-replay.html`,route=>route.fulfill({contentType:'text/html',body:html}));await replay.goto(`${base}/entrance-replay.html`);
+    const actual=await entranceSettled(replay,declaration);assertEntranceGeometry(actual);assert.deepEqual(actual.design,expected.design);assert.deepEqual(actual.entrance,expected.entrance);
+    for(const axis of ['left','top','width','height'])assert.ok(Math.abs(actual.box[axis]-expected.box[axis])<1,axis+' matches the copied preview');
+   }finally{await replay.close();}
+  }
+ }finally{await page.close();}
+});

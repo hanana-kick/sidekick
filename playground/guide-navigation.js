@@ -33,6 +33,7 @@ export const isScenario = id => scenarioIds.has(id);
 /** Explicit technical destinations. Labels name what actually opens. */
 export const lessonDestinations = {
  'state-emotion':{id:'emotion-inspection',level:2}, 'state-position':{id:'selection',level:2}, 'state-behavior':{id:'loading',level:1},
+ 'state-entrance':{id:'loading',level:1},
  'state-facing':{id:'selection',level:4}, 'state-appearance':{id:'emotion-composition',level:4}, 'state-execution':{id:'emotion-composition',level:4},
  'html-start': {id:'loading',level:1}, 'react-start':{id:'loading',level:1},
  appearance:{page:'studio'}, placement:{preset:'placement'},

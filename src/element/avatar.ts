@@ -7,6 +7,8 @@ import { observeElementAnchor } from './element-anchor.js';
 import type { ElementAnchorState } from './element-anchor.js';
 import { assertAnchorHierarchy, resolveElementTarget } from './element-target.js';
 import type { MoveToElementOptions } from './element-target.js';
+import { validateEntrance, sameEntrance, entrancePositions, entranceClip } from './entrance.js';
+import type { Entrance } from './entrance.js';
 import { AvatarPresence } from './presence.js';
 import type { EnterOptions, ExitOptions, PresenceResult, PresenceState } from './presence.js';
 import { PlaybackController } from './playback.js';
@@ -106,14 +108,14 @@ export class SidekickAvatar extends HTMLElementBase {
   get behavior(): BotBehavior | null { return this.pendingBehavior === undefined ? this.behaviorController.declaration : this.pendingBehavior === null ? null : validateBehavior(this.pendingBehavior, this.ownerDocument); }
   set behavior(value: BotBehavior | null) {
     const next = value === null ? null : validateBehavior(value, this.ownerDocument);
-    if (!this.isConnected) { this.pendingBehavior = next; return; }
+    if (!this.isConnected || (this.entranceDeclaration && (!this.ready || !this.entranceApplied || this.presenceState === 'entering'))) { this.pendingBehavior = next; return; }
     this.pendingBehavior = undefined;
     if (next === null) this.stopBehavior(); else void this.perform(next);
   }
   get behaviorState(): BehaviorState { return this.behaviorController.state; }
   perform(value: BotBehavior, options: PerformOptions = {}): Promise<BehaviorResult> { return this.behaviorController.perform(value, options); }
   stopBehavior(): void { this.pendingBehavior = undefined; this.behaviorController.cancel(); }
-  private interruptBehavior(): void { if (!this.behaviorCommand) this.behaviorController.cancel('manual-command'); }
+  private interruptBehavior(): void { if (!this.behaviorCommand) { this.pendingBehavior = undefined; this.behaviorController.cancel('manual-command'); } }
   private behaviorOperation<T>(action: () => T): T { const previous = this.behaviorCommand; this.behaviorCommand = true; try { return action(); } finally { this.behaviorCommand = previous; } }
   private behaviorPlacement(side: BehaviorSide, gap: number): MoveToElementOptions {
     const rect = this.getBoundingClientRect();
@@ -171,7 +173,7 @@ export class SidekickAvatar extends HTMLElementBase {
   private movement = new AvatarMovement({
     now: () => performance.now(), immediate: () => this.paused || this.reduced || !this.connected,
     constrain: point => this.constrainPosition(point),
-    render: point => { this.style.setProperty('--sidekick-x', `${point.x}px`); this.style.setProperty('--sidekick-y', `${point.y}px`); if (this.lastTrackedPointer && this.trackingDocument && !this.gesturing) { this.pendingPointer = { ...this.lastTrackedPointer }; this.queueInput(); } },
+    render: point => { this.style.setProperty('--sidekick-x', `${point.x}px`); this.style.setProperty('--sidekick-y', `${point.y}px`); this.refreshEntranceClip?.(); if (this.lastTrackedPointer && this.trackingDocument && !this.gesturing) { this.pendingPointer = { ...this.lastTrackedPointer }; this.queueInput(); } },
     complete: async result => {
       if (this.bridge && this.connected) {
         const barrier = this.request<MotionResult>('barrier');
@@ -219,6 +221,88 @@ export class SidekickAvatar extends HTMLElementBase {
         this.movement.followTarget(this.constrainPosition(point, true));
       };
     }, () => this.anchorSleeping);
+  }
+  private entranceDeclaration: Entrance | null = null;
+  private entranceApplied = false;
+  private entranceRevision = 0;
+  private entranceCleanup?: () => void;
+  private refreshEntranceClip?: () => void;
+  get entrance(): Entrance | null { return this.entranceDeclaration ? { ...this.entranceDeclaration } : null; }
+  set entrance(value: Entrance | null) {
+    const next = value === null ? null : validateEntrance(value);
+    if (sameEntrance(next, this.entranceDeclaration)) return;
+    const revision = ++this.entranceRevision;
+    if (this.entranceCleanup || (this.entranceApplied && this.presenceState === 'entering')) { this.clearEntrance(); const owner = this.presence.interrupt(); if (revision !== this.entranceRevision || !this.presence.owns(owner)) return; this.movement.cancel(true); }
+    if (revision !== this.entranceRevision) return;
+    this.clearEntrance(); this.entranceDeclaration = next; this.entranceApplied = false;
+    if (next && this.ready) this.startEntrance();
+    else if (!next) this.resumeEntranceBehavior();
+  }
+  private resumeEntranceBehavior(): void {
+    if (this.pendingBehavior !== undefined && this.ready && this.connected && this.presenceState !== 'entering') this.behavior = this.pendingBehavior;
+  }
+  private clearEntrance(): void { this.entranceCleanup?.(); this.entranceCleanup = undefined; this.refreshEntranceClip = undefined; this.canvas?.style?.removeProperty('clip-path'); }
+  private startEntrance(): void {
+    const config = this.entranceDeclaration;
+    if (!config || this.entranceApplied || !this.connected || !this.canvas) return;
+    this.entranceApplied = true;
+    const revision = this.entranceRevision;
+    try {
+      if (this.placement !== 'viewport') throw new TypeError('entrance requires placement="viewport"');
+      const view = this.ownerDocument.defaultView!, rect = this.getBoundingClientRect();
+      const parent = (node: Element): Element | null => node.assignedSlot ?? node.parentElement ?? (node.getRootNode() as ShadowRoot).host ?? null;
+      for (let node: Element | null = this; node; node = parent(node)) {
+        const style = view.getComputedStyle(node);
+        if ((style.zoom && style.zoom !== 'normal' && style.zoom !== '1') || (style.transform && style.transform !== 'none') || (style.rotate && style.rotate !== 'none' && style.rotate !== '0deg') || (style.scale && style.scale !== 'none' && style.scale !== '1') || (style.perspective && style.perspective !== 'none')) throw new TypeError('entrance requires an untransformed avatar and ancestors');
+        if (node === this && ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth'].some(key => parseFloat(style[key as keyof CSSStyleDeclaration] as string) > 0)) throw new TypeError('entrance avatar cannot have CSS padding or borders');
+      }
+      let target: Element | undefined;
+      if (config.source === 'element') {
+        target = typeof config.target === 'string' ? this.ownerDocument.querySelector(config.target) ?? undefined : config.target;
+        if (!target || !target.isConnected || target.ownerDocument !== this.ownerDocument) throw new TypeError('entrance target must exist in the same document when entrance starts');
+        assertAnchorHierarchy(this, target);
+        for (let node: Element | null = target; node; node = parent(node)) {
+          const targetStyle = view.getComputedStyle(node);
+          if ((targetStyle.rotate && targetStyle.rotate !== 'none' && targetStyle.rotate !== '0deg') || (targetStyle.perspective && targetStyle.perspective !== 'none')) throw new TypeError('entrance target cannot use CSS rotation or perspective');
+          const transform = view.getComputedStyle(node).transform;
+          if (transform && transform !== 'none') { const matrix = new DOMMatrixReadOnly(transform); if (!matrix.is2D || Math.abs(matrix.b) > .000001 || Math.abs(matrix.c) > .000001) throw new TypeError('entrance target cannot have rotated, skewed or 3D-transformed ancestors'); }
+        }
+      }
+      const geometry = entrancePositions(config, rect.width, rect.height, view.innerWidth, view.innerHeight, target?.getBoundingClientRect());
+      const offset = { x: rect.left - this.position.x, y: rect.top - this.position.y };
+      const local = (point: AvatarPosition): AvatarPosition => ({ x: point.x - offset.x, y: point.y - offset.y });
+      if (target) {
+        const occluder = target;
+        const refresh = (): void => { if (this.canvas) this.canvas.style.clipPath = entranceClip(this.getBoundingClientRect(), occluder.getBoundingClientRect()); };
+        this.refreshEntranceClip = refresh;
+        // Stage under the mask synchronously before exposing the configured frame.
+        this.canvas.style.clipPath = 'inset(100%)';
+      }
+      this.entranceCleanup = observeElementAnchor(this.ownerDocument, () => {
+        if (revision !== this.entranceRevision) return;
+        try {
+          if (target && (!target.isConnected || target.ownerDocument !== this.ownerDocument)) throw new Error('entrance target was removed');
+          const box = this.getBoundingClientRect();
+          const next = entrancePositions(config, box.width, box.height, view.innerWidth, view.innerHeight, target?.getBoundingClientRect());
+          const destination = { x: next.end.x - (box.left - this.position.x), y: next.end.y - (box.top - this.position.y) };
+          return () => { if (revision !== this.entranceRevision) return; this.refreshEntranceClip?.(); this.presence.retarget(destination); };
+        } catch (error) {
+          return () => {
+            if (revision !== this.entranceRevision) return;
+            this.clearEntrance(); const owner = this.presence.interrupt(); if (revision !== this.entranceRevision || !this.presence.owns(owner)) return; this.movement.cancel();
+            this.emit('sidekick-error', { message: String(error), attribute: 'entrance' }); this.resumeEntranceBehavior();
+          };
+        }
+      });
+      const cleanup = this.entranceCleanup;
+      const motion = resolveSidekickAttributes(this.acceptedAttributes).moveOptions;
+      if (!this.acceptedAttributes.has('move-duration')) delete motion.duration;
+      void this.presence.enter(local(geometry.end), { ...motion, from: config.source === 'viewport' ? config.edge : config.direction }, geometry.start ? local(geometry.start) : undefined).then(() => {
+        if (revision === this.entranceRevision && this.entranceCleanup === cleanup) { this.clearEntrance(); this.resumeEntranceBehavior(); }
+      });
+      if (revision !== this.entranceRevision || !this.connected) return;
+      if (target) this.canvas.style.clipPath = entranceClip(this.getBoundingClientRect(), target.getBoundingClientRect());
+    } catch (error) { if (revision !== this.entranceRevision) return; this.clearEntrance(); this.emit('sidekick-error', { message: error instanceof Error ? error.message : String(error), attribute: 'entrance' }); this.resumeEntranceBehavior(); }
   }
   private presenceHidden = false;
   private presence = new AvatarPresence({
@@ -555,7 +639,7 @@ export class SidekickAvatar extends HTMLElementBase {
     this.emotionController.cancel('disconnected');
     this.behaviorController.cancel('disconnected');
     this.connected = false; this.releaseAnchor(false);
-    this.presence.cancel(); this.playback.disconnect(); this.movement.disconnect();
+    this.entranceRevision++; this.clearEntrance(); this.entranceApplied = false; this.presence.cancel(); this.playback.disconnect(); this.movement.disconnect();
     this.ownerDocument.defaultView?.removeEventListener('resize', this.onViewportResize);
     this.connected = false; this.readyState = false; this.cancelInput(); this.detachMouseTracking(); this.clearDrag();
     this.disposeBridge(new Error('Avatar disconnected')); this.resetEyes(); this.snapshotState = undefined;
@@ -592,6 +676,7 @@ export class SidekickAvatar extends HTMLElementBase {
     for (const [name, value] of pending) { if (value === null) candidate.delete(name); else candidate.set(name, value); }
     try {
       const resolved = resolveSidekickAttributes(candidate);
+      const entrance = pending.has('entrance') && candidate.has('entrance') ? validateEntrance(JSON.parse(candidate.get('entrance')!)) : null;
       const behavior = pending.has('behavior') && candidate.has('behavior') ? validateBehavior(JSON.parse(candidate.get('behavior')!), this.ownerDocument) : null;
       const touched = (...names: string[]): boolean => names.some(name => pending.has(name));
       const allDesign = touched('design');
@@ -660,6 +745,7 @@ export class SidekickAvatar extends HTMLElementBase {
       if (touched('emotion', 'emotion-intensity')) this.setEmotion(touched('emotion') ? resolved.emotion.emotion : this.emotion, { intensity: touched('emotion-intensity') ? resolved.emotion.intensity : this.emotionIntensity });
       this.syncState();
       });
+      if (touched('entrance')) this.entrance = entrance;
       if (touched('behavior')) this.behavior = behavior;
     } catch (error) {
       // Keep rejected writes together: repairing one field retries the original batch.
@@ -670,7 +756,7 @@ export class SidekickAvatar extends HTMLElementBase {
   private upgradeProperties(): void {
     if (this.propertiesUpgraded) return;
     this.propertiesUpgraded = true;
-    for (const name of ['behavior', 'placement', 'movementBounds', 'design', 'emotion', 'emotionIntensity', 'bodyOrientation', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode'] as const) {
+    for (const name of ['entrance', 'behavior', 'placement', 'movementBounds', 'design', 'emotion', 'emotionIntensity', 'bodyOrientation', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode'] as const) {
       if (!Object.prototype.hasOwnProperty.call(this, name)) continue;
       const value: unknown = this[name];
       Reflect.deleteProperty(this, name);
@@ -720,6 +806,9 @@ export class SidekickAvatar extends HTMLElementBase {
       this.flushAttributes();
       if (this.bridge.revision !== revision) { this.presentInitialFrame(generation); return; }
       this.readyState = true;
+      this.startEntrance();
+      this.refreshEntranceClip?.();
+      if (!this.connected || generation !== this.generation || !this.bridge) return;
       this.canvas!.hidden = false; this.fallback!.hidden = true;
       this.updateMouseTracking(); this.emit('sidekick-ready', {});
     }).catch(() => { /* Disconnect/fallback owns cancellation and error reporting. */ });

@@ -6,7 +6,7 @@
 
 - [安装](#安装) · [HTML](#直接在-html-中使用) · [React](#在-react-中使用)
 - [全部属性](#html-属性与-react-props) · [设计与配饰](#设计-json-与配饰) · [动画/API](#动画与命令式-api)
-- [声明式行为](#声明式行为-behavior) · [屏幕移动/飞行](#渲染与移动标准-v03) · [事件/清理](#事件与清理) · [SSR](#ssr-与浏览器支持) · [Studio/开发](#studio-与开发)
+- [声明式行为](#声明式行为-behavior) · [屏幕移动/飞行](#渲染与移动标准-v03) · [事件/清理](#事件与清理) · [SSR](#ssr-与浏览器支持) · [Studio/开发](#studio-与开发) · [声明式入场](#声明式入场-entrance)
 
 ## 安装
 
@@ -509,6 +509,7 @@ const design = createDesign({
 
 | HTML 属性 | React prop | React 类型 | 允许值 / 默认值 |
 | --- | --- | --- | --- |
+| `entrance` | `entrance` | `Entrance \| null` | HTML JSON；准备好后执行一次；等效值不重播；`null` 或移除会清除声明 |
 | `behavior` | `behavior` | `BotBehavior \| null` | HTML 使用 JSON 字符串，React 使用实际对象/Element；`null` 或移除会取消行为；参见下方声明式行为 |
 | `activity` | `activity` | `Activity` | `idle` / `thinking` / `listening` / `speaking` / `celebrating` / `still`；默认为 `idle` |
 | `paused` | `paused` | `boolean` | 默认为 `false`；暂停循环动作 |
@@ -587,6 +588,99 @@ bot.setAttribute('tracking-mode', 'off');
 bot.removeAttribute('body-color'); // design의 색 또는 기본 색으로 복원
 bot.setAttribute('head-accessory', 'none'); // design에 모자가 있어도 해제
 ```
+
+## 声明式入场 (entrance)
+
+`entrance` 声明机器人准备好后，从视口边缘或同一文档的 DOM 元素后方入场一次。HTML JSON 属性、JavaScript property 与 React prop 使用相同的 `Entrance` 对象。它保留已配置的外观，无需手动编排移动或调用 `enter()`。
+
+HTML 或 React 必须设置 `placement="viewport"`。机器人及其祖先不要使用 CSS transform，也不要为机器人添加 padding 或 border。目标的旋转、skew 与 3D 变换不受支持。同时声明 `behavior` 时，行为在入场结束后开始。
+
+### 从视口边缘入场
+
+`edge` 指定入场边缘。`at` 是剩余正交空间的比例：`left`/`right` 表示垂直位置，`top`/`bottom` 表示水平位置。`0` 对齐起始边缘，`0.5` 居中，`1` 对齐末端边缘。`inset` 为到达后画布与视口边缘的 CSS 像素距离。
+
+```html
+<script type="module">
+  import '@hanana-kick/sidekick/auto';
+</script>
+<sidekick-avatar placement="viewport"
+  style="width:96px;height:96px"
+  entrance='{"source":"viewport","edge":"left","at":0.3,"inset":24}'>
+</sidekick-avatar>
+```
+
+```tsx
+import { SidekickAvatar } from '@hanana-kick/sidekick/react';
+
+export default function EdgeEntrance() {
+  return <SidekickAvatar placement="viewport" style={{ width: 96, height: 96 }}
+    entrance={{ source: 'viewport', edge: 'left', at: 0.3, inset: 24 }} />;
+}
+```
+
+### 从 DOM 元素后方出现
+
+`target` 是同一文档的选择器或 `Element`。HTML JSON 使用选择器。`direction` 指定机器人从目标哪一侧出现。`at` 对齐目标与画布的相同比例位置，`gap` 为到达后两者间的 CSS 像素距离。请先渲染示例矩形，再渲染机器人。
+
+```html
+<script type="module">
+  import '@hanana-kick/sidekick/auto';
+</script>
+<style>
+  #entrance-card { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); box-sizing: border-box; width: min(240px, 44vw); height: min(240px, 44vw); display: grid; place-items: center; background: #e2e8f0; border: 1px solid #94a3b8; }
+  #entrance-bot { width: min(96px, 18vw); height: min(96px, 18vw); }
+</style>
+<div id="entrance-card">#entrance-card</div>
+<sidekick-avatar id="entrance-bot" placement="viewport"
+  entrance='{"source":"element","target":"#entrance-card","direction":"right","at":0.5,"gap":16}'>
+</sidekick-avatar>
+```
+
+```tsx
+import { SidekickAvatar } from '@hanana-kick/sidekick/react';
+
+export default function CardEntrance() {
+  return <>
+    <style>{`
+      #entrance-card { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); box-sizing: border-box; width: min(240px, 44vw); height: min(240px, 44vw); display: grid; place-items: center; background: #e2e8f0; border: 1px solid #94a3b8; }
+  #entrance-bot { width: min(96px, 18vw); height: min(96px, 18vw); }
+    `}</style>
+    <div id="entrance-card">#entrance-card</div>
+    <SidekickAvatar id="entrance-bot" placement="viewport"
+      entrance={{ source: 'element', target: '#entrance-card', direction: 'right', at: 0.5, gap: 16 }} />
+  </>;
+}
+```
+
+目标必须不透明，宽高至少与画布相同，且所选方向必须有足够的视口空间容纳到达位置。画布遮罩使用目标矩形，不跟随透明区域、圆角或复杂轮廓。不会更改目标样式、`z-index` 或 DOM 位置，也不会自动缩放机器人。
+
+### 取值与执行规则
+
+| 字段 | 类型与允许值 | 默认值与范围 |
+| --- | --- | --- |
+| `source` | `string` | `viewport` 或 `element`；必填 |
+| `edge` | `string` | `left \| right \| top \| bottom`；必填 |
+| `target` | `Element \| string` | 同一文档的目标；`element` 必填 |
+| `direction` | `string` | `left \| right \| top \| bottom`；`element` 必填 |
+| `at` | `number` | `0…1`；默认 `0.5` |
+| `inset` | `number` | `0…10000` CSS px；默认 `24` |
+| `gap` | `number` | `0…10000` CSS px；默认 `16` |
+
+声明在挂载的机器人准备好后执行一次。语义不同的声明会开始新的入场，仅更换对象引用或省略默认值不会重播。下面的第二次赋值与第一次相同，因此不会重复入场。`null`、移除属性或移除 React prop 会清除声明并取消正在进行的入场。清除后再次应用相同配置可以重新执行。
+
+```ts
+import type { Entrance, SidekickAvatar } from '@hanana-kick/sidekick';
+
+const bot = document.querySelector<SidekickAvatar>('#entrance-bot')!;
+const entrance: Entrance = {
+  source: 'element', target: '#entrance-card', direction: 'top', at: 0.75, gap: 16,
+};
+bot.entrance = entrance;
+bot.entrance = { ...entrance };
+bot.entrance = null;
+```
+
+格式错误或超出范围的对象会被拒绝。执行时目标缺失、尺寸过小或到达空间不足会触发 `sidekick-error`，不会自动等待目标。新的移动、行为或入场声明，或断开连接，都可能取消正在进行的入场。`entrance` 属于页面布局配置，不包含在保存的工作室场景中。
 
 ## 声明式行为 (behavior)
 

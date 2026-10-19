@@ -1,5 +1,11 @@
 'use client';
 import { createElement, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+function sameEntrance(a, b) {
+    if (!a || !b)
+        return a === b;
+    const left = a, right = b;
+    return Object.keys(left).length === Object.keys(right).length && Object.keys(left).every(key => left[key] === right[key]);
+}
 const tagName = 'sidekick-avatar';
 const attributeProps = {
     emotion: 'emotion', emotionIntensity: 'emotion-intensity',
@@ -91,7 +97,7 @@ export function SidekickAvatar(props) {
         if (Object.prototype.hasOwnProperty.call(props, name))
             throw new TypeError(`${name} has been removed; use bodyOrientation, bodyYaw/bodyPitch/bodyRoll, zoom, onBodyOrientationChange or onZoomChange instead`);
     }
-    const { ref, design, accessories, bodyOrientation, motion, behavior: _behavior, ...html } = props;
+    const { ref, design, accessories, bodyOrientation, motion, behavior: _behavior, entrance: _entrance, ...html } = props;
     const element = useRef(null);
     const readyNotified = useRef(false);
     const deliveredReadyEvent = useRef(null);
@@ -102,6 +108,7 @@ export function SidekickAvatar(props) {
     const drainErrors = useRef(null);
     const useClientEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
     const ownedAttributes = useRef(new Set());
+    const appliedEntrance = useRef(null);
     const appliedBehavior = useRef(null);
     const published = useRef(null);
     const attributes = {};
@@ -193,6 +200,20 @@ export function SidekickAvatar(props) {
             if (!active || element.current !== node)
                 return;
             if (typeof node.setDesign === 'function') {
+                const entrance = callbacks.current.entrance;
+                const previousEntrance = appliedEntrance.current;
+                if (entrance !== undefined || previousEntrance?.node === node) {
+                    const value = entrance ?? null;
+                    if (previousEntrance?.node !== node || !sameEntrance(previousEntrance.value, value)) {
+                        appliedEntrance.current = { node, value: value ? { ...value } : null };
+                        try {
+                            node.entrance = value;
+                        }
+                        catch (error) {
+                            node.dispatchEvent(new CustomEvent('sidekick-error', { detail: { message: String(error), attribute: 'entrance' }, bubbles: true, composed: true }));
+                        }
+                    }
+                }
                 const requested = callbacks.current.behavior;
                 const previous = appliedBehavior.current;
                 // Omission does not claim ownership on first mount. Once supplied,

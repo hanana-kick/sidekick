@@ -3,3 +3,5 @@
 @media(prefers-reduced-motion:reduce){.state-lab *{scroll-behavior:auto}}
 
 .state-json-fields{font:12px/1.6 ui-monospace,monospace;overflow-wrap:anywhere}.state-json-fields dt{font-weight:600}.state-json-fields dd{margin:0 0 12px;color:#64748b}
+
+.state-entrance-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.state-entrance-controls label{display:grid;gap:6px;font:12px ui-monospace,monospace}.state-entrance-controls label[hidden]{display:none}.state-entrance-controls label:last-child{grid-column:1/-1}.state-entrance-controls input[type=text]{box-sizing:border-box;width:100%;min-width:0;border:1px solid #cbd5e1;border-radius:5px;padding:8px;background:#fff;color:#0f172a}.state-lab[data-state-reference=state-entrance] iframe{height:400px}

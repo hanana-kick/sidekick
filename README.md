@@ -6,7 +6,7 @@
 
 - [설치](#설치) · [HTML](#html에서-바로-사용하기) · [React](#react에서-사용하기)
 - [전체 속성](#html-속성과-react-props) · [디자인과 액세서리](#디자인-json과-액세서리) · [애니메이션/API](#애니메이션과-명령형-api)
-- [선언형 행동](#선언형-행동-behavior) · [화면 이동/비행](#렌더링이동-표준-v03) · [이벤트/정리](#이벤트와-정리) · [SSR](#ssr과-브라우저-지원) · [Studio/개발](#studio와-개발)
+- [선언형 행동](#선언형-행동-behavior) · [화면 이동/비행](#렌더링이동-표준-v03) · [이벤트/정리](#이벤트와-정리) · [SSR](#ssr과-브라우저-지원) · [Studio/개발](#studio와-개발) · [선언형 등장](#선언형-등장-entrance)
 
 ## 설치
 
@@ -509,6 +509,7 @@ const design = createDesign({
 
 | HTML 속성 | React prop | React 타입 | 허용 값 / 기본값 |
 | --- | --- | --- | --- |
+| `entrance` | `entrance` | `Entrance \| null` | HTML JSON; 준비 후 한 번 실행; 같은 값은 반복하지 않음; `null` 또는 제거로 해제 |
 | `behavior` | `behavior` | `BotBehavior \| null` | HTML은 JSON 문자열, React는 실제 객체/Element. `null` 또는 제거는 행동 취소. 아래 선언형 행동 참고 |
 | `activity` | `activity` | `Activity` | `idle` / `thinking` / `listening` / `speaking` / `celebrating` / `still`. 기본 `idle` |
 | `paused` | `paused` | `boolean` | 기본 `false`. 반복 모션 일시 정지 |
@@ -587,6 +588,99 @@ bot.setAttribute('tracking-mode', 'off');
 bot.removeAttribute('body-color'); // design의 색 또는 기본 색으로 복원
 bot.setAttribute('head-accessory', 'none'); // design에 모자가 있어도 해제
 ```
+
+## 선언형 등장 (entrance)
+
+`entrance`는 봇이 준비된 뒤 화면 가장자리 또는 같은 문서의 DOM 요소 뒤에서 한 번 등장하도록 선언합니다. HTML JSON attribute, JavaScript property, React prop에서 같은 `Entrance` 객체를 사용합니다. 기존에 설정한 외형은 유지하며 수동 이동 순서나 `enter()` 호출이 필요하지 않습니다.
+
+HTML 또는 React에 `placement="viewport"`를 지정합니다. 봇과 그 조상에는 CSS transform을 적용하지 않고, 봇에는 padding이나 border를 두지 않습니다. 대상의 회전·skew·3D 변환도 지원하지 않습니다. `behavior`를 함께 선언하면 등장이 끝난 뒤 행동을 시작합니다.
+
+### 화면 가장자리에서 등장
+
+`edge`는 진입할 가장자리입니다. `at`은 남는 직교 공간의 비율로, `left`/`right`에서는 세로 위치, `top`/`bottom`에서는 가로 위치를 지정합니다. `0`은 앞쪽 가장자리 정렬, `0.5`는 중앙, `1`은 뒤쪽 가장자리 정렬입니다. `inset`은 도착 캔버스와 화면 가장자리 사이의 CSS 픽셀 거리입니다.
+
+```html
+<script type="module">
+  import '@hanana-kick/sidekick/auto';
+</script>
+<sidekick-avatar placement="viewport"
+  style="width:96px;height:96px"
+  entrance='{"source":"viewport","edge":"left","at":0.3,"inset":24}'>
+</sidekick-avatar>
+```
+
+```tsx
+import { SidekickAvatar } from '@hanana-kick/sidekick/react';
+
+export default function EdgeEntrance() {
+  return <SidekickAvatar placement="viewport" style={{ width: 96, height: 96 }}
+    entrance={{ source: 'viewport', edge: 'left', at: 0.3, inset: 24 }} />;
+}
+```
+
+### DOM 요소 뒤에서 등장
+
+`target`은 같은 문서의 선택자 또는 `Element`입니다. HTML JSON에는 선택자를 사용합니다. `direction`은 대상에서 빠져나오는 방향입니다. `at`은 대상과 캔버스의 같은 비율 위치를 정렬하며, `gap`은 대상과 도착 캔버스 사이의 CSS 픽셀 거리입니다. 예제의 사각형을 먼저 렌더링합니다.
+
+```html
+<script type="module">
+  import '@hanana-kick/sidekick/auto';
+</script>
+<style>
+  #entrance-card { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); box-sizing: border-box; width: min(240px, 44vw); height: min(240px, 44vw); display: grid; place-items: center; background: #e2e8f0; border: 1px solid #94a3b8; }
+  #entrance-bot { width: min(96px, 18vw); height: min(96px, 18vw); }
+</style>
+<div id="entrance-card">#entrance-card</div>
+<sidekick-avatar id="entrance-bot" placement="viewport"
+  entrance='{"source":"element","target":"#entrance-card","direction":"right","at":0.5,"gap":16}'>
+</sidekick-avatar>
+```
+
+```tsx
+import { SidekickAvatar } from '@hanana-kick/sidekick/react';
+
+export default function CardEntrance() {
+  return <>
+    <style>{`
+      #entrance-card { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); box-sizing: border-box; width: min(240px, 44vw); height: min(240px, 44vw); display: grid; place-items: center; background: #e2e8f0; border: 1px solid #94a3b8; }
+  #entrance-bot { width: min(96px, 18vw); height: min(96px, 18vw); }
+    `}</style>
+    <div id="entrance-card">#entrance-card</div>
+    <SidekickAvatar id="entrance-bot" placement="viewport"
+      entrance={{ source: 'element', target: '#entrance-card', direction: 'right', at: 0.5, gap: 16 }} />
+  </>;
+}
+```
+
+대상은 불투명하고 캔버스 너비·높이 이상이어야 하며, 선택한 방향의 도착 위치가 뷰포트 안에 들어갈 공간이 있어야 합니다. 가림 효과는 대상의 사각형을 기준으로 캔버스에 적용됩니다. 투명 영역, 둥근 모서리, 복잡한 윤곽은 추적하지 않습니다. 대상의 스타일·`z-index`·DOM 위치는 변경하지 않고, 봇 크기도 자동 조절하지 않습니다.
+
+### 값과 실행 규칙
+
+| 필드 | 타입·허용값 | 기본값·범위 |
+| --- | --- | --- |
+| `source` | `string` | `viewport` 또는 `element`; 필수 |
+| `edge` | `string` | `left \| right \| top \| bottom`; 필수 |
+| `target` | `Element \| string` | 같은 문서의 대상; `element`에서 필수 |
+| `direction` | `string` | `left \| right \| top \| bottom`; `element`에서 필수 |
+| `at` | `number` | `0…1`; 기본 `0.5` |
+| `inset` | `number` | `0…10000` CSS px; 기본 `24` |
+| `gap` | `number` | `0…10000` CSS px; 기본 `16` |
+
+선언은 마운트 후 준비되면 한 번 실행됩니다. 내용이 다른 선언은 새 등장을 시작하고, 기본값을 생략했는지 여부나 객체 참조만 다르면 다시 실행하지 않습니다. 아래의 두 번째 대입은 첫 번째와 같은 선언이므로 반복하지 않습니다. `null`, attribute 제거 또는 React prop 제거는 선언을 해제하고 진행 중인 등장을 취소합니다. 이후 같은 설정을 다시 지정하면 다시 실행할 수 있습니다.
+
+```ts
+import type { Entrance, SidekickAvatar } from '@hanana-kick/sidekick';
+
+const bot = document.querySelector<SidekickAvatar>('#entrance-bot')!;
+const entrance: Entrance = {
+  source: 'element', target: '#entrance-card', direction: 'top', at: 0.75, gap: 16,
+};
+bot.entrance = entrance;
+bot.entrance = { ...entrance };
+bot.entrance = null;
+```
+
+형식·범위가 잘못된 객체는 거부됩니다. 실행 시 대상이 없거나 너무 작거나 도착 공간이 부족하면 `sidekick-error`가 발생하며 대상을 자동으로 기다리지 않습니다. 새로운 이동·행동·등장 지정이나 연결 해제는 진행 중인 등장을 취소할 수 있습니다. `entrance`는 페이지 배치 설정이며 저장된 Studio 장면에 포함되지 않습니다.
 
 ## 선언형 행동 (behavior)
 

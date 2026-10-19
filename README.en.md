@@ -6,7 +6,7 @@
 
 - [Installation](#installation) · [HTML](#using-html-directly) · [React](#using-react)
 - [All attributes](#html-attributes-and-react-props) · [Design and accessories](#design-json-and-accessories) · [Animation/API](#animation-and-imperative-apis)
-- [Declarative behavior](#declarative-behavior) · [Movement/flight](#rendering-and-movement-standard-v03) · [Events/cleanup](#events-and-cleanup) · [SSR](#ssr-and-browser-support) · [Studio/development](#studio-and-development)
+- [Declarative behavior](#declarative-behavior) · [Movement/flight](#rendering-and-movement-standard-v03) · [Events/cleanup](#events-and-cleanup) · [SSR](#ssr-and-browser-support) · [Studio/development](#studio-and-development) · [Declarative entrance](#declarative-entrance)
 
 ## Installation
 
@@ -509,6 +509,7 @@ Preset default colors: beret/bow tie/scarf `#b84742`; halo/ring earring `#f7cc5b
 
 | HTML attribute | React prop | React type | Allowed values / defaults |
 | --- | --- | --- | --- |
+| `entrance` | `entrance` | `Entrance \| null` | HTML JSON; runs once when ready; equivalent values do not replay; `null` or removal clears it |
 | `behavior` | `behavior` | `BotBehavior \| null` | JSON string in HTML; actual object/Element in React; `null` or removal cancels; see declarative behavior below |
 | `activity` | `activity` | `Activity` | `idle` / `thinking` / `listening` / `speaking` / `celebrating` / `still`; default `idle` |
 | `paused` | `paused` | `boolean` | Default `false`; pause looping motion |
@@ -587,6 +588,99 @@ bot.setAttribute('tracking-mode', 'off');
 bot.removeAttribute('body-color'); // design의 색 또는 기본 색으로 복원
 bot.setAttribute('head-accessory', 'none'); // design에 모자가 있어도 해제
 ```
+
+## Declarative entrance
+
+`entrance` declares a one-shot arrival from a viewport edge or from behind a DOM element in the same document once the bot is ready. The HTML JSON attribute, JavaScript property and React prop use the same `Entrance` object. It preserves the configured appearance and requires no manual movement sequence or `enter()` call.
+
+Set `placement="viewport"` in HTML or React. Keep the bot and its ancestors free of CSS transforms, and do not add padding or borders to the bot. Target rotation, skew and 3D transforms are unsupported. When `behavior` is also declared, it begins after the entrance finishes.
+
+### Arriving from a viewport edge
+
+`edge` selects the arrival edge. `at` is a fraction of the remaining orthogonal space: vertical for `left`/`right`, horizontal for `top`/`bottom`. `0` aligns the leading edges, `0.5` centers the canvas, and `1` aligns the trailing edges. `inset` is the final CSS-pixel distance between the canvas and viewport edge.
+
+```html
+<script type="module">
+  import '@hanana-kick/sidekick/auto';
+</script>
+<sidekick-avatar placement="viewport"
+  style="width:96px;height:96px"
+  entrance='{"source":"viewport","edge":"left","at":0.3,"inset":24}'>
+</sidekick-avatar>
+```
+
+```tsx
+import { SidekickAvatar } from '@hanana-kick/sidekick/react';
+
+export default function EdgeEntrance() {
+  return <SidekickAvatar placement="viewport" style={{ width: 96, height: 96 }}
+    entrance={{ source: 'viewport', edge: 'left', at: 0.3, inset: 24 }} />;
+}
+```
+
+### Emerging from behind a DOM element
+
+`target` is a selector or `Element` in the same document. Use a selector in HTML JSON. `direction` is the side through which the bot emerges. `at` aligns the same fractional point on the target and canvas; `gap` is the final CSS-pixel distance between them. Render the example rectangle before the bot.
+
+```html
+<script type="module">
+  import '@hanana-kick/sidekick/auto';
+</script>
+<style>
+  #entrance-card { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); box-sizing: border-box; width: min(240px, 44vw); height: min(240px, 44vw); display: grid; place-items: center; background: #e2e8f0; border: 1px solid #94a3b8; }
+  #entrance-bot { width: min(96px, 18vw); height: min(96px, 18vw); }
+</style>
+<div id="entrance-card">#entrance-card</div>
+<sidekick-avatar id="entrance-bot" placement="viewport"
+  entrance='{"source":"element","target":"#entrance-card","direction":"right","at":0.5,"gap":16}'>
+</sidekick-avatar>
+```
+
+```tsx
+import { SidekickAvatar } from '@hanana-kick/sidekick/react';
+
+export default function CardEntrance() {
+  return <>
+    <style>{`
+      #entrance-card { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); box-sizing: border-box; width: min(240px, 44vw); height: min(240px, 44vw); display: grid; place-items: center; background: #e2e8f0; border: 1px solid #94a3b8; }
+  #entrance-bot { width: min(96px, 18vw); height: min(96px, 18vw); }
+    `}</style>
+    <div id="entrance-card">#entrance-card</div>
+    <SidekickAvatar id="entrance-bot" placement="viewport"
+      entrance={{ source: 'element', target: '#entrance-card', direction: 'right', at: 0.5, gap: 16 }} />
+  </>;
+}
+```
+
+The target must be opaque, at least as wide and tall as the canvas, with enough viewport room for the destination in the chosen direction. The canvas mask uses the target rectangle. It does not follow transparent areas, rounded corners or complex outlines. Target styles, `z-index` and DOM position are unchanged, and the bot is not resized automatically.
+
+### Values and execution rules
+
+| Field | Type and accepted values | Default and range |
+| --- | --- | --- |
+| `source` | `string` | `viewport` or `element`; required |
+| `edge` | `string` | `left \| right \| top \| bottom`; required |
+| `target` | `Element \| string` | Same-document target; required for `element` |
+| `direction` | `string` | `left \| right \| top \| bottom`; required for `element` |
+| `at` | `number` | `0…1`; default `0.5` |
+| `inset` | `number` | `0…10000` CSS px; default `24` |
+| `gap` | `number` | `0…10000` CSS px; default `16` |
+
+The declaration runs once when the mounted bot is ready. A semantically different declaration starts a new entrance; a new object reference or omitted default values do not replay it. The second assignment below is equivalent to the first and does not replay. `null`, attribute removal or React prop removal clears the declaration and cancels an entrance in progress. Applying the same configuration after clearing it can run it again.
+
+```ts
+import type { Entrance, SidekickAvatar } from '@hanana-kick/sidekick';
+
+const bot = document.querySelector<SidekickAvatar>('#entrance-bot')!;
+const entrance: Entrance = {
+  source: 'element', target: '#entrance-card', direction: 'top', at: 0.75, gap: 16,
+};
+bot.entrance = entrance;
+bot.entrance = { ...entrance };
+bot.entrance = null;
+```
+
+Malformed or out-of-range objects are rejected. A missing or undersized target, or insufficient destination room, emits `sidekick-error` at execution; targets are not awaited automatically. A new movement, behavior or entrance declaration, or disconnection, can cancel an entrance in progress. `entrance` is page-layout configuration and is not included in saved Studio scenes.
 
 ## Declarative behavior
 

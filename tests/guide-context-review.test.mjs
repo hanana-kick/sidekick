@@ -196,3 +196,34 @@ test('all state reference prose is translated and declaration attribute keys are
   for(const row of lesson.parameters){const keys=row[0].split(' / ')[0].split(', ');for(const key of keys){if(['type','targets','duration','dwell','timeout'].includes(key)||key.startsWith('behavior.'))continue;assert.ok(attributeSource.includes("'"+key+"'")||attributeSource.includes(key+'?:'),key);}}
  }
 });
+
+test('entrance controls share one declaration with preview, selected source and URL context',async()=>{
+ const page=await mount({id:'state-entrance',level:1});
+ try{
+  const {w}=page,query=selector=>w.document.querySelector(selector),frame=query('.state-lab iframe'),messages=[];
+  frame.contentWindow.postMessage=value=>messages.push(value);
+  w.dispatchEvent(new w.MessageEvent('message',{source:frame.contentWindow,origin:w.location.origin,data:{type:'state-reference-mounted'}}));
+  const change=(key,value)=>{const control=query(`[data-entrance-control="${key}"]`);control.value=value;control.dispatchEvent(new w.Event('change',{bubbles:true}));};
+  const values=()=>messages.filter(message=>message.type==='state-reference-config').at(-1).values;
+  assert.deepEqual(JSON.parse(JSON.stringify(values().entrance)),{source:'element',target:'#reference-target',direction:'right',at:0.5,gap:16});
+  assert.equal(query('[data-state-enable="entrance"]').checked,true);
+  change('source','viewport');change('side','bottom');change('at','0.3');change('distance','12');
+  const expected={source:'viewport',edge:'bottom',at:0.3,inset:12};
+  assert.deepEqual(JSON.parse(JSON.stringify(values().entrance)),expected);
+  const source=query('[data-state-source]').textContent,example=new JSDOM(source);
+  assert.equal(example.window.document.querySelector('sidekick-avatar').getAttribute('placement'),'viewport');
+  assert.deepEqual(JSON.parse(example.window.document.querySelector('sidekick-avatar').getAttribute('entrance')),expected);
+  example.window.close();
+  assert.deepEqual(JSON.parse(new URL(w.location.href).searchParams.get('state')).values.entrance,expected);
+  change('at','2');assert.equal(query('[data-state-source]').textContent,source,'invalid numeric control cannot change accepted source');
+  change('source','element');change('side','top');change('at','0.75');change('distance','8');
+  assert.deepEqual(JSON.parse(JSON.stringify(values().entrance)),{source:'element',target:'#reference-target',direction:'top',at:0.75,gap:8});
+  const previous=query('[data-state-source]').textContent;
+  query('[data-state-control="entrance"]').value='{"source":"viewport","edge":"left","at":2}';query('[data-state-field="entrance"] button').click();
+  assert.equal(query('[data-state-source]').textContent,previous);assert.equal(query('.state-lab-status').getAttribute('role'),'alert');
+  change('source','null');assert.equal(values().entrance,null);
+  query('[data-state-text="reset"]').click();assert.deepEqual(Object.keys(values()),[]);assert.doesNotMatch(query('[data-state-source]').textContent,/entrance=/);
+  change('source','viewport');assert.equal(values().entrance.source,'viewport');
+  query('[data-state-text="run"]').click();assert.equal(messages.filter(message=>message.type==='state-reference-config').at(-1).restart,true);
+ }finally{page.close();}
+});

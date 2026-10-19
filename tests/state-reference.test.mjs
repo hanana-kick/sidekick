@@ -8,12 +8,12 @@ import { createDesign } from '../src/core/design.ts';
 import { SIDEKICK_ATTRIBUTES } from '../src/element/attributes.ts';
 import { ALL_STATE_FIELDS, STATE_FIELDS, FIELD_BY_KEY, fieldDefault, validateStateValue, compileReferenceAttributes, referenceSource, referenceReactProps } from '../playground/state-reference-schema.js';
 const scene=createScene();
-test('all 58 public attributes have one control with a real React prop',()=>{
+test('all public attributes have one control with a real React prop',()=>{
  assert.deepEqual(ALL_STATE_FIELDS.map(x=>x.attribute).sort(),[...SIDEKICK_ATTRIBUTES].sort());
  assert.equal(new Set(ALL_STATE_FIELDS.map(x=>x.attribute)).size,ALL_STATE_FIELDS.length);
  const react=readFileSync(new URL('../src/react.ts',import.meta.url),'utf8').split('export interface SidekickAvatarProps')[1].split('const tagName')[0];
  for(const item of ALL_STATE_FIELDS)assert.ok(react.includes(item.prop+'?:'),item.prop);
- assert.equal(Object.keys(STATE_FIELDS).length,6);
+ assert.equal(Object.keys(STATE_FIELDS).length,7);
 });
 test('schema defaults validate and Studio shape/color/eyes remain inherited',()=>{
  const document=new JSDOM().window.document;
@@ -60,4 +60,25 @@ test('standalone state pages and target-based pages emit matching preview layout
   assert.doesNotMatch(positional,/#reference-target,#reference-list\{display:none\}/);
   assert.match(positional,/height:calc\(100vh - 32px\)/);
  }
+});
+
+test('entrance schema validates the public declaration and emits exact selected-framework values',()=>{
+ const field=FIELD_BY_KEY.get('entrance');
+ assert.equal(field.prop,'entrance');
+ assert.deepEqual(fieldDefault(field,scene),{source:'element',target:'#reference-target',direction:'right',at:0.5,gap:16});
+ for(const declaration of [{source:'viewport',edge:'left',at:.3,inset:24},{source:'element',target:'#reference-target',direction:'top',at:.75,gap:16},null]){
+  assert.deepEqual(validateStateValue(field,declaration,scene),declaration);
+  const attributes=compileReferenceAttributes(scene,{entrance:declaration});
+  if(declaration)assert.equal(attributes.placement,'viewport');
+  const html=referenceSource(scene,{entrance:declaration},'element','state-entrance');
+  const dom=new JSDOM(html);
+  assert.deepEqual(JSON.parse(dom.window.document.querySelector('sidekick-avatar').getAttribute('entrance')),declaration);
+  assert.match(html,/#reference-target\{box-sizing:border-box/);assert.match(html,/background:#e2e8f0/);assert.match(html,/width:min\(72px,18vw\)/);
+  assert.doesNotMatch(html,/\.enter\(/);assert.doesNotMatch(html,/<SidekickAvatar/);
+  const react=referenceSource(scene,{entrance:declaration},'react','state-entrance');
+  const props=JSON.parse(react.split('const avatarProps = ')[1].split(';\n\nexport')[0]);
+  assert.deepEqual(props.entrance,declaration);assert.doesNotMatch(react,/<sidekick-avatar/);assert.doesNotMatch(react,/useEffect|\.enter\(/);
+  dom.window.close();
+ }
+ for(const declaration of [{source:'viewport',edge:'above'},{source:'viewport',edge:'left',at:2},{source:'element',target:'',direction:'right'},{source:'element',target:'#reference-target',direction:'right',gap:-1},{source:'viewport',edge:'left',gap:10}])assert.throws(()=>validateStateValue(field,declaration,scene));
 });

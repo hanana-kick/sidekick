@@ -52,7 +52,7 @@ export class AvatarPresence {
   get current(): PresenceState { return this.state; }
   get bypassBounds(): boolean { return !!this.operation || this.recovery || this.state === 'hidden'; }
   constructor(private readonly host: PresenceHost) {}
-  enter(point: AvatarPosition, input: EnterOptions = {}): Promise<PresenceResult> {
+  enter(point: AvatarPosition, input: EnterOptions = {}, start?: AvatarPosition): Promise<PresenceResult> {
     const target = validatePosition(point), parsed = options(input, 'from'); this.host.assertViewport();
     const revision = ++this.revision;
     const interrupted = !!this.operation;
@@ -65,7 +65,7 @@ export class AvatarPresence {
       // A fresh appearance starts outside. Retargeting an active presence flight keeps its inertia.
       if (!interrupted) {
         this.host.visibility(true);
-        this.host.stage(outsidePosition(parsed.edge, destination, this.host.geometry()));
+        this.host.stage(start ?? outsidePosition(parsed.edge, destination, this.host.geometry()));
         if (this.operation !== operation) return;
       }
       this.host.visibility(false);
@@ -93,6 +93,11 @@ export class AvatarPresence {
     this.operation = undefined; this.recovery = true; this.state = 'visible';
     this.host.visibility(false);
     this.finish(operation, false);
+  }
+  retarget(point: AvatarPosition): void {
+    const operation = this.operation;
+    if (!operation || operation.kind !== 'enter' || (operation.point.x === point.x && operation.point.y === point.y)) return;
+    operation.point = point; this.run(operation);
   }
   resize(): void {
     const operation = this.operation;

@@ -41,7 +41,7 @@ export class AvatarPresence {
     constructor(host) {
         this.host = host;
     }
-    enter(point, input = {}) {
+    enter(point, input = {}, start) {
         const target = validatePosition(point), parsed = options(input, 'from');
         this.host.assertViewport();
         const revision = ++this.revision;
@@ -57,7 +57,7 @@ export class AvatarPresence {
             // A fresh appearance starts outside. Retargeting an active presence flight keeps its inertia.
             if (!interrupted) {
                 this.host.visibility(true);
-                this.host.stage(outsidePosition(parsed.edge, destination, this.host.geometry()));
+                this.host.stage(start ?? outsidePosition(parsed.edge, destination, this.host.geometry()));
                 if (this.operation !== operation)
                     return;
             }
@@ -104,6 +104,13 @@ export class AvatarPresence {
         this.state = 'visible';
         this.host.visibility(false);
         this.finish(operation, false);
+    }
+    retarget(point) {
+        const operation = this.operation;
+        if (!operation || operation.kind !== 'enter' || (operation.point.x === point.x && operation.point.y === point.y))
+            return;
+        operation.point = point;
+        this.run(operation);
     }
     resize() {
         const operation = this.operation;

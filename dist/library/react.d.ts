@@ -8,6 +8,7 @@ import type { MaterialShapeName } from './core/shapes.js';
 import type { SidekickAvatar as SidekickElement } from './element/avatar.js';
 import type { SidekickAttributes, SidekickEventMap } from './element/attributes.js';
 import type { Emotion } from './core/emotion.js';
+import type { Entrance } from './element/entrance.js';
 import type { BotBehavior } from './element/behavior.js';
 export type SidekickAvatarRef = SidekickElement;
 export type SidekickEventHandler<K extends keyof SidekickEventMap> = (event: SidekickEventMap[K]) => void;
@@ -32,6 +33,7 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
     onAssetTransitionEnd?: SidekickEventHandler<'sidekick-transition-end'>;
     /** Declarative intent, assigned as a property after the native element upgrades. */
     behavior?: BotBehavior | null;
+    entrance?: Entrance | null;
     emotion?: Emotion;
     emotionIntensity?: number;
     onEmotionChange?: SidekickEventHandler<'sidekick-emotion-change'>;
@@ -100,3 +102,4 @@ export type { MoveToElementOptions, HorizontalAlignment, VerticalAlignment } fro
 export type { ElementAnchorState } from './element/element-anchor.js';
 export type { BotBehavior, BehaviorTarget, BehaviorSide, BehaviorPhase, BehaviorState, BehaviorResult, PerformOptions } from './element/behavior.js';
 export type { Emotion, EmotionValue, EmotionOptions, ReactionOptions, EmotionState, EmotionResult } from './core/emotion.js';
+export type { Entrance } from './element/entrance.js';
