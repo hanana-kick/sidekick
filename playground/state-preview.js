@@ -9,10 +9,12 @@ const style=document.createElement('style');style.textContent=REFERENCE_CSS;docu
 const root=document.getElementById('reference-root');
 root.innerHTML=REFERENCE_TARGET_HTML;
 const mount=document.createElement('div');root.append(mount);
+let currentRevision=0;
 let reactRoot=null, bot=null, framework=null, last={}, generation=0, suspended=false, intendedPaused=false;
 const notify=(type,data={})=>parent.postMessage({type,...data},location.origin);
 function remove(){generation++;if(reactRoot){reactRoot.unmount();reactRoot=null;}bot?.remove();bot=null;last={};}
 function apply(message){
+ currentRevision=message.revision;
  const scene=parseScene(message.scene), edits={};
  if(!message.values||typeof message.values!=='object'||Array.isArray(message.values))throw new TypeError('Invalid fields');
  for(const [key,value] of Object.entries(message.values)){const field=FIELD_BY_KEY.get(key);if(!field)throw new TypeError('Unknown field');edits[key]=validateStateValue(field,value,scene,document);}
@@ -22,10 +24,10 @@ function apply(message){
  const token=++generation;
  if(framework==='react'){
   if(!reactRoot)reactRoot=createRoot(mount);
-  flushSync(()=>reactRoot.render(createElement(SidekickAvatar,{id:'reference-bot',...referenceReactProps(attributes),onError:e=>notify('state-reference-error',{message:e.detail.message}),onReady:()=>notify('state-reference-ready',{revision:message.revision})})));
+  flushSync(()=>reactRoot.render(createElement(SidekickAvatar,{id:'reference-bot',...referenceReactProps(attributes),onError:e=>notify('state-reference-error',{message:e.detail.message,revision:currentRevision}),onReady:()=>notify('state-reference-ready',{revision:message.revision})})));
   bot=mount.querySelector('sidekick-avatar');
  }else{
-  if(!bot){bot=document.createElement('sidekick-avatar');bot.id='reference-bot';bot.addEventListener('sidekick-error',e=>notify('state-reference-error',{message:e.detail.message}));}
+  if(!bot){bot=document.createElement('sidekick-avatar');bot.id='reference-bot';bot.addEventListener('sidekick-error',e=>notify('state-reference-error',{message:e.detail.message,revision:currentRevision}));}
   for(const key of Object.keys(last))if(!Object.hasOwn(attributes,key))bot.removeAttribute(key);
   for(const [key,value]of Object.entries(attributes)){
    if(key==='behavior'&&value===null){bot.removeAttribute(key);bot.stopBehavior();continue;}
@@ -42,7 +44,7 @@ window.addEventListener('message',event=>{
  try{
   if(event.data.type==='state-reference-config')apply(event.data);
   if(event.data.type==='state-reference-visibility'){suspended=!event.data.visible;if(bot)bot.paused=suspended||intendedPaused;}
- }catch(error){notify('state-reference-error',{message:error.message});}
+ }catch(error){notify('state-reference-error',{message:error.message,revision:event.data.revision??currentRevision});}
 });
 window.addEventListener('pagehide',remove);
 notify('state-reference-mounted');

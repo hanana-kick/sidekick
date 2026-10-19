@@ -91,7 +91,7 @@ export function mountStateReference(host,id,{session}){
   if(event.source!==frame.contentWindow||event.origin!==location.origin||disposed)return;
   if(event.data?.type==='state-reference-mounted'){mounted=true;send();frame.contentWindow.postMessage({type:'state-reference-visibility',visible},location.origin);}
   if(event.data?.type==='state-reference-ready'&&event.data.revision===revision){status.setAttribute('role','status');status.textContent=copy(visible?'ready':'inactive');section.dataset.configured='true';}
-  if(event.data?.type==='state-reference-error')error(event.data.message);
+  if(event.data?.type==='state-reference-error'&&event.data.revision===revision)error(event.data.message);
  },{signal});
  const observer=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;if(mounted)frame.contentWindow.postMessage({type:'state-reference-visibility',visible},location.origin);if(!visible)status.textContent=copy('inactive');});observer.observe(frame);
  const unsubscribeFramework=subscribeFramework(()=>send(true));

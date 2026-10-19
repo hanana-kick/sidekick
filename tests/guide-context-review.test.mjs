@@ -8,6 +8,10 @@ import * as navigation from '../playground/guide-navigation.js';
 import * as emotions from '../playground/emotion-scenarios.js';
 import * as catalog from '../playground/scenario-catalog.js';
 import * as lessons from '../playground/guide-lessons.js';
+import * as stateSchema from '../playground/state-reference-schema.js';
+import { stateCopy } from '../playground/state-reference-copy.js';
+import { stateLessons } from '../playground/guide-state-lessons.js';
+import { createScene } from '../src/core/scene.ts';
 import { guideTranslations } from '../playground/guide-translations.js';
 
 const html = readFileSync(new URL('../guide.html', import.meta.url), 'utf8');
@@ -28,14 +32,17 @@ async function mount(context, { exercise = false, source = null, hash } = {}) {
     back.id = 'guide-source-return';
     w.document.body.prepend(back);
   }
+  w.structuredClone=structuredClone;
+  w.IntersectionObserver=class { observe() {} disconnect() {} };
   w.ResizeObserver = class { observe() {} };
   w.scrollTo = () => {};
-  Object.assign(w, navigation, emotions, catalog, lessons, framework, frameworkCode, {
+  Object.assign(w, stateSchema, {stateCopy,stateLessons}, navigation, emotions, catalog, lessons, framework, frameworkCode, {
     guideTranslations,
-    getSiteLocale: () => 'en', subscribeSiteLocale: () => {},
-    loadStudioSession: () => ({ scene: { zoom: 1 }, message: 'mock' }),
+    getSiteLocale: () => 'en', subscribeSiteLocale: () => () => {},
+    loadStudioSession: () => ({ scene: createScene(), message: 'mock' }),
     applyStudioSession: async () => {}, mountSiteHeader: () => {},
   });
+  w.mountStateReference=w.eval('(function(){'+readFileSync(new URL('../playground/state-reference.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/export /g,'')+';return mountStateReference;})()');
   class Bot extends w.HTMLElement {
     calls = [];
     connectedCallback() { queueMicrotask(() => { this.ready = true; this.dispatchEvent(new w.CustomEvent('sidekick-ready')); }); }
@@ -175,8 +182,8 @@ for(const lesson of lessons.lessons.filter(item=>item.id.startsWith('state-')))t
  const page=await mount({id:lesson.id,level:1});try{
   assert.deepEqual([...page.w.document.querySelectorAll('#scenario-toc > details > summary')].map(x=>x.textContent),['Bot state','Usage examples','Direct control']);
   assert.deepEqual([...page.w.document.querySelectorAll('#scenario-toc [data-scenario]')].slice(0,3).map(x=>x.dataset.scenario),['state-emotion','state-position','state-behavior']);
-  assert.equal(page.$('lesson-content').querySelectorAll('tbody tr').length,lesson.parameters.length);
-  assert.equal(page.$('lesson-content').querySelectorAll('pre').length,3);
+  assert.equal(page.$('lesson-content').querySelectorAll('tbody tr').length,stateSchema.STATE_FIELDS[lesson.id].length);
+  assert.equal(page.$('lesson-content').querySelectorAll('pre').length,1);
   const target=page.$('lesson-content').querySelector('[data-lesson-destination]');assert.equal(navigation.readGuideSource(target.href).id,lesson.id);
   assert.ok(catalog.scenarios.some(item=>'#'+item.id===new URL(target.href).hash));
   assert.equal(page.$('demo-bot'),null);

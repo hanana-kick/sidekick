@@ -44,6 +44,9 @@ export function fieldDefault(item, scene) {
  if(key==='body-color')return design.body.color;
  if(key==='eye-color')return design.eyes.color;
  if(key==='accessories')return structuredClone(design.accessories);
+ const slotField=key.match(/^(head|eyes|mouth|neck|left-ear|right-ear)-(accessory|color)$/);
+ if(slotField){const accessory=design.accessories.find(item=>item.slot===camel(slotField[1]));if(accessory)return slotField[2]==='color'?accessory.color:accessory.preset;}
+
  const weights=key.match(/^(left|right)-(smile|blink)$/);
  if(weights)return design.eyes[weights[1]].weights[weights[2]];
  return structuredClone(item.initial);
