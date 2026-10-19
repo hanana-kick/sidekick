@@ -261,9 +261,19 @@ test('four complete README languages preserve every executable example and API r
 test('README translations have working local anchors, repository links, and identical external references', async () => {
   const { existsSync } = await import('node:fs');
   const links = text => [...text.matchAll(/\]\(([^\s)]+)\)/g)].map(match => match[1]);
-  const external = text => [...new Set(links(text).filter(link => /^https?:/.test(link)))].sort();
+  const external = text => [...new Set(links(text).filter(link => /^https?:/.test(link)).map(link => {
+    const url = new URL(link);
+    if (url.origin === 'https://sidekick.hananakick.cc' && url.pathname === '/guide.html') url.searchParams.delete('lang');
+    return url.href;
+  }))].sort();
   for (const file of readmeLanguages) {
     const translated = read('../' + file);
+    const expectedLocale = {'README.en.md':'en','README.zh-CN.md':'zh-CN','README.ja.md':'ja'}[file];
+    for (const link of links(translated)) if (link.startsWith('https://sidekick.hananakick.cc/guide.html?')) {
+      const url = new URL(link); assert.equal(url.searchParams.get('lang'), expectedLocale, file + ': guide language must match README');
+      assert.deepEqual([...url.searchParams.keys()], ['lang']);
+      assert.ok(['#state-emotion','#loading','#html-start'].includes(url.hash));
+    }
     const headings = [...proseOnly(translated).matchAll(/^#{1,6} (.+)$/gm)].map(match => markdownSlug(match[1]));
     assert.deepEqual(external(translated), external(readme), `${file}: preserve linked evidence/resources`);
     for (const link of links(translated)) {
