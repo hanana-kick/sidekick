@@ -27,7 +27,7 @@ test('three-level contents provides all 12 actual scenarios and hash history nav
  const page=await setup(t);assert.equal(await page.locator('#scenario-toc > details').count(),3);assert.equal(await page.locator('#scenario-toc h3').count(),8);assert.equal(await page.locator('#scenario-toc [data-scenario]').count(),20);
  await choose(page,'review');await choose(page,'input');await page.goBack();await page.waitForFunction(()=>document.querySelector('[aria-current="page"][data-scenario]')?.dataset.scenario==='review');
  await page.goForward();await page.waitForFunction(()=>document.querySelector('[aria-current="page"][data-scenario]')?.dataset.scenario==='input');
- assert.match(await page.locator('#breadcrumb').textContent(),/사용자 안내.*폼 입력.*입력할 위치/);
+ assert.match(await page.locator('#breadcrumb').textContent(),/행동 선언.*사용자 안내.*입력할 위치/);
 });
 test('loading declaration and app completion execute exactly the displayed semantic command',async t=>{
  const page=await setup(t);assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'wait');

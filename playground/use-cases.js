@@ -109,7 +109,7 @@ async function activate(id) {
  $('lesson-content').hidden=!lesson;document.querySelector('.scenario-workspace').hidden=!!lesson;$('progressive-guide').hidden=!!lesson;
  const controller=new AbortController();
  document.querySelectorAll('[data-scenario]').forEach(link=>{if(link.dataset.scenario===item.id){link.setAttribute('aria-current','page');link.closest('details').open=true;}else link.removeAttribute('aria-current');});
- $('breadcrumb').textContent=[item.major,item.middle,item.title].map(t).join(' / ');
+ $('breadcrumb').textContent=(lessonById(item.id)?[item.major,item.middle,item.title]:['행동 선언',item.major,item.title]).map(t).join(' / ');
  setText('scenario-title',item.title);setText('scenario-sentence',item.sentence);setText('scenario-hint',item.hint);
  if(lesson){renderLesson(lesson);localizeGuideBindings();return;}
  $('demo-app').innerHTML=applicationMarkup(item.id);$('event-code').textContent=eventCode(item.id);delete $('copy-status').dataset.guideI18n;$('copy-status').textContent='';setText('run-status','봇 준비 중…');
@@ -199,7 +199,7 @@ function localizeGuideBindings(){
 function localizeGuide(){
  $('session-status').textContent=t(session.message);
  const item=lessonById(location.hash.slice(1))??active?.item??lessonById('html-start');
- if(item)$('breadcrumb').textContent=[item.major,item.middle,item.title].map(t).join(' / ');
+ if(item)$('breadcrumb').textContent=(lessonById(item.id)?[item.major,item.middle,item.title]:['행동 선언',item.major,item.title]).map(t).join(' / ');
  localizeGuideBindings();
  const progress=$('progress-label')?.dataset.progress;if(progress!==undefined)$('progress-label').textContent=progress+'% · '+t(Number(progress)===100?'업로드 완료':'전송 중');
  if(active){renderLevel();const state=active.bot.behaviorState;if(state&&!$('run-status').dataset.guideI18n)$('run-status').textContent=t(labels[state.status]??state.status)+(state.itemCount?' · '+state.completedItems+'/'+state.itemCount:'');}
