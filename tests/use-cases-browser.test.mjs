@@ -135,3 +135,26 @@ test('emotion guide options, rapid interruption and keyboard contents work on mo
  assert.equal(await page.locator('#toc-toggle').getAttribute('aria-expanded'),'false');
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
 });
+
+test('compact mobile emotion examples keep the avatar and last action visible together',async t=>{
+ const page=await setup(t,{width:320,height:640},'emotion-interruption');
+ for(const route of ['emotion-interruption','emotion-composition']){
+  if(route!=='emotion-interruption')await choose(page,route);
+  await page.waitForTimeout(450);
+  await page.evaluate(()=>{
+   const app=document.querySelector('.application').getBoundingClientRect();
+   const header=document.querySelector('.app-header').getBoundingClientRect().height;
+   const toc=document.querySelector('.catalog-nav').getBoundingClientRect().height;
+   window.scrollTo({top:scrollY+app.top-header-toc-8,behavior:'instant'});
+  });
+  const geometry=await page.evaluate(()=>{
+   const bot=document.querySelector('#demo-bot').getBoundingClientRect(),last=[...document.querySelectorAll('[data-emotion-step]')].at(-1).getBoundingClientRect();
+   const fixedBottom=document.querySelector('.catalog-nav').getBoundingClientRect().bottom;
+   return {botTop:bot.top,botBottom:bot.bottom,lastTop:last.top,lastBottom:last.bottom,fixedBottom,height:innerHeight};
+  });
+  assert.ok(geometry.botTop>=geometry.fixedBottom-1,`${route}: avatar behind header`);
+  assert.ok(geometry.botBottom<=geometry.height,`${route}: avatar below viewport`);
+  assert.ok(geometry.lastTop>=geometry.fixedBottom&&geometry.lastBottom<=geometry.height,`${route}: last action and avatar must be visible together`);
+  if(process.env.SIDEKICK_SCREENSHOTS)await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/compact-320-${route}.png`});
+ }
+});
