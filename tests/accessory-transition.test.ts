@@ -22,17 +22,17 @@ test('equipment starts visible and replacement keeps the old frame until its zer
 test('interrupting removal or replacement continues from current coverage, never showing two meshes', () => {
   const t = new AccessoryTransition(), a = createAccessory('beret'), b = createAccessory('crown'), c = createAccessory('halo');
   t.sample([a], 0); t.sample([b], 0); t.sample([b], .025);
-  assert.equal(t.sample([c], .016)[0]?.opacity, .75);
+  assert.equal(t.sample([c], .016)[0]?.opacity, .84375);
   assert.deepEqual(t.sample([c], .075), [{ accessory: c, opacity: 0 }]);
   t.sample([c], .04);
-  assert.ok(Math.abs(t.sample([], .016)[0]!.opacity - .4) < 1e-9);
-  assert.deepEqual(t.sample([], .04), []);
+  assert.ok(Math.abs(t.sample([], .016)[0]!.opacity - .352) < 1e-9);
+  assert.deepEqual(t.sample([], .1), []);
   assert.equal(t.active, false);
   assert.deepEqual(t.sample([b], 0), [{ accessory: b, opacity: 0 }]);
   assert.equal(t.sample([b], .1)[0]?.opacity, 1);
   t.sample([a], 0); t.sample([a], .04);
-  assert.ok(Math.abs(t.sample([b], 0)[0]!.opacity - .6) < 1e-9, 'reversing a pending replacement retains its outgoing opacity');
-  assert.equal(t.sample([b], .04)[0]?.opacity, 1);
+  assert.ok(Math.abs(t.sample([b], 0)[0]!.opacity - .648) < 1e-9, 'reversing a pending replacement retains its outgoing opacity');
+  assert.equal(t.sample([b], .1)[0]?.opacity, 1);
 });
 
 test('delta is bounded and invalid clocks cannot corrupt coverage; instant snaps all slots', () => {
@@ -105,4 +105,44 @@ test('same-ID preset replacement preserves outgoing pose and releases it for the
   r.render(createDesign({ accessories: [next] }), { ...frame, delta: .15 });
   assert.equal(r.stats.drawCalls, 3, 'the incoming beret now owns the slot');
   r.dispose();
+});
+
+test('cubic opacity preserves its derivative on reversal and rests at both endpoints', () => {
+  const t = new AccessoryTransition(), a = createAccessory('halo'), b = createAccessory('beret'), h = 1e-7;
+  t.sample([a], 0); t.sample([b], 0);
+  const start = t.sample([b], h)[0]!.opacity;
+  assert.ok(Math.abs((start - 1) / h) < .001, 'fade starts at rest');
+  const before = t.sample([b], .035 - 2 * h)[0]!.opacity;
+  const at = t.sample([b], h)[0]!.opacity;
+  const leftVelocity = (at - before) / h;
+  assert.equal(t.sample([a], 0)[0]!.opacity, at);
+  const after = t.sample([a], h)[0]!.opacity;
+  const rightVelocity = (after - at) / h;
+  assert.ok(Math.abs(leftVelocity - rightVelocity) < .001, `${leftVelocity} vs ${rightVelocity}`);
+  assert.ok(after < at, 'reversal initially preserves outgoing velocity rather than snapping direction');
+  t.sample([a], .1); assert.equal(t.sample([a], h)[0]!.opacity, 1); assert.equal(t.active, false);
+
+  t.sample([b], 0);
+  const nearZero = t.sample([b], .1 - h)[0]!.opacity;
+  assert.ok(nearZero / h < .001, 'outgoing mesh reaches zero at rest');
+  assert.equal(t.sample([b], h)[0]!.opacity, 0);
+  assert.ok(t.sample([b], h)[0]!.opacity / h < .001, 'incoming mesh starts at rest');
+  const nearOne = t.sample([b], .1 - 2 * h)[0]!.opacity;
+  assert.ok((1 - nearOne) / h < .001, 'incoming mesh reaches full opacity at rest');
+  assert.equal(t.sample([b], h)[0]!.opacity, 1);
+});
+
+test('rapid retargets keep cubic coverage finite and bounded, including zero-alpha removal', () => {
+  const t = new AccessoryTransition(), a = createAccessory('halo'), b = createAccessory('beret'), c = createAccessory('crown');
+  t.sample([], 0); t.sample([a], 0); assert.deepEqual(t.sample([], 0), []); assert.equal(t.active, false);
+  let seed = 3;
+  for (let i = 0; i < 2000; i++) {
+    seed = (1664525 * seed + 1013904223) >>> 0;
+    const target = [[], [a], [b], [c]][seed % 4]!;
+    t.sample(target, 0);
+    const frame = t.sample(target, ((seed >>> 8) % 100) / 10000);
+    assert.ok(frame.length <= 1);
+    for (const { opacity } of frame) assert.ok(Number.isFinite(opacity) && opacity >= 0 && opacity <= 1, String(opacity));
+  }
+  t.sample([c], 0); t.sample([c], .25); assert.equal(t.active, false);
 });
