@@ -355,3 +355,15 @@ test('element anchor option and copied code bind scrolling targets; detach prese
   await select(page, 'action-kind', 'anchor');
   assert.match(await page.locator('#invocation').textContent(), /avatar.detachAnchor\(\);/);
 });
+
+test('playground eye action visibly overrides an active emotion without resetting the action form', async t => {
+  const page=await pageFor(t);
+  await page.locator('#bot').evaluate(bot=>{bot.paused=true;bot.trackingMode='off';});
+  const pixels=()=>page.locator('#bot').evaluate(async bot=>Array.from((await bot.capturePixelsAsync()).pixels));
+  await select(page,'action-kind','emotion');await select(page,'emotion-operation','setEmotion');await select(page,'emotion-name','happy');await fill(page,'emotion-intensity',1);await page.locator('#execute').click();
+  const happy=await pixels();
+  await select(page,'action-kind','expression');await select(page,'eye-side','both');await select(page,'expression','blink');await fill(page,'expression-duration',0);await page.locator('#execute').click();
+  const closed=await pixels();assert.notDeepEqual(closed,happy,'GPU eye bitmap must change, not only authored pose');
+  assert.equal(await page.locator('#action-kind').inputValue(),'expression');assert.equal(await page.locator('#bot').evaluate(bot=>bot.emotion),'happy');
+  await select(page,'expression','neutral');await page.locator('#execute').click();const neutral=await pixels();assert.notDeepEqual(neutral,closed);assert.notDeepEqual(neutral,happy);
+});

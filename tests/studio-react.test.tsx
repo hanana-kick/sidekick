@@ -93,7 +93,11 @@ async function fixture(t: { after: (fn: () => Promise<void>) => void }, saved: R
   const input = async (id: string, value: string) => act(async () => { const element = node<HTMLInputElement | HTMLTextAreaElement>(id); const prototype = element.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(element, value); element.dispatchEvent(new Event('input', { bubbles: true })); });
   const equipment = (slot: string, preset: string) => click(container.querySelector<HTMLElement>(`[data-equipment="${slot}"][data-accessory="${preset}"]`)!);
   const shape = (name: string) => click(container.querySelector<HTMLElement>(`[data-shape="${name}"]`)!);
-  const key = async (id: string, key: string) => act(async () => { const element = node(id); element.focus(); element.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true })); });
+  const key = async (id: string, key: string) => act(async () => { const element = node(id); element.focus(); element.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+    // Radix roving focus queues focusFirst with setTimeout; selection changes in onFocus.
+    // Drain that already queued timer before act flushes the resulting React update.
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+  });
   return { container, root, controller, avatar, storage, node, click, input, equipment, shape, key, unmount };
 }
 function assertMinimal(design: AvatarDesign) {
@@ -145,6 +149,7 @@ test('keyboard tabs/sliders and shape focus update through React without remount
   await f.input('body-color', '#a4b8c9'); await f.equipment('neck', 'scarf');
   assert.equal(avatar.shapeCalls.length, 1); assert.equal(avatar.morphing, true);
   await f.key('appearance-tab', 'ArrowRight');
+  assert.equal(document.activeElement, f.node('animation-tab'));
   assert.equal(f.node('animation-tab').getAttribute('aria-selected'), 'true');
   await f.key('left-smile-weight', 'ArrowRight');
   assert.equal(avatar.design.eyes.left.weights.smile, .01);
