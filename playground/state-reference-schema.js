@@ -1,3 +1,4 @@
+import { POSITION_PLACEMENTS, validatePositioning } from '../src/element/positioning.ts';
 import { MATERIAL_SHAPE_NAMES } from '../src/core/shapes.ts';
 import { EYE_EXPRESSIONS } from '../src/core/expressions.ts';
 import { EMOTIONS } from '../src/core/emotion.ts';
@@ -20,7 +21,7 @@ const color = key => field(key, 'color', key === 'body-color' ? '#FFCC37' : '#20
 const json = (key, initial, extra = {}) => field(key, 'json', initial, extra);
 export const STATE_FIELDS = Object.freeze({
  'state-emotion': [select('emotion', 'neutral', EMOTIONS), number('emotion-intensity', 1, 0, 1, 0.05)],
- 'state-position': [select('placement', 'inline', ['inline', 'viewport']), number('position-x', 0, -10000000, 10000000, 1, 'px'), number('position-y', 0, -10000000, 10000000, 1, 'px'), select('movement-bounds', 'viewport', ['viewport', 'none'])],
+ 'state-position': [json('positioning', {target:'viewport',placement:'bottom-right',gap:16}, {nullable:true}), select('placement', 'inline', ['inline', 'viewport']), number('position-x', 0, -10000000, 10000000, 1, 'px'), number('position-y', 0, -10000000, 10000000, 1, 'px'), select('movement-bounds', 'viewport', ['viewport', 'none'])],
  'state-behavior': [json('behavior', { type: 'wait', target: '#reference-target', side: 'right', gap: 16 }, { nullable: true })],
  'state-entrance': [json('entrance', { source: 'element', target: '#reference-target', direction: 'right', at: 0.5, gap: 16 }, { nullable: true })],
  'state-facing': [select('tracking-mode', 'eyes-and-body', ['off', 'eyes', 'eyes-and-body']), number('gaze-x', 0, -1, 1, 0.05), number('gaze-y', 0, -1, 1, 0.05), select('body-orientation', 'front', ['front', 'three-quarter', 'side']), number('body-yaw', 0, -360, 360, 1, 'deg'), number('body-pitch', 0, -90, 90, 1, 'deg'), number('body-roll', 0, -180, 180, 1, 'deg'), number('zoom', 1, 0.5, 3, 0.05), field('mouse-tracking', 'boolean', false, { legacy: true })],
@@ -35,6 +36,7 @@ export const REFERENCE_TARGET_HTML = '<div id="reference-target">#reference-targ
 export const REFERENCE_CSS = `html,body{margin:0;min-height:100%;font:14px system-ui;color:#334155}body{padding:16px;box-sizing:border-box;background:#f8fafc}#reference-root{position:relative;height:calc(100vh - 32px);min-height:200px}#reference-target{margin-left:16px;width:84px;padding:10px;border:1px solid #cbd5e1;border-radius:6px}#reference-list{position:absolute;right:8px;top:70px;width:100px;padding:0;list-style:none}.reference-item{margin:6px 0;padding:8px;border:1px solid #cbd5e1;border-radius:6px}#reference-bot{display:block;width:144px;height:144px;margin:48px 0 0 12px}`;
 
 export function referenceCSS(id) {
+ if(id==='state-position')return REFERENCE_CSS + `body{padding:0;overflow:hidden}#reference-root{height:100vh;min-height:0}#reference-target{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin:0;width:84px;box-sizing:border-box}#reference-list{display:none}#reference-bot{width:72px;height:72px;margin:0}`;
  if(id==='state-entrance')return REFERENCE_CSS + `body{padding:0;overflow:hidden}#reference-root{height:100vh;min-height:0}#reference-target{box-sizing:border-box;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin:0;width:min(160px,44vw);height:min(160px,44vw);padding:12px;display:grid;place-items:center;border-radius:0;border:1px solid #94a3b8;background:#e2e8f0;color:#334155;font:12px ui-monospace,monospace;overflow-wrap:anywhere}#reference-list{display:none}#reference-bot{width:min(72px,18vw);height:min(72px,18vw);margin:0}`;
  return REFERENCE_CSS + (id && !['state-position','state-behavior'].includes(id) ? '#reference-root{display:grid;place-items:center}#reference-target,#reference-list{display:none}#reference-bot{width:180px;height:180px;margin:0}' : ''); }
 
@@ -66,6 +68,7 @@ export function validateStateValue(item, value, scene, document) {
   const encoded=JSON.stringify(value);if(!encoded||encoded.length>65536)throw new RangeError('JSON: ≤65536 characters');
   if(item.attribute==='design'){if(!value||typeof value!=='object'||Array.isArray(value))throw new TypeError('design: object required');parseDesign(value);}
   if(item.attribute==='accessories')parseDesign({...scene.design,accessories:value});
+  if(item.attribute==='positioning'&&value!==null)validatePositioning(structuredClone(value),document);
   if(item.attribute==='entrance'&&value!==null)validateEntrance(structuredClone(value));
   if(item.attribute==='behavior'&&value!==null){if(!document)throw new Error('Document required');validateBehavior(value,document);}
   if(item.attribute==='motion'){const timeline=new MotionTimeline({left:scene.design.eyes.left,right:scene.design.eyes.right});void timeline.to(value,{duration:0});}
@@ -79,7 +82,7 @@ export function compileReferenceAttributes(scene, edits) {
  if(Object.hasOwn(edits,'body-orientation'))for(const axis of ['yaw','pitch','roll'])delete attributes[`body-${axis}`];
  for(const [key,value] of Object.entries(edits)){if(value===undefined)continue;if(!FIELD_BY_KEY.has(key))throw new TypeError(`Unknown state field: ${key}`);attributes[key]=structuredClone(value);}
  // The entrance examples use the required viewport placement in both runtime and copied source.
- if(edits.entrance!=null&&!Object.hasOwn(edits,'placement'))attributes.placement='viewport';
+ if((edits.entrance!=null||edits.positioning!=null)&&!Object.hasOwn(edits,'placement'))attributes.placement='viewport';
  const resolved=resolveSidekickAttributes(new Map(Object.entries(attributes).filter(([key,value])=>key!=='behavior'&&value!==undefined).map(([key,value])=>[key,attributeText(value)])));
  if(attributes.motion?.accessories){
   const available=new Set(resolved.design.accessories.map(item=>item.id));
@@ -99,6 +102,7 @@ export function referenceSource(scene, edits, framework='element', id) {
 }
 
 export const JSON_FIELDS = Object.freeze({
+ positioning: [['target','viewport | selector | Element (HTML JSON: string)'],['placement',POSITION_PLACEMENTS.join(' | ')],['gap','CSS px ≥ 0 · 16'],['offset','{ x?: number, y?: number } · 0'],['follow','boolean · true']],
  entrance: [
   ['source','viewport | element'], ['edge','viewport: left | right | top | bottom'],
   ['target','element: Element | string; HTML JSON: string'], ['direction','element: left | right | top | bottom'],

@@ -26,6 +26,9 @@ before(async () => {
   class MockAvatar extends HTMLElement {
     ready = false;
     writes = [];
+    positioningWrites = [];
+    get positioning() { return this.positioningWrites.at(-1) ?? null; }
+    set positioning(value) { this.positioningWrites.push(value); }
     entranceWrites = [];
     get entrance() { return this.entranceWrites.at(-1) ?? null; }
     set entrance(value) { if (value !== null && (!value || !['element', 'viewport'].includes(value.source))) throw new TypeError('Unknown entrance source'); this.entranceWrites.push(value); }
@@ -332,4 +335,13 @@ test('React invalid entrance reports once without replacing the last valid nativ
  const errors=[], f=await fixture(t,{entrance:{source:'viewport',edge:'left'}}), previous=f.avatar.entrance;
  const onError=e=>errors.push(e.detail); await f.render({entrance:{source:'invalid'},onError}); await f.render({entrance:{source:'invalid'},onError});
  assert.equal(errors.length,1); assert.equal(errors[0].attribute,'entrance'); assert.equal(f.avatar.entrance,previous);
+});
+
+
+test('React positioning preserves target identity and deduplicates normalized declarations', async t => {
+ const target=document.createElement('div');document.body.append(target);t.after(()=>target.remove());
+ const f=await fixture(t,{},true);f.avatar.positioning={target};await f.render({className:'unrelated'});assert.equal(f.avatar.positioningWrites.length,1);
+ await f.render({positioning:{target,placement:'center-right'}});await f.render({positioning:{target,placement:'center-right',gap:16,follow:true,offset:{x:0,y:0}}});assert.equal(f.avatar.positioningWrites.length,2);
+ const config={target,placement:'center-right',offset:{x:3}};await f.render({positioning:config});config.offset.x=4;await f.render({positioning:config});assert.equal(f.avatar.positioningWrites.length,4);assert.equal(f.avatar.positioning.target,target);
+ await f.render({});assert.equal(f.avatar.positioning,null);await f.render({});assert.equal(f.avatar.positioningWrites.length,5);
 });

@@ -158,3 +158,23 @@ test('reference workspace aligns headings and preview at desktop and narrow widt
   }
  }finally{await page.close();}
 });
+
+test('positioning controls generate matching CE and React placements without coordinate arithmetic',{timeout:120000},async()=>{
+ const page=await browser.newPage({viewport:{width:1280,height:900},reducedMotion:'reduce'});
+ try{for(const mode of ['element','react']){
+  await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-position`);await frameFor(page);
+  for(const target of ['viewport','#reference-target']){
+   await page.selectOption('[data-positioning-control="target"]',target);
+   for(const placement of ['top-left','top-center','top-right','center-left','center','center-right','bottom-left','bottom-center','bottom-right']){
+    await page.selectOption('[data-positioning-control="placement"]',placement);await page.waitForTimeout(80);
+    const frame=await frameFor(page);await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
+    const result=await frame.evaluate(()=>{const bot=document.querySelector('#reference-bot'),config=bot.positioning,r=bot.getBoundingClientRect(),t=config.target==='viewport'?{left:0,top:0,width:innerWidth,height:innerHeight}:document.querySelector(config.target).getBoundingClientRect();return{config,r:{left:r.left,top:r.top,width:r.width,height:r.height},t:{left:t.left,top:t.top,width:t.width,height:t.height}};});
+    assert.equal(result.config.placement,placement);assert.equal(result.config.target,target);
+    const [v,h]=placement==='center'?['center','center']:placement.split('-'),viewport=target==='viewport';
+    const axis=(part,start,size,own)=>part==='center'?start+(size-own)/2:['left','top'].includes(part)?start+(viewport?16:-own-16):start+size-(viewport?own+16:-16);
+    assert.ok(Math.abs(result.r.left-axis(h,result.t.left,result.t.width,result.r.width))<1);assert.ok(Math.abs(result.r.top-axis(v,result.t.top,result.t.height,result.r.height))<1);
+    const source=await page.locator('[data-state-source]').textContent();assert.match(source,/positioning/);assert.match(source,new RegExp(placement));
+   }
+  }
+ }}finally{await page.close();}
+});

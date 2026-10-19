@@ -19,7 +19,7 @@ export interface PresenceHost {
 }
 interface Operation { kind: 'enter' | 'exit'; edge: PresenceEdge; point: AvatarPosition; options: MoveOptions; segment: number; resolve(result: PresenceResult): void }
 const edges: readonly string[] = ['left', 'right', 'top', 'bottom'];
-function options(value: EnterOptions | ExitOptions, key: 'from' | 'to'): { edge: PresenceEdge; motion: MoveOptions } {
+export function validatePresenceOptions(value: EnterOptions | ExitOptions, key: 'from' | 'to'): { edge: PresenceEdge; motion: MoveOptions } {
   if (!value || typeof value !== 'object' || Array.isArray(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) throw new TypeError('presence options must be a plain object');
   const motion: Record<string, unknown> = {};
   let edge: unknown = key === 'from' ? 'left' : 'right';
@@ -53,7 +53,7 @@ export class AvatarPresence {
   get bypassBounds(): boolean { return !!this.operation || this.recovery || this.state === 'hidden'; }
   constructor(private readonly host: PresenceHost) {}
   enter(point: AvatarPosition, input: EnterOptions = {}, start?: AvatarPosition): Promise<PresenceResult> {
-    const target = validatePosition(point), parsed = options(input, 'from'); this.host.assertViewport();
+    const target = validatePosition(point), parsed = validatePresenceOptions(input, 'from'); this.host.assertViewport();
     const revision = ++this.revision;
     const interrupted = !!this.operation;
     this.cancel();
@@ -73,7 +73,7 @@ export class AvatarPresence {
     });
   }
   exit(input: ExitOptions = {}): Promise<PresenceResult> {
-    const parsed = options(input, 'to'); this.host.assertViewport();
+    const parsed = validatePresenceOptions(input, 'to'); this.host.assertViewport();
     if (this.state === 'hidden') { const result: PresenceResult = { finished: true, position: this.host.position(), presence: 'hidden' }; this.host.complete('exit', result); return Promise.resolve(result); }
     const revision = ++this.revision; this.cancel();
     if (revision !== this.revision) return Promise.resolve({ finished: false, position: this.host.position(), presence: this.state });

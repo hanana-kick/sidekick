@@ -1,3 +1,4 @@
+import { validatePosition } from './movement.js';
 import { assertAnchorHierarchy, resolveElementTarget } from './element-target.js';
 import type { AvatarPosition } from './movement.js';
 
@@ -62,5 +63,5 @@ export function resolvePositioning(avatar: HTMLElement, position: AvatarPosition
   const own = avatar.getBoundingClientRect();
   const reference = target?.getBoundingClientRect() ?? { left: 0, top: 0, width: view.innerWidth, height: view.innerHeight };
   const point = positioningPoint(config, own, reference, !target);
-  return { position: { x: position.x + point.x - own.left, y: position.y + point.y - own.top }, target };
+  return { position: validatePosition({ x: position.x + point.x - own.left, y: position.y + point.y - own.top }), target };
 }

@@ -11,7 +11,7 @@ import { assertAnchorHierarchy, resolveElementTarget } from './element-target.js
 import type { MoveToElementOptions } from './element-target.js';
 import { validateEntrance, sameEntrance, entrancePositions, entranceClip } from './entrance.js';
 import type { Entrance } from './entrance.js';
-import { AvatarPresence } from './presence.js';
+import { AvatarPresence, validatePresenceOptions } from './presence.js';
 import type { EnterOptions, ExitOptions, PresenceResult, PresenceState } from './presence.js';
 import { PlaybackController } from './playback.js';
 import type { PlayOptions, AssetTransitionTarget } from './playback.js';
@@ -226,6 +226,7 @@ export class SidekickAvatar extends HTMLElementBase {
       };
     }, () => this.anchorSleeping);
   }
+  private positioningTarget: Element | null | undefined;
   private positioningRevision = 0;
   private positioningDeclaration: ResolvedPositioning | null = null;
   get positioning(): Positioning | null { return copyPositioning(this.positioningDeclaration); }
@@ -236,25 +237,43 @@ export class SidekickAvatar extends HTMLElementBase {
     if (next && this.ready && this.connected) resolvePositioning(this, this.position, next);
     const revision = ++this.positioningRevision;
     this.interruptBehavior(); if (revision !== this.positioningRevision) return;
-    this.releaseAnchor(false); this.positioningDeclaration = next;
-    if (!next) { this.movement.cancel(); return; }
+    this.releaseAnchor(false); this.positioningTarget = undefined; this.positioningDeclaration = next;
+    if (!next) {
+      this.entranceRevision++; this.clearEntrance();
+      const owner = this.presence.interrupt();
+      if (revision === this.positioningRevision && this.presence.owns(owner)) this.movement.cancel();
+      return;
+    }
     if (this.ready && this.connected && this.presenceState !== 'entering') this.startPositioning();
   }
-  private clearPositioning(): void { this.positioningRevision++; this.positioningDeclaration = null; }
+  private clearPositioning(): void { this.positioningRevision++; this.positioningDeclaration = null; this.positioningTarget = undefined; }
+  private resolvePositioningDeclaration(config: ResolvedPositioning) {
+    const resolved = resolvePositioning(this, this.position, config);
+    if (this.positioningTarget !== undefined && resolved.target !== this.positioningTarget) throw new Error('positioning target was replaced');
+    this.positioningTarget = resolved.target;
+    return resolved;
+  }
+  private discardInvalidPositioning(): void {
+    if (!this.positioningDeclaration) return;
+    try { this.resolvePositioningDeclaration(this.positioningDeclaration); }
+    catch { this.clearPositioning(); this.releaseAnchor(false); }
+  }
   private positioningDestination(): AvatarPosition | undefined {
-    return this.positioningDeclaration ? resolvePositioning(this, this.position, this.positioningDeclaration).position : undefined;
+    return this.positioningDeclaration ? this.resolvePositioningDeclaration(this.positioningDeclaration).position : undefined;
   }
   private startPositioning(initial = false): void {
     const config = this.positioningDeclaration;
     if (!config || !this.ready || !this.connected || this.presenceState === 'entering') return;
     try {
-      const resolved = resolvePositioning(this, this.position, config);
+      const resolved = this.resolvePositioningDeclaration(config);
       this.releaseAnchor(false);
       const revision = this.anchorRevision;
+      const owner = this.presence.reveal();
+      if (!this.presence.owns(owner) || this.positioningDeclaration !== config || revision !== this.anchorRevision) return;
       const options = resolveSidekickAttributes(this.acceptedAttributes).moveOptions;
       if (!this.acceptedAttributes.has('move-duration')) delete options.duration;
       if (initial) this.movement.relocate(this.constrainPosition(resolved.position, true));
-      else void this.movement.to(this.constrainPosition(resolved.position, true), options);
+      else void this.movement.to(this.constrainPosition(resolved.position, true), options).then(result => { if (result.finished) this.presence.recovered(owner); });
       if (!config.follow || this.positioningDeclaration !== config || revision !== this.anchorRevision) return;
       this.anchorCleanup = observeElementAnchor(this.ownerDocument, () => {
         if (this.positioningDeclaration !== config || revision !== this.anchorRevision) return;
@@ -347,7 +366,7 @@ export class SidekickAvatar extends HTMLElementBase {
           return () => {
             if (revision !== this.entranceRevision) return;
             this.clearEntrance(); const owner = this.presence.interrupt(); if (revision !== this.entranceRevision || !this.presence.owns(owner)) return; this.movement.cancel();
-            this.emit('sidekick-error', { message: String(error), attribute: 'entrance' }); this.resumeEntranceBehavior();
+            this.discardInvalidPositioning(); this.emit('sidekick-error', { message: String(error), attribute: 'entrance' }); this.resumeEntranceBehavior();
           };
         }
       });
@@ -360,7 +379,7 @@ export class SidekickAvatar extends HTMLElementBase {
       });
       if (revision !== this.entranceRevision || !this.connected) return;
       if (target) this.canvas.style.clipPath = entranceClip(this.getBoundingClientRect(), target.getBoundingClientRect());
-    } catch (error) { if (revision !== this.entranceRevision) return; this.clearEntrance(); this.emit('sidekick-error', { message: error instanceof Error ? error.message : String(error), attribute: 'entrance' }); this.resumeEntranceBehavior(); }
+    } catch (error) { if (revision !== this.entranceRevision) return; this.clearEntrance(); this.discardInvalidPositioning(); this.emit('sidekick-error', { message: error instanceof Error ? error.message : String(error), attribute: 'entrance' }); this.resumeEntranceBehavior(); }
   }
   private presenceHidden = false;
   private presence = new AvatarPresence({
@@ -374,8 +393,8 @@ export class SidekickAvatar extends HTMLElementBase {
     complete: (kind, result) => this.emit(kind === 'enter' ? 'sidekick-enter-end' : 'sidekick-exit-end', result),
   });
   get presenceState(): PresenceState { return this.presence.current; }
-  enter(position: AvatarPosition, options: EnterOptions = {}): Promise<PresenceResult> { this.clearPositioning(); return this.presence.enter(position, options); }
-  exit(options: ExitOptions = {}): Promise<PresenceResult> { this.clearPositioning(); return this.presence.exit(options); }
+  enter(position: AvatarPosition, options: EnterOptions = {}): Promise<PresenceResult> { validatePosition(position); validatePresenceOptions(options, 'from'); if (this.placement !== 'viewport' || !this.connected) throw new Error('enter requires a connected viewport avatar'); this.clearPositioning(); return this.presence.enter(position, options); }
+  exit(options: ExitOptions = {}): Promise<PresenceResult> { validatePresenceOptions(options, 'to'); if (this.placement !== 'viewport' || !this.connected) throw new Error('exit requires a connected viewport avatar'); this.clearPositioning(); return this.presence.exit(options); }
   get placement(): AvatarPlacement { return this.placementState; }
   set placement(value: AvatarPlacement) { if (value !== 'inline' && value !== 'viewport') throw new TypeError('placement must be inline or viewport'); this.reflectAttribute('placement', value); }
   get movementBounds(): MovementBounds { return this.boundsState; }
@@ -776,6 +795,7 @@ export class SidekickAvatar extends HTMLElementBase {
         for (const id of Object.keys(target.accessories ?? {})) if (!validated.accessories.some(item => item.id === id)) throw new SidekickAttributeError('motion', candidate.get('motion') ?? null, `unknown accessory: ${id}`);
         void new MotionTimeline({ left: validated.eyes.left, right: validated.eyes.right }).to(target, { duration: 0 });
       }
+      const positioningRevision = this.positioningRevision;
       // Validation is complete before any live state, request or listener changes.
       if (touched('activity', 'mouse-tracking', 'tracking-mode', 'expression', 'left-expression', 'right-expression', 'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'design', 'motion')) this.interruptBehavior();
       this.batch(() => {
@@ -787,7 +807,7 @@ export class SidekickAvatar extends HTMLElementBase {
         if (this.presence.owns(revision)) { this.movement.cancel(true); this.presence.recovered(revision); }
         this.updatePlacement();
       }
-      if (touched('position-x', 'position-y')) void this.moveTo({ x: touched('position-x') ? resolved.position.x : this.position.x, y: touched('position-y') ? resolved.position.y : this.position.y }, resolved.moveOptions);
+      if (touched('position-x', 'position-y') && !(touched('positioning') && positioning)) void this.moveTo({ x: touched('position-x') ? resolved.position.x : this.position.x, y: touched('position-y') ? resolved.position.y : this.position.y }, resolved.moveOptions);
       if (touched('activity')) { if (!this.playbackCommand) this.playback.cancelPlayback(); this.currentActivity = resolved.activity; }
       if (touched('interaction')) { this.interactionState = resolved.interaction; this.clearDrag(); if (this.isConnected) this.updateInteraction(); }
       if (!this.playbackCommand && (allDesign || touched('shape', 'expression', 'left-expression', 'right-expression', 'accessories', ...Object.keys(ACCESSORY_ATTRIBUTE_SLOTS).map(slot => `${slot}-accessory`)))) this.playback.cancelTransition();
@@ -807,7 +827,7 @@ export class SidekickAvatar extends HTMLElementBase {
       if (touched('emotion', 'emotion-intensity')) this.setEmotion(touched('emotion') ? resolved.emotion.emotion : this.emotion, { intensity: touched('emotion-intensity') ? resolved.emotion.intensity : this.emotionIntensity });
       this.syncState();
       });
-      if (touched('positioning')) this.positioning = positioning;
+      if (touched('positioning') && this.positioningRevision === positioningRevision) this.positioning = positioning;
       if (touched('entrance')) this.entrance = entrance;
       if (touched('behavior')) this.behavior = behavior;
     } catch (error) {
