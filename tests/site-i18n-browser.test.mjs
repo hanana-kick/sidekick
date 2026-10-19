@@ -42,11 +42,27 @@ for(const locale of ['ko','en','zh-CN','ja'])for(const path of ['','api-playgrou
   }
   await page.locator('.preview-footer button').first().click();
   if(screenshots)await page.screenshot({path:`${screenshots}/locale-${locale}-studio-before-assert-320x480.png`});
+  const settings=await page.locator('.settings-scroll').evaluate(el=>({client:el.clientHeight,scroll:el.scrollHeight}));
+  assert.ok(settings.client>=50&&settings.scroll>settings.client,`Usable independent settings scroll: ${JSON.stringify(settings)}`);
   const preview=await page.locator('.previews').boundingBox();
   assert.ok(preview&&preview.height>=110,`Visible character preview must stay useful: ${preview?.height}px`);
   const tabLines=await page.locator('.settings-nav [data-slot=tabs-trigger]').evaluateAll(tabs=>tabs.map(tab=>{const range=document.createRange();range.selectNodeContents(tab);const rects=[...range.getClientRects()].filter(rect=>rect.width>0&&rect.height>0);return {label:tab.textContent,width:tab.clientWidth,overflow:tab.scrollWidth>tab.clientWidth+1,lines:new Set(rects.map(rect=>Math.round(rect.top))).size,rects:rects.map(rect=>({top:rect.top,left:rect.left,width:rect.width,height:rect.height}))};}));
-  if(screenshots)await writeFile(`${screenshots}/locale-${locale}-studio-geometry.json`,JSON.stringify({preview,tabs:tabLines,viewport:await page.evaluate(()=>({innerWidth,clientWidth:document.documentElement.clientWidth}))},null,2));
+  if(screenshots)await writeFile(`${screenshots}/locale-${locale}-studio-geometry.json`,JSON.stringify({preview,settings,tabs:tabLines,viewport:await page.evaluate(()=>({innerWidth,clientWidth:document.documentElement.clientWidth}))},null,2));
   for(const tab of tabLines){assert.equal(tab.overflow,false,JSON.stringify(tab));assert.ok(tab.lines<=2,`Tab exceeds two text lines: ${JSON.stringify(tab)}`);}
+  for(const [width,height] of [[390,500],[667,375],[568,320]]) {
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    const stage=await page.locator('.stage').boundingBox();
+    const layout=await page.locator('.settings-scroll').evaluate(el=>({client:el.clientHeight,scroll:el.scrollHeight}));
+    assert.ok(layout.client>=50&&layout.scroll>layout.client,`${locale} ${width}×${height} usable settings: ${JSON.stringify(layout)}`);
+    assert.ok(stage.y>=0&&stage.y+stage.height<=height+1,'Stage stays inside viewport');
+    await page.locator('.settings-scroll').evaluate(el=>{el.scrollTop=el.scrollHeight;});
+    assert.ok(await page.locator('.settings-scroll').evaluate(el=>el.scrollTop>0));
+    assert.deepEqual(await page.locator('.stage').boundingBox(),stage,'Settings scroll must not move preview');
+    if(screenshots)await page.screenshot({path:`${screenshots}/locale-${locale}-studio-${width}x${height}.png`});
+  }
+  await page.setViewportSize({width:320,height:480});
+  await page.locator('.settings-scroll').evaluate(el=>{el.scrollTop=0;});
  }
  await page.waitForFunction(()=>{const bot=document.querySelector('#flat,#bot');return !bot||(bot.ready&&(bot.id!=='bot'||bot.hasAttribute('data-configured')));});
  if(screenshots){
