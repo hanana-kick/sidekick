@@ -45,3 +45,29 @@ test('semantic scenario catalog has three real navigation depths and unique rout
  for(const item of scenarios){assert.ok(item.major&&item.middle&&item.title&&item.sentence&&item.hint);assert.equal(scenarioById(item.id).id,item.id);}
  assert.equal(scenarioById('unknown').id,'loading');
 });
+
+import { readFileSync } from 'node:fs';
+test('application controls feed the displayed declaration across all routes (mock renderer)',async()=>{
+ const html=readFileSync(new URL('../use-cases.html',import.meta.url),'utf8');
+ const script=readFileSync(new URL('../playground/use-cases.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
+ const dom=new JSDOM(html,{url:'https://example.com/use-cases.html',runScripts:'outside-only'}),w=dom.window;
+ w.ResizeObserver=class{observe(){}};w.scrollTo=()=>{};
+ Object.assign(w,{scenarioGroups,scenarioById,loadStudioSession:()=>({scene:{},message:'mock'}),applyStudioSession:async()=>{},mountSiteHeader:()=>{}});
+ class Bot extends w.HTMLElement {
+  connectedCallback(){queueMicrotask(()=>{this.ready=true;this.dispatchEvent(new w.CustomEvent('sidekick-ready'));});}
+  stopBehavior(){this.stopped=true;}
+  set behavior(value){this.value=value;}get behavior(){return this.value;}
+ }
+ w.customElements.define('sidekick-avatar',Bot);w.eval(script);
+ const tick=()=>new Promise(resolve=>setTimeout(resolve,10));const $=id=>w.document.getElementById(id);
+ try{
+  await tick();
+  for(const item of scenarios){w.location.hash=item.id;await tick();assert.ok($('demo-bot').hasAttribute('data-configured'));assert.equal(w.document.querySelectorAll('#demo-bot').length,1);assert.equal(w.document.querySelector('[aria-current="page"]').dataset.scenario,item.id);assert.match($('declaration-code').textContent,new RegExp(`"type": "${$('demo-bot').behavior.type}"`));}
+  $('app-next').click();assert.equal($('demo-bot').behavior.target,'#onboard-2');$('app-previous').click();assert.equal($('demo-bot').behavior.target,'#onboard-1');
+  w.location.hash='upload';await tick();for(let i=0;i<4;i++)$('app-progress').click();assert.equal($('demo-bot').behavior.type,'celebrate');
+  w.location.hash='search';await tick();$('search-query').value='계정';$('app-search').click();assert.equal(w.document.querySelectorAll('#search-results .target-item').length,2);assert.equal($('demo-bot').behavior.type,'review');$('search-query').value='없음';$('app-search').click();assert.equal($('demo-bot').behavior.type,'idle');
+  w.location.hash='validation';await tick();$('app-validate').click();assert.equal($('demo-bot').behavior.type,'guide');$('profile-email').value='hello@example.com';$('app-validate').click();assert.equal($('demo-bot').behavior.type,'celebrate');
+  $('stop-demo').click();assert.ok($('demo-bot').stopped);
+  $('toc-toggle').click();w.document.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape'}));assert.equal($('toc-toggle').getAttribute('aria-expanded'),'false');
+ }finally{w.dispatchEvent(new w.Event('pagehide'));w.close();}
+});
