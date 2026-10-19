@@ -28,6 +28,10 @@ export interface PresenceHost {
     visibility(hidden: boolean): void;
     complete(kind: 'enter' | 'exit', result: PresenceResult): void;
 }
+export declare function validatePresenceOptions(value: EnterOptions | ExitOptions, key: 'from' | 'to'): {
+    edge: PresenceEdge;
+    motion: MoveOptions;
+};
 /** Coordinates are layout-viewport CSS pixels, just like viewport moveTo. */
 export declare function outsidePosition(edge: PresenceEdge, point: AvatarPosition, box: PresenceGeometry): AvatarPosition;
 /** Owns presence, not appearance/activity settings. Physical integration stays in AvatarMovement. */

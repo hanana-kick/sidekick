@@ -1,3 +1,4 @@
+import type { Positioning } from './element/positioning.js';
 import type { HTMLAttributes, ReactElement, Ref } from 'react';
 import type { AccessoryDesign, Activity, AvatarDesign, RenderStyle } from './core/design.js';
 import type { BodyOrientation, BodyOrientationPreset } from './core/body-orientation.js';
@@ -34,6 +35,7 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
     /** Declarative intent, assigned as a property after the native element upgrades. */
     behavior?: BotBehavior | null;
     entrance?: Entrance | null;
+    positioning?: Positioning | null;
     emotion?: Emotion;
     emotionIntensity?: number;
     onEmotionChange?: SidekickEventHandler<'sidekick-emotion-change'>;
@@ -103,3 +105,4 @@ export type { ElementAnchorState } from './element/element-anchor.js';
 export type { BotBehavior, BehaviorTarget, BehaviorSide, BehaviorPhase, BehaviorState, BehaviorResult, PerformOptions } from './element/behavior.js';
 export type { Emotion, EmotionValue, EmotionOptions, ReactionOptions, EmotionState, EmotionResult } from './core/emotion.js';
 export type { Entrance } from './element/entrance.js';
+export type { Positioning, PositionPlacement, ResolvedPositioning } from './element/positioning.js';

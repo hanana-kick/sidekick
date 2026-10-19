@@ -1,10 +1,11 @@
+import { validatePositioning, samePositioning, copyPositioning, resolvePositioning } from './positioning.js';
 import { parseEmotion, validateEmotionOptions } from '../core/emotion.js';
 import { EmotionController } from './emotion.js';
 import { BehaviorController, validateBehavior } from './behavior.js';
 import { observeElementAnchor } from './element-anchor.js';
 import { assertAnchorHierarchy, resolveElementTarget } from './element-target.js';
 import { validateEntrance, sameEntrance, entrancePositions, entranceClip } from './entrance.js';
-import { AvatarPresence } from './presence.js';
+import { AvatarPresence, validatePresenceOptions } from './presence.js';
 import { PlaybackController } from './playback.js';
 import { AvatarMovement, validatePosition, validateMoveOptions } from './movement.js';
 import { ACTIVITIES, createAccessory, createDesign, equipAccessory, finite, parseDesign, patchDesign, removeAccessory } from '../core/design.js';
@@ -229,7 +230,7 @@ export class SidekickAvatar extends HTMLElementBase {
     anchorSleeping = false;
     /** Logical binding only: no reparenting, CSS positioning, or canvas changes. */
     get elementAnchor() { return this.anchorState ? { ...this.anchorState } : null; }
-    detachAnchor() { this.releaseAnchor(true); }
+    detachAnchor() { this.clearPositioning(); this.releaseAnchor(true); }
     releaseAnchor(brake) { this.anchorRevision++; this.anchorCleanup?.(); this.anchorCleanup = undefined; this.anchorState = null; this.anchorSleeping = false; this.movement.suspend(false); if (brake)
         this.movement.stopFollowing(); }
     attachAnchor(state) {
@@ -277,6 +278,116 @@ export class SidekickAvatar extends HTMLElementBase {
                 this.movement.followTarget(this.constrainPosition(point, true));
             };
         }, () => this.anchorSleeping);
+    }
+    positioningTarget;
+    positioningRevision = 0;
+    positioningDeclaration = null;
+    get positioning() { return copyPositioning(this.positioningDeclaration); }
+    set positioning(value) {
+        const next = value === null ? null : validatePositioning(value, this.ownerDocument);
+        if (samePositioning(next, this.positioningDeclaration))
+            return;
+        // Validate mounted targets before cancelling an existing valid declaration.
+        if (next && this.ready && this.connected)
+            resolvePositioning(this, this.position, next);
+        const revision = ++this.positioningRevision;
+        this.interruptBehavior();
+        if (revision !== this.positioningRevision)
+            return;
+        this.releaseAnchor(false);
+        this.positioningTarget = undefined;
+        this.positioningDeclaration = next;
+        if (!next) {
+            this.entranceRevision++;
+            this.clearEntrance();
+            const owner = this.presence.interrupt();
+            if (revision === this.positioningRevision && this.presence.owns(owner))
+                this.movement.cancel();
+            return;
+        }
+        if (this.ready && this.connected && this.presenceState !== 'entering')
+            this.startPositioning();
+    }
+    clearPositioning() { this.positioningRevision++; this.positioningDeclaration = null; this.positioningTarget = undefined; }
+    resolvePositioningDeclaration(config) {
+        const resolved = resolvePositioning(this, this.position, config);
+        if (this.positioningTarget !== undefined && resolved.target !== this.positioningTarget)
+            throw new Error('positioning target was replaced');
+        this.positioningTarget = resolved.target;
+        return resolved;
+    }
+    discardInvalidPositioning() {
+        if (!this.positioningDeclaration)
+            return;
+        try {
+            this.resolvePositioningDeclaration(this.positioningDeclaration);
+        }
+        catch {
+            this.clearPositioning();
+            this.releaseAnchor(false);
+        }
+    }
+    positioningDestination() {
+        return this.positioningDeclaration ? this.resolvePositioningDeclaration(this.positioningDeclaration).position : undefined;
+    }
+    startPositioning(initial = false) {
+        const config = this.positioningDeclaration;
+        if (!config || !this.ready || !this.connected || this.presenceState === 'entering')
+            return;
+        try {
+            const resolved = this.resolvePositioningDeclaration(config);
+            this.releaseAnchor(false);
+            const revision = this.anchorRevision;
+            const owner = this.presence.reveal();
+            if (!this.presence.owns(owner) || this.positioningDeclaration !== config || revision !== this.anchorRevision)
+                return;
+            const options = resolveSidekickAttributes(this.acceptedAttributes).moveOptions;
+            if (!this.acceptedAttributes.has('move-duration'))
+                delete options.duration;
+            if (initial)
+                this.movement.relocate(this.constrainPosition(resolved.position, true));
+            else
+                void this.movement.to(this.constrainPosition(resolved.position, true), options).then(result => { if (result.finished)
+                    this.presence.recovered(owner); });
+            if (!config.follow || this.positioningDeclaration !== config || revision !== this.anchorRevision)
+                return;
+            this.anchorCleanup = observeElementAnchor(this.ownerDocument, () => {
+                if (this.positioningDeclaration !== config || revision !== this.anchorRevision)
+                    return;
+                try {
+                    // Keep target identity stable: selector reuse must not silently bind to a replacement node.
+                    if (resolved.target && (!resolved.target.isConnected || resolved.target.ownerDocument !== this.ownerDocument))
+                        throw new Error('positioning target was removed');
+                    const next = resolvePositioning(this, this.position, config);
+                    if (next.target !== resolved.target)
+                        throw new Error('positioning target changed');
+                    if (!this.getClientRects().length || (next.target && !next.target.getClientRects().length))
+                        return () => { if (revision === this.anchorRevision) {
+                            this.anchorSleeping = true;
+                            this.movement.suspend(true);
+                        } };
+                    const point = this.constrainPosition(next.position, true), rect = this.getBoundingClientRect(), view = this.ownerDocument.defaultView;
+                    const visible = (x, y) => rect.width > 0 && rect.height > 0 && x + rect.width > 0 && y + rect.height > 0 && x < view.innerWidth && y < view.innerHeight;
+                    const sleeping = !visible(rect.left, rect.top) && !visible(rect.left + point.x - this.position.x, rect.top + point.y - this.position.y);
+                    return () => {
+                        if (revision !== this.anchorRevision || this.positioningDeclaration !== config)
+                            return;
+                        this.anchorSleeping = sleeping || this.movement.state.phase === 'idle';
+                        this.movement.suspend(sleeping || this.ownerDocument.hidden);
+                        this.movement.followTarget(point);
+                    };
+                }
+                catch (error) {
+                    return () => { if (revision !== this.anchorRevision)
+                        return; this.clearPositioning(); this.releaseAnchor(true); this.emit('sidekick-error', { message: String(error), attribute: 'positioning' }); };
+                }
+            }, () => this.anchorSleeping);
+        }
+        catch (error) {
+            this.clearPositioning();
+            this.releaseAnchor(true);
+            this.emit('sidekick-error', { message: String(error), attribute: 'positioning' });
+        }
     }
     entranceDeclaration = null;
     entranceApplied = false;
@@ -366,7 +477,7 @@ export class SidekickAvatar extends HTMLElementBase {
                         throw new Error('entrance target was removed');
                     const box = this.getBoundingClientRect();
                     const next = entrancePositions(config, box.width, box.height, view.innerWidth, view.innerHeight, target?.getBoundingClientRect());
-                    const destination = { x: next.end.x - (box.left - this.position.x), y: next.end.y - (box.top - this.position.y) };
+                    const destination = this.positioningDestination() ?? { x: next.end.x - (box.left - this.position.x), y: next.end.y - (box.top - this.position.y) };
                     return () => { if (revision !== this.entranceRevision)
                         return; this.refreshEntranceClip?.(); this.presence.retarget(destination); };
                 }
@@ -379,18 +490,21 @@ export class SidekickAvatar extends HTMLElementBase {
                         if (revision !== this.entranceRevision || !this.presence.owns(owner))
                             return;
                         this.movement.cancel();
+                        this.discardInvalidPositioning();
                         this.emit('sidekick-error', { message: String(error), attribute: 'entrance' });
                         this.resumeEntranceBehavior();
                     };
                 }
             });
             const cleanup = this.entranceCleanup;
+            const source = geometry.start ?? (config.source === 'viewport' ? { x: config.edge === 'left' ? -rect.width - 8 : config.edge === 'right' ? view.innerWidth + 8 : geometry.end.x, y: config.edge === 'top' ? -rect.height - 8 : config.edge === 'bottom' ? view.innerHeight + 8 : geometry.end.y } : undefined);
             const motion = resolveSidekickAttributes(this.acceptedAttributes).moveOptions;
             if (!this.acceptedAttributes.has('move-duration'))
                 delete motion.duration;
-            void this.presence.enter(local(geometry.end), { ...motion, from: config.source === 'viewport' ? config.edge : config.direction }, geometry.start ? local(geometry.start) : undefined).then(() => {
+            void this.presence.enter(this.positioningDestination() ?? local(geometry.end), { ...motion, from: config.source === 'viewport' ? config.edge : config.direction }, source ? local(source) : undefined).then(() => {
                 if (revision === this.entranceRevision && this.entranceCleanup === cleanup) {
                     this.clearEntrance();
+                    this.startPositioning();
                     this.resumeEntranceBehavior();
                 }
             });
@@ -403,6 +517,7 @@ export class SidekickAvatar extends HTMLElementBase {
             if (revision !== this.entranceRevision)
                 return;
             this.clearEntrance();
+            this.discardInvalidPositioning();
             this.emit('sidekick-error', { message: error instanceof Error ? error.message : String(error), attribute: 'entrance' });
             this.resumeEntranceBehavior();
         }
@@ -420,8 +535,10 @@ export class SidekickAvatar extends HTMLElementBase {
         complete: (kind, result) => this.emit(kind === 'enter' ? 'sidekick-enter-end' : 'sidekick-exit-end', result),
     });
     get presenceState() { return this.presence.current; }
-    enter(position, options = {}) { return this.presence.enter(position, options); }
-    exit(options = {}) { return this.presence.exit(options); }
+    enter(position, options = {}) { validatePosition(position); validatePresenceOptions(options, 'from'); if (this.placement !== 'viewport' || !this.connected)
+        throw new Error('enter requires a connected viewport avatar'); this.clearPositioning(); return this.presence.enter(position, options); }
+    exit(options = {}) { validatePresenceOptions(options, 'to'); if (this.placement !== 'viewport' || !this.connected)
+        throw new Error('exit requires a connected viewport avatar'); this.clearPositioning(); return this.presence.exit(options); }
     get placement() { return this.placementState; }
     set placement(value) { if (value !== 'inline' && value !== 'viewport')
         throw new TypeError('placement must be inline or viewport'); this.reflectAttribute('placement', value); }
@@ -431,7 +548,7 @@ export class SidekickAvatar extends HTMLElementBase {
     /** Inline: offset from normal layout. Viewport: layout viewport top-left, CSS pixels. */
     get position() { return this.movement.position; }
     get movementState() { return this.movement.state; }
-    moveTo(position, options = {}) { const target = this.constrainPosition(validatePosition(position), true); validateMoveOptions(options); this.interruptBehavior(); this.releaseAnchor(false); const revision = this.presence.reveal(); if (!this.presence.owns(revision))
+    moveTo(position, options = {}) { const target = this.constrainPosition(validatePosition(position), true); validateMoveOptions(options); this.interruptBehavior(); this.clearPositioning(); this.releaseAnchor(false); const revision = this.presence.reveal(); if (!this.presence.owns(revision))
         return Promise.resolve({ finished: false, position: this.position }); return this.movement.to(target, options).then(result => { if (result.finished)
         this.presence.recovered(revision); return result; }); }
     /** Sample the target's viewport border-box and align matching anchors, then move with inertia. */
@@ -444,10 +561,10 @@ export class SidekickAvatar extends HTMLElementBase {
             this.attachAnchor(state);
         return result;
     }
-    moveBy(delta, options = {}) { validatePosition(delta); validateMoveOptions(options); this.interruptBehavior(); this.releaseAnchor(false); const revision = this.presence.reveal(); if (!this.presence.owns(revision))
+    moveBy(delta, options = {}) { validatePosition(delta); validateMoveOptions(options); this.interruptBehavior(); this.clearPositioning(); this.releaseAnchor(false); const revision = this.presence.reveal(); if (!this.presence.owns(revision))
         return Promise.resolve({ finished: false, position: this.position }); return this.movement.by(delta, options, point => this.constrainPosition(point, true)).then(result => { if (result.finished)
         this.presence.recovered(revision); return result; }); }
-    cancelMove() { this.interruptBehavior(); this.releaseAnchor(false); const revision = this.presence.interrupt(); if (this.presence.owns(revision))
+    cancelMove() { this.clearPositioning(); this.interruptBehavior(); this.releaseAnchor(false); const revision = this.presence.interrupt(); if (this.presence.owns(revision))
         this.movement.cancel(); }
     constrainPosition(point, presenceTarget = false) {
         if (!presenceTarget && this.presence?.bypassBounds)
@@ -912,6 +1029,10 @@ export class SidekickAvatar extends HTMLElementBase {
         }
         try {
             const resolved = resolveSidekickAttributes(candidate);
+            const positioningValue = pending.has('positioning') && candidate.has('positioning') ? JSON.parse(candidate.get('positioning')) : null;
+            const positioning = positioningValue === null ? null : validatePositioning(positioningValue, this.ownerDocument);
+            if (positioning && this.ready && this.connected)
+                resolvePositioning(this, this.position, positioning);
             const entranceValue = pending.has('entrance') && candidate.has('entrance') ? JSON.parse(candidate.get('entrance')) : null;
             const entrance = entranceValue === null ? null : validateEntrance(entranceValue);
             const behavior = pending.has('behavior') && candidate.has('behavior') ? validateBehavior(JSON.parse(candidate.get('behavior')), this.ownerDocument) : null;
@@ -968,6 +1089,7 @@ export class SidekickAvatar extends HTMLElementBase {
                         throw new SidekickAttributeError('motion', candidate.get('motion') ?? null, `unknown accessory: ${id}`);
                 void new MotionTimeline({ left: validated.eyes.left, right: validated.eyes.right }).to(target, { duration: 0 });
             }
+            const positioningRevision = this.positioningRevision;
             // Validation is complete before any live state, request or listener changes.
             if (touched('activity', 'mouse-tracking', 'tracking-mode', 'expression', 'left-expression', 'right-expression', 'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'design', 'motion'))
                 this.interruptBehavior();
@@ -989,7 +1111,7 @@ export class SidekickAvatar extends HTMLElementBase {
                     }
                     this.updatePlacement();
                 }
-                if (touched('position-x', 'position-y'))
+                if (touched('position-x', 'position-y') && !(touched('positioning') && positioning))
                     void this.moveTo({ x: touched('position-x') ? resolved.position.x : this.position.x, y: touched('position-y') ? resolved.position.y : this.position.y }, resolved.moveOptions);
                 if (touched('activity')) {
                     if (!this.playbackCommand)
@@ -1034,6 +1156,8 @@ export class SidekickAvatar extends HTMLElementBase {
                     this.setEmotion(touched('emotion') ? resolved.emotion.emotion : this.emotion, { intensity: touched('emotion-intensity') ? resolved.emotion.intensity : this.emotionIntensity });
                 this.syncState();
             });
+            if (touched('positioning') && this.positioningRevision === positioningRevision)
+                this.positioning = positioning;
             if (touched('entrance'))
                 this.entrance = entrance;
             if (touched('behavior'))
@@ -1051,7 +1175,7 @@ export class SidekickAvatar extends HTMLElementBase {
         if (this.propertiesUpgraded)
             return;
         this.propertiesUpgraded = true;
-        for (const name of ['entrance', 'behavior', 'placement', 'movementBounds', 'design', 'emotion', 'emotionIntensity', 'bodyOrientation', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode']) {
+        for (const name of ['positioning', 'entrance', 'behavior', 'placement', 'movementBounds', 'design', 'emotion', 'emotionIntensity', 'bodyOrientation', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode']) {
             if (!Object.prototype.hasOwnProperty.call(this, name))
                 continue;
             const value = this[name];
@@ -1183,6 +1307,7 @@ export class SidekickAvatar extends HTMLElementBase {
                     this.cancelStartupPresentation();
                     this.readyState = true;
                     this.startEntrance();
+                    this.startPositioning(true);
                     this.refreshEntranceClip?.();
                     if (!this.connected || generation !== this.generation || !this.bridge)
                         return;

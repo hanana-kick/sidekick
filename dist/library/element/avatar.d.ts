@@ -1,3 +1,4 @@
+import type { Positioning } from './positioning.js';
 import type { Emotion, EmotionOptions, EmotionState, EmotionResult, ReactionOptions } from '../core/emotion.js';
 import type { BotBehavior, BehaviorState, BehaviorResult, PerformOptions } from './behavior.js';
 import type { ElementAnchorState } from './element-anchor.js';
@@ -74,6 +75,16 @@ export declare class SidekickAvatar extends HTMLElementBase {
     detachAnchor(): void;
     private releaseAnchor;
     private attachAnchor;
+    private positioningTarget;
+    private positioningRevision;
+    private positioningDeclaration;
+    get positioning(): Positioning | null;
+    set positioning(value: Positioning | null);
+    private clearPositioning;
+    private resolvePositioningDeclaration;
+    private discardInvalidPositioning;
+    private positioningDestination;
+    private startPositioning;
     private entranceDeclaration;
     private entranceApplied;
     private entranceRevision;

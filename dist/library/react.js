@@ -1,3 +1,4 @@
+import { samePositioning, copyPositioning } from './element/positioning.js';
 'use client';
 import { createElement, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 function sameEntrance(a, b) {
@@ -97,7 +98,7 @@ export function SidekickAvatar(props) {
         if (Object.prototype.hasOwnProperty.call(props, name))
             throw new TypeError(`${name} has been removed; use bodyOrientation, bodyYaw/bodyPitch/bodyRoll, zoom, onBodyOrientationChange or onZoomChange instead`);
     }
-    const { ref, design, accessories, bodyOrientation, motion, behavior: _behavior, entrance: _entrance, ...html } = props;
+    const { ref, design, accessories, bodyOrientation, motion, behavior: _behavior, entrance: _entrance, positioning: _positioning, ...html } = props;
     const element = useRef(null);
     const readyNotified = useRef(false);
     const deliveredReadyEvent = useRef(null);
@@ -108,6 +109,7 @@ export function SidekickAvatar(props) {
     const drainErrors = useRef(null);
     const useClientEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
     const ownedAttributes = useRef(new Set());
+    const appliedPositioning = useRef(null);
     const appliedEntrance = useRef(null);
     const appliedBehavior = useRef(null);
     const published = useRef(null);
@@ -200,6 +202,20 @@ export function SidekickAvatar(props) {
             if (!active || element.current !== node)
                 return;
             if (typeof node.setDesign === 'function') {
+                const positioning = callbacks.current.positioning;
+                const previousPositioning = appliedPositioning.current;
+                if (positioning !== undefined || previousPositioning?.node === node) {
+                    const value = positioning ?? null;
+                    if (previousPositioning?.node !== node || !samePositioning(previousPositioning.value, value)) {
+                        appliedPositioning.current = { node, value: copyPositioning(value) };
+                        try {
+                            node.positioning = value;
+                        }
+                        catch (error) {
+                            node.dispatchEvent(new CustomEvent('sidekick-error', { detail: { message: String(error), attribute: 'positioning' }, bubbles: true, composed: true }));
+                        }
+                    }
+                }
                 const entrance = callbacks.current.entrance;
                 const previousEntrance = appliedEntrance.current;
                 if (entrance !== undefined || previousEntrance?.node === node) {

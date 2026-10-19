@@ -1,6 +1,6 @@
 import { validateMoveOptions, validatePosition } from './movement.js';
 const edges = ['left', 'right', 'top', 'bottom'];
-function options(value, key) {
+export function validatePresenceOptions(value, key) {
     if (!value || typeof value !== 'object' || Array.isArray(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value)))
         throw new TypeError('presence options must be a plain object');
     const motion = {};
@@ -42,7 +42,7 @@ export class AvatarPresence {
         this.host = host;
     }
     enter(point, input = {}, start) {
-        const target = validatePosition(point), parsed = options(input, 'from');
+        const target = validatePosition(point), parsed = validatePresenceOptions(input, 'from');
         this.host.assertViewport();
         const revision = ++this.revision;
         const interrupted = !!this.operation;
@@ -67,7 +67,7 @@ export class AvatarPresence {
         });
     }
     exit(input = {}) {
-        const parsed = options(input, 'to');
+        const parsed = validatePresenceOptions(input, 'to');
         this.host.assertViewport();
         if (this.state === 'hidden') {
             const result = { finished: true, position: this.host.position(), presence: 'hidden' };
