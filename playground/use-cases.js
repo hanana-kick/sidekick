@@ -264,6 +264,10 @@ $('run-manual').onclick=async()=>{
  if(active===entry)setText('run-status','직접 조합 완료');
 };
 $('return-declaration').onclick=()=>{level=1;renderLevel();if(active?.ready)active.resume();};
+function lessonDestinationLabel(id){
+ const target=lessonDestinations[id];
+ return target.id?navText().related+': '+t(scenarioById(target.id).title)+' · '+target.level:navText()[target.label];
+}
 function renderLesson(lesson){
  const host=$('lesson-content');host.replaceChildren();
  for(const text of lesson.paragraphs){const p=document.createElement('p');p.dataset.guideI18n=text;p.textContent=t(text);host.append(p);}
@@ -273,7 +277,7 @@ function renderLesson(lesson){
   if(lesson.install&&getFramework()==='react'){const install=document.createElement('pre');install.textContent=lesson.install;host.append(install);}
   const pre=document.createElement('pre');pre.dataset.frameworkCode=getFramework();pre.textContent=lessonCode(lesson,lessonById('html-start'));pre.tabIndex=0;host.append(pre);
  }
- const target=lessonDestinations[lesson.id];const link=document.createElement('a');link.dataset.lessonDestination=lesson.id;link.href=technicalHref(lesson.id,getSiteLocale(),contextSnapshot());link.textContent=target.id?navText().related+': '+t(scenarioById(target.id).title)+' · '+target.level:navText()[{appearance:'studio',placement:'placement','element-anchor':'anchor','manual-motion':'manual',performance:'performance'}[lesson.id]];host.append(link);
+ const link=document.createElement('a');link.dataset.lessonDestination=lesson.id;link.href=technicalHref(lesson.id,getSiteLocale(),contextSnapshot());link.textContent=lessonDestinationLabel(lesson.id);host.append(link);
 }
 // Explicit bindings only: never scan or replace arbitrary application content.
 function localizeGuideBindings(){
@@ -283,7 +287,7 @@ function localizeGuideBindings(){
  for(const element of document.querySelectorAll('[data-guide-label]'))element.setAttribute('aria-label',t(element.dataset.guideLabel));
  if(!exerciseMode)document.title='Sidekick · '+t('가이드');
  if(exerciseMode)$('restart-demo').textContent=navText().run;
- for(const link of document.querySelectorAll('[data-lesson-destination]'))link.href=technicalHref(link.dataset.lessonDestination,getSiteLocale(),contextSnapshot());
+ for(const link of document.querySelectorAll('[data-lesson-destination]')){link.href=technicalHref(link.dataset.lessonDestination,getSiteLocale(),contextSnapshot());link.textContent=lessonDestinationLabel(link.dataset.lessonDestination);}
  updateContextLinks();
  for(const link of document.querySelectorAll('.catalog-layout a[href]'))if(!link.getAttribute('href').startsWith('#')){const url=new URL(link.href);url.searchParams.set('lang',getSiteLocale());link.href=url.href;}
 }

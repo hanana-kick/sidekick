@@ -32,14 +32,14 @@ export function guideHref(context, lang='ko', playground=false, source=null) {
 export const isScenario = id => scenarioIds.has(id);
 /** Explicit technical destinations. Labels name what actually opens. */
 export const lessonDestinations = {
- 'state-lifecycle':{page:'api',preset:'declarative-lifecycle'},
+ 'state-lifecycle':{page:'api',preset:'declarative-lifecycle',label:'lifecycle'},
  'state-emotion':{id:'emotion-inspection',level:2}, 'state-position':{id:'selection',level:2}, 'state-behavior':{id:'loading',level:1},
  'state-entrance':{id:'loading',level:1},
  'state-facing':{id:'selection',level:4}, 'state-appearance':{id:'emotion-composition',level:4}, 'state-execution':{id:'emotion-composition',level:4},
  'html-start': {id:'loading',level:1}, 'react-start':{id:'loading',level:1},
- appearance:{page:'studio'}, placement:{preset:'placement'},
- 'element-anchor':{preset:'element-anchor'}, 'manual-motion':{preset:'manual-motion'},
- lifecycle:{id:'review',level:3}, performance:{preset:'performance'},
+ appearance:{page:'studio',label:'studio'}, placement:{preset:'placement',label:'placement'},
+ 'element-anchor':{preset:'element-anchor',label:'anchor'}, 'manual-motion':{preset:'manual-motion',label:'manual'},
+ lifecycle:{id:'review',level:3}, performance:{preset:'performance',label:'performance'},
 };
 export function technicalHref(id,lang='ko',source={id,level:1}) {
  const target=lessonDestinations[id];if(!target)throw new RangeError('Unknown lesson');
@@ -49,8 +49,8 @@ export function technicalHref(id,lang='ko',source={id,level:1}) {
  return frameworkHref(`./${target.page==='studio'?'index':'api-playground'}.html?${query}`);
 }
 export const navigationText = {
- ko:{invalid:'문서 링크의 예제 또는 설정이 유효하지 않습니다. 목차에서 문서를 선택하세요.',try:'이 예제의 코드와 설정 열기',back:'원래 문서로 돌아가기',source:'문서',exercise:'예제 실행 및 코드',direct:'개별 API 편집기 열기',run:'선택한 예제 실행',related:'관련 문서',studio:'Studio에서 외형 편집',placement:'화면 좌표 이동 API 설정',anchor:'엘리먼트 앵커 API 설정',manual:'이동·시선·표정 조합 실행',performance:'렌더링 유휴 제어 및 진단'},
- en:{invalid:'The example or settings in this link are invalid. Select a section from the contents.',try:'Open this example’s code and settings',back:'Return to source section',source:'Source',exercise:'Example execution and code',direct:'Open individual API editor',run:'Run selected example',related:'Related section',studio:'Edit appearance in Studio',placement:'Viewport movement API settings',anchor:'Element anchor API settings',manual:'Run movement, gaze and expression sequence',performance:'Rendering idle controls and diagnostics'},
- 'zh-CN':{invalid:'链接中的示例或设置无效。请从目录选择章节。',try:'打开此示例的代码与设置',back:'返回原文档章节',source:'文档',exercise:'示例执行与代码',direct:'打开独立 API 编辑器',run:'运行所选示例',related:'相关章节',studio:'在 Studio 中编辑外观',placement:'视口移动 API 设置',anchor:'元素锚定 API 设置',manual:'运行移动、视线和表情序列',performance:'渲染空闲控制与诊断'},
- ja:{invalid:'リンクの例または設定が無効です。目次から節を選択してください。',try:'この例のコードと設定を開く',back:'元の文書の節に戻る',source:'文書',exercise:'実行例とコード',direct:'個別 API エディターを開く',run:'選択した例を実行',related:'関連する節',studio:'Studio で外観を編集',placement:'画面座標移動 API の設定',anchor:'要素アンカー API の設定',manual:'移動・視線・表情の順次実行',performance:'レンダリングの休止制御と診断'},
+ ko:{invalid:'문서 링크의 예제 또는 설정이 유효하지 않습니다. 목차에서 문서를 선택하세요.',try:'이 예제의 코드와 설정 열기',back:'원래 문서로 돌아가기',source:'문서',exercise:'예제 실행 및 코드',direct:'개별 API 편집기 열기',run:'선택한 예제 실행',related:'관련 문서',studio:'Studio에서 외형 편집',placement:'화면 좌표 이동 API 설정',anchor:'엘리먼트 앵커 API 설정',manual:'이동·시선·표정 조합 실행',performance:'렌더링 유휴 제어 및 진단',lifecycle:'표시·작업·집 API 예제 열기'},
+ en:{invalid:'The example or settings in this link are invalid. Select a section from the contents.',try:'Open this example’s code and settings',back:'Return to source section',source:'Source',exercise:'Example execution and code',direct:'Open individual API editor',run:'Run selected example',related:'Related section',studio:'Edit appearance in Studio',placement:'Viewport movement API settings',anchor:'Element anchor API settings',manual:'Run movement, gaze and expression sequence',performance:'Rendering idle controls and diagnostics',lifecycle:'Open presence, task and home API example'},
+ 'zh-CN':{invalid:'链接中的示例或设置无效。请从目录选择章节。',try:'打开此示例的代码与设置',back:'返回原文档章节',source:'文档',exercise:'示例执行与代码',direct:'打开独立 API 编辑器',run:'运行所选示例',related:'相关章节',studio:'在 Studio 中编辑外观',placement:'视口移动 API 设置',anchor:'元素锚定 API 设置',manual:'运行移动、视线和表情序列',performance:'渲染空闲控制与诊断',lifecycle:'打开显示、任务与归位 API 示例'},
+ ja:{invalid:'リンクの例または設定が無効です。目次から節を選択してください。',try:'この例のコードと設定を開く',back:'元の文書の節に戻る',source:'文書',exercise:'実行例とコード',direct:'個別 API エディターを開く',run:'選択した例を実行',related:'関連する節',studio:'Studio で外観を編集',placement:'画面座標移動 API の設定',anchor:'要素アンカー API の設定',manual:'移動・視線・表情の順次実行',performance:'レンダリングの休止制御と診断',lifecycle:'表示・タスク・ホーム API の例を開く'},
 };

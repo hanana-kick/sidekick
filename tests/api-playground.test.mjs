@@ -340,3 +340,14 @@ test('direct lifecycle preset opens a valid guide return link and app outcomes r
  f.w.document.querySelector('[data-lifecycle-action="follow"]').click();assert.equal(f.bot.task.id,2);
  f.w.document.querySelector('[data-lifecycle-action="cancel"]').click();assert.equal(f.bot.task.status,'cancelled');
 });
+
+
+test('contextual lifecycle API return link restores the originating guide section and scroll', async t => {
+ const source={id:'state-lifecycle',level:1,scroll:640};
+ const query=new URLSearchParams({lesson:'declarative-lifecycle',source:JSON.stringify(source)});
+ const f=await controllerFixture(t,'?'+query);
+ const back=f.$('guide-source-return'),url=new URL(back.href);
+ assert.ok(back.textContent.trim());assert.equal(url.pathname,'/guide.html');assert.equal(url.hash,'#state-lifecycle');
+ assert.deepEqual(JSON.parse(url.searchParams.get('context')),source);
+ assert.equal(f.$('action-kind').value,'lifecycle');
+});

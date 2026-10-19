@@ -10,7 +10,7 @@ for(const language of ['ko','en','zh-CN','ja'])test(`all 34 sections and progres
   const url=guideHref(context,language,true);assert.deepEqual(readGuideContext(url),context);assert.deepEqual(readGuideSource(url),context);
   assert.equal(new URL(url,'https://test.invalid/').searchParams.get('lang'),language);
  }
- for(const lesson of lessons){const destination=new URL(technicalHref(lesson.id,language,{id:lesson.id,level:1,scroll:640}),'https://test.invalid/');assert.equal(readGuideSource(destination.href).id,lesson.id);assert.equal(readGuideSource(destination.href).scroll,640);const map=lessonDestinations[lesson.id];if(map.id)assert.equal(destination.hash,'#'+map.id);else if(map.preset)assert.equal(destination.searchParams.get('lesson'),map.preset);else assert.equal(destination.pathname,'/index.html');}
+ for(const lesson of lessons){const destination=new URL(technicalHref(lesson.id,language,{id:lesson.id,level:1,scroll:640}),'https://test.invalid/');assert.equal(readGuideSource(destination.href).id,lesson.id);assert.equal(readGuideSource(destination.href).scroll,640);const map=lessonDestinations[lesson.id];if(!map.id)assert.ok(navigationText[language][map.label]?.trim(),`${lesson.id} has a localized visible destination label`);if(map.id)assert.equal(destination.hash,'#'+map.id);else if(map.preset)assert.equal(destination.searchParams.get('lesson'),map.preset);else assert.equal(destination.pathname,'/index.html');}
  assert.deepEqual(Object.keys(navigationText[language]).sort(),Object.keys(navigationText.ko).sort());
 });
 test('untrusted context cannot carry methods, scripts, arbitrary selectors or navigation',()=>{

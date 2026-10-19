@@ -21,8 +21,8 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 10));
 
 // Exercise the real Guide controller with a recording renderer. Browser integration
 // separately verifies template mounting, WebGL, layout, and real browser history.
-async function mount(context, { exercise = false, source = null, hash } = {}) {
-  const url = new URL(navigation.guideHref(context, 'en', exercise, source), 'https://example.com/nested/');
+async function mount(context, { exercise = false, source = null, hash, locale = 'en' } = {}) {
+  const url = new URL(navigation.guideHref(context, locale, exercise, source), 'https://example.com/nested/');
   if (hash !== undefined) url.hash = hash;
   const dom = new JSDOM(html, { url: url.href, runScripts: 'outside-only' });
   const w = dom.window;
@@ -39,7 +39,7 @@ async function mount(context, { exercise = false, source = null, hash } = {}) {
   w.scrollTo = () => {};
   Object.assign(w, workflows, stateSchema, {stateCopy,stateLessons}, navigation, emotions, catalog, lessons, framework, frameworkCode, {
     guideTranslations,
-    getSiteLocale: () => 'en', subscribeSiteLocale: () => () => {},
+    getSiteLocale: () => locale, subscribeSiteLocale: () => () => {},
     loadStudioSession: () => ({ scene: createScene(), message: 'mock' }),
     seedStudioSession:()=>{}, applyStudioSession: async () => {}, mountSiteHeader: () => {},
   });
@@ -186,7 +186,7 @@ for(const lesson of lessons.lessons.filter(item=>item.id.startsWith('state-')))t
   assert.deepEqual([...page.w.document.querySelectorAll('#scenario-toc [data-scenario]')].slice(0,3).map(x=>x.dataset.scenario),['state-emotion','state-position','state-behavior']);
   assert.equal(page.$('lesson-content').querySelectorAll('tbody tr').length,stateSchema.STATE_FIELDS[lesson.id].length);
   assert.equal(page.$('lesson-content').querySelectorAll('pre').length,1);
-  const target=page.$('lesson-content').querySelector('[data-lesson-destination]');assert.equal(navigation.readGuideSource(target.href).id,lesson.id);
+  const target=page.$('lesson-content').querySelector('[data-lesson-destination]');assert.ok(target.textContent.trim(),`${lesson.id} destination has visible text`);assert.equal(navigation.readGuideSource(target.href).id,lesson.id);
   if(lesson.id==='state-lifecycle')assert.equal(new URL(target.href).searchParams.get('lesson'),'declarative-lifecycle');
   else assert.ok(catalog.scenarios.some(item=>'#'+item.id===new URL(target.href).hash));
   assert.equal(page.$('demo-bot'),null);
@@ -228,5 +228,19 @@ test('entrance controls share one declaration with preview, selected source and 
   query('[data-state-text="reset"]').click();assert.deepEqual(Object.keys(values()),[]);assert.doesNotMatch(query('[data-state-source]').textContent,/entrance=/);
   change('source','viewport');assert.equal(values().entrance.source,'viewport');
   query('[data-state-text="run"]').click();assert.equal(messages.filter(message=>message.type==='state-reference-config').at(-1).restart,true);
+ }finally{page.close();}
+});
+
+
+for(const locale of ['ko','en','zh-CN','ja'])test(`lifecycle destination has visible localized text and preserves its return context: ${locale}`,async()=>{
+ const page=await mount({id:'state-lifecycle',level:1,scroll:640},{locale});try{
+  const link=page.w.document.querySelector('[data-lesson-destination="state-lifecycle"]');
+  assert.ok(link.textContent.trim(),'the contextual destination must render visible link text');
+  assert.equal(link.textContent,navigation.navigationText[locale].lifecycle);
+  assert.equal(link.hidden,false);assert.notEqual(page.w.getComputedStyle(link).display,'none');
+  const target=new URL(link.href);
+  assert.equal(target.searchParams.get('lang'),locale);
+  assert.equal(target.searchParams.get('lesson'),'declarative-lifecycle');
+  assert.equal(navigation.readGuideSource(target.href).id,'state-lifecycle');
  }finally{page.close();}
 });
