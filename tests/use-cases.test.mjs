@@ -104,3 +104,18 @@ test('emotion flow code and execution share exact calls, including interruption 
  assert.deepEqual(custom.args,['surprised',{intensity:0.2,duration:2500}]);
  assert.equal(emotionFlows[4].buttons[0][1].args[1].intensity,0.9,'preset remains immutable');
 });
+
+test('guide technical copy has identical keys across all four locales',()=>{
+ const keys=Object.keys(guideTranslations.ko).sort();
+ for(const locale of ['ko','en','zh-CN','ja']){
+  assert.deepEqual(Object.keys(guideTranslations[locale]).sort(),keys,locale);
+  for(const [key,value] of Object.entries(guideTranslations[locale]))assert.ok(typeof value==='string'&&value.trim(),`${locale}: ${key}`);
+ }
+ assert.equal(guideTranslations.ko['HTML에서 한 줄로 행동 선언'],'HTML 초기화와 행동 선언');
+ assert.equal(guideTranslations.en['빠르게 시작'],'Basic usage');
+ assert.equal(guideTranslations.ko['작은 동료가 사용자의 작업을 함께합니다.'],'이 문단은 attention 행동의 첫 번째 대상입니다.');
+ for(const locale of ['ko','en','zh-CN','ja']){
+  const prose=Object.values(guideTranslations[locale]).join('\n');
+  assert.ok(!/한 줄로|가장 간단한 시작|작은 동료가|for you|ひとつで|即可/.test(prose),locale);
+ }
+});
