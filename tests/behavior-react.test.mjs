@@ -26,6 +26,9 @@ before(async () => {
   class MockAvatar extends HTMLElement {
     ready = false;
     writes = [];
+    entranceWrites = [];
+    get entrance() { return this.entranceWrites.at(-1) ?? null; }
+    set entrance(value) { if (value !== null && (!value || !['element', 'viewport'].includes(value.source))) throw new TypeError('Unknown entrance source'); this.entranceWrites.push(value); }
     listeners = new Map();
     addEventListener(name, listener, options) {
       const listeners = this.listeners.get(name) ?? new Set(); listeners.add(listener); this.listeners.set(name, listeners);
@@ -311,4 +314,22 @@ test('public emotion native/React contracts expose typed fields, results and eve
     // @ts-expect-error emotion intensity is numeric
     const bad=<SidekickAvatar emotionIntensity="strong"/>;
   `,'emotion-types');
+});
+
+
+test('React entrance owns only supplied declarations, preserves Elements and deduplicates rerenders', async t => {
+ const target = document.createElement('section'); document.body.append(target); t.after(() => target.remove());
+ const f = await fixture(t, {}, true);
+ const native = { source: 'element', target, direction: 'right' }; f.avatar.entrance = native;
+ await f.render({className:'changed'}); assert.equal(f.avatar.entranceWrites.length,1); assert.equal(f.avatar.entrance,native);
+ const declared = { source:'element', target, direction:'top' }; await f.render({entrance:declared});
+ await f.render({entrance:{...declared}}); assert.equal(f.avatar.entranceWrites.length,2); assert.equal(f.avatar.entrance.target,target);
+ declared.direction='left'; await f.render({entrance:declared}); assert.equal(f.avatar.entranceWrites.length,3);
+ await f.render({}); assert.equal(f.avatar.entrance,null); assert.equal(f.avatar.entranceWrites.length,4);
+ await f.render({}); assert.equal(f.avatar.entranceWrites.length,4);
+});
+test('React invalid entrance reports once without replacing the last valid native declaration', async t => {
+ const errors=[], f=await fixture(t,{entrance:{source:'viewport',edge:'left'}}), previous=f.avatar.entrance;
+ const onError=e=>errors.push(e.detail); await f.render({entrance:{source:'invalid'},onError}); await f.render({entrance:{source:'invalid'},onError});
+ assert.equal(errors.length,1); assert.equal(errors[0].attribute,'entrance'); assert.equal(f.avatar.entrance,previous);
 });

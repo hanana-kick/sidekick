@@ -676,7 +676,8 @@ export class SidekickAvatar extends HTMLElementBase {
     for (const [name, value] of pending) { if (value === null) candidate.delete(name); else candidate.set(name, value); }
     try {
       const resolved = resolveSidekickAttributes(candidate);
-      const entrance = pending.has('entrance') && candidate.has('entrance') ? validateEntrance(JSON.parse(candidate.get('entrance')!)) : null;
+      const entranceValue: unknown = pending.has('entrance') && candidate.has('entrance') ? JSON.parse(candidate.get('entrance')!) : null;
+      const entrance = entranceValue === null ? null : validateEntrance(entranceValue);
       const behavior = pending.has('behavior') && candidate.has('behavior') ? validateBehavior(JSON.parse(candidate.get('behavior')!), this.ownerDocument) : null;
       const touched = (...names: string[]): boolean => names.some(name => pending.has(name));
       const allDesign = touched('design');

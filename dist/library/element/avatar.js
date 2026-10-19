@@ -911,7 +911,8 @@ export class SidekickAvatar extends HTMLElementBase {
         }
         try {
             const resolved = resolveSidekickAttributes(candidate);
-            const entrance = pending.has('entrance') && candidate.has('entrance') ? validateEntrance(JSON.parse(candidate.get('entrance'))) : null;
+            const entranceValue = pending.has('entrance') && candidate.has('entrance') ? JSON.parse(candidate.get('entrance')) : null;
+            const entrance = entranceValue === null ? null : validateEntrance(entranceValue);
             const behavior = pending.has('behavior') && candidate.has('behavior') ? validateBehavior(JSON.parse(candidate.get('behavior')), this.ownerDocument) : null;
             const touched = (...names) => names.some(name => pending.has(name));
             const allDesign = touched('design');
