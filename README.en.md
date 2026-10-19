@@ -111,6 +111,14 @@ Emotion never writes or restores saved design, activity, gaze or body orientatio
 | `sidekick-emotion-change` | `onEmotionChange` | Persistent emotion or transient reaction changed |
 | `sidekick-reaction-end` | `onReactionEnd` | Reaction completed, replaced, cancelled or disconnected |
 
+### Transitions and immediate authored settings
+
+`design`, `setDesign()`, `updateDesign()`, `equipAccessory()` and `removeAccessory()` persist the requested settings immediately, while rendering blends smoothly from the currently displayed appearance. Default eye transitions take 400ms and body-shape transitions 450ms; explicit transition durations take precedence. Body orientation also changes smoothly. Retargeting mid-transition does not restart from the original appearance.
+
+Direct equipment additions, removals and replacements use a renderer-only 200ms per-slot fade: old equipment fades out, swaps at zero opacity, then new equipment fades in. The body and other slots do not fade with it. An explicit `transitionTo()` uses its own fade and skips the extra renderer fade.
+
+Paused or reduced-motion mode settles immediately at the target. Reading settings already returns the new target during the visual transition, so do not treat an authored-state read as a signal that the animation has finished.
+
 ## Using the CDN without a build
 
 The currently recommended CDN version is **0.11.0**. These URLs serve **already built JavaScript** committed to a GitHub tag through jsDelivr: no source build, npm installation, or npm account is needed. Pin an **exact tag**, not `main`, `latest`, or a version range. Earlier `v0.2.7` files have not been changed. Version 0.2.7 is also downloadable through the same CDN path, but cross-origin pages cannot create its worker and fall back to the main thread; use the current pinned version for new CDN integrations.
