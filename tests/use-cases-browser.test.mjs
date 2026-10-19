@@ -72,3 +72,10 @@ test('mobile keyboard contents and persisted Studio avatar survive route switche
  await choose(page,'success');assert.equal(await page.locator('#toc-toggle').getAttribute('aria-expanded'),'false');assert.equal(await page.locator('#demo-bot').evaluate(b=>b.design.body.color),'#123456');
  await page.locator('#app-save').click();assert.match(await page.locator('#save-result').textContent(),/저장/);
 });
+test('unsupported WebGL keeps contents and application code available without hanging',async t=>{
+ const page=await setup(t);await page.addInitScript(()=>{HTMLCanvasElement.prototype.getContext=function(){return null;};window.Worker=undefined;});
+ await page.reload();await page.waitForFunction(()=>document.querySelector('#run-status').textContent.includes('WebGL'));
+ assert.match(await page.locator('#declaration-code').textContent(),/bot.behavior =/);
+ await page.locator('[data-scenario="input"]').click();await page.waitForFunction(()=>document.querySelector('#run-status').textContent.includes('WebGL'));
+ await page.fill('#profile-name','테스트');await page.locator('#app-confirm').click();assert.match(await page.locator('#declaration-code').textContent(),/celebrate/);
+});
