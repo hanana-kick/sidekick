@@ -260,6 +260,7 @@ function localizeGuideBindings(){
  for(const element of document.querySelectorAll('[data-guide-placeholder]'))element.setAttribute('placeholder',t(element.dataset.guidePlaceholder));
  for(const element of document.querySelectorAll('[data-guide-label]'))element.setAttribute('aria-label',t(element.dataset.guideLabel));
  if(!exerciseMode)document.title='Sidekick · '+t('가이드');
+ if(exerciseMode)$('restart-demo').textContent=navText().run;
  for(const link of document.querySelectorAll('[data-lesson-destination]'))link.href=technicalHref(link.dataset.lessonDestination,getSiteLocale(),contextSnapshot());
  updateContextLinks();
  for(const link of document.querySelectorAll('.catalog-layout a[href]'))if(!link.getAttribute('href').startsWith('#')){const url=new URL(link.href);url.searchParams.set('lang',getSiteLocale());link.href=url.href;}
