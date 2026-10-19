@@ -76,6 +76,14 @@ for(const width of [320,375,1280])test(`all 18 live Guide examples have usable c
  }
 });
 
+for(const locale of ['ko','ja','zh-CN'])test(`all 18 ${locale} examples keep long labels and controls contained at 320px`,{timeout:120000},async t=>{
+ const page=await newPage(t,320);
+ for(const item of scenarios){
+  await page.goto(`${base}/guide.html?lang=${locale}#${item.id}`);await page.waitForSelector('#demo-bot[data-configured]');await settled(page);
+  await layout(page,`${locale} ${item.id} 320`);await screenshot(page,`layout-guide-${locale}-320-${item.id}`);
+ }
+});
+
 const importMap=JSON.stringify({imports:{react:'/__example-layout/react.js','react-dom/client':'/__example-layout/react-dom-client.js','@hanana-kick/sidekick/react':'/browser/sidekick-react.js'}});
 async function copiedPage(source,framework,key){
  let content;
