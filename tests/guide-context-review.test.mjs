@@ -1,3 +1,5 @@
+import * as framework from '../playground/site-framework.js';
+import * as frameworkCode from '../playground/guide-framework-code.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -28,7 +30,7 @@ async function mount(context, { exercise = false, source = null, hash } = {}) {
   }
   w.ResizeObserver = class { observe() {} };
   w.scrollTo = () => {};
-  Object.assign(w, navigation, emotions, catalog, lessons, {
+  Object.assign(w, navigation, emotions, catalog, lessons, framework, frameworkCode, {
     guideTranslations,
     getSiteLocale: () => 'en', subscribeSiteLocale: () => {},
     loadStudioSession: () => ({ scene: { zoom: 1 }, message: 'mock' }),

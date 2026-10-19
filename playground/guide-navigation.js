@@ -1,3 +1,4 @@
+import { frameworkHref } from './site-framework.js';
 import { scenarios } from './scenario-catalog.js';
 import { lessons } from './guide-lessons.js';
 const scenarioIds = new Set(scenarios.map(item => item.id));
@@ -24,8 +25,9 @@ export function readGuideSource(url){try{const raw=new URL(url,'https://sidekick
 export function guideHref(context, lang='ko', playground=false, source=null) {
  const safe=validateGuideContext(context);if(!safe)throw new RangeError('Unknown guide section');
  const query=new URLSearchParams({lang,context:JSON.stringify(safe)});
+ if(typeof location!=='undefined'){const state=new URL(location.href).searchParams.get('state');if(state&&state.length<=16384)query.set('state',state);}
  const origin=validateGuideContext(source??(playground?safe:null));if(origin)query.set('source',JSON.stringify(origin));
- return `./${playground?'api-playground':'guide'}.html?${query}#${safe.id}`;
+ return frameworkHref(`./${playground?'api-playground':'guide'}.html?${query}#${safe.id}`);
 }
 export const isScenario = id => scenarioIds.has(id);
 /** Explicit technical destinations. Labels name what actually opens. */
@@ -42,7 +44,7 @@ export function technicalHref(id,lang='ko',source={id,level:1}) {
  if(target.id)return guideHref(target,lang,false,source);
  const query=new URLSearchParams({lang,from:id,source:JSON.stringify(validateGuideContext(source))});
  if(target.preset)query.set('lesson',target.preset);
- return `./${target.page==='studio'?'index':'api-playground'}.html?${query}`;
+ return frameworkHref(`./${target.page==='studio'?'index':'api-playground'}.html?${query}`);
 }
 export const navigationText = {
  ko:{invalid:'문서 링크의 예제 또는 설정이 유효하지 않습니다. 목차에서 문서를 선택하세요.',try:'이 예제의 코드와 설정 열기',back:'원래 문서로 돌아가기',source:'문서',exercise:'예제 실행 및 코드',direct:'개별 API 편집기 열기',run:'선택한 예제 실행',related:'관련 문서',studio:'Studio에서 외형 편집',placement:'화면 좌표 이동 API 설정',anchor:'엘리먼트 앵커 API 설정',manual:'이동·시선·표정 조합 실행',performance:'렌더링 유휴 제어 및 진단'},

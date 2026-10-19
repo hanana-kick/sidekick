@@ -69,3 +69,11 @@
   .app-header .site-navigation:has(.guide-source-return) { flex-wrap: wrap; }
   .app-header .guide-source-return { order: 2; flex: 1 0 100%; text-align: right; }
 }
+.app-header .site-framework { font: inherit; font-size: 12px; min-width: 0; max-width: 142px; min-height: 36px; padding: 6px; border: 1px solid #e2e8f0; border-radius: 8px; color: #334155; background: white; cursor: pointer; }
+.app-header .site-framework:focus-visible { outline: 2px solid #64748b; outline-offset: 3px; }
+@media (max-width: 760px) {
+ .app-header .site-navigation { flex-wrap: wrap; }
+ .app-header .site-navigation .product-nav { flex-basis: 100%; }
+ .app-header .site-navigation .site-framework { order: 1; flex: 1 1 120px; max-width: none; }
+ .app-header .site-navigation .site-language { order: 1; flex: 0 0 90px; }
+}
