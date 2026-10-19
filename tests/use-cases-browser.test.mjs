@@ -25,8 +25,8 @@ async function choose(page,id){
 }
 test('three-level contents provides all 18 actual scenarios and hash history navigation',async t=>{
  const page=await setup(t);assert.equal(await page.locator('#scenario-toc > details').count(),3);assert.equal(await page.locator('#scenario-toc h3').count(),9);assert.equal(await page.locator('#scenario-toc [data-scenario]').count(),26);
- await choose(page,'review');await choose(page,'input');await page.goBack();await page.waitForFunction(()=>document.querySelector('[aria-current="page"][data-scenario]')?.dataset.scenario==='review');
- await page.goForward();await page.waitForFunction(()=>document.querySelector('[aria-current="page"][data-scenario]')?.dataset.scenario==='input');
+ await choose(page,'review');await choose(page,'input');await page.goBack();console.log('GUIDE HISTORY BACK',page.url(),await page.locator('#scenario-toc [aria-current]').getAttribute('data-scenario'));await page.waitForFunction(()=>document.querySelector('[aria-current="page"][data-scenario]')?.dataset.scenario==='review');
+ await page.goForward();console.log('GUIDE HISTORY FORWARD',page.url(),await page.locator('#scenario-toc [aria-current]').getAttribute('data-scenario'));await page.waitForFunction(()=>document.querySelector('[aria-current="page"][data-scenario]')?.dataset.scenario==='input');
  assert.equal(await page.locator('#breadcrumb').textContent(),'행동 선언 / 사용자 안내 / 입력할 위치 안내');
 });
 test('loading declaration and app completion execute exactly the displayed semantic command',async t=>{
