@@ -277,7 +277,7 @@ subscribeSiteLocale(localizeGuide);localizeGuideBindings();
 
 $('restart-demo').onclick=()=>{if(exerciseMode&&active?.resume){if(level===4&&!emotionFlowById(active.item.id))$('run-manual').click();else active.resume();return;}const context=contextSnapshot();delete context.events;delete context.event;delete context.emotionCustomized;delete context.inputValid;delete context.emailValid;delete context.searchMatches;history.replaceState(history.state,'',guideHref(context,getSiteLocale(),false,sourceContext));activate(active?.item.id??'loading');};$('stop-demo').onclick=stop;
 $('copy-code').onclick=async()=>{try{await navigator.clipboard.writeText($('declaration-code').textContent+(level===3&&!emotionFlowById(active.item.id)?'\n\n'+eventCode(active.item.id).replace("const bot = document.querySelector('#demo-bot');\n",''):''));setText('copy-status','복사했습니다.');}catch{setText('copy-status','코드를 선택해서 복사해 주세요.');}};
-window.addEventListener('hashchange',()=>activate(location.hash.slice(1)));
+window.addEventListener('hashchange',()=>{const id=location.hash.slice(1)||'html-start';if(currentId!==id)activate(id);});
 window.addEventListener('popstate',()=>activate(location.hash.slice(1)||'html-start'));
 window.addEventListener('pageshow',event=>{if(event.persisted)activate(location.hash.slice(1)||'html-start');});
 window.addEventListener('pagehide',()=>{active?.controller.abort();active?.bot.remove();});
