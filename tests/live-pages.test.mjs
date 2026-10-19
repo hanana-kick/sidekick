@@ -35,7 +35,8 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
       const canonical = page.url();
       assert.ok([customHTTP, customHTTPS].includes(canonical), `Unexpected final origin or path: ${canonical}`);
       if (entry === customHTTPS) assert.equal(canonical, customHTTPS, 'The HTTPS entry must not downgrade to HTTP');
-      assert.match(await page.title(), /Sidekick Studio/);
+      assert.equal(await page.title(), 'Sidekick · 스튜디오');
+      assert.equal(await page.locator('html').getAttribute('lang'), 'ko');
       await page.waitForFunction(() => document.getElementById('flat')?.ready === true, undefined, { timeout: 20000 });
       assert.ok((await page.locator('body').innerText()).trim().length > 100, 'Studio is not blank');
       await page.locator('[data-shape="puffy"]').click();
