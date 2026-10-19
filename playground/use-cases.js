@@ -48,7 +48,7 @@ function currentEvents(){
 function contextSnapshot(){return {id:currentId,level,side:active?.declaration.side??$('behavior-side').value,gap:active?.declaration.gap??Number($('behavior-gap').value),dwell:active?.declaration.dwell??Number($('behavior-dwell').value),intensity:active?.emotionOptions?.intensity??Number($('guide-emotion-intensity').value),duration:active?.emotionOptions?.duration??Number($('guide-emotion-duration').value),event:active?.emotionEvent??-1,events:currentEvents(),inputValid:currentId==='input'&&active?.declaration.type==='celebrate',emailValid:currentId==='validation'&&active?.declaration.type==='celebrate',searchMatches:active?.searchMatches??[],emotionCustomized:active?.emotionCustomized??false,scroll:Math.round(scrollY)};}
 function updateContextLinks(){
  const context=contextSnapshot(), link=$('context-playground-link');
- if(link){link.href=lessonById(currentId)?technicalHref(currentId,getSiteLocale(),context):guideHref(context,getSiteLocale(),true,context);link.textContent=navText().try;}
+ if(link){link.hidden=!!lessonById(currentId);link.href=lessonById(currentId)?technicalHref(currentId,getSiteLocale(),context):guideHref(context,getSiteLocale(),true,context);link.textContent=navText().try;}
  if(!restoringContext){const url=new URL(guideHref(context,getSiteLocale(),exerciseMode,sourceContext),location.href);history.replaceState(history.state,'',url);}
  const back=$('guide-source-return');if(back)back.href=guideHref(sourceContext??incomingContext??context,getSiteLocale());
 }
@@ -274,9 +274,10 @@ function localizeGuide(){
 }
 subscribeSiteLocale(localizeGuide);localizeGuideBindings();
 
-$('restart-demo').onclick=()=>{if(exerciseMode&&active?.resume){if(level===4&&!emotionFlowById(active.item.id))$('run-manual').click();else active.resume();return;}activate(active?.item.id??'loading');};$('stop-demo').onclick=stop;
+$('restart-demo').onclick=()=>{if(exerciseMode&&active?.resume){if(level===4&&!emotionFlowById(active.item.id))$('run-manual').click();else active.resume();return;}const context=contextSnapshot();delete context.events;delete context.event;delete context.emotionCustomized;delete context.inputValid;delete context.emailValid;delete context.searchMatches;history.replaceState(history.state,'',guideHref(context,getSiteLocale(),false,sourceContext));activate(active?.item.id??'loading');};$('stop-demo').onclick=stop;
 $('copy-code').onclick=async()=>{try{await navigator.clipboard.writeText($('declaration-code').textContent+(level===3&&!emotionFlowById(active.item.id)?'\n\n'+eventCode(active.item.id).replace("const bot = document.querySelector('#demo-bot');\n",''):''));setText('copy-status','복사했습니다.');}catch{setText('copy-status','코드를 선택해서 복사해 주세요.');}};
 window.addEventListener('hashchange',()=>activate(location.hash.slice(1)));
+window.addEventListener('pageshow',event=>{if(event.persisted)activate(location.hash.slice(1)||'html-start');});
 window.addEventListener('pagehide',()=>{active?.controller.abort();active?.bot.remove();});
 if(!exerciseMode&&sourceContext){const back=document.createElement('a');back.id='guide-source-return';back.textContent=navText().back;back.href=guideHref(sourceContext,getSiteLocale());$('scenario-main').prepend(back);}
 if((location.hash&&!guideIds.includes(location.hash.slice(1)))||(new URL(location.href).searchParams.has('context')&&!incomingContext)){const warning=document.createElement('p');warning.id='invalid-guide-context';warning.setAttribute('role','alert');warning.textContent=navText().invalid;$('scenario-main').prepend(warning);}

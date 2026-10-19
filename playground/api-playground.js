@@ -55,6 +55,7 @@ function refreshLocale() {
     if (error) { entry.querySelector('strong').textContent = t('error'); entry.querySelector('pre').textContent = JSON.stringify(errorMessage(error), null, 2); }
   }
   if (validationError) { code = `// ${errorMessage(validationError)}`; $('invocation').textContent = code; }
+  for(const [value,key] of [['performance','performance'],['manual-motion','manual']]){const option=$('action-kind').querySelector('option[value="'+value+'"]');if(option)option.textContent=navigationText[getSiteLocale()][key];}
   const back=$('guide-source-return');if(back&&technicalKinds[technicalLesson]){back.textContent=navigationText[getSiteLocale()].back;back.href=guideHref(readGuideSource(location.href)??{id:technicalLesson,level:1},getSiteLocale());}
   showPreference(); telemetry();
 }
@@ -259,4 +260,7 @@ subscribeSiteLocale(refreshLocale); refreshLocale(); refresh();
 $('install-code').textContent = `npm install github:hanana-kick/sidekick#v0.11.1\n\n<!-- HTML: Start with the companion configured in Studio -->\n<sidekick-avatar id="bot" placement="viewport"\n  style="width:180px;height:180px;pointer-events:none">\n</sidekick-avatar>\n<script type="module">\n  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.1/dist/browser/sidekick.js';\n  const scene = ${JSON.stringify(studioSession.scene, null, 2)};\n  const bot = document.querySelector('#bot');\n  bot.design = scene.design;\n  bot.setActivity(scene.activity);\n  bot.bodyOrientation = scene.bodyOrientation;\n  bot.zoom = scene.zoom;\n  bot.trackingMode = scene.trackingMode;\n  bot.paused = scene.paused;\n  bot.lookAt({ space: 'view', ...scene.gaze });\n  bot.seek(scene.time);\n  await bot.motion.to(scene.motion, { duration: 0 });\n  // Insert the invocation code above here.\n</script>`;
 
 }
+}).catch(()=>{
+ for(const element of [...document.body.children])if(!element.matches('.app-header,script'))element.remove();
+ const warning=document.createElement('p');warning.id='invalid-guide-context';warning.setAttribute('role','alert');warning.textContent=navigationText[getSiteLocale()].invalid;document.body.append(warning);
 });
