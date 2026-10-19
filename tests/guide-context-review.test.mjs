@@ -147,3 +147,24 @@ test('persisted pageshow restores the bot after pagehide cleanup', async () => {
     assert.deepEqual(page.$('demo-bot').calls, []);
   } finally { page.close(); }
 });
+
+test('scroll persistence cannot overwrite a pending route and popstate restores its settings', async () => {
+  const page = await mount({ id: 'loading', level: 1 });
+  try {
+    const target = { id: 'review', level: 2, side: 'right', gap: 28 };
+    page.w.history.replaceState({}, '', navigation.guideHref(target, 'en'));
+    page.w.dispatchEvent(new page.w.Event('scroll'));
+    assert.equal(page.w.location.hash, '#review');
+    assert.equal(navigation.readGuideContext(page.w.location.href).id, 'review');
+    page.w.dispatchEvent(new page.w.PopStateEvent('popstate'));
+    await tick();
+    assert.equal(page.$('demo-bot').dataset.scenario, 'review');
+    assert.equal(page.$('behavior-side').value, 'right');
+    assert.equal(page.$('behavior-gap').value, '28');
+    assert.equal(page.w.document.querySelector('[data-level="2"]').getAttribute('aria-pressed'), 'true');
+    const bot = page.$('demo-bot');
+    page.w.dispatchEvent(new page.w.HashChangeEvent('hashchange'));
+    await tick();
+    assert.equal(page.$('demo-bot'), bot, 'Following hashchange must not restart the same route');
+  } finally { page.close(); }
+});
