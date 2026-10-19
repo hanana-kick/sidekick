@@ -14,7 +14,10 @@ export function resolveSiteLocale({ query, stored, languages = [] } = {}) {
 function initialLocale() {
   if (typeof window === 'undefined') return 'ko';
   let stored; try { stored = window.localStorage.getItem(SITE_LOCALE_STORAGE_KEY); } catch { /* Private browsing may deny storage. */ }
-  return resolveSiteLocale({ query: new URL(window.location.href).searchParams.get('lang'), stored, languages: window.navigator.languages ?? [window.navigator.language] });
+  const query = new URL(window.location.href).searchParams.get('lang');
+  const selected = resolveSiteLocale({ query, stored, languages: window.navigator.languages ?? [window.navigator.language] });
+  if (normalizeSiteLocale(query)) { try { window.localStorage.setItem(SITE_LOCALE_STORAGE_KEY, selected); } catch { /* Explicit URL still works without storage. */ } }
+  return selected;
 }
 let locale = initialLocale();
 export function getSiteLocale() { return locale; }

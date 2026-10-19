@@ -8,3 +8,6 @@ execFileSync(process.execPath, ['node_modules/vite/bin/vite.js', 'build'], { std
 cpSync('third_party/material-shapes', 'dist/third_party/material-shapes', { recursive: true });
 mkdirSync('dist/third_party/shadcn-ui', { recursive: true });
 copyFileSync('playground/components/ui/LICENSE.md', 'dist/third_party/shadcn-ui/LICENSE.md');
+// TypeScript emits Studio utility modules used by Node tests; preserve their JS locale dependency.
+mkdirSync('dist/playground', { recursive: true });
+copyFileSync('playground/site-i18n.js', 'dist/playground/site-i18n.js');

@@ -277,3 +277,11 @@ sidekick-avatar { display: block; width: 100%; height: 100%; min-width: 0; min-h
 
 .studio-toolbar { display: flex; align-items: center; justify-content: flex-end; padding: 6px 24px; border-bottom: 1px solid var(--border); background: var(--background); }
 @media (max-width: 760px) { .studio-toolbar { padding: 4px 14px; } }
+/* Translated labels may be longer than Korean. Keep all tabs inside the inspector. */
+.settings-nav [data-slot="tabs-list"] { height: auto; min-height: 38px; align-items: stretch; }
+.settings-nav [data-slot="tabs-trigger"] { min-width: 0; flex: 1 1 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; padding-block: 7px; }
+@media (max-width: 519px) {
+  .settings-nav [data-slot="tabs-trigger"] { padding-inline: 4px; }
+  .preview-footer { flex-wrap: wrap; }
+  .preview-shape { min-width: 0; overflow-wrap: anywhere; }
+}
