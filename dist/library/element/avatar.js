@@ -987,10 +987,14 @@ export class SidekickAvatar extends HTMLElementBase {
         if (!this.connected || generation !== this.generation || !this.bridge)
             return;
         this.flushAttributes();
+        if (!this.connected || generation !== this.generation || !this.bridge)
+            return;
         this.cancelStartupPresentation();
         const request = this.request('barrier');
-        this.bridge.send({ kind: 'present', request: request.id, verifySurface: this.bridge.backend === 'worker' });
-        const revision = this.bridge.revision;
+        const bridge = this.bridge;
+        bridge.send({ kind: 'present', request: request.id, verifySurface: bridge.backend === 'worker' });
+        const revision = bridge.revision;
+        // Attach rejection handling even when transport failure replaced the bridge.
         void request.promise.then(result => {
             const reveal = () => {
                 try {
