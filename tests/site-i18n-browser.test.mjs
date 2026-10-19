@@ -20,25 +20,32 @@ for(const locale of ['ko','en','zh-CN','ja'])for(const path of ['','api-playgrou
  assert.equal(await page.locator('#site-language').inputValue(),locale);
  assert.equal(await page.locator('.product-nav a').count(),3);
  assert.equal(await page.locator('.product-nav [aria-current=page]').count(),1);
+ const headerFits=await page.locator('.site-navigation a,.site-language').evaluateAll(items=>items.every(item=>{const box=item.getBoundingClientRect();return box.left>=0&&box.right<=document.documentElement.clientWidth+1;}));
+ assert.equal(headerFits,true,'All navigation and language controls fit beside the scrollbar gutter');
  assert.ok((await page.locator('#site-language').getAttribute('aria-label'))?.length);
- assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),true);
  for(const href of await page.locator('.product-nav a').evaluateAll(links=>links.map(link=>link.href)))assert.ok(href.includes(`lang=${locale}`));
  if(path==='api-playground.html') {
   const titles={ko:'무엇을 하게 할까요?',en:'What should your companion do?','zh-CN':'想让伙伴做什么？',ja:'何をしてもらいましょう？'};
   assert.equal(await page.locator('h1').textContent(),titles[locale]);
   for(const action of ['movement','anchor','activity','expression','tracking','orientation','assets','presence']) {
     await page.locator('#action-kind').selectOption(action);
-    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,action);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),true,action);
   }
  } else if(path==='') {
   const titles={ko:'나만의 작은 동료.',en:'Your own little companion.','zh-CN':'专属于你的小伙伴。',ja:'あなただけの小さな相棒。'};
   assert.equal(await page.locator('h1').textContent(),titles[locale]);
   for(const id of ['animation-tab','body-orientation-tab','scene-tab','json-tab','appearance-tab']) {
     await page.locator('#'+id).click();
-    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,id);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),true,id);
   }
+  await page.locator('.preview-footer button').first().click();
+  const preview=await page.locator('.previews').boundingBox();
+  assert.ok(preview&&preview.height>=110,`Visible character preview must stay useful: ${preview?.height}px`);
+  const tabLines=await page.locator('.settings-nav [data-slot=tabs-trigger]').evaluateAll(tabs=>tabs.map(tab=>{const style=getComputedStyle(tab);return {label:tab.textContent,height:tab.scrollHeight,width:tab.clientWidth,overflow:tab.scrollWidth>tab.clientWidth+1,lineHeight:parseFloat(style.lineHeight),padding:parseFloat(style.paddingTop)+parseFloat(style.paddingBottom)};}));
+  for(const tab of tabLines){assert.equal(tab.overflow,false,tab.label);assert.ok(tab.height-tab.padding<=tab.lineHeight*2+2,`Tab exceeds two lines: ${tab.label}`);}
  }
- await page.waitForFunction(()=>{const bot=document.querySelector('#flat,#bot');return !bot||bot.ready;});
+ await page.waitForFunction(()=>{const bot=document.querySelector('#flat,#bot');return !bot||(bot.ready&&(bot.id!=='bot'||bot.hasAttribute('data-configured')));});
  if(screenshots){
   await page.screenshot({path:`${screenshots}/locale-${locale}-${path.replace('.html','')||'studio'}-320x480.png`,fullPage:true});
   await page.setViewportSize({width:1280,height:900});

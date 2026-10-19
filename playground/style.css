@@ -285,3 +285,11 @@ sidekick-avatar { display: block; width: 100%; height: 100%; min-width: 0; min-h
   .preview-footer { flex-wrap: wrap; }
   .preview-shape { min-width: 0; overflow-wrap: anywhere; }
 }
+@media (max-width: 519px) and (max-height: 560px) {
+  /* On short phones the companion, not a decorative headline, gets the space. */
+  .workspace { grid-template-rows: minmax(196px, 42%) minmax(0, 1fr); }
+  .stage-header > div:first-child { display: none; }
+  .stage-header { justify-content: flex-end; }
+  .preview-footer { flex-wrap: nowrap; }
+  .settings-nav [data-slot="tabs-trigger"] { overflow-wrap: normal; word-break: normal; }
+}

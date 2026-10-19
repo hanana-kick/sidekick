@@ -62,3 +62,5 @@
   .app-header .site-navigation { gap: 4px; }
   .app-header .product-nav a { padding-inline: 4px; font-size: 11px; }
 }
+.app-header .site-navigation .product-nav,
+.app-header .site-navigation .product-nav a { min-width: 0; }
