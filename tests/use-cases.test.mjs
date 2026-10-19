@@ -116,7 +116,7 @@ test('guide technical copy has identical keys across all four locales',()=>{
   assert.deepEqual(Object.keys(guideTranslations[locale]).sort(),keys,locale);
   for(const [key,value] of Object.entries(guideTranslations[locale]))assert.ok(typeof value==='string'&&value.trim(),`${locale}: ${key}`);
  }
- assert.equal(guideTranslations.ko['HTML에서 한 줄로 행동 선언'],'HTML 초기화와 행동 선언');
+ assert.equal(guideTranslations.ko['HTML에서 한 줄로 행동 선언'],'설치와 초기화');
  assert.equal(guideTranslations.en['빠르게 시작'],'Basic usage');
  assert.equal(guideTranslations.ko['작은 동료가 사용자의 작업을 함께합니다.'],'이 문단은 guide 행동의 첫 번째 대상입니다.');
  for(const locale of ['ko','en','zh-CN','ja']){

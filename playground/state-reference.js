@@ -2,7 +2,7 @@ import './state-reference.css';
 import { getFramework, subscribeFramework } from './site-framework.js';
 import { getSiteLocale, subscribeSiteLocale } from './site-i18n.js';
 import { guideHref } from './guide-navigation.js';
-import { STATE_FIELDS, STATE_IDS, FIELD_BY_KEY, READ_ONLY_STATE, fieldDefault, validateStateValue, compileReferenceAttributes, referenceSource } from './state-reference-schema.js';
+import { STATE_FIELDS, JSON_FIELDS, STATE_IDS, FIELD_BY_KEY, READ_ONLY_STATE, fieldDefault, validateStateValue, compileReferenceAttributes, referenceSource } from './state-reference-schema.js';
 import { stateLessons } from './guide-state-lessons.js';
 import { guideTranslations } from './guide-translations.js';
 import { stateCopy } from './state-reference-copy.js';
@@ -79,7 +79,7 @@ export function mountStateReference(host,id,{session}){
   input.dataset.stateControl=item.attribute;input.setAttribute('aria-label',item.attribute);input.disabled=!toggle.checked;
   const read=()=>item.kind==='json'?JSON.parse(input.value):item.kind==='number'?Number(input.value):item.kind==='boolean'?input.value==='true':input.value;
   const apply=()=>{if(input.checkValidity&&!input.checkValidity()){input.reportValidity();return;}try{set(item,read());}catch(err){error(err.message);}};
-  if(item.kind==='json'){const applyButton=bindText(make('button','',row),'jsonApply');applyButton.type='button';applyButton.addEventListener('click',()=>{if(toggle.checked)apply();},{signal});bindText(make('small','',row),'help');}
+  if(item.kind==='json'){const applyButton=bindText(make('button','',row),'jsonApply');applyButton.type='button';applyButton.addEventListener('click',()=>{if(toggle.checked)apply();},{signal});bindText(make('small','',row),'help');const schemaDetails=make('details','',row);bindText(make('summary','',schemaDetails),'structure');const definitions=make('dl','state-json-fields',schemaDetails);for(const [name,type]of JSON_FIELDS[item.attribute]??[]){make('dt','',definitions).textContent=name;make('dd','',definitions).textContent=type;}}
   else input.addEventListener('change',apply,{signal});
   toggle.addEventListener('change',()=>{input.disabled=!toggle.checked;if(toggle.checked)apply();else{delete edits[item.attribute];send();}},{signal});
   const tr=body.insertRow();make('th','',tr).scope='row';const typeCell=make('td','',tr);typeCell.dataset.stateColumn='type';typeCell.dataset.label=copy('type');typeCell.textContent=fieldType(item);const initialCell=make('td','',tr);initialCell.dataset.stateColumn='initial';initialCell.dataset.label=copy('initial');initialCell.textContent=id==='state-appearance'?copy('inherited'):item.attribute==='behavior'?'null':JSON.stringify(item.initial);const effect=make('td','',tr);effect.dataset.stateColumn='effect';effect.dataset.label=copy('effect');if(semantic){effect.dataset.stateDescription=semantic[3];effect.textContent=translate(semantic[3]);}else effect.textContent=item.legacy?copy('legacy'):'—';

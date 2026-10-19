@@ -88,3 +88,15 @@ export function referenceSource(scene, edits, framework='element') {
  if(framework==='react')return `import { SidekickAvatar } from '@hanana-kick/sidekick/react';\n\nconst avatarProps = ${safeJSON(referenceReactProps(attributes))};\n\nexport default function StateExample() {\n  return (\n    <>\n      <style>{${JSON.stringify(REFERENCE_CSS)}}<\/style>\n      <div id="reference-root">\n        <div id="reference-target">Target</div>\n        <ol id="reference-list">\n          {[1, 2, 3].map(item => <li className="reference-item" key={item}>Item {item}</li>)}\n        </ol>\n        <SidekickAvatar id="reference-bot" {...avatarProps} />\n      </div>\n    </>\n  );\n}`;
  return `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<style>${REFERENCE_CSS}</style>\n<script type="module">\n  import '@hanana-kick/sidekick/auto';\n<\/script>\n</head>\n<body>\n<div id="reference-root">\n  ${REFERENCE_TARGET_HTML}\n  <sidekick-avatar id="reference-bot"\n${Object.entries(attributes).filter(([key,value])=>!(key==='behavior'&&value===null)).map(([key,value])=>`    ${key}="${escape(attributeText(value))}"`).join('\n')}>\n  </sidekick-avatar>\n</div>\n</body>\n</html>`;
 }
+
+export const JSON_FIELDS = Object.freeze({
+ behavior: [
+  ['type','wait | follow | guide | review | idle | celebrate | error'],
+  ['target','wait/follow/guide: Element | string'],['targets','review: string | readonly Element[]'],
+  ['side','left | right | above | below · right'],['gap','0…10000 px · 16'],
+  ['timeout','0…86400000 ms · 5000'],['duration','idle/wait/follow/guide/celebrate/error: 0…86400000 ms'],['dwell','review: 0…86400000 ms · 1000'],
+ ],
+ design: [['version','7'],['body','{ shape: MaterialShapeName, color: #RRGGBB }'],['eyes','{ color: #RRGGBB, left: EyeState, right: EyeState }'],['eyes.left.weights / eyes.right.weights','{ smile: 0…1, blink: 0…1 }'],['accessories','AccessoryDesign[]']],
+ accessories: [['[].id','string'],['[].preset','AccessoryPreset'],['[].slot','head | eyes | mouth | neck | leftEar | rightEar'],['[].color','#RRGGBB']],
+ motion: [['body.rotation','[x, y, z] · −2π…2π rad'],['face.uv','[u, v] · −0.5…0.5'],['eyes.openness','0…1'],['eyes.left.weights / eyes.right.weights','{ smile?: 0…1, blink?: 0…1 }'],['accessories[id].rotation','[x, y, z] · −π…π rad']],
+});

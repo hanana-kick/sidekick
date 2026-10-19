@@ -19,22 +19,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 버전을 고정하려면 릴리스 태그를 지정합니다.
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.11.3
+npm install https://github.com/hanana-kick/sidekick.git#v0.12.0
 ```
 
-빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.11.3`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.12.0`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
 
 npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. ESM과 일반 `<script>`용 JS, 전용 렌더링 worker를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
 
 ### GitHub Release에서 다운로드
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases)를 엽니다.
-2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.11.3.zip` 또는 `hanana-kick-sidekick-0.11.3.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
+2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.12.0.zip` 또는 `hanana-kick-sidekick-0.12.0.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
 3. 일반 HTML 사이트에서는 브라우저 ZIP을 풀고 아래 파일을 사이트의 정적 파일 디렉터리에 복사합니다. 동봉된 `START-HERE.txt`를 읽고 `esm.html`, `classic.html`, `react.html` 중 원하는 예제를 열면 됩니다. 예제의 `/vendor/sidekick/`은 **사용자 사이트의 경로**입니다. 배포 경로에 맞게 바꾸세요.
 
 | 빌드된 파일 | 용도 | 필요한 파일·의존성 |
 | --- | --- | --- |
-| `sidekick-browser-0.11.3.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
+| `sidekick-browser-0.12.0.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
 | `sidekick.js` | 브라우저 ESM. `import`와 `<script type="module">` 사용 | `sidekick.worker.js`를 같은 디렉터리에 유지 |
 | `sidekick.iife.js` | 일반 classic `<script>`. API는 `window.Sidekick` | `sidekick.worker.js`를 같은 디렉터리에 유지. `type="module"` 사용 안 함 |
 | `sidekick-react.js` | React 19용 ESM 컴포넌트 | `sidekick-element.js`·`sidekick-fallback.js`·`sidekick.worker.js`를 같은 디렉터리에 유지하고 `react` peer를 제공 |
@@ -42,7 +42,7 @@ npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.co
 | `sidekick-fallback.js` | worker를 사용할 수 없을 때 React 요소가 불러오는 렌더러 | 직접 import하지 않음. 나머지 파일과 같은 버전 사용 |
 | `sidekick.worker.js` | OffscreenCanvas 전용 worker | 브라우저 진입 파일 옆에 배치. 별도 script 태그로 불러오지 않음 |
 | `vendor/react.js`, `vendor/react-dom-client.js` | 브라우저 ZIP의 선택적 React 19/ReactDOM ESM | 아래 빌드 없는 React 예제용. import map으로 연결하며 React를 이미 제공하는 앱에는 불필요 |
-| `hanana-kick-sidekick-0.11.3.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
+| `hanana-kick-sidekick-0.12.0.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
 | `SHA256SUMS` | ZIP과 tarball의 다운로드 무결성 확인 | 같은 Release의 체크섬 파일 |
 
 ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보관하세요. **GitHub Release 자산은 다운로드한 뒤 본인 사이트에서 제공하세요.** 다운로드 URL은 브라우저 JS 호스팅용 URL이 아니며 자산 응답의 MIME·CORS 동작이 정적 호스팅과 다릅니다. 아래 예제의 `src`/`import`는 내려받은 파일을 제공하는 사이트 경로를 사용합니다.
@@ -54,7 +54,7 @@ ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보�
 Release에서 받은 tarball을 사용할 프로젝트에서 설치합니다. 이 명령은 Sidekick 소스를 컴파일하거나 Studio를 빌드하지 않습니다.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.11.3.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.12.0.tgz
 ```
 
 React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 마운트하는 `react-dom`도 사용자가 같은 버전으로 준비합니다. 코어만 쓰는 프로젝트에는 React가 필요 없습니다.
@@ -123,12 +123,12 @@ bot.setEmotion('neutral');
 
 ## CDN으로 빌드 없이 사용하기
 
-현재 CDN 권장 버전은 **0.11.3**입니다. 아래 URL은 GitHub 태그에 커밋된 **빌드 완료 JS**를 jsDelivr가 제공하므로 소스 빌드, npm 설치, npm 계정이 필요 없습니다. `main`, `latest`, 버전 범위 대신 **정확한 태그**를 고정하세요. 이전 `v0.2.7` 파일은 변경하지 않았습니다. 0.2.7도 같은 CDN 경로로 다운로드할 수 있지만, 다른 출처의 페이지에서는 worker 생성이 막혀 메인 스레드로 폴백하므로 신규 CDN 사용에는 위에 고정한 현재 버전을 사용하세요.
+현재 CDN 권장 버전은 **0.12.0**입니다. 아래 URL은 GitHub 태그에 커밋된 **빌드 완료 JS**를 jsDelivr가 제공하므로 소스 빌드, npm 설치, npm 계정이 필요 없습니다. `main`, `latest`, 버전 범위 대신 **정확한 태그**를 고정하세요. 이전 `v0.2.7` 파일은 변경하지 않았습니다. 0.2.7도 같은 CDN 경로로 다운로드할 수 있지만, 다른 출처의 페이지에서는 worker 생성이 막혀 메인 스레드로 폴백하므로 신규 CDN 사용에는 위에 고정한 현재 버전을 사용하세요.
 
 ### 일반 HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.12.0/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
@@ -140,7 +140,7 @@ bot.setEmotion('neutral');
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.12.0/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -156,15 +156,15 @@ React와 ReactDOM은 동일한 19.3.1의 미리 빌드된 ESM을 제공합니다
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.12.0/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.12.0/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.12.0/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
@@ -973,6 +973,8 @@ WebGL2와 Custom Elements를 지원하는 현대 브라우저가 필요합니다
 
 ## Studio와 개발
 
+가이드의 전역 선택기에서 Custom Element 또는 React를 선택하면 전체 예제와 파라미터 이름이 해당 형식으로 표시됩니다. 봇의 상태 문서에는 설정 가능한 항목, 허용값, 기본값, 실행 미리보기와 해당 미리보기의 전체 소스가 포함됩니다. 항목을 활성화하여 값을 덮어쓰며, 비활성 항목은 Studio 장면을 유지합니다. 미리보기의 변경은 Studio 저장값에 기록되지 않습니다.
+
 Studio는 **React 19 + Vite 8 + Tailwind CSS 4 + 실제 shadcn/ui Radix/Nova 컴포넌트**, Slate 색상 토큰으로 구현한 별도 편집기입니다. 코어를 사용하는 웹사이트에는 이 UI 의존성이 들어가지 않습니다. 아래는 소스를 개발하는 사람을 위한 명령이며 Node.js 22.22.2 이상을 사용합니다.
 
 ```sh
@@ -1230,7 +1232,7 @@ API playground는 “기본 최고 속도 · 1350 CSS px/s”이 기본으로 �
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.12.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { maxSpeed: 320, acceleration: 900, deceleration: 1200 });
@@ -1267,7 +1269,7 @@ API playground는 “기본 최고 속도 · 1350 CSS px/s”이 기본으로 �
 <button id="flight-stop" type="button">활동 중단</button>
 <p id="flight-status" aria-live="off">idle</p>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.11.3/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.12.0/dist/browser/sidekick.js';
   const stage = document.getElementById('flight-stage');
   const bot = document.getElementById('flight-avatar');
   const status = document.getElementById('flight-status');

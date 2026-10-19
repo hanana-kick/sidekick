@@ -99,7 +99,7 @@ for(const locale of ['ko','en','zh-CN','ja'])test(`Guide translates technical le
  const basicLabels={ko:'1. 기본 선언',en:'1. Basic declaration','zh-CN':'1. 基本声明',ja:'1. 基本宣言'};
  assert.equal(await page.locator('[data-level="1"]').textContent(),basicLabels[locale]);
  await page.goto(`${base}/guide.html?lang=${locale}#html-start`);await page.waitForSelector('#lesson-content:not([hidden])');assert.equal(await page.locator('#demo-bot').count(),0);assert.ok((await page.locator('#lesson-content pre').textContent()).includes('bot.behavior'));
- const lessonTitles={ko:'HTML 초기화와 행동 선언',en:'HTML initialization and behavior declaration','zh-CN':'HTML 初始化与行为声明',ja:'HTML の初期化と行動宣言'};
+ const lessonTitles={ko:'설치와 초기화',en:'Installation and initialization','zh-CN':'安装与初始化',ja:'導入と初期化'};
  assert.equal(await page.locator('#scenario-title').textContent(),lessonTitles[locale]);
  const visibleProse=await page.locator('.catalog-layout').innerText();
  assert.doesNotMatch(visibleProse,/한 줄로 행동 선언|가장 간단한 시작|작은 동료가 사용자의|coordinated for you/);

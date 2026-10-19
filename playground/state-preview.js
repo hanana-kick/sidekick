@@ -24,10 +24,10 @@ function apply(message){
  const token=++generation;
  if(framework==='react'){
   if(!reactRoot)reactRoot=createRoot(mount);
-  flushSync(()=>reactRoot.render(createElement(SidekickAvatar,{id:'reference-bot',...referenceReactProps(attributes),onError:e=>notify('state-reference-error',{message:e.detail.message,revision:currentRevision}),onReady:()=>notify('state-reference-ready',{revision:message.revision})})));
+  flushSync(()=>reactRoot.render(createElement(SidekickAvatar,{id:'reference-bot',...referenceReactProps(attributes),onError:e=>{if(token===generation)notify('state-reference-error',{message:e.detail.message,revision:message.revision});},onReady:()=>{if(token===generation)notify('state-reference-ready',{revision:message.revision});}})));
   bot=mount.querySelector('sidekick-avatar');
  }else{
-  if(!bot){bot=document.createElement('sidekick-avatar');bot.id='reference-bot';bot.addEventListener('sidekick-error',e=>notify('state-reference-error',{message:e.detail.message,revision:currentRevision}));}
+  if(!bot){bot=document.createElement('sidekick-avatar');bot.id='reference-bot';bot.addEventListener('sidekick-error',e=>{if(e.currentTarget===bot)notify('state-reference-error',{message:e.detail.message,revision:currentRevision});});}
   for(const key of Object.keys(last))if(!Object.hasOwn(attributes,key))bot.removeAttribute(key);
   for(const [key,value]of Object.entries(attributes)){
    if(key==='behavior'&&value===null){bot.removeAttribute(key);bot.stopBehavior();continue;}

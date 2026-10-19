@@ -1,4 +1,5 @@
 const rows = {
+ structure:['객체 필드','Object fields','对象字段','オブジェクトの項目'],
  effect:['동작과 적용 범위','Effect and scope','作用与范围','動作と適用範囲'],
  title:['파라미터 미리보기','Parameter preview','参数预览','パラメーターのプレビュー'],
  intro:['항목을 활성화하고 값을 변경하면 미리보기와 소스가 함께 갱신됩니다. 비활성 항목은 Studio 장면 또는 API 기본값을 사용합니다.','Enable a field and change its value to update the preview and source together. Disabled fields use the Studio scene or API default.','启用字段并更改值，预览与源代码将同步更新。未启用的字段使用工作室场景或 API 默认值。','項目を有効にして値を変更すると、プレビューとソースが同時に更新されます。無効な項目は Studio のシーンまたは API の既定値を使います。'],

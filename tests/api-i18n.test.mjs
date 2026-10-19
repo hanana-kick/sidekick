@@ -4,6 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { JSDOM } from 'jsdom';
 import { API_LOCALES, API_MESSAGES, apiText, applyApiLocale, apiError } from '../playground/api-locales.js';
 import { getSiteLocale, setSiteLocale } from '../playground/site-i18n.js';
+import { getFramework, subscribeFramework } from '../playground/site-framework.js';
+import { navigationText, guideHref, readGuideSource } from '../playground/guide-navigation.js';
 import { codeForAction, executeAction } from '../playground/playground-actions.js';
 
 const html = await readFile(new URL('../api-playground.html', import.meta.url), 'utf8');
@@ -50,13 +52,13 @@ test('declared HTML translations are complete leaf labels and do not match arbit
 
 async function fixture(t, initialLocale = 'ko') {
   let locale = initialLocale;
-  const listeners = new Set();
+  const listeners = new Set(); let framework = "element"; const frameworkListeners = new Set();
   const dom = new JSDOM(html, { url: `https://sidekick.test/api-playground.html?lang=${locale}`, runScripts: 'outside-only', pretendToBeVisual: true });
   t.after(() => dom.window.close());
   const w = dom.window, $ = id => w.document.getElementById(id);
   const changeLocale = value => { locale = value; for (const callback of listeners) callback(); };
   Object.assign(w, { mountGuideExercise:async()=>false,
-    structuredClone, codeForAction, executeAction, apiError, apiText,
+    structuredClone, getFramework:()=>framework, subscribeFramework:fn=>{frameworkListeners.add(fn);return()=>frameworkListeners.delete(fn);}, navigationText, guideHref, readGuideSource, codeForAction, executeAction, apiError, apiText,
     getSiteLocale: () => locale, subscribeSiteLocale: callback => { listeners.add(callback); return () => listeners.delete(callback); },
     applyApiLocale: root => applyApiLocale(root, locale),
     createAccessory: preset => ({ preset }), MATERIAL_SHAPE_LABELS: Object.fromEntries(shapeNames.map(name => [name, name])),
@@ -73,7 +75,7 @@ async function fixture(t, initialLocale = 'ko') {
   w.customElements.define('sidekick-avatar', Avatar); w.eval(source); await new Promise(resolve => setImmediate(resolve));
   const bot = $('bot'); bot.calls.length = 0;
   const input = (id, value) => { $(id).value = String(value); $(id).dispatchEvent(new w.Event('input', { bubbles: true })); };
-  return { w, $, bot, input, changeLocale, preference };
+  return { w, $, bot, input, changeLocale, preference, changeFramework:value=>{framework=value;for(const fn of frameworkListeners)fn();} };
 }
 
 const controlsSnapshot = d => [...d.querySelectorAll('input,select')].map(node => [node.id, node.value, node.checked, node.disabled]);
@@ -84,7 +86,7 @@ test('locale switching preserves draft, all controls, code, selected text, focus
   f.$('element-anchor').checked = true;
   f.input('action-kind', 'assets'); f.input('shape', 'pixelTriangle'); f.input('head-accessory', 'crown'); f.input('neck-accessory', 'bowTie');
   f.$('execute').click(); await new Promise(resolve => setImmediate(resolve));
-  f.$('code-format').value = 'react'; f.$('code-format').dispatchEvent(new f.w.Event('change'));
+  f.changeFramework('react');
   f.$('install-guide').open = true; f.$('diagnostics').open = true;
   f.$('target-selector').focus(); f.$('target-selector').setSelectionRange(1, 5);
   const code = f.$('invocation').textContent, lastCode = f.$('last-invocation').textContent, installCode = f.$('install-code').textContent;
