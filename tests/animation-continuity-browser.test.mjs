@@ -15,9 +15,9 @@ for (const fallback of [false, true]) for (const mobile of [false, true]) test(`
   const page = await context.newPage(); const errors = []; page.on('pageerror', e => errors.push(e.message));
   try {
     if (fallback) await page.addInitScript(() => Object.defineProperty(HTMLCanvasElement.prototype, 'transferControlToOffscreen', { value: undefined, configurable: true }));
-    await page.route('**/smooth-test.html', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body style="margin:0;background:#fff;font:16px system-ui"><h2 style="text-align:center">Expression · state · emotion</h2><div id="caption" style="text-align:center">Starting</div><sidekick-avatar id="bot" shape="ghostish" body-color="#FFCC37" activity="still" tracking-mode="off" zoom="1.5" style="display:block;width:320px;height:320px;margin:20px auto"></sidekick-avatar></body></html>' }));
+    await page.route('**/smooth-test.html', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#fff;font:16px system-ui"><h2 style="text-align:center">Expression · state · emotion</h2><div id="caption" style="text-align:center">Starting</div><sidekick-avatar id="bot" shape="ghostish" body-color="#FFCC37" activity="still" tracking-mode="off" zoom="1.5" style="display:block;width:320px;height:320px;margin:20px auto"></sidekick-avatar></body></html>' }));
     await page.goto(`http://127.0.0.1:${server.address().port}/smooth-test.html`);
-    await page.evaluate(async () => { await import('./browser/sidekick.js'); window.bot = document.querySelector('#bot'); await new Promise(r => bot.ready ? r() : bot.addEventListener('sidekick-ready', r, { once: true })); });
+    await page.evaluate(async () => { window.api = await import('./browser/sidekick.js'); window.bot = document.querySelector('#bot'); await new Promise(r => bot.ready ? r() : bot.addEventListener('sidekick-ready', r, { once: true })); });
     assert.equal(await page.evaluate(() => bot.diagnostics.backend), fallback ? 'main' : 'worker');
     const trace = await page.evaluate(async () => {
       const wait = ms => new Promise(r => setTimeout(r, ms)), frames = [];
@@ -37,6 +37,10 @@ for (const fallback of [false, true]) for (const mobile of [false, true]) test(`
       await sample('Sad', () => bot.setEmotion('sad'));
       await sample('Curious', () => bot.setEmotion('curious'));
       await sample('Excited', () => bot.setEmotion('excited'));
+      await sample('Equip beret', () => void bot.equipAccessory(api.createAccessory('beret')));
+      await sample('Swap crown', () => void bot.equipAccessory(api.createAccessory('crown')));
+      await sample('Remove crown', () => void bot.removeAccessory(bot.design.accessories[0].id));
+      await sample('Explicit equipment transition', () => void bot.transitionTo({ accessories: [api.createAccessory('beret')] }, { duration: 400 }));
       await sample('Return to authored baseline', () => { bot.setEmotion('neutral'); bot.setActivity('still'); });
       await wait(800); return frames;
     });
@@ -48,11 +52,11 @@ for (const fallback of [false, true]) for (const mobile of [false, true]) test(`
     // A real GPU-rendered contact sheet with 60ms samples, captured on the same timeline.
     const images = await page.evaluate(async () => {
       bot.setEmotion('neutral'); bot.setActivity('still'); await bot.setExpression('both', 'neutral', { duration: 0 });
-      const images = []; void bot.setExpression('both', 'smile', { duration: 480 });
-      for (let i = 0; i < 9; i++) { const p = await bot.capturePixelsAsync(); const canvas = document.createElement('canvas'); canvas.width = p.width; canvas.height = p.height; const bytes = new Uint8ClampedArray(p.pixels.length); for (let y = 0; y < p.height; y++) bytes.set(p.pixels.subarray(y * p.width * 4, (y + 1) * p.width * 4), (p.height - y - 1) * p.width * 4); canvas.getContext('2d').putImageData(new ImageData(bytes, p.width, p.height), 0, 0); images.push(canvas.toDataURL()); await new Promise(r => setTimeout(r, 60)); }
+      const images = [], start = performance.now(); void bot.setExpression('both', 'smile', { duration: 480 });
+      for (let i = 0; i < 9; i++) { const p = await bot.capturePixelsAsync(); const canvas = document.createElement('canvas'); canvas.width = p.width; canvas.height = p.height; const bytes = new Uint8ClampedArray(p.pixels.length); for (let y = 0; y < p.height; y++) bytes.set(p.pixels.subarray(y * p.width * 4, (y + 1) * p.width * 4), (p.height - y - 1) * p.width * 4); canvas.getContext('2d').putImageData(new ImageData(bytes, p.width, p.height), 0, 0); images.push({ src: canvas.toDataURL(), milliseconds: Math.round(performance.now() - start) }); await new Promise(r => setTimeout(r, 60)); }
       return images;
     });
-    await page.evaluate(images => { document.body.innerHTML = '<h2>Actual rendered neutral → smile sequence</h2><div style="display:grid;grid-template-columns:repeat(3,1fr)">' + images.map((src, i) => `<div><img style="width:100%" src="${src}"><span>${i * 60}ms</span></div>`).join('') + '</div>'; }, images);
+    await page.evaluate(images => { document.body.innerHTML = '<h2>Actual rendered neutral → smile sequence</h2><div style="display:grid;grid-template-columns:repeat(3,1fr)">' + images.map(({src, milliseconds}) => `<div><img style="width:100%" src="${src}"><span>${milliseconds}ms</span></div>`).join('') + '</div>'; }, images);
     await page.screenshot({ path: `${directory}/${name}-contact.png`, fullPage: true }); assert.deepEqual(errors, []);
   } finally { await context.close(); if (page.video()) await page.video().saveAs(`${directory}/${name}.webm`); await browser.close(); await new Promise(r => server.close(r)); }
 });

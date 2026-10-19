@@ -345,7 +345,7 @@ export class SidekickAvatar extends HTMLElementBase {
     const changedEyes = (['left', 'right'] as const).filter(side => transition?.eyeSides?.includes(side) || next.eyes[side].weights.smile !== previous.eyes[side].weights.smile || next.eyes[side].weights.blink !== previous.eyes[side].weights.blink);
     const immediate = this.immediateMotion();
     const requested = transition ?? { shape: validateShapeMotionOptions({}), eyes: validateMotionOptions({}), eyeSides: changedEyes };
-    const timing = { ...requested, shape: { ...requested.shape, duration: immediate ? 0 : requested.shape.duration }, eyes: { ...requested.eyes, duration: immediate ? 0 : requested.eyes.duration } };
+    const timing = { ...requested, equipmentImmediate: this.playbackCommand, shape: { ...requested.shape, duration: immediate ? 0 : requested.shape.duration }, eyes: { ...requested.eyes, duration: immediate ? 0 : requested.eyes.duration } };
     let shapeRequest: number | undefined, eyeRequest: number | undefined;
     if (shapeChanged && timing) shapeRequest = this.request<MotionResult>('shape').id;
     if (changedEyes.length) {

@@ -20,7 +20,7 @@ export interface RuntimeState {
   gaze: Vec2; trackingMode: TrackingMode; trackedGaze?: Vec2;
   width: number; height: number; dpr: number;
 }
-export interface DesignTransition { shape: ShapeMotionOptions; eyes: MotionOptions; eyeSides?: readonly ('left' | 'right')[] }
+export interface DesignTransition { equipmentImmediate?: boolean; shape: ShapeMotionOptions; eyes: MotionOptions; eyeSides?: readonly ('left' | 'right')[] }
 export type RuntimeCommand =
   | { kind: 'batch'; commands: RuntimeCommand[] }
   | { kind: 'design'; design: AvatarDesign; transition?: DesignTransition; shapeRequest?: number; eyeRequest?: number }

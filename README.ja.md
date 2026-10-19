@@ -22,19 +22,19 @@ npm install https://github.com/hanana-kick/sidekick.git
 npm install https://github.com/hanana-kick/sidekick.git#v0.11.0
 ```
 
-ビルド済みの ESM、型宣言、ブラウザーバンドルがリポジトリに含まれているため、**インストール先で Sidekick のソースをビルドする必要はありません。** 依存関係と lockfile を一緒にコミットすれば、チームでも同じバージョンを使えます。パッケージ名は `@hanana-kick/sidekick`、このバージョンは `0.10.0` です。**npm レジストリには公開していないため、名前だけで `npm install @hanana-kick/sidekick` を実行しないでください。**
+ビルド済みの ESM、型宣言、ブラウザーバンドルがリポジトリに含まれているため、**インストール先で Sidekick のソースをビルドする必要はありません。** 依存関係と lockfile を一緒にコミットすれば、チームでも同じバージョンを使えます。パッケージ名は `@hanana-kick/sidekick`、このバージョンは `0.11.0` です。**npm レジストリには公開していないため、名前だけで `npm install @hanana-kick/sidekick` を実行しないでください。**
 
 npm を使わない HTML サイトでは、[GitHub Releases](https://github.com/hanana-kick/sidekick/releases) からビルド済みファイルをダウンロードしてください。ESM と通常の `<script>` 用 JS、専用のレンダリング worker を提供します。このブラウザーコアには React、バンドラー、Node.js、追加の CSS、フォントは不要です。
 
 ### GitHub Release からダウンロード
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases) を開きます。
-2. 使用するタグの **Assets** から `sidekick-browser-0.10.0.zip` または `hanana-kick-sidekick-0.10.0.tgz` をダウンロードします。別のバージョンでは、タグに一致するファイル名を選んでください。自動生成される **Source code (zip/tar.gz)** はソースアーカイブなので、ブラウザー配布用 ZIP と区別してください。
+2. 使用するタグの **Assets** から `sidekick-browser-0.11.0.zip` または `hanana-kick-sidekick-0.11.0.tgz` をダウンロードします。別のバージョンでは、タグに一致するファイル名を選んでください。自動生成される **Source code (zip/tar.gz)** はソースアーカイブなので、ブラウザー配布用 ZIP と区別してください。
 3. 通常の HTML サイトでは、ブラウザー ZIP を展開して、以下のファイルをサイトの静的ファイルディレクトリにコピーします。同梱の `START-HERE.txt` を読み、`esm.html`、`classic.html`、`react.html` から希望する例を開いてください。例の `/vendor/sidekick/` は**利用するサイトのパス**です。配信先のパスに合わせて変更してください。
 
 | ビルド済みファイル | 用途 | 必要なファイル・依存関係 |
 | --- | --- | --- |
-| `sidekick-browser-0.10.0.zip` | 通常の HTML/React 向けブラウザー配布 | `esm.html`・`classic.html`・`react.html`、以下の JS 6 ファイル、任意の `vendor/`、README・告知を含む |
+| `sidekick-browser-0.11.0.zip` | 通常の HTML/React 向けブラウザー配布 | `esm.html`・`classic.html`・`react.html`、以下の JS 6 ファイル、任意の `vendor/`、README・告知を含む |
 | `sidekick.js` | ブラウザー ESM。`import` と `<script type="module">` を使用 | `sidekick.worker.js` を同じディレクトリに置く |
 | `sidekick.iife.js` | 通常の classic `<script>`。API は `window.Sidekick` | `sidekick.worker.js` を同じディレクトリに置く。`type="module"` は使用しない |
 | `sidekick-react.js` | React 19 用 ESM コンポーネント | `sidekick-element.js`・`sidekick-fallback.js`・`sidekick.worker.js` を同じディレクトリに置き、`react` peer を用意する |
@@ -42,7 +42,7 @@ npm を使わない HTML サイトでは、[GitHub Releases](https://github.com/
 | `sidekick-fallback.js` | worker が使えない場合に React 要素が読み込むレンダラー | 直接 import しない。他のファイルと同じバージョンを使う |
 | `sidekick.worker.js` | OffscreenCanvas 専用 worker | ブラウザーのエントリーファイルの隣に配置する。別の script タグでは読み込まない |
 | `vendor/react.js`, `vendor/react-dom-client.js` | ブラウザー ZIP に含まれる任意の React 19/ReactDOM ESM | 以下のビルド不要の React 例に使用。import map で接続し、React をすでに用意しているアプリでは不要 |
-| `hanana-kick-sidekick-0.10.0.tgz` | 既存の npm ベースのプロジェクトにインストールするパッケージ | ビルド済み ESM・型宣言・ブラウザーバンドル・告知を含む |
+| `hanana-kick-sidekick-0.11.0.tgz` | 既存の npm ベースのプロジェクトにインストールするパッケージ | ビルド済み ESM・型宣言・ブラウザーバンドル・告知を含む |
 | `SHA256SUMS` | ZIP と tarball のダウンロード整合性の確認 | 同じ Release のチェックサムファイル |
 
 ZIP に同梱されている README と第三者ライセンス・出典の告知も保管してください。**GitHub Release のアセットは、ダウンロードしてから自分のサイトで配信してください。** ダウンロード URL はブラウザー JS のホスティング用 URL ではなく、アセットの応答の MIME・CORS の挙動は静的ホスティングとは異なります。以下の例の `src`/`import` には、ダウンロードしたファイルを配信するサイトのパスを使います。
@@ -54,7 +54,7 @@ ZIP に同梱されている README と第三者ライセンス・出典の告�
 Release から取得した tarball を、使用するプロジェクトでインストールします。このコマンドは Sidekick のソースをコンパイルしたり、Studio をビルドしたりしません。
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.10.0.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.11.0.tgz
 ```
 
 React 19 が必要なのは React ラッパーを使う場合だけです。Web ページをマウントする `react-dom` も、利用者が同じバージョンで用意します。コアだけを使うプロジェクトには React は不要です。
@@ -113,7 +113,7 @@ bot.setEmotion('neutral');
 
 ## CDN を使ってビルドなしで利用する
 
-現在の CDN 推奨バージョンは **0.10.0** です。以下の URL は GitHub タグにコミットされた**ビルド済み JS** を jsDelivr が配信するため、ソースのビルド、npm のインストール、npm アカウントは不要です。`main`、`latest`、バージョン範囲ではなく、**正確なタグ**を固定してください。以前の `v0.2.7` のファイルは変更していません。0.2.7 も同じ CDN パスからダウンロードできますが、異なるオリジンのページでは worker の生成がブロックされてメインスレッドへフォールバックするため、CDN の新規利用では上記の現在の固定バージョンを使ってください。
+現在の CDN 推奨バージョンは **0.11.0** です。以下の URL は GitHub タグにコミットされた**ビルド済み JS** を jsDelivr が配信するため、ソースのビルド、npm のインストール、npm アカウントは不要です。`main`、`latest`、バージョン範囲ではなく、**正確なタグ**を固定してください。以前の `v0.2.7` のファイルは変更していません。0.2.7 も同じ CDN パスからダウンロードできますが、異なるオリジンのページでは worker の生成がブロックされてメインスレッドへフォールバックするため、CDN の新規利用では上記の現在の固定バージョンを使ってください。
 
 ### 通常の HTML / classic script
 

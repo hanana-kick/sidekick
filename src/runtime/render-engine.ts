@@ -18,6 +18,7 @@ import type { RuntimeCommand, RuntimeEvent, RuntimeSnapshot, RuntimeState } from
 
 export interface RuntimeRenderer {
   readonly canvas: HTMLCanvasElement | OffscreenCanvas;
+  readonly animating?: boolean;
   readonly stats: { drawCalls: number; buffers: number };
   resize(width: number, height: number, dpr: number): void;
   render(design: AvatarDesign, state: RenderState): void;
@@ -64,6 +65,7 @@ export class RenderEngine {
   private rendererDelta = 0;
   private dirty = true;
   private resizePending = false;
+  private equipmentImmediate = false;
   private disposed = false;
   private frames = 0;
   private revision = 0;
@@ -123,6 +125,7 @@ export class RenderEngine {
       }
       case 'design': {
         const next = command.design, previous = this.state.design;
+        this.equipmentImmediate ||= command.transition?.equipmentImmediate ?? false;
         if (next.body.shape !== previous.body.shape) {
           if (command.transition) this.complete(command.shapeRequest, this.shape.to(next.body.shape, command.transition.shape));
           else if (this.state.paused || this.state.reduced) this.shape.set(next.body.shape);
@@ -203,10 +206,10 @@ export class RenderEngine {
   private presentationMoving(): boolean { return this.emotion.moving(this.emotionTarget()) || (!this.state.reduced && emotionHasMotion(this.state.emotion ?? { emotion: 'neutral', intensity: 1 })) || this.orientation.moving(this.orientationTarget()) || this.attention.moving([this.state.attention ? 1 : 0]); }
   private animated(): boolean {
     if (this.state.paused) return this.tracking.settling;
-    return this.presentationMoving() || this.activityBlend.active || this.timeline.active || this.shape.active || this.gazeMoving() || this.tracking.active || (!this.state.reduced && this.state.activity !== 'still');
+    return this.renderer.animating || this.presentationMoving() || this.activityBlend.active || this.timeline.active || this.shape.active || this.gazeMoving() || this.tracking.active || (!this.state.reduced && this.state.activity !== 'still');
   }
   private paceIdle(): boolean {
-    return !this.dirty && !this.presentationMoving() && this.state.activity === 'idle' && !this.state.paused && !this.state.reduced && !this.activityBlend.active && !this.timeline.active && !this.shape.active && !this.gazeMoving() && !this.tracking.active;
+    return !this.dirty && !this.renderer.animating && !this.presentationMoving() && this.state.activity === 'idle' && !this.state.paused && !this.state.reduced && !this.activityBlend.active && !this.timeline.active && !this.shape.active && !this.gazeMoving() && !this.tracking.active;
   }
   private resetPacing(): void { this.idleDrawElapsed = 0; this.rendererDelta = 0; }
   private wake(): void {
@@ -271,10 +274,10 @@ export class RenderEngine {
     activityFrame.gaze = activityFrame.gaze.map((value, i) => (value + emotion.gaze[i]!) * (1 - this.attention.values[0]!)) as Vec2;
     const [yaw, pitch, roll] = this.orientation.values;
     const started = performance.now();
-    this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, activityFrame, travel, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', bodyOrientation: { yaw: yaw!, pitch: pitch!, roll: roll! }, zoom: this.state.zoom });
+    this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, instant: this.state.paused || this.state.reduced, equipmentImmediate: this.equipmentImmediate, activityFrame, travel, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', bodyOrientation: { yaw: yaw!, pitch: pitch!, roll: roll! }, zoom: this.state.zoom });
     const duration = performance.now() - started;
     this.renderCpu.lastMs = duration; this.renderCpu.totalMs += duration; this.renderCpu.maxMs = Math.max(this.renderCpu.maxMs, duration);
-    this.dirty = false; this.frames++; this.resetPacing();
+    this.equipmentImmediate = false; this.dirty = false; this.frames++; this.resetPacing();
   }
   dispose(): void {
     if (this.disposed) return;

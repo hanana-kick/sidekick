@@ -271,3 +271,26 @@ for (const entry of ['classic', 'esm', 'react']) test(`CDN ${entry} exposes rend
   assert.equal(result.state.phase, 'idle'); assert.equal(result.travel.strength, 0); assert.equal(result.activity, 'still');
   assert.deepEqual(result.sizes.slice(0,2), result.sizes.slice(2));
 });
+
+for (const entry of ['classic', 'esm', 'react']) test(`CDN ${entry} renders emotion reactions and releases to authored state`, async t => {
+  const { page } = await pageFor(t, entry);
+  const result = await page.evaluate(async () => {
+    const avatar = document.getElementById('avatar');
+    await avatar.setExpression('both', 'neutral', { duration: 0 });
+    const initial = await avatar.capturePixelsAsync();
+    avatar.setEmotion('happy', { intensity: .9 });
+    await new Promise(r => setTimeout(r, 600));
+    const happy = await avatar.capturePixelsAsync();
+    const reaction = await avatar.reactTo('surprised', { duration: 250 });
+    const baseline = avatar.emotion;
+    avatar.setEmotion('neutral');
+    await new Promise(r => setTimeout(r, 1500));
+    const settled = await avatar.capturePixelsAsync();
+    let changed = 0; for (let i = 0; i < initial.pixels.length; i++) if (initial.pixels[i] !== happy.pixels[i]) changed++;
+    return { reaction, baseline, emotion: avatar.emotionState, design: avatar.design.eyes, backend: avatar.diagnostics.backend, running: avatar.diagnostics.running, changed, size: [settled.width, settled.height] };
+  });
+  assert.equal(result.reaction.finished, true); assert.equal(result.baseline, 'happy');
+  assert.equal(result.emotion.emotion, 'neutral'); assert.equal(result.emotion.reacting, false);
+  assert.equal(result.design.left.weights.smile, 0); assert.ok(result.changed > 20, 'emotion must change actual GPU output');
+  assert.equal(result.backend, 'worker'); assert.equal(result.running, false);
+});
