@@ -2,13 +2,18 @@ import '../src/index.ts';
 import { mountSiteHeader } from './shared-header.js';
 import { loadStudioSession, applyStudioSession } from './studio-session.ts';
 import { scenarioGroups, scenarioById } from './scenario-catalog.js';
+import { lessons, lessonById } from './guide-lessons.js';
+import { getSiteLocale, subscribeSiteLocale } from './site-i18n.js';
+import { guideTranslations } from './guide-translations.js';
 const $ = id => document.getElementById(id);
-mountSiteHeader($('site-header-brand'), 'usecases');
+mountSiteHeader($('site-header-brand'), 'guide');
 new ResizeObserver(([entry]) => document.documentElement.style.setProperty('--header-height', `${entry.target.getBoundingClientRect().height}px`)).observe(document.querySelector('.app-header'));
 let storage; try { storage = localStorage; } catch {}
 const session = loadStudioSession(storage);
 $('session-status').textContent = session.message;
-$('scenario-toc').innerHTML = '<h2>사용 시나리오</h2>' + scenarioGroups.map(major => `<details open><summary>${major.title}</summary>${major.groups.map(middle => `<section><h3>${middle.title}</h3>${middle.cases.map(item => `<a href="#${item.id}" data-scenario="${item.id}">${item.title}</a>`).join('')}</section>`).join('')}</details>`).join('');
+const lessonGroups = major => [...new Set(lessons.filter(x=>x.major===major).map(x=>x.middle))].map(title=>({title,cases:lessons.filter(x=>x.major===major&&x.middle===title)}));
+const navigationGroups = [{title:'빠르게 시작',groups:lessonGroups('빠르게 시작')},{title:'행동 선언',groups:scenarioGroups.map(group=>({title:group.title,cases:group.groups.flatMap(x=>x.cases)}))},{title:'직접 제어',groups:lessonGroups('직접 제어')}];
+$('scenario-toc').innerHTML = '<h2>가이드 목차</h2>' + navigationGroups.map(major => `<details open><summary>${major.title}</summary>${major.groups.map(middle => `<section><h3>${middle.title}</h3>${middle.cases.map(item => `<a href="#${item.id}" data-scenario="${item.id}">${item.title}</a>`).join('')}</section>`).join('')}</details>`).join('');
 $('toc-toggle').onclick = () => $('toc-toggle').setAttribute('aria-expanded', String($('toc-toggle').getAttribute('aria-expanded') !== 'true'));
 $('scenario-toc').addEventListener('click', event => {
   const link = event.target.closest('a'); if (!link) return;
@@ -16,7 +21,7 @@ $('scenario-toc').addEventListener('click', event => {
   if (location.hash === link.hash) { event.preventDefault(); activate(link.hash.slice(1)); }
 });
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && $('toc-toggle').getAttribute('aria-expanded') === 'true') { $('toc-toggle').setAttribute('aria-expanded', 'false'); $('toc-toggle').focus(); } });
-let active, generation = 0;
+let active, generation = 0, level = 1;
 const labels = { idle:'준비', resolving:'대상 찾는 중', moving:'대상으로 이동 중', acting:'행동 중', completed:'완료', cancelled:'중단', error:'실행 오류' };
 const card = content => `<div class="app-card">${content}</div>`;
 const row = (id, title, description='') => `<button class="target-item" id="${id}" type="button">${title}${description ? `<small>${description}</small>` : ''}</button>`;
@@ -43,27 +48,30 @@ function declarationFor(item) {
   return {type: ['loading','upload','input','success'].includes(item.id) ? 'wait':'guide',target:targets[item.id],side:'left',gap:6};
 }
 function eventCode(kind) {
- const end = 'bot.behavior = { type: "celebrate" };';
- const examples = {
- loading:`// Your real request supplies the outcome.\nawait loadProjects();\n${end}`,
- upload:`// Your uploader supplies progress and completion.\nuploader.addEventListener("complete", () => {\n  ${end}\n});`,
- success:`saveButton.addEventListener("click", async () => {\n  await saveDocument();\n  ${end}\n});`,
- failure:`retryButton.addEventListener("click", async () => {\n  bot.behavior = { type: "wait", target: "#request-result" };\n  try { await retryRequest(); ${end} }\n  catch { bot.behavior = { type: "error" }; }\n});`,
- review:'// Completion is emitted after every resolved item is visited.\nbot.addEventListener("sidekick-behavior-end", event => {\n  console.log(event.detail);\n});',
- selection:'list.addEventListener("click", event => {\n  const target = event.target.closest(".target-item");\n  if (target) bot.behavior = { type: "guide", target };\n});',
- paragraph:'nextButton.addEventListener("click", () => {\n  bot.behavior = { type: "guide", target: paragraphs[++index] };\n});',
- search:'// Render results first; review snapshots the matching DOM nodes.\nrenderResults(await search(query));\nbot.behavior = { type: "review", targets: "#search-results .target-item" };',
- input:`confirmButton.addEventListener("click", () => {\n  if (nameInput.value.trim()) { ${end} }\n});`,
- validation:`if (emailInput.validity.valid) {\n  ${end}\n} else {\n  bot.behavior = { type: "guide", target: emailInput };\n}`,
- action:`nextButton.addEventListener("click", () => {\n  openProject();\n  ${end}\n});`,
- onboarding:'// Application controls the current onboarding step.\nbot.behavior = { type: "guide", target: steps[currentStep] };',
+ const celebrate=`bot.behavior = { type:'celebrate', duration:1600 };`;
+ const guide=target=>`bot.behavior = { type:'guide', target:${target}, side:'left', gap:6 };`;
+ const examples={
+  loading:`document.querySelector('#app-complete').addEventListener('click', () => {\n  ${celebrate}\n});`,
+  upload:`let progress = 0;\ndocument.querySelector('#app-progress').addEventListener('click', () => {\n  progress = Math.min(100, progress + 25);\n  if (progress === 100) { ${celebrate} }\n});`,
+  success:`document.querySelector('#app-save').addEventListener('click', () => {\n  ${celebrate}\n});`,
+  failure:`document.querySelector('#app-retry').addEventListener('click', () => {\n  bot.behavior = { type:'wait', target:'#request-result', side:'left', gap:6 };\n});\ndocument.querySelector('#app-complete').addEventListener('click', () => {\n  ${celebrate}\n});`,
+  review:`bot.addEventListener('sidekick-behavior-end', event => {\n  console.log(event.detail.status, event.detail.completedItems);\n});`,
+  selection:`document.querySelectorAll('#demo-app .target-item').forEach(item => {\n  item.addEventListener('click', () => {\n    ${guide("'#' + item.id")}\n  });\n});`,
+  paragraph:`document.querySelector('#app-next').addEventListener('click', () => {\n  ${guide("'#paragraph-2'")}\n});`,
+  search:`// Render the app's filtered results before this declaration.\nconst targets = document.querySelectorAll('#search-results .target-item');\nbot.behavior = targets.length\n  ? { type:'review', targets:Array.from(targets), dwell:1400, side:'left', gap:6 }\n  : { type:'idle' };`,
+  input:`document.querySelector('#app-confirm').addEventListener('click', () => {\n  if (document.querySelector('#profile-name').value.trim()) {\n    ${celebrate}\n  }\n});`,
+  validation:`document.querySelector('#app-validate').addEventListener('click', () => {\n  const input = document.querySelector('#profile-email');\n  if (input.value && input.checkValidity()) { ${celebrate} }\n  else { ${guide("'#email-field'")} }\n});`,
+  action:`document.querySelector('#next-action').addEventListener('click', () => {\n  ${celebrate}\n});`,
+  onboarding:`let index = 0;\nfunction showStep() {\n  ${guide("'#onboard-' + (index + 1)")}\n}\ndocument.querySelector('#app-next').addEventListener('click', () => {\n  index = Math.min(2, index + 1); showStep();\n});\ndocument.querySelector('#app-previous').addEventListener('click', () => {\n  index = Math.max(0, index - 1); showStep();\n});`,
  };
- return '// Application integration example: supply your own functions/elements.\n'+examples[kind]+'\n\n// When leaving this screen:\nbot.stopBehavior();';
+ return `// Uses the elements in the live app example.\n// In production, trigger the same declarations from real app outcomes.\nconst bot = document.querySelector('#demo-bot');\n${examples[kind]}\n\n// On leaving this screen, remove your event listeners and call:\n// bot.stopBehavior();`;
 }
+
 function declare(config) {
  if (!active) return;
  active.declaration = config;
- $('declaration-code').textContent = `// Registered, initialized <sidekick-avatar id="demo-bot">\nconst bot = document.querySelector("#demo-bot");\n\nbot.behavior = ${JSON.stringify(config,null,2)};`;
+ $('demo-app').dataset.side=config.side??'left';$('demo-app').style.setProperty('--behavior-gap',`${config.gap??6}px`);
+ renderCurrentCode();
  if (active.ready) { botDeclare(active,config); }
 }
 function botDeclare(entry,config) {
@@ -86,24 +94,26 @@ function bindApp(entry,item) {
  on('app-next',()=>{index=Math.min(item.id==='paragraph'?1:2,index+1);guide(`#${item.id==='paragraph'?'paragraph':'onboard'}-${index+1}`);$('app-next').disabled=index===(item.id==='paragraph'?1:2);if($('app-previous'))$('app-previous').disabled=false;});
  on('app-previous',()=>{index=Math.max(0,index-1);guide(`#onboard-${index+1}`);$('app-previous').disabled=index===0;$('app-next').disabled=false;});
  if($('app-previous'))$('app-previous').disabled=true;
- on('app-search',()=>{const query=$('search-query').value.trim();const matches=['계정 설정','알림 설정','계정 삭제'].filter(title=>title.includes(query));$('search-results').innerHTML=matches.map((title,i)=>row('search-'+i,title)).join('')||'<p>검색 결과가 없습니다.</p>';declare(matches.length?{type:'review',targets:'#search-results .target-item',dwell:1400,side:'left',gap:6}:{type:'idle'});});
+ on('app-search',()=>{const query=$('search-query').value.trim();const matches=['계정 설정','알림 설정','계정 삭제'].filter(title=>title.toLowerCase().includes(query.toLowerCase())||(guideTranslations[getSiteLocale()]?.[title]??title).toLowerCase().includes(query.toLowerCase()));$('search-results').innerHTML=matches.map((title,i)=>row('search-'+i,title)).join('')||'<p>검색 결과가 없습니다.</p>';declare(matches.length?{type:'review',targets:'#search-results .target-item',dwell:1400,side:'left',gap:6}:{type:'idle'});});
  on('app-confirm',()=>{const valid=$('profile-name').value.trim();$('input-result').textContent=valid?'입력이 완료되었습니다.':'이름을 먼저 입력해 주세요.';if(valid)success();});
  $('profile-email')?.setAttribute('type','email');
  on('app-validate',()=>{const valid=$('profile-email').checkValidity()&&!!$('profile-email').value;$('validation-result').textContent=valid?'올바른 이메일입니다.':'이메일 형식으로 수정해 주세요.';valid?success():guide('#email-field');});
  on('next-action',()=>{$('action-result').textContent='프로젝트가 준비되었습니다.';success();});
 }
 async function activate(id) {
- const item=scenarioById(id);const token=++generation;
+ const lesson=lessonById(id);const item=lesson??scenarioById(id);const token=++generation;
  window.scrollTo({top:0,behavior:'instant'});
- if(active){active.controller.abort();active.bot.stopBehavior?.();active.bot.remove();}
+ if(active){active.controller.abort();active.bot.stopBehavior?.();active.bot.remove();} active=null;
+ $('lesson-content').hidden=!lesson;document.querySelector('.scenario-workspace').hidden=!!lesson;$('progressive-guide').hidden=!!lesson;
  const controller=new AbortController();
  document.querySelectorAll('[data-scenario]').forEach(link=>{if(link.dataset.scenario===item.id){link.setAttribute('aria-current','page');link.closest('details').open=true;}else link.removeAttribute('aria-current');});
  $('breadcrumb').textContent=`${item.major} / ${item.middle} / ${item.title}`;
  $('scenario-title').textContent=item.title;$('scenario-sentence').textContent=item.sentence;$('scenario-hint').textContent=item.hint;
+ if(lesson){renderLesson(lesson);return;}
  $('demo-app').innerHTML=applicationMarkup(item.id);$('event-code').textContent=eventCode(item.id);$('copy-status').textContent='';$('run-status').textContent='봇 준비 중…';
- const bot=document.createElement('sidekick-avatar');bot.id='demo-bot';bot.className='demo-bot';bot.setAttribute('placement','inline');bot.setAttribute('interaction','none');bot.setAttribute('movement-bounds','none');
+ const bot=document.createElement('sidekick-avatar');bot.id='demo-bot';bot.dataset.scenario=item.id;bot.className='demo-bot';bot.setAttribute('placement','inline');bot.setAttribute('interaction','none');bot.setAttribute('movement-bounds','none');
  const entry=active={bot,controller,item,ready:false};
- declare(declarationFor(item));bindApp(entry,item);
+ declare(declarationFor(item));bindApp(entry,item);renderLevel();
  const ready=new Promise((resolve,reject)=>{
   const timer=setTimeout(()=>reject(new Error('봇 초기화 시간이 초과되었습니다. 다시 실행해 주세요.')),12000);
   const finish=()=>{clearTimeout(timer);resolve();};
@@ -117,11 +127,87 @@ async function activate(id) {
   if(state.type==='review')document.querySelectorAll('#demo-app .target-item').forEach((el,i)=>el.toggleAttribute('data-active',i===state.itemIndex));
  },{signal:controller.signal});
  $('demo-app').append(bot);
- try{if(!bot.ready)await ready;if(token!==generation)return;await applyStudioSession(bot,session.scene);if(token!==generation)return;bot.interaction='none';entry.ready=true;bot.setAttribute('data-configured','');botDeclare(entry,entry.declaration);}
+ try{if(!bot.ready)await ready;if(token!==generation)return;await applyStudioSession(bot,session.scene);if(token!==generation)return;bot.interaction='none';bot.zoom=Math.max(session.scene.zoom,2);entry.ready=true;bot.setAttribute('data-configured','');botDeclare(entry,entry.declaration);}
  catch(error){if(token===generation)$('run-status').textContent=error.message;}
 }
+const levelExplanations = {
+  1:'가장 간단한 시작입니다. 무엇을 할지 선언하면 이동, 시선, 표정과 활동을 함께 처리합니다.',
+  2:'같은 행동을 유지하면서 위치와 간격을 바꿉니다. 순차 검토는 각 항목을 보는 시간도 조절할 수 있습니다.',
+  3:'앱의 완료, 실패, 선택 이벤트가 다음 행동을 결정합니다. 아래 앱을 조작하고 선언이 어떻게 바뀌는지 확인하세요.',
+  4:'연출을 직접 만들 때는 의미 행동을 중단하고 이동, 시선, 표정 API를 순서대로 사용합니다. 다시 선언으로 돌아갈 수도 있습니다.',
+};
+function renderCurrentCode(){
+ if(!active)return;
+ const declaration='const bot = document.querySelector("#demo-bot");\n\nbot.behavior = '+JSON.stringify(active.declaration,null,2)+';';
+ $('declaration-code').textContent=level===4?manualCode():declaration;
+ $('event-code').textContent=eventCode(active.item.id);
+ document.querySelector('.declaration-panel details').open=level===3;
+}
+function renderLevel(){
+ document.querySelectorAll('[data-level]').forEach(button=>button.setAttribute('aria-pressed',String(Number(button.dataset.level)===level)));
+ $('level-explanation').textContent=levelExplanations[level];$('level-options').hidden=level!==2;$('manual-controls').hidden=level!==4;
+ $('dwell-field').hidden=active?.declaration.type!=='review';
+ renderCurrentCode();
+}
+for(const button of document.querySelectorAll('[data-level]'))button.onclick=()=>{level=Number(button.dataset.level);renderLevel();};
+$('apply-options').onclick=()=>{
+ if(!active)return;for(const input of [$('behavior-gap'),$('behavior-dwell')])if(!input.checkValidity()){input.reportValidity();return;}const config={...active.declaration};
+ if('target' in config||config.type==='review'){
+  config.side=$('behavior-side').value;config.gap=Number($('behavior-gap').value);
+  if(config.type==='review')config.dwell=Number($('behavior-dwell').value);
+  declare(config);
+ }else $('run-status').textContent='대상이 있는 행동을 다시 실행한 뒤 조절하세요.';
+};
+function manualCode(){return `const bot = document.querySelector('#demo-bot');
+const target = document.querySelector(${JSON.stringify(active?.declaration.target??(active?.declaration.targets??'#demo-app .app-card'))});
+bot.stopBehavior();
+bot.trackingMode = 'off';
+await bot.moveToElement(target, {
+  alignX:'left', alignY:'center', x:-bot.offsetWidth-6, y:0
+});
+bot.lookAt({ space:'view', x:1, y:0 });
+await bot.setExpression('both', 'smile', { duration:250 });
+`}
+$('run-manual').onclick=async()=>{
+ const entry=active;if(!entry?.ready)return;
+ const target=document.querySelector(entry.declaration.target??entry.declaration.targets??'#demo-app .app-card');if(!target)return;
+ $('demo-app').dataset.side='left';$('demo-app').style.setProperty('--behavior-gap','6px');entry.bot.stopBehavior();entry.bot.trackingMode='off';$('run-status').textContent='직접 조합 실행 중';
+ const result=await entry.bot.moveToElement(target,{alignX:'left',alignY:'center',x:-entry.bot.offsetWidth-6,y:0});
+ if(active!==entry||!result.finished)return;
+ entry.bot.lookAt({space:'view',x:1,y:0});await entry.bot.setExpression('both','smile',{duration:250});
+ if(active===entry)$('run-status').textContent='직접 조합 완료';
+};
+$('return-declaration').onclick=()=>{level=1;renderLevel();if(active?.ready)botDeclare(active,active.declaration);};
+function renderLesson(lesson){
+ const host=$('lesson-content');host.replaceChildren();
+ for(const text of lesson.paragraphs){const p=document.createElement('p');p.textContent=text;host.append(p);}
+ const pre=document.createElement('pre');pre.textContent=lesson.code;pre.tabIndex=0;host.append(pre);
+ const link=document.createElement('a');link.href='#'+lesson.next;link.textContent='관련 예제를 직접 실행하기 →';host.append(link);
+}
+// Translate visible prose only. API identifiers and copyable code remain unchanged.
+const originals=new WeakMap();
+function localizeGuide(){
+ const dictionary=guideTranslations[getSiteLocale()]??{};
+ document.title='Sidekick · '+(dictionary['가이드']??'가이드');
+ for(const link of document.querySelectorAll('.catalog-layout a[href]')){if(!link.getAttribute('href').startsWith('#')){const url=new URL(link.href);url.searchParams.set('lang',getSiteLocale());link.href=url.href;}}
+ const walker=document.createTreeWalker(document.querySelector('.catalog-layout'),NodeFilter.SHOW_TEXT);
+ let node;while(node=walker.nextNode()){
+  if(node.parentElement?.closest('pre,script,style'))continue;
+  const current=node.nodeValue;const saved=originals.get(node);const original=saved&&saved.output===current?saved.original:current;
+  const trimmed=original.trim();if(!trimmed)continue;
+  const translated=dictionary[trimmed]??Object.keys(dictionary).sort((a,b)=>b.length-a.length).reduce((text,key)=>text.replaceAll(key,dictionary[key]),trimmed);const output=original.replace(trimmed,translated);
+  originals.set(node,{original,output});if(current!==output)node.nodeValue=output;
+ }
+ for(const attribute of ['placeholder','aria-label'])for(const element of document.querySelectorAll(`.catalog-layout [${attribute}]`)){
+  const storageKey='original'+attribute.replaceAll('-','');const key=element.dataset[storageKey]??element.getAttribute(attribute);element.dataset[storageKey]=key;element.setAttribute(attribute,dictionary[key]??key);
+ }
+}
+let localizationQueued=false;
+new MutationObserver(()=>{if(localizationQueued)return;localizationQueued=true;queueMicrotask(()=>{localizationQueued=false;localizeGuide();});}).observe(document.querySelector('.catalog-layout'),{childList:true,subtree:true,characterData:true});
+subscribeSiteLocale(localizeGuide);localizeGuide();
+
 $('restart-demo').onclick=()=>activate(active?.item.id??'loading');$('stop-demo').onclick=stop;
-$('copy-code').onclick=async()=>{try{await navigator.clipboard.writeText($('declaration-code').textContent);$('copy-status').textContent='복사했습니다.';}catch{$('copy-status').textContent='코드를 선택해서 복사해 주세요.';}};
+$('copy-code').onclick=async()=>{try{await navigator.clipboard.writeText($('declaration-code').textContent+(level===3?'\n\n'+eventCode(active.item.id).replace("const bot = document.querySelector('#demo-bot');\n",''):''));$('copy-status').textContent='복사했습니다.';}catch{$('copy-status').textContent='코드를 선택해서 복사해 주세요.';}};
 window.addEventListener('hashchange',()=>activate(location.hash.slice(1)));
 window.addEventListener('pagehide',()=>{active?.controller.abort();active?.bot.remove();});
-activate(location.hash.slice(1));
+activate(location.hash.slice(1)||'html-start');

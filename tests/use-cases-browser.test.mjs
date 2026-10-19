@@ -13,18 +13,18 @@ before(async()=>{
 });
 after(async()=>{await browser?.close();if(server)await new Promise(r=>server.close(r));});
 async function setup(t,viewport={width:1280,height:900},hash='loading'){
- const page=await browser.newPage({viewport,reducedMotion:'reduce'}),errors=[];
+ const page=await browser.newPage({viewport,locale:'ko-KR',reducedMotion:'reduce'}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));t.after(async()=>{await page.close();assert.deepEqual(errors,[]);});
- await page.goto(`${base}/use-cases.html#${hash}`);await page.waitForSelector('#demo-bot[data-configured]');return page;
+ await page.goto(`${base}/guide.html#${hash}`);await page.waitForSelector('#demo-bot[data-configured]');return page;
 }
 async function choose(page,id){
  if(await page.locator('#toc-toggle').isVisible()&&await page.locator('#toc-toggle').getAttribute('aria-expanded')==='false')await page.locator('#toc-toggle').click();
- await page.locator(`[data-scenario="${id}"]`).click();await page.waitForSelector('#demo-bot[data-configured]');
+ await page.locator(`#scenario-toc [data-scenario="${id}"]`).click();await page.waitForSelector(`#demo-bot[data-configured][data-scenario="${id}"]`);
  assert.equal(await page.locator('#demo-bot').count(),1);
  assert.equal(await page.locator('#scenario-toc [aria-current=page]').getAttribute('data-scenario'),id);
 }
 test('three-level contents provides all 12 actual scenarios and hash history navigation',async t=>{
- const page=await setup(t);assert.equal(await page.locator('#scenario-toc > details').count(),3);assert.equal(await page.locator('#scenario-toc h3').count(),6);assert.equal(await page.locator('[data-scenario]').count(),12);
+ const page=await setup(t);assert.equal(await page.locator('#scenario-toc > details').count(),3);assert.equal(await page.locator('#scenario-toc h3').count(),8);assert.equal(await page.locator('#scenario-toc [data-scenario]').count(),20);
  await choose(page,'review');await choose(page,'input');await page.goBack();await page.waitForFunction(()=>document.querySelector('[aria-current="page"][data-scenario]')?.dataset.scenario==='review');
  await page.goForward();await page.waitForFunction(()=>document.querySelector('[aria-current="page"][data-scenario]')?.dataset.scenario==='input');
  assert.match(await page.locator('#breadcrumb').textContent(),/사용자 안내.*폼 입력.*입력할 위치/);
@@ -78,4 +78,23 @@ test('unsupported WebGL keeps contents and application code available without ha
  assert.match(await page.locator('#declaration-code').textContent(),/bot.behavior =/);
  await page.locator('[data-scenario="input"]').click();await page.waitForFunction(()=>document.querySelector('#run-status').textContent.includes('WebGL'));
  await page.fill('#profile-name','테스트');await page.locator('#app-confirm').click();assert.match(await page.locator('#declaration-code').textContent(),/celebrate/);
+});
+test('guide progresses from one declaration to live options, events and direct composition',async t=>{
+ const page=await setup(t,{width:390,height:844});
+ await page.locator('[data-level="2"]').click();await page.selectOption('#behavior-side','right');await page.fill('#behavior-gap','16');await page.locator('#apply-options').click();
+ assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.side),'right');assert.match(await page.locator('#declaration-code').textContent(),/"gap": 16/);
+ await page.locator('[data-level="3"]').click();assert.ok(await page.locator('.declaration-panel details').getAttribute('open')!==null);
+ await page.locator('[data-level="4"]').click();assert.match(await page.locator('#declaration-code').textContent(),/moveToElement/);await page.locator('#run-manual').click();
+ await page.waitForFunction(()=>document.querySelector('#run-status').textContent==='직접 조합 완료');assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior),null);
+ await page.locator('#return-declaration').click();assert.equal(await page.locator('#demo-bot').evaluate(b=>b.behavior.type),'wait');
+});
+test('legacy use-case URL preserves hash and redirects to canonical Guide',async t=>{
+ const page=await setup(t);await page.goto(`${base}/use-cases.html?lang=ko#review`);await page.waitForSelector('#demo-bot[data-configured][data-scenario="review"]');assert.match(page.url(),/\/guide\.html\?lang=ko#review$/);
+});
+for(const locale of ['en','zh-CN','ja'])test(`Guide translates technical lessons and live scenarios in ${locale}`,async t=>{
+ const page=await setup(t,{width:390,height:844});await page.selectOption('#site-language',locale);
+ await choose(page,'loading');await page.locator('[data-level="2"]').click();
+ const untranslated=await page.evaluate(()=>{const walker=document.createTreeWalker(document.querySelector('.catalog-layout'),NodeFilter.SHOW_TEXT),bad=[];let n;while(n=walker.nextNode())if(!n.parentElement.closest('pre,[hidden]')&&/[가-힣]/.test(n.nodeValue))bad.push(n.nodeValue);return bad;});assert.deepEqual(untranslated,[]);
+ await page.goto(`${base}/guide.html?lang=${locale}#html-start`);await page.waitForSelector('#lesson-content:not([hidden])');assert.equal(await page.locator('#demo-bot').count(),0);assert.ok((await page.locator('#lesson-content pre').textContent()).includes('bot.behavior'));
+ if(process.env.SIDEKICK_SCREENSHOTS)await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/guide-${locale}-html-start.png`});
 });

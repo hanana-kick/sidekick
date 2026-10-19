@@ -15,9 +15,9 @@ test('element example forwards real target and alignment without rewriting coord
 });
 test('shared navigation includes Use cases and correct relative paths', () => {
   const dom = new JSDOM('<header></header>'); const host = dom.window.document.querySelector('header');
-  mountSiteHeader(host,'usecases','../');
-  assert.deepEqual([...host.querySelectorAll('nav a')].map(a => a.getAttribute('href')), ['../','../api-playground.html','../use-cases.html']);
-  assert.equal(host.querySelector('[aria-current]').textContent,'Use cases');
+  mountSiteHeader(host,'guide','../');
+  assert.deepEqual([...host.querySelectorAll('nav a')].map(a => a.getAttribute('href')), ['../?lang=ko','../api-playground.html?lang=ko','../guide.html?lang=ko']);
+  assert.equal(host.querySelector('[aria-current]').textContent,'가이드');
 });
 test('copyable event function cancels stale submit timer on another event and cleanup', async () => {
   const dom = new JSDOM('<div id="target"></div><form><input required value="test"><select><option value="error">error</option></select></form><output></output>');
@@ -47,12 +47,14 @@ test('semantic scenario catalog has three real navigation depths and unique rout
 });
 
 import { readFileSync } from 'node:fs';
+import {lessons,lessonById} from '../playground/guide-lessons.js';
+import {guideTranslations} from '../playground/guide-translations.js';
 test('application controls feed the displayed declaration across all routes (mock renderer)',async()=>{
- const html=readFileSync(new URL('../use-cases.html',import.meta.url),'utf8');
+ const html=readFileSync(new URL('../guide.html',import.meta.url),'utf8');
  const script=readFileSync(new URL('../playground/use-cases.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- const dom=new JSDOM(html,{url:'https://example.com/use-cases.html',runScripts:'outside-only'}),w=dom.window;
+ const dom=new JSDOM(html,{url:'https://example.com/guide.html#loading',runScripts:'outside-only'}),w=dom.window;
  w.ResizeObserver=class{observe(){}};w.scrollTo=()=>{};
- Object.assign(w,{scenarioGroups,scenarioById,loadStudioSession:()=>({scene:{},message:'mock'}),applyStudioSession:async()=>{},mountSiteHeader:()=>{}});
+ Object.assign(w,{scenarioGroups,scenarioById,lessons,lessonById,guideTranslations,getSiteLocale:()=>'ko',subscribeSiteLocale:()=>{},loadStudioSession:()=>({scene:{},message:'mock'}),applyStudioSession:async()=>{},mountSiteHeader:()=>{}});
  class Bot extends w.HTMLElement {
   connectedCallback(){queueMicrotask(()=>{this.ready=true;this.dispatchEvent(new w.CustomEvent('sidekick-ready'));});}
   stopBehavior(){this.stopped=true;}
@@ -70,4 +72,17 @@ test('application controls feed the displayed declaration across all routes (moc
   $('stop-demo').click();assert.ok($('demo-bot').stopped);
   $('toc-toggle').click();w.document.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape'}));assert.equal($('toc-toggle').getAttribute('aria-expanded'),'false');
  }finally{w.dispatchEvent(new w.Event('pagehide'));w.close();}
+});
+test('every scenario and technical lesson has complete nonempty translations in all three added languages',()=>{
+ for(const locale of ['en','zh-CN','ja'])for(const entry of [...scenarios,...lessons])for(const value of [entry.major,entry.middle,entry.title,entry.sentence,entry.hint,...(entry.paragraphs??[])])assert.ok(guideTranslations[locale][value],`${locale} missing ${value}`);
+});
+test('all guide routes localize visible prose without untranslated Korean (mock renderer)',async()=>{
+ const html=readFileSync(new URL('../guide.html',import.meta.url),'utf8');const script=readFileSync(new URL('../playground/use-cases.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
+ const dom=new JSDOM(html,{url:'https://example.com/guide.html#html-start',runScripts:'outside-only'}),w=dom.window;let locale='en';
+ w.ResizeObserver=class{observe(){}};w.scrollTo=()=>{};
+ Object.assign(w,{scenarioGroups,scenarioById,lessons,lessonById,guideTranslations,getSiteLocale:()=>locale,subscribeSiteLocale:()=>{},loadStudioSession:()=>({scene:{zoom:1},message:'아직 저장된 Studio 설정이 없어 기본 봇을 표시합니다.'}),applyStudioSession:async()=>{},mountSiteHeader:()=>{}});
+ class Bot extends w.HTMLElement{connectedCallback(){queueMicrotask(()=>{this.ready=true;this.dispatchEvent(new w.CustomEvent('sidekick-ready'));});}stopBehavior(){}set behavior(v){this.value=v;}get behavior(){return this.value;}}
+ w.customElements.define('sidekick-avatar',Bot);w.eval(script);
+ try{for(const language of ['en','zh-CN','ja']){locale=language;w.localizeGuide();for(const item of [...lessons,...scenarios]){w.location.hash=item.id;await new Promise(r=>setTimeout(r,4));const walker=w.document.createTreeWalker(w.document.querySelector('.catalog-layout'),w.NodeFilter.SHOW_TEXT);let node;while(node=walker.nextNode())if(!node.parentElement.closest('pre,[hidden]'))assert.ok(!/[가-힣]/.test(node.nodeValue),`${language}/${item.id}: ${node.nodeValue}`);}}}
+ finally{w.dispatchEvent(new w.Event('pagehide'));w.close();}
 });
