@@ -112,7 +112,7 @@ test('both pages share a paused native avatar brand and accessible navigation', 
     const resolved = resolveSidekickAttributes(new Map([...avatar.attributes].map(a => [a.name, a.value])));
     assert.equal(resolved.design.body.shape, 'ghostish');
     assert.equal(resolved.paused, true);
-    assert.equal(resolved.zoom, 2);
+    assert.equal(resolved.zoom, 1.2846936688304844); // Same projected logo scale after body-referenced framing.
     assert.equal(resolved.trackingMode, 'off');
     assert.equal(resolved.interaction, 'none');
     assert.deepEqual(resolved.design.accessories.map(a => a.preset).sort(), ['beret', 'bowTie', 'glasses']);

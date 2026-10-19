@@ -198,7 +198,7 @@ test('both pages preserve accessible shared branding and navigation at narrow si
       await page.goto(`${base}/${route}`);
       await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
       const brand = await page.locator('.brand-avatar').evaluate(avatar => ({ paused: avatar.paused, tracking: avatar.trackingMode, zoom: avatar.zoom, shape: avatar.design.body.shape, accessories: avatar.design.accessories.map(a => a.preset).sort() }));
-      assert.deepEqual(brand, { paused: true, tracking: 'off', zoom: 2, shape: 'ghostish', accessories: ['beret', 'bowTie', 'glasses'] });
+      assert.deepEqual(brand, { paused: true, tracking: 'off', zoom: 1.2846936688304844, shape: 'ghostish', accessories: ['beret', 'bowTie', 'glasses'] });
       assert.equal(await page.locator('.product-nav [aria-current="page"]').textContent(), route ? 'API 체험' : '스튜디오');
       for (const link of await page.locator('.app-header a').all()) {
         const box = await link.boundingBox(); assert.ok(box && box.x >= 0 && box.x + box.width <= viewport.width + 1);
