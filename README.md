@@ -1,5 +1,7 @@
 # Sidekick
 
+[한국어](README.md) · [English](README.en.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
+
 **35개 Material 도형으로 만드는 투명 Flat 캐릭터 라이브러리.** 기본 `<sidekick-avatar>` 하나로 시작하고 HTML 속성, JavaScript API, React 래퍼 중 편한 방식으로 제어할 수 있습니다. 도형 전환, 좌우 표정, 마우스 시선 추적, 몸체 방향 회전, 여섯 슬롯의 액세서리와 방향성 있는 화면 이동을 지원합니다. 코어는 프레임워크 의존성이 없는 TypeScript + Web Component + WebGL2입니다.
 
 - [설치](#설치) · [HTML](#html에서-바로-사용하기) · [React](#react에서-사용하기)
@@ -396,7 +398,7 @@ const design = createDesign({
 
 - 모든 설정 prop은 선택 사항입니다. 표의 기본값은 `design`이나 다른 상위 입력이 없는 새 요소 기준입니다. **생략은 덮어쓰지 않는다는 뜻**입니다. 예를 들어 `design`의 몸체가 `heart`라면 `shape`를 생략해도 `square`로 바뀌지 않습니다.
 - HTML 값은 문자열입니다. 숫자는 `shape-duration="450"`, JSON은 `motion='{"body":{"rotation":[0,0,0.2]}}'`처럼 씁니다. React 숫자는 `{450}`, boolean은 `{true}`/`{false}`, 복합 값은 실제 객체/배열을 사용합니다.
-- React 설정 prop의 해제 값은 **`undefined` 또는 prop 생략**입니다. 이전에 래퍼가 설정한 속성은 제거됩니다. `null`은 설정 prop의 지원 값이 아닙니다. `ref={null}`은 React 표준에 따라 참조를 해제할 때 사용할 수 있습니다.
+- React 설정 prop의 해제 값은 **`undefined` 또는 prop 생략**입니다. 이전에 래퍼가 설정한 속성은 제거됩니다. `null`은 일반 설정 prop의 지원 값이 아닙니다. 단, `behavior={null}`은 명시적으로 행동을 취소합니다. `ref={null}`은 React 표준에 따라 참조를 해제할 때 사용할 수 있습니다.
 - `MaterialShapeName`의 허용 값 35개는 [전체 도형 목록](#도형렌더링-범위와-라이선스), `AvatarDesign`/`AccessoryDesign`의 필드는 [디자인 JSON](#디자인-json과-액세서리), `MotionTarget`의 모든 필드는 아래 표를 참고하세요. 문자열 enum은 대소문자를 구분합니다.
 
 ### 기본·몸체·눈
@@ -674,7 +676,7 @@ bot.behavior = null; // JavaScript에서도 명시적으로 취소
 
 - `off`: 마우스를 추적하지 않고 마지막 `lookAt()` 또는 `gaze-x`/`gaze-y`의 명시적 시선으로 돌아갑니다.
 - `eyes`: 눈만 마우스를 따라봅니다. 기존 몸체 포즈와 모션은 그대로입니다.
-- `eyes-and-body`: 눈과 함께 몸이 작고 부드럽게 돌아봅니다. 몸 회전은 기존 모션 위에 더하는 별도 렌더링 레이어입니다. `pose.rotation`, 모션 진행 시간, 몸체 방향를 변경하지 않습니다.
+- `eyes-and-body`: 눈과 함께 몸이 작고 부드럽게 돌아봅니다. 몸 회전은 기존 모션 위에 더하는 별도 렌더링 레이어입니다. `pose.rotation`, 모션 진행 시간, 몸체 방향을 변경하지 않습니다.
 
 ```ts
 import type { TrackingMode } from '@hanana-kick/sidekick/core';
@@ -691,7 +693,7 @@ bot.trackingMode = mode;
 `interaction`은 별도의 설정입니다.
 
 - `none`(기본): 요소 전체가 클릭을 통과시킵니다. 이 상태에서도 마우스 추적은 켤 수 있습니다.
-- `box`: 사각형 전체에서 드래그로 몸체 방향를 돌리고 클릭·Enter·Space로 `sidekick-activate`를 보냅니다. 투명 픽셀도 클릭 영역입니다.
+- `box`: 사각형 전체에서 드래그로 몸체 방향을 돌리고 클릭·Enter·Space로 `sidekick-activate`를 보냅니다. 투명 픽셀도 클릭 영역입니다.
 
 `paused`는 반복 모션을 정지하며 진행 중 전환은 목표에서 완료됩니다. `activity="still"`은 반복 활동을 끄지만 명시적 도형·눈·포즈 전환은 사용할 수 있습니다. `prefers-reduced-motion`에서도 새 전환은 즉시 적용합니다.
 
@@ -804,7 +806,7 @@ await bot.setExpression('both', 'neutral');
 
 명령형 전환 기본값은 `setShape()` 450ms, `setEyeWeights()`/`motion.to()` 400ms, `setExpression()`은 blink 90ms·neutral 180ms·smile 280ms입니다. 명시한 `options`가 우선하며 `duration`은 0~60000ms, `easing`은 `smooth` 또는 `linear`입니다. HTML의 timing 속성은 선언적 속성 전환용입니다.
 
-### 몸체 방향와 포즈
+### 몸체 방향과 포즈
 
 ```ts
 bot.setBodyOrientation({ yaw: 35, pitch: 12, roll: -5 }); // 도(degree)
@@ -846,13 +848,12 @@ await bot.motion.to({
 | `setEyeWeights(side, weights, options)` | 좌우/양쪽 부분 가중치 저장 및 전환 |
 | `setExpression(side, preset, options)` | 표정 프리셋 저장 및 전환 |
 | `setActivity(name)`, `activity` | 활동 설정, 현재 활동 읽기 |
-| `resetTracking()` | 실시간 포인터 시선·몸 오프셋을 즉시 초기화하고 마지막 수동 시선을 복원. 모드·기본 포즈·몸체 방향는 유지 |
+| `resetTracking()` | 실시간 포인터 시선·몸 오프셋을 즉시 초기화하고 마지막 수동 시선을 복원. 모드·기본 포즈·몸체 방향은 유지 |
 | `trackingMode`, `mouseTracking`, `paused`, `interaction`, `renderStyle` | 해당 동작 읽기/설정 |
 | `lookAt({space:'view',x,y})` | -1~1 범위의 명시적 시선 |
 | `bodyOrientation`, `setBodyOrientation(patch)` | `BodyOrientation` 읽기/부분 설정. 각도는 도. getter는 복사본 |
 | `setBodyOrientationPreset(name)` | 정면·사선·측면 방향 프리셋, 확대 유지 |
 | `zoom` | 독립적인 확대 배율 읽기/설정. 0.5~3, 기본 1 |
-| `setView(yaw,pitch)` | 이전 라디안 API. roll은 유지 |
 | `motion.to(target,options)`, `motion.cancel()` | 포즈 전환/모든 포즈 채널 취소 |
 | `seek(seconds)` | 반복 애니메이션 시간 0~86400초 지정 |
 | `pose` | 최근 렌더링 엔진이 확인한 포즈 복사본, 읽기 전용. worker 모드에서는 비동기 갱신 |
@@ -865,7 +866,7 @@ await bot.motion.to({
 
 지원하는 브라우저에서는 요소의 canvas를 `transferControlToOffscreen()`으로 전용 Web Worker에 넘깁니다. 메시·모션/도형 전환·시선 추적 spring·WebGL 렌더링은 worker에서 처리합니다. 메인 스레드는 DOM, 접근성, 입력, 크기 관찰과 명령 전달을 담당합니다. `bot.diagnostics.backend`로 실제 `worker` 또는 `main` 실행 경로를 확인할 수 있습니다.
 
-worker 파일은 페이지와 같은 origin에서 올바른 JavaScript MIME으로 제공하세요. 브라우저 보안 정책상 다른 origin의 Worker URL을 그대로 사용할 수 없습니다. CSP를 사용하는 사이트는 `worker-src 'self'` 등 해당 worker를 허용하는 정책이 필요합니다. Blob worker나 별도 보안 헤더를 요구하지 않습니다. 지원 부족, CSP/파일 로딩 실패 또는 worker 초기화 실패 시 새 canvas로 교체하고 메인 스레드 렌더러로 복구합니다.
+같은 origin에서 자체 호스팅할 때는 worker 파일을 올바른 JavaScript MIME으로 제공하세요. 브라우저 보안 정책상 다른 origin의 Worker URL을 그대로 사용할 수 없습니다. CSP는 `worker-src 'self'` 등으로 해당 worker를 허용해야 합니다. 이 같은-origin 구성에는 Blob worker나 별도 보안 헤더가 필요하지 않습니다. 다른 origin의 CDN 사용은 앞서 설명한 Blob module worker 방식을 사용합니다. 지원 부족, CSP/파일 로딩 실패 또는 worker 초기화 실패 시 새 canvas로 교체하고 메인 스레드 렌더러로 복구합니다.
 
 디자인·몸체 방향 설정과 입력 검증은 즉시 반영되지만, worker의 포즈/픽셀은 비동기로 도착합니다. 명령 직후 정확한 화면이 필요하면 `await bot.capturePixelsAsync()` 또는 `await bot.snapshot()`을 사용하세요. PNG 내보내기는 새 렌더 프레임을 기다립니다. 연결 해제는 worker, GPU 리소스와 입력 리스너를 정리하며, 다시 연결하면 새 렌더링 세대를 시작합니다.
 
@@ -949,9 +950,9 @@ npm run pack:release   # 커밋된 깨끗한 checkout에서 release/에 ZIP·tar
 
 데스크톱은 미리보기와 설정을 나란히 배치합니다. 모바일 세로 화면은 미리보기를 고정하고 아래 설정만 스크롤하며 짧은 가로 화면은 나란히 배치합니다. `100dvh`와 safe-area를 사용합니다. 탭·슬라이더·토글은 shadcn/Radix의 키보드 동작을 유지합니다. 글꼴은 로컬 번들에 포함합니다. 미리보기의 체크무늬·밝은색·어두운색은 DOM 배경이며 PNG에 포함하지 않습니다.
 
-자동 저장은 디자인만 이 브라우저의 `sidekick.design.v7`에 저장합니다. 파일 내보내기는 별도로 장면 envelope를 사용하여 몸체 방향·추적·전환 설정까지 포함합니다. 저장된 v7이 없으면 v6→v1 순서로 읽고 변환하되 이전 키의 원본을 보존합니다. 잘못된 원본은 JSON 탭에 열고, 첫 편집 시 `.recovery` 백업이 성공해야 새 파일을 저장합니다. 저장소가 막혔다면 JSON 내보내기를 사용하세요. 초기화하면 기본 square+베레모, 정면 몸체 방향, 눈과 몸 마우스 추적으로 돌아갑니다.
+자동 저장은 전체 장면을 이 브라우저의 `sidekick.studio.scene.v3`에 저장합니다. 디자인뿐 아니라 몸체 방향·확대·시선·활동·추적·시간·상호작용·포즈·일시 정지와 전환 설정을 포함하며, 호스트 페이지 배치·이동 좌표·실행 중인 행동은 저장하지 않습니다. 파일 내보내기도 장면 envelope를 사용합니다. 이전 `sidekick.design.v7` 디자인 저장값도 대체 입력으로 읽으며, v7이 없으면 v6→v1 순서로 읽고 변환하되 원본 키는 보존합니다. 잘못된 원본은 JSON 탭에 열고, 첫 편집 시 `.recovery` 백업이 성공해야 새 데이터를 저장합니다. 저장소가 막혔다면 JSON 내보내기를 사용하세요. 초기화하면 기본 square+베레모, 정면 몸체 방향, 눈과 몸 마우스 추적으로 돌아갑니다. API playground와 가이드의 실험 명령은 Studio 저장 장면을 덮어쓰지 않습니다.
 
-UI 구성은 `components.json`과 `playground/components/ui/`, 저장·명령·복구는 `studio-controller.ts`에 있습니다. React 재렌더와 탭 전환은 하나의 안정된 요소를 유지하며 진행 중 모프나 몸체 방향를 재설정하지 않습니다. [공식 shadcn/ui Vite 설치](https://ui.shadcn.com/docs/installation/vite) 방식으로 생성한 실제 소스를 사용합니다.
+UI 구성은 `components.json`과 `playground/components/ui/`, 저장·명령·복구는 `studio-controller.ts`에 있습니다. React 재렌더와 탭 전환은 하나의 안정된 요소를 유지하며 진행 중 모프나 몸체 방향을 재설정하지 않습니다. [공식 shadcn/ui Vite 설치](https://ui.shadcn.com/docs/installation/vite) 방식으로 생성한 실제 소스를 사용합니다.
 
 ### GitHub Pages 배포
 
@@ -1026,19 +1027,19 @@ SIDEKICK_HEADED=1 xvfb-run -a npm run test:browser
 
 0.2.6은 베레모 안감·입구·커프·크라운을 연결된 두께 구조로 구성하고, 빈 안쪽 공간에 도형의 지지 부위가 들어가도록 배치합니다. 하트는 봉우리를 감싸고, 꽃처럼 양쪽 입구를 맞추기 어려운 경우에는 지지점에서 천이 자연스럽게 처지도록 조정합니다. 도형별 위치·기울기·천의 변형 한도를 보간하며, 호흡에는 몸체와 같은 변형을 적용합니다. 전환 중에는 자유로운 끝부분의 말림을 잠시 완화하고, 실제 삼각형의 관통 여부를 별도로 검사합니다. 일부 중간 프레임에서는 입구가 벌어지거나 착용 깊이가 빠르게 회복될 수 있습니다. 유한한 각도·시간 검사 결과와 남아 있는 작은 피팅 변화는 검사 보고서에 명시합니다. 목도리와 시선 추적 동작은 유지합니다.
 
-### Studio scene editor and social card
+### Studio 장면 편집기와 소셜 카드
 
-The **장면 (Scene)** tab composes the native character and editable text onto a fixed-size canvas. The **캐릭터 / 장면** preview switch keeps the character mounted; character appearance and body orientation and zoom controls continue to update the composition. Scene previews are still frames. Use **새 프레임** to capture the current animation frame.
+**장면** 탭에서는 실제 캐릭터와 편집 가능한 텍스트를 고정 크기 캔버스에 배치합니다. **캐릭터 / 장면** 미리보기를 전환해도 캐릭터 요소는 유지되며, 외형·몸체 방향·확대 설정이 장면에 계속 반영됩니다. 장면 미리보기는 정지 프레임이며 **새 프레임**으로 현재 애니메이션 프레임을 캡처합니다.
 
-- Canvas presets: OG 1200 × 630, square 1080 × 1080, wide 1920 × 1080; custom integer dimensions 320–4096, up to 8 megapixels.
-- Background color, character center X/Y and height, multiline text, text position, font size/family/color. Drag the character or text directly in the scene preview; sliders remain available for precise placement.
-- **Sidekick OG 프리셋 적용** explicitly replaces the current avatar with a smiling yellow Ghostish wearing glasses, a beret and a bow tie; white background and “Sidekick” text.
-- **장면 PNG 저장** exports the entire canvas at the selected dimensions. The existing header **PNG 저장** still exports the transparent, alpha-cropped character.
-- **장면 JSON 저장 / 열기** round-trips `{ compositionVersion: 1, composition, avatar }`. The nested `avatar` is the existing `SidekickScene`; legacy character scene and design JSON can also be opened, with default composition placement. Existing character JSON/API exports remain unchanged.
-- Composition positions are canvas percentages. `characterHeight` is the cropped character height as a percentage of the canvas. Text X is its left edge; Y is the center of its multiline block. Exports deliberately clip anything placed outside the canvas.
-- Scene PNG export creates a temporary independent 2048 × 2048 native renderer, captures the configured character at its saved scene time, and disposes it afterwards. It does not enlarge the low-resolution preview or resize the active character canvas. The normal renderer's 2048-pixel ceiling remains; extremely large compositions may still enlarge the resulting crop. Live pointer reaction is excluded from deterministic exports. The published OG asset is generated separately at higher native resolution.
+- 캔버스 프리셋: OG 1200 × 630, 정사각형 1080 × 1080, 와이드 1920 × 1080. 사용자 지정 크기는 각 320–4096의 정수이며 최대 8백만 픽셀입니다.
+- 배경색, 캐릭터 중심 X/Y와 높이, 여러 줄 텍스트와 위치, 글자 크기·글꼴·색상을 설정합니다. 미리보기에서 캐릭터나 텍스트를 직접 드래그하며 슬라이더로 정밀 조정할 수도 있습니다.
+- **Sidekick OG 프리셋 적용**은 현재 캐릭터를 안경·베레모·보타이를 착용한 웃는 노란 Ghostish로 명시적으로 교체하며 흰 배경과 “Sidekick” 텍스트를 배치합니다.
+- **장면 PNG 저장**은 선택한 크기의 전체 캔버스를 내보냅니다. 헤더의 기존 **PNG 저장**은 투명 캐릭터만 알파 경계에 맞춰 잘라 저장합니다.
+- **장면 JSON 저장 / 열기**는 `{ compositionVersion: 1, composition, avatar }`를 내보내고 복원합니다. 중첩된 `avatar`는 기존 `SidekickScene`입니다. 이전 캐릭터 장면·디자인 JSON도 기본 장면 배치로 열 수 있습니다. 기존 캐릭터 JSON/API 내보내기는 유지됩니다.
+- 배치 위치는 캔버스의 백분율입니다. `characterHeight`는 잘린 캐릭터 높이를 캔버스 높이에 대한 백분율로 표시합니다. 텍스트 X는 왼쪽 끝, Y는 여러 줄 블록의 중심입니다. 캔버스 밖 콘텐츠는 내보내기에서 잘립니다.
+- 장면 PNG 저장은 별도의 임시 2048 × 2048 실제 렌더러를 만들어 저장된 장면 시간으로 캐릭터를 캡처한 뒤 해제합니다. 저해상도 미리보기를 확대하거나 활성 캐릭터 캔버스 크기를 바꾸지 않습니다. 일반 렌더러의 2048픽셀 한도는 유지되므로 매우 큰 장면은 결과 이미지를 확대할 수 있습니다. 일관된 내보내기를 위해 실시간 포인터 반응은 제외합니다. 공개 OG 이미지는 별도로 관리합니다.
 
-Both HTML entry pages include static Open Graph and Twitter card tags with the canonical URL `https://sidekick.hananakick.cc/` and a versioned absolute social image URL. `public/og-sidekick.png` (1200 × 630) is the exact owner-selected image, preserved independently of later character geometry changes. Builds and `node scripts/generate-og-image.mjs` do not overwrite it. That development-only script updates `public/og-avatar.png` using the native production renderer; it requires a C compiler, EGL/GLES, and Pillow/fontTools. An optional `SIDEKICK_RENDERER_ROOT` selects a source worktree. Studio's editable scene preset remains a separate starting point and is not a reconstruction of the selected static social image.
+HTML 진입 페이지에는 대표 URL `https://sidekick.hananakick.cc/`와 버전이 붙은 절대 이미지 URL을 사용하는 정적 Open Graph·Twitter 카드 태그가 있습니다. `public/og-sidekick.png`(1200 × 630)는 소유자가 선택한 원본 그대로이며 이후 캐릭터 기하 변경과 독립적으로 보존합니다. 빌드와 `node scripts/generate-og-image.mjs`는 이 파일을 덮어쓰지 않습니다. 이 개발용 스크립트는 실제 프로덕션 렌더러로 `public/og-avatar.png`만 갱신하며 C 컴파일러·EGL/GLES·Pillow/fontTools가 필요합니다. 선택적 `SIDEKICK_RENDERER_ROOT`로 소스 워크트리를 지정할 수 있습니다. Studio의 편집 가능한 장면 프리셋은 별도의 시작점이며 선택된 정적 OG 이미지를 재구성하는 기능이 아닙니다.
 
 ## 렌더링·이동 표준 (v0.3)
 
@@ -1083,7 +1084,7 @@ Both HTML entry pages include static Open Graph and Twitter card tags with the c
 | `moveTo({ x, y }, options?: MoveOptions)` | 현재 화면 좌표부터 이동. `Promise<MoveResult>` |
 | `moveToElement(target, options?: MoveToElementOptions)` | 대상 엘리먼트와 같은 정렬점을 맞추고 X/Y 오프셋 적용. `anchor: true`이면 지속 연결 |
 | `elementAnchor` | 현재 `{ target, x, y, alignX, alignY }` 읽기 전용 스냅샷 또는 `null` |
-| `detachAnchor()` | 현재 위치를 유지하며 지속 연결 해제. 진행 중인 최초 이동은 계속됨 |
+| `detachAnchor()` | 지속 연결 해제. 진행 중인 최초 이동은 계속되며, 최초 도착 이후 추격은 현재 관성으로 감속해 멈춤 |
 | `moveBy({ x, y }, options?)` | 현재 진행 중인 좌표 기준 상대 이동 |
 | `cancelMove()` | 자연 비행은 현재 속도에서 감속한 뒤 포즈를 180ms 정리하고 `finished: false`. none은 위치 이동을 즉시 중단 |
 | `position` | 실제 DOM 좌표 `{ x, y }`의 복사본, 읽기 전용 |
@@ -1374,15 +1375,14 @@ export function Example() {
 - `MoveOptions`의 자연 가속·제동, 중단, reduced-motion 설정을 그대로 사용합니다. `movementBounds="viewport"`이면 화면 제한이 정렬보다 우선하므로 화면 밖 대상에 정확하게 맞추려면 `movementBounds="none"`을 명시하세요.
 - Playground의 이동 기준에서 `moveToElement`를 선택하면 CSS 선택자, 정렬, 오프셋과 동일한 실행 코드가 표시됩니다. 선택자는 Playground 편의 기능이며 실제 API에는 Element 객체를 전달합니다. 복사한 예제에서는 해당 선택자에 맞는 대상 엘리먼트를 앱에 준비해야 합니다.
 
-### Use cases: DOM 배치와 실제 서비스 이벤트
+### 가이드: 간단한 사용부터 깊은 커스텀까지
 
-[Use cases](https://sidekick.hananakick.cc/use-cases.html)는 Studio에서 저장한 봇으로 다음 상황을 직접 실행하고 코드를 복사하는 페이지입니다. 모든 페이지가 같은 Studio / API playground / Use cases 메뉴를 사용합니다.
+[가이드](https://sidekick.hananakick.cc/guide.html)는 설치부터 선언형 행동, 세부 API 조합까지 단계적으로 배우고 직접 실행하는 페이지입니다. 기존 use-cases.html 주소는 새 가이드로 연결됩니다. Studio / API playground / 가이드는 같은 메뉴를 사용합니다.
 
-- **화면 고정**: `placement="viewport"`인 작은 봇 DOM이 스크롤과 무관하게 화면에 남습니다. 전체 화면을 덮는 캔버스는 만들지 않습니다.
-- **섹션 안 이동**: `position: relative` 컨테이너 안에 `placement="inline"`, `position: absolute; left: 0; top: 0`인 봇을 놓습니다. 그 DOM 위치가 이동의 원점입니다. 컨테이너의 실제 `clientWidth/Height`에서 봇 크기를 빼 목적지를 제한합니다. 이 예제는 급반전 관성으로 경계를 넘지 않도록 이동을 순차 실행하고 가장 최근의 대기 목적지를 사용합니다. `overflow: hidden`은 마지막 시각적 안전장치이며 resize 시 현재 위치를 다시 제한합니다.
-- **엘리먼트 정렬**: 실제 `Element`를 `moveToElement`에 전달해 동일한 가로·세로 정렬점끼리 맞추고 CSS px 오프셋을 더합니다. 기본값은 호출 시점의 위치로 한 번 이동합니다. `anchor: true`이면 도착 후에도 스크롤과 레이아웃 변화에 맞춰 계속 연결되며 `detachAnchor()`로 해제합니다.
-- **이벤트 반응**: form submit / CustomEvent → thinking → success의 smile·celebrating 또는 error의 still 상태를 연결합니다. 타이머는 전송 없는 로컬 작업 시뮬레이션입니다. 실제 서비스에서는 요청 결과 이벤트로 교체하세요. 새 결과가 오면 오래된 결과를 무시하며 AbortController로 리스너와 타이머를 정리합니다.
+- **빠르게 시작**: HTML·React 초기화와 Studio에서 저장한 봇 사용 방법을 안내합니다.
+- **행동 선언**: 로딩·업로드 대기, 결과 반응, 목록 검토, 읽기·검색, 폼, 온보딩 등 12가지 서비스 시나리오를 다룹니다. 자연어를 해석하는 LLM 기능이 아니라 타입이 정해진 행동 객체로 원하는 동작을 선언합니다.
+- **직접 제어**: DOM 배치와 앵커, 이동·시선·표정 조합, 생명주기와 오류 처리, OffscreenCanvas 성능까지 설명합니다.
 
-상단의 고정된 예제 선택 메뉴에서 한 가지 시나리오만 표시합니다. 조작 버튼, 실제 결과, 접을 수 있는 사용 코드를 함께 두며 화면 고정과 섹션 이동은 별도의 스크롤 확인 구간에서 비교합니다. DOM 예제는 연결 유지 체크박스, 기준 카드 이동, 연결 해제를 제공합니다. WebGL 초기화 실패 시 무한 로딩 대신 오류와 재시도 가능한 예제 선택 메뉴를 표시하고 코드는 계속 볼 수 있습니다.
+각 시나리오는 **간단하게 사용 → 옵션 조절 → 앱 이벤트 연결 → 직접 동작 조합** 순서로 구성됩니다. 실행 중인 봇과 해당 실행 코드를 함께 보고 복사할 수 있습니다. 설치·개념 설명과 실제 실행 데모를 구분하며, 대분류·중분류·소분류 목차와 주소 해시로 원하는 단계에 바로 이동합니다. 모바일에서는 목차를 접을 수 있습니다.
 
-한 번에 한 예제만 활성화하여 불필요한 렌더러를 만들지 않습니다. 예제 종료·전환 시 인스턴스를 제거하고, 보이지 않는 섹션과 숨겨진 페이지의 렌더링을 일시 정지합니다. Studio 설정은 읽기만 하며 실험 동작은 원본에 저장하지 않습니다. 페이지의 코드 조각은 등록·초기화된 `#demo-bot`에 적용하는 예제이며, 설치·HTML·React 초기화 코드는 API playground에서 복사할 수 있습니다.
+한 번에 한 예제만 활성화하여 불필요한 렌더러를 만들지 않습니다. 예제 종료·전환 시 인스턴스를 제거하고, 보이지 않는 섹션과 숨겨진 페이지의 렌더링을 일시 정지합니다. Studio 설정은 읽기만 하며 실험 동작은 원본에 저장하지 않습니다. 실행 예제의 비동기 작업은 별도 표시가 없다면 로컬 시뮬레이션이며, 실제 앱에서는 서비스 요청과 결과 이벤트를 연결하세요.

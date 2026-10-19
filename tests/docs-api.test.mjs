@@ -225,3 +225,53 @@ test('body orientation and zoom documentation describes independent APIs and ver
   assert.doesNotMatch(readme, /setCamera|cameraYaw|cameraZoom|camera-yaw|camera-zoom|sidekick-camera-change|createCamera|CameraState/);
   assert.doesNotMatch(readme, /bodyOrientation=\{\{zoom/);
 });
+
+const readmeLanguages = ['README.md', 'README.en.md', 'README.zh-CN.md', 'README.ja.md'];
+const proseOnly = text => text.replace(/^```[^\n]*\n[\s\S]*?^```/gm, '');
+const fencedExamples = text => [...text.matchAll(/^```[^\n]*\n[\s\S]*?^```/gm)].map(match => match[0]);
+const markdownSlug = heading => heading.toLowerCase().replace(/[^\p{L}\p{N}\p{M}\p{Pc}\-\s]/gu, '').replace(/ /g, '-');
+
+test('four complete README languages preserve every executable example and API reference row', () => {
+  const baseExamples = fencedExamples(readme);
+  const baseHeadingLevels = [...proseOnly(readme).matchAll(/^(#{1,6}) /gm)].map(match => match[1]);
+  const referenceKeys = text => [...proseOnly(text).matchAll(/^\| `([^`]+)` \|/gm)].map(match => match[1]).sort();
+  const baseKeys = referenceKeys(readme);
+  assert.ok(baseExamples.length >= 38, 'Full guide examples are retained');
+  for (const file of readmeLanguages) {
+    const translated = read('../' + file);
+    assert.deepEqual(fencedExamples(translated), baseExamples, `${file}: executable examples must stay identical`);
+    assert.deepEqual([...proseOnly(translated).matchAll(/^(#{1,6}) /gm)].map(match => match[1]), baseHeadingLevels,
+      `${file}: every section must be translated, not abridged`);
+    assert.deepEqual(referenceKeys(translated), baseKeys, `${file}: complete API/attribute/event tables`);
+    assert.equal(proseOnly(translated).split('\n').filter(line => line.startsWith('|')).length,
+      proseOnly(readme).split('\n').filter(line => line.startsWith('|')).length, `${file}: all table rows`);
+    if (file !== 'README.md') {
+      const withoutLanguageNavigation = proseOnly(translated).split('\n').filter(line => !line.includes('[한국어](README.md)')).join('\n');
+      assert.doesNotMatch(withoutLanguageNavigation, /[가-힣]/, `${file}: untranslated Korean prose outside executable examples`);
+    }
+    for (const other of readmeLanguages) assert.ok(translated.includes(`](${other})`), `${file}: language link ${other}`);
+    for (const contract of ['sidekick.studio.scene.v3', 'sceneVersion: 3', 'guide.html', 'BotBehavior', 'BehaviorResult',
+      'behaviorState', 'stopBehavior()', 'anchor: true', 'detachAnchor()', 'OffscreenCanvas', '1350', '1800', '2200', '250ms']) {
+      assert.ok(translated.includes(contract), `${file}: missing documented contract ${contract}`);
+    }
+    assert.doesNotMatch(translated, /`setView\(yaw,pitch\)`/, `${file}: removed public API must not return`);
+  }
+});
+
+test('README translations have working local anchors, repository links, and identical external references', async () => {
+  const { existsSync } = await import('node:fs');
+  const links = text => [...text.matchAll(/\]\(([^\s)]+)\)/g)].map(match => match[1]);
+  const external = text => [...new Set(links(text).filter(link => /^https?:/.test(link)))].sort();
+  for (const file of readmeLanguages) {
+    const translated = read('../' + file);
+    const headings = [...proseOnly(translated).matchAll(/^#{1,6} (.+)$/gm)].map(match => markdownSlug(match[1]));
+    assert.deepEqual(external(translated), external(readme), `${file}: preserve linked evidence/resources`);
+    for (const link of links(translated)) {
+      if (link.startsWith('#')) {
+        assert.ok(headings.includes(decodeURIComponent(link.slice(1))), `${file}: broken heading ${link}`);
+      } else if (!/^[a-z]+:/i.test(link)) {
+        assert.ok(existsSync(new URL('../' + link.split('#')[0], import.meta.url)), `${file}: missing local link ${link}`);
+      }
+    }
+  }
+});
