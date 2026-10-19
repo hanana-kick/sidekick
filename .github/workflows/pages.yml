@@ -85,7 +85,7 @@ jobs:
           SIDEKICK_HEADED: '1'
           SIDEKICK_SCREENSHOTS: artifacts
       - name: Walk through the published Guide on desktop and mobile
-        run: xvfb-run -a node --test --test-name-pattern='sequential visible walkthrough' tests/use-cases-browser.test.mjs
+        run: xvfb-run -a node --test --test-name-pattern='visible complete catalog walkthrough|guide progresses|legacy use-case URL|Guide translates' tests/use-cases-browser.test.mjs
         env:
           SIDEKICK_USECASES_LIVE_URL: https://sidekick.hananakick.cc
           SIDEKICK_HEADED: '1'
