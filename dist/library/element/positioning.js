@@ -24,8 +24,8 @@ export function validatePositioning(value, document) {
     const placement = value.placement ?? 'bottom-right', gap = value.gap ?? 16, follow = value.follow ?? true;
     if (!POSITION_PLACEMENTS.includes(placement))
         throw new TypeError('invalid positioning placement');
-    if (typeof gap !== 'number' || !Number.isFinite(gap) || gap < 0)
-        throw new TypeError('positioning gap must be a non-negative finite number');
+    if (typeof gap !== 'number' || !Number.isFinite(gap))
+        throw new TypeError('positioning gap must be a finite number');
     if (typeof follow !== 'boolean')
         throw new TypeError('positioning follow must be boolean');
     const offset = value.offset ?? {};

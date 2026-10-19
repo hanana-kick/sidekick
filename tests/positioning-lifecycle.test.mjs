@@ -69,3 +69,17 @@ test('entrance preserves source at while positioning supplies destination',()=>{
 test('JSON null detaches without an invalid transaction',()=>{
  const {avatar,target,errors}=fixture();avatar.positioning={target};avatar.setAttribute('positioning','null');avatar.flushAttributes();assert.equal(avatar.positioning,null);assert.deepEqual(errors,[]);
 });
+
+test('signed gap is preserved through follow, entrance destination, and viewport bounds',()=>{
+ const {avatar,target,layout}=fixture();avatar.pausedState=true;
+ avatar.positioning={target,placement:'center-right',gap:-10};
+ assert.deepEqual(avatar.position,{x:290,y:240});
+ layout.left+=50;frame();assert.deepEqual(avatar.position,{x:340,y:240});
+ avatar.positioning={target:'viewport',placement:'top-left',gap:-20};
+ assert.deepEqual(avatar.position,{x:0,y:0});
+ avatar.boundsState='none';avatar.positioning={target:'viewport',placement:'top-left',gap:-21};
+ assert.deepEqual(avatar.position,{x:-21,y:-21});
+ avatar.readyState=false;avatar.positioning={target,placement:'center-right',gap:-10};
+ avatar.entrance={source:'viewport',edge:'left',at:.2};avatar.readyState=true;avatar.pausedState=false;avatar.startEntrance();
+ assert.deepEqual(avatar.presence.operation.point,{x:340,y:240});
+});

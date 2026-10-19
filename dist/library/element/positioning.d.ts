@@ -1,10 +1,11 @@
 import type { AvatarPosition } from './movement.js';
 export declare const POSITION_PLACEMENTS: readonly ["top-left", "top-center", "top-right", "center-left", "center", "center-right", "bottom-left", "bottom-center", "bottom-right"];
 export type PositionPlacement = typeof POSITION_PLACEMENTS[number];
-/** Viewport placements are inset. Element placements are outside the named edge/corner. */
+/** Positive gaps inset viewport placements or separate element edges; negative gaps reverse this. */
 export interface Positioning {
     target: 'viewport' | string | Element;
     placement?: PositionPlacement;
+    /** Finite CSS pixels, default 16. Negative overlaps element edges; centered axes ignore gap. */
     gap?: number;
     offset?: {
         x?: number;

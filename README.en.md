@@ -19,22 +19,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 To pin a version, specify a release tag:
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.14.0
+npm install https://github.com/hanana-kick/sidekick.git#v0.14.1
 ```
 
-The repository includes built ESM, type declarations, and browser bundles, so **consumers do not need to build Sidekick from source.** Commit your dependencies and lockfile so your team uses the same version. The package name is `@hanana-kick/sidekick`, and this version is `0.14.0`. **It has not been published to the npm registry: do not run `npm install @hanana-kick/sidekick` using the name alone.**
+The repository includes built ESM, type declarations, and browser bundles, so **consumers do not need to build Sidekick from source.** Commit your dependencies and lockfile so your team uses the same version. The package name is `@hanana-kick/sidekick`, and this version is `0.14.1`. **It has not been published to the npm registry: do not run `npm install @hanana-kick/sidekick` using the name alone.**
 
 For an HTML site without npm, download the prebuilt files from [GitHub Releases](https://github.com/hanana-kick/sidekick/releases). ESM, classic `<script>` JavaScript, and a dedicated rendering worker are provided. The browser core requires no React, bundler, Node.js, separate CSS, or fonts.
 
 ### Downloading from GitHub Releases
 
 1. Open [Releases](https://github.com/hanana-kick/sidekick/releases).
-2. Under the chosen tag's **Assets**, download `sidekick-browser-0.14.0.zip` or `hanana-kick-sidekick-0.14.0.tgz`. For another version, use the filename matching its tag. The automatically generated **Source code (zip/tar.gz)** archives contain source code, not the browser distribution ZIP.
+2. Under the chosen tag's **Assets**, download `sidekick-browser-0.14.1.zip` or `hanana-kick-sidekick-0.14.1.tgz`. For another version, use the filename matching its tag. The automatically generated **Source code (zip/tar.gz)** archives contain source code, not the browser distribution ZIP.
 3. For a plain HTML site, extract the browser ZIP and copy the following files into your site's static directory. Read the included `START-HERE.txt` and open your preferred `esm.html`, `classic.html`, or `react.html` example. `/vendor/sidekick/` in the examples is **a path on your site**; adjust it to your deployment.
 
 | Built file | Purpose | Required files/dependencies |
 | --- | --- | --- |
-| `sidekick-browser-0.14.0.zip` | Plain HTML/React browser distribution | Includes `esm.html`, `classic.html`, `react.html`, the six JS files below, optional `vendor/`, README, and notices |
+| `sidekick-browser-0.14.1.zip` | Plain HTML/React browser distribution | Includes `esm.html`, `classic.html`, `react.html`, the six JS files below, optional `vendor/`, README, and notices |
 | `sidekick.js` | Browser ESM for `import` and `<script type="module">` | Keep `sidekick.worker.js` in the same directory |
 | `sidekick.iife.js` | Classic `<script>` exposing `window.Sidekick` | Keep `sidekick.worker.js` alongside it; do not use `type="module"` |
 | `sidekick-react.js` | ESM component for React 19 | Keep `sidekick-element.js`, `sidekick-fallback.js`, and `sidekick.worker.js` alongside it, and provide the `react` peer |
@@ -42,7 +42,7 @@ For an HTML site without npm, download the prebuilt files from [GitHub Releases]
 | `sidekick-fallback.js` | Renderer loaded by the React element when workers are unavailable | Do not import directly; keep all files on the same version |
 | `sidekick.worker.js` | Dedicated OffscreenCanvas worker | Place beside the browser entry files; do not load with a separate script tag |
 | `vendor/react.js`, `vendor/react-dom-client.js` | Optional React 19/ReactDOM ESM in the browser ZIP | For the no-build React example below, connected via an import map; unnecessary when your app already provides React |
-| `hanana-kick-sidekick-0.14.0.tgz` | Package for an existing npm-based project | Built ESM, type declarations, browser bundles, and notices |
+| `hanana-kick-sidekick-0.14.1.tgz` | Package for an existing npm-based project | Built ESM, type declarations, browser bundles, and notices |
 | `SHA256SUMS` | Verify ZIP and tarball download integrity | Checksum file in the same release |
 
 Keep the README and third-party license/attribution notices included in the ZIP. **Download GitHub Release assets and serve them from your own site.** Their download URLs are not browser JavaScript hosting URLs; asset MIME/CORS behavior differs from static hosting. The `src`/`import` paths below refer to your site's copies of the downloaded files.
@@ -54,7 +54,7 @@ Both `sidekick.js` and `sidekick.iife.js` export the complete public core/elemen
 Install the downloaded release tarball in your project. This command neither compiles Sidekick source nor builds Studio.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.14.0.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.14.1.tgz
 ```
 
 React 19 is required only for the React wrapper. Supply the matching version of `react-dom` yourself to mount the page. Core-only projects do not require React.
@@ -123,12 +123,12 @@ Paused or reduced-motion mode settles immediately at the target. Reading setting
 
 ## Using the CDN without a build
 
-The currently recommended CDN version is **0.14.0**. These URLs serve **already built JavaScript** committed to a GitHub tag through jsDelivr: no source build, npm installation, or npm account is needed. Pin an **exact tag**, not `main`, `latest`, or a version range. Earlier `v0.2.7` files have not been changed. Version 0.2.7 is also downloadable through the same CDN path, but cross-origin pages cannot create its worker and fall back to the main thread; use the current pinned version for new CDN integrations.
+The currently recommended CDN version is **0.14.1**. These URLs serve **already built JavaScript** committed to a GitHub tag through jsDelivr: no source build, npm installation, or npm account is needed. Pin an **exact tag**, not `main`, `latest`, or a version range. Earlier `v0.2.7` files have not been changed. Version 0.2.7 is also downloadable through the same CDN path, but cross-origin pages cannot create its worker and fall back to the main thread; use the current pinned version for new CDN integrations.
 
 ### Plain HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.0/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.1/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
@@ -140,7 +140,7 @@ The currently recommended CDN version is **0.14.0**. These URLs serve **already 
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.0/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.1/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -156,15 +156,15 @@ Prebuilt ESM for matching React and ReactDOM 19.3.1 is provided. Declare the imp
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.0/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.0/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.1/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.1/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.0/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.1/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
@@ -1327,7 +1327,7 @@ The API playground enables “Default maximum speed · 1350 CSS px/s” by defau
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.0/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.1/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { maxSpeed: 320, acceleration: 900, deceleration: 1200 });
@@ -1364,7 +1364,7 @@ This stage absolutely positions a small 144px canvas in `inline` mode; there is 
 <button id="flight-stop" type="button">활동 중단</button>
 <p id="flight-status" aria-live="off">idle</p>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.0/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.1/dist/browser/sidekick.js';
   const stage = document.getElementById('flight-stage');
   const bot = document.getElementById('flight-avatar');
   const status = document.getElementById('flight-status');
@@ -1542,18 +1542,18 @@ Only one example runs at a time to avoid unnecessary renderers. Instances are re
 
 ```html
 <sidekick-avatar placement="viewport"
-  positioning='{"target":"viewport","placement":"bottom-right","gap":16}'>
+  positioning='{"target":"#status","placement":"center-right","gap":-20}'>
 </sidekick-avatar>
 ```
 
 ```tsx
 <SidekickAvatar placement="viewport"
-  positioning={{ target: '#status', placement: 'center-right', gap: 16 }} />
+  positioning={{ target: '#status', placement: 'center-right', gap: -20 }} />
 ```
 
 - `target`: required; `'viewport'`, a same-document selector, or `Element`. HTML JSON accepts strings.
 - `placement`: defaults to `'bottom-right'`; one of `top-left`, `top-center`, `top-right`, `center-left`, `center`, `center-right`, `bottom-left`, `bottom-center`, `bottom-right`.
-- `gap`: defaults to 16 CSS px. Viewport placements are inset; element placements sit outside the named edge. Corners are outside both axes. `center` overlaps the center.
+- `gap`: Finite signed CSS pixels, default 16. For elements, positive separates edges, zero touches them, and negative overlaps them: center-right with -20 places the avatar 20px inward. Corners apply gap on both axes; centered axes ignore it. For viewport targets, positive insets and negative moves outward. Existing movement-bounds applies; use movement-bounds="none" for offscreen placement.
 - `offset`: optional `{ x, y }` adjustment; omitted axes default to zero; negative values are allowed.
 - `follow`: defaults to `true`; pursues scroll, size and layout changes using inertia. `false` samples once. Pursuit becomes idle while both the current and destination boxes are offscreen.
 

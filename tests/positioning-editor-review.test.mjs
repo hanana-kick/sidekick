@@ -25,8 +25,8 @@ test('positioning custom JSON target survives subsequent simple-control edits',(
   x.field('positioning').value=JSON.stringify({target:'.reference-item',placement:'center-right',gap:20,offset:{x:3,y:4},follow:false});
   x.get('[data-state-field="positioning"] button').click();
   assert.equal(x.values().positioning.target,'.reference-item');
-  x.control('gap').value='24';x.change(x.control('gap'));
-  assert.equal(x.values().positioning.gap,24,'simple gap editing should not reject accepted target');
+  x.control('gap').value='-20';x.change(x.control('gap'));
+  assert.equal(x.values().positioning.gap,-20,'simple gap editing should not reject accepted target');
   assert.equal(x.values().positioning.target,'.reference-item');
   assert.deepEqual(x.values().positioning.offset,{x:3,y:4});
  }finally{x.close();}

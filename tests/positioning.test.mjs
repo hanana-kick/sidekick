@@ -23,9 +23,18 @@ test('default, copied offsets, equal declarations and no coordinate alias',()=>{
  assert.throws(()=>validatePositioning({target,x:12},doc));
 });
 test('strict validation, finite coordinates, selectors, target hierarchy',()=>{
- for(const value of [null,[],{}, {target:''},{target:'['},{target,placement:'right-center'},{target,gap:-1},{target,gap:NaN},{target,offset:{x:Infinity}},{target,follow:1},{target,offset:{z:0}}]) assert.throws(()=>validatePositioning(value,doc));
+ for(const value of [null,[],{}, {target:''},{target:'['},{target,placement:'right-center'},{target,gap:Infinity},{target,gap:-Infinity},{target,gap:"-20"},{target,gap:NaN},{target,offset:{x:Infinity}},{target,follow:1},{target,offset:{z:0}}]) assert.throws(()=>validatePositioning(value,doc));
  const getter={target};Object.defineProperty(getter,'gap',{enumerable:true,get(){throw new Error('getter executed');}});assert.throws(()=>validatePositioning(getter,doc),/unsupported/);
  const missing=validatePositioning({target:'#missing'},doc);assert.throws(()=>resolvePositioning(bot,{x:0,y:0},missing),/missing/);
  assert.throws(()=>resolvePositioning(bot,{x:0,y:0},validatePositioning({target:bot},doc)),/descendant/);
  const foreign=new JSDOM('<div></div>');assert.throws(()=>validatePositioning({target:foreign.window.document.querySelector('div')},doc),/same document/);foreign.window.close();
+});
+
+for (const gap of [-20, 0, 16]) for (const placement of POSITION_PLACEMENTS) test(`signed gap ${gap}: ${placement}`, () => {
+ const [v,h]=placement==='center'?['center','center']:placement.split('-');
+ const config=validatePositioning({target,placement,gap},doc);
+ const ex={left:300-gap,center:500,right:700+gap},ey={top:220-gap,center:360,bottom:500+gap};
+ const vx={left:gap,center:450,right:900-gap},vy={top:gap,center:360,bottom:720-gap};
+ assert.deepEqual(positioningPoint(config,{width:100,height:80},target.getBoundingClientRect(),false),{x:ex[h],y:ey[v]});
+ assert.deepEqual(positioningPoint(config,{width:100,height:80},{left:0,top:0,width:1000,height:800},true),{x:vx[h],y:vy[v]});
 });

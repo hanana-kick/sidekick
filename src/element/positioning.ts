@@ -4,10 +4,11 @@ import type { AvatarPosition } from './movement.js';
 
 export const POSITION_PLACEMENTS = ['top-left', 'top-center', 'top-right', 'center-left', 'center', 'center-right', 'bottom-left', 'bottom-center', 'bottom-right'] as const;
 export type PositionPlacement = typeof POSITION_PLACEMENTS[number];
-/** Viewport placements are inset. Element placements are outside the named edge/corner. */
+/** Positive gaps inset viewport placements or separate element edges; negative gaps reverse this. */
 export interface Positioning {
   target: 'viewport' | string | Element;
   placement?: PositionPlacement;
+  /** Finite CSS pixels, default 16. Negative overlaps element edges; centered axes ignore gap. */
   gap?: number;
   offset?: { x?: number; y?: number };
   /** Pursue layout changes with inertia. False samples once. Default true. */
@@ -35,7 +36,7 @@ export function validatePositioning(value: unknown, document: Document): Resolve
   } else if (!document.defaultView || !(target instanceof document.defaultView.Element) || target.ownerDocument !== document) throw new TypeError('positioning target must belong to the same document');
   const placement = value.placement ?? 'bottom-right', gap = value.gap ?? 16, follow = value.follow ?? true;
   if (!POSITION_PLACEMENTS.includes(placement as PositionPlacement)) throw new TypeError('invalid positioning placement');
-  if (typeof gap !== 'number' || !Number.isFinite(gap) || gap < 0) throw new TypeError('positioning gap must be a non-negative finite number');
+  if (typeof gap !== 'number' || !Number.isFinite(gap)) throw new TypeError('positioning gap must be a finite number');
   if (typeof follow !== 'boolean') throw new TypeError('positioning follow must be boolean');
   const offset = value.offset ?? {};
   ordinary(offset, ['x', 'y'], 'positioning offset');

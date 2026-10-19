@@ -102,7 +102,7 @@ export function referenceSource(scene, edits, framework='element', id) {
 }
 
 export const JSON_FIELDS = Object.freeze({
- positioning: [['target','viewport | selector | Element (HTML JSON: string)'],['placement',POSITION_PLACEMENTS.join(' | ')],['gap','CSS px ≥ 0 · 16'],['offset','{ x?: number, y?: number } · 0'],['follow','boolean · true']],
+ positioning: [['target','viewport | selector | Element (HTML JSON: string)'],['placement',POSITION_PLACEMENTS.join(' | ')],['gap','finite CSS px (signed) · 16'],['offset','{ x?: number, y?: number } · 0'],['follow','boolean · true']],
  entrance: [
   ['source','viewport | element'], ['edge','viewport: left | right | top | bottom'],
   ['target','element: Element | string; HTML JSON: string'], ['direction','element: left | right | top | bottom'],
