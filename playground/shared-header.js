@@ -1,9 +1,10 @@
+import { SITE_LOCALES, SITE_LANGUAGE_NAMES, getSiteLocale, setSiteLocale, subscribeSiteLocale, translateSite, localizedSiteHref } from './site-i18n.js';
 /** One brand and navigation for both the React Studio and plain-JS API page. */
 export function mountSiteHeader(host, activePage, base = './') {
   const doc = host.ownerDocument;
   const brand = doc.createElement('a');
   brand.className = 'brand'; brand.href = base;
-  brand.setAttribute('aria-label', 'Sidekick Studio 홈');
+
   const avatar = doc.createElement('sidekick-avatar');
   for (const [name, value] of Object.entries({
     class: 'brand-avatar', shape: 'ghostish', 'body-color': '#FFCC37',
@@ -17,13 +18,27 @@ export function mountSiteHeader(host, activePage, base = './') {
   const name = doc.createElement('span'); name.textContent = 'sidekick';
   brand.append(avatar, name);
   const nav = doc.createElement('nav'); nav.className = 'product-nav';
-  nav.setAttribute('aria-label', 'Sidekick 페이지');
-  for (const [page, label, path] of [['studio', 'Studio', ''], ['api', 'API playground', 'api-playground.html'], ['usecases', 'Use cases', 'use-cases.html']]) {
-    const link = doc.createElement('a'); link.href = `${base}${path}`; link.textContent = label;
-    if (page === activePage) link.setAttribute('aria-current', 'page');
+
+  for (const [page, label, path] of [['studio', 'studio', ''], ['api', 'api', 'api-playground.html'], ['guide', 'guide', 'guide.html']]) {
+    const link = doc.createElement('a'); link.dataset.sitePage = label; link.dataset.sitePath = `${base}${path}`;
+    if (page === activePage || (page === 'guide' && activePage === 'usecases')) link.setAttribute('aria-current', 'page');
     if (page === 'api') link.id = 'api-playground-link';
     nav.append(link);
   }
-  host.replaceChildren(brand, nav);
-  return () => host.replaceChildren();
+  const selector = doc.createElement('select'); selector.className = 'site-language'; selector.id = 'site-language';
+  for (const language of SITE_LOCALES) {
+    const option = doc.createElement('option'); option.value = language; option.lang = language; option.textContent = SITE_LANGUAGE_NAMES[language]; selector.append(option);
+  }
+  selector.addEventListener('change', () => setSiteLocale(selector.value));
+  const update = () => {
+    doc.documentElement.lang = getSiteLocale();
+    brand.href = localizedSiteHref(base); brand.setAttribute('aria-label', translateSite('home'));
+    nav.setAttribute('aria-label', translateSite('navigation')); selector.setAttribute('aria-label', translateSite('language')); selector.value = getSiteLocale();
+    for (const link of nav.children) { link.textContent = translateSite(link.dataset.sitePage); link.href = localizedSiteHref(link.dataset.sitePath); }
+    doc.title = translateSite((activePage === 'usecases' ? 'guide' : activePage) + 'Title');
+  };
+  const controls = doc.createElement('div'); controls.className = 'site-navigation'; controls.append(nav, selector);
+  host.replaceChildren(brand, controls); update();
+  const unsubscribe = subscribeSiteLocale(update);
+  return () => { unsubscribe(); host.replaceChildren(); };
 }

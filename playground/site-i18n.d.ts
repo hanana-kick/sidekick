@@ -1,0 +1,12 @@
+export type SiteLocale = 'ko' | 'en' | 'zh-CN' | 'ja';
+export const SITE_LOCALES: readonly SiteLocale[];
+export const SITE_LANGUAGE_NAMES: Readonly<Record<SiteLocale, string>>;
+export const SITE_LOCALE_STORAGE_KEY: string;
+export function normalizeSiteLocale(value: unknown): SiteLocale | null;
+export function resolveSiteLocale(options?: { query?: string | null; stored?: string | null; languages?: readonly string[] }): SiteLocale;
+export function getSiteLocale(): SiteLocale;
+export function setSiteLocale(locale: SiteLocale): void;
+export function subscribeSiteLocale(listener: () => void): () => void;
+export function localizedSiteHref(path: string, language?: SiteLocale): string;
+export const SITE_MESSAGES: Readonly<Record<SiteLocale, Readonly<Record<string, string>>>>;
+export function translateSite(key: string): string;
