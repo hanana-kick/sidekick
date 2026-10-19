@@ -1,3 +1,5 @@
+import { installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels } from '../playground/lifecycle-example.js';
+import { navigationText, guideHref, readGuideSource } from '../playground/guide-navigation.js';
 import { getFramework, setFramework, subscribeFramework } from '../playground/site-framework.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -137,14 +139,14 @@ test('both pages share a paused native avatar brand and accessible navigation', 
   }
 });
 
-async function controllerFixture(t) {
+async function controllerFixture(t, query = '') {
   const html = await readFile(new URL('../api-playground.html', import.meta.url), 'utf8');
   const source = (await readFile(new URL('../playground/api-playground.js', import.meta.url), 'utf8')).replace(/^import[^\n]+\n/gm, '');
-  const dom = new JSDOM(html, { url: 'https://sidekick.test/api-playground.html', runScripts: 'outside-only', pretendToBeVisual: true });
+  const dom = new JSDOM(html, { url: 'https://sidekick.test/api-playground.html' + query, runScripts: 'outside-only', pretendToBeVisual: true });
   t.after(() => dom.window.close());
   const w = dom.window, $ = id => w.document.getElementById(id);
   setFramework('element');
-  Object.assign(w, { getFramework, subscribeFramework:callback=>{const cleanup=subscribeFramework(callback);t.after(cleanup);return cleanup;}, mountGuideExercise:async()=>false, apiText, applyApiLocale, apiError, getSiteLocale, subscribeSiteLocale: callback => { const cleanup = subscribeSiteLocale(callback); t.after(cleanup); return cleanup; }, structuredClone, codeForAction, executeAction, createAccessory, MATERIAL_SHAPE_LABELS: { heart: 'Heart', ghostish: 'Ghost' }, mountSiteHeader() {}, loadStudioSession: () => ({ message: 'Default scene', scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), seedStudioSession:()=>{}, applyStudioSession: async () => {} });
+  Object.assign(w, { installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels, navigationText, guideHref, readGuideSource, getFramework, subscribeFramework:callback=>{const cleanup=subscribeFramework(callback);t.after(cleanup);return cleanup;}, mountGuideExercise:async()=>false, apiText, applyApiLocale, apiError, getSiteLocale, subscribeSiteLocale: callback => { const cleanup = subscribeSiteLocale(callback); t.after(cleanup); return cleanup; }, structuredClone, codeForAction, executeAction, createAccessory, MATERIAL_SHAPE_LABELS: { heart: 'Heart', ghostish: 'Ghost' }, mountSiteHeader() {}, loadStudioSession: () => ({ message: 'Default scene', scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), seedStudioSession:()=>{}, applyStudioSession: async () => {} });
   w.matchMedia = () => ({ matches: false, addEventListener() {} });
   class Avatar extends w.HTMLElement {
     ready = true; calls = []; point = { x: 0, y: 0 }; activity = 'idle'; trackingMode = 'eyes-and-body'; zoom = 1;
@@ -322,4 +324,19 @@ test('emotion draft executes exact generated calls and survives page click and o
  assert.match(draft,/await avatar.reactTo/);
  input('emotion-operation','cancelReaction');$('execute').click();
  assert.equal(bot.calls.at(-1).method,'cancelReaction');
+});
+
+
+test('direct lifecycle preset opens a valid guide return link and app outcomes remain explicit', async t => {
+ const f=await controllerFixture(t,'?lesson=declarative-lifecycle');
+ assert.equal(f.$('action-kind').value,'lifecycle');
+ assert.equal(new URL(f.$('guide-source-return').href).hash,'#state-lifecycle');
+ f.$('execute').click();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(f.bot.home.positioning.target,'#reference-home');assert.equal(f.bot.task,null);
+ f.w.document.querySelector('[data-lifecycle-action="wait"]').click();
+ assert.equal(f.bot.task.status,'pending');assert.match(f.$('invocation').textContent,/sidekick@v0\.15\.0/);
+ f.w.document.querySelector('[data-lifecycle-action="success"]').click();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(f.bot.task.status,'success');
+ f.w.document.querySelector('[data-lifecycle-action="follow"]').click();assert.equal(f.bot.task.id,2);
+ f.w.document.querySelector('[data-lifecycle-action="cancel"]').click();assert.equal(f.bot.task.status,'cancelled');
 });

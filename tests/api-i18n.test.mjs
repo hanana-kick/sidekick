@@ -1,3 +1,4 @@
+import { installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels } from '../playground/lifecycle-example.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -58,7 +59,7 @@ async function fixture(t, initialLocale = 'ko') {
   const w = dom.window, $ = id => w.document.getElementById(id);
   const changeLocale = value => { locale = value; for (const callback of listeners) callback(); };
   Object.assign(w, { mountGuideExercise:async()=>false,
-    structuredClone, getFramework:()=>framework, subscribeFramework:fn=>{frameworkListeners.add(fn);return()=>frameworkListeners.delete(fn);}, navigationText, guideHref, readGuideSource, codeForAction, executeAction, apiError, apiText,
+    installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels, structuredClone, getFramework:()=>framework, subscribeFramework:fn=>{frameworkListeners.add(fn);return()=>frameworkListeners.delete(fn);}, navigationText, guideHref, readGuideSource, codeForAction, executeAction, apiError, apiText,
     getSiteLocale: () => locale, subscribeSiteLocale: callback => { listeners.add(callback); return () => listeners.delete(callback); },
     applyApiLocale: root => applyApiLocale(root, locale),
     createAccessory: preset => ({ preset }), MATERIAL_SHAPE_LABELS: Object.fromEntries(shapeNames.map(name => [name, name])),
@@ -179,4 +180,16 @@ test('action-layer missing-target errors use stable localized keys without modif
       assert.throws(() => executeAction({ ownerDocument: { querySelector: () => null } }, { method: 'moveToElement', args: ['#my-target', {}] }), error => error.message === apiText('targetNotFound', { selector: '#my-target' }) && error.apiMessage.key === 'targetNotFound');
     }
   } finally { setSiteLocale(previous); }
+});
+
+
+test('live lifecycle labels switch language without replacing a pending request or copied code', async t => {
+ const f=await fixture(t);f.input('action-kind','lifecycle');f.$('execute').click();await new Promise(resolve=>setImmediate(resolve));
+ f.w.document.querySelector('[data-lifecycle-action="wait"]').click();
+ const task=f.bot.task,code=f.$('invocation').textContent;
+ f.changeLocale('ja');assert.equal(f.bot.task,task);assert.equal(f.$('invocation').textContent,code);
+ assert.equal(f.w.document.querySelector('[data-lifecycle-action="wait"]').textContent,lifecycleLabels.ja[2]);
+ assert.equal(f.$('lifecycle-app-status').textContent,lifecycleLabels.ja[11]);
+ f.w.document.querySelector('[data-lifecycle-action="success"]').click();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(f.bot.task.status,'success');assert.equal(f.$('lifecycle-app-status').textContent,lifecycleLabels.ja[12]);
 });
