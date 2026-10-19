@@ -676,7 +676,7 @@ export class SidekickAvatar extends HTMLElementBase {
         canvas{touch-action:var(--sidekick-touch-action,auto);display:block;width:100%;height:100%;object-fit:contain;background:transparent}
         span{position:absolute;inset:0;display:grid;place-items:center;padding:16px;text-align:center;font:13px/1.5 system-ui;color:currentColor}
         [hidden]{display:none!important}
-      </style><canvas part="canvas" aria-hidden="true"></canvas><span part="fallback" hidden></span>`;
+      </style><canvas part="canvas" aria-hidden="true" hidden></canvas><span part="fallback" hidden></span>`;
             this.canvas = shadow.querySelector('canvas');
             this.fallback = shadow.querySelector('span');
         }
@@ -929,6 +929,7 @@ export class SidekickAvatar extends HTMLElementBase {
         if (!this.connected || !this.canvas)
             return;
         const generation = ++this.generation;
+        this.canvas.hidden = true;
         this.readyState = false;
         this.snapshotState = undefined;
         this.acknowledgedRevision = 0;
@@ -939,11 +940,7 @@ export class SidekickAvatar extends HTMLElementBase {
                 if (!this.connected || generation !== this.generation)
                     return;
                 this.acceptSnapshot(snapshot, revision);
-                this.readyState = true;
-                this.canvas.hidden = false;
-                this.fallback.hidden = true;
-                this.updateMouseTracking();
-                this.emit('sidekick-ready', {});
+                this.presentInitialFrame(generation);
             },
             event: (event, revision) => {
                 if (!this.connected || generation !== this.generation)
@@ -975,6 +972,30 @@ export class SidekickAvatar extends HTMLElementBase {
         catch (error) {
             this.runtimeFailure(error instanceof Error ? error : new Error(String(error)), generation, attemptWorker);
         }
+    }
+    presentInitialFrame(generation) {
+        if (!this.connected || generation !== this.generation || !this.bridge)
+            return;
+        this.flushAttributes();
+        const request = this.request('barrier');
+        this.bridge.send({ kind: 'present', request: request.id });
+        const revision = this.bridge.revision;
+        void request.promise.then(() => {
+            if (!this.connected || generation !== this.generation || !this.bridge)
+                return;
+            // A newer configuration can arrive while the worker processes the fence.
+            // Never reveal its obsolete frame; acknowledge and draw the latest one.
+            this.flushAttributes();
+            if (this.bridge.revision !== revision) {
+                this.presentInitialFrame(generation);
+                return;
+            }
+            this.readyState = true;
+            this.canvas.hidden = false;
+            this.fallback.hidden = true;
+            this.updateMouseTracking();
+            this.emit('sidekick-ready', {});
+        }).catch(() => { });
     }
     runtimeFailure(error, generation, wasWorker = this.bridge?.backend === 'worker') {
         if (!this.connected || generation !== this.generation)

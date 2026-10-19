@@ -232,6 +232,7 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private upgradeProperties;
     private immediateMotion;
     private initializeRenderer;
+    private presentInitialFrame;
     private runtimeFailure;
     private acceptSnapshot;
     private disposeBridge;

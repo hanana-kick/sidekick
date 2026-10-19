@@ -18,7 +18,8 @@ class MockWorker extends EventTarget {
     }
     const command = message.command;
     if (command.kind === 'state') { Object.assign(this.state, command.state); if (this.state.paused || this.state.reduced) this.state.pose.gaze = [...this.state.gaze]; }
-    if (command.kind === 'capture') { this.frame++; const snapshot = this.snapshot(); queueMicrotask(() => this.reply('pixels', { request: command.request, image: { width: 1, height: 1, pixels: new Uint8Array([0, 0, 0, 255]) }, snapshot }, message.sequence)); }
+    if (command.kind === 'present') { this.frame++; queueMicrotask(() => this.reply('complete', { request: command.request, result: { finished: true }, snapshot: this.snapshot() }, message.sequence)); }
+    else if (command.kind === 'capture') { this.frame++; const snapshot = this.snapshot(); queueMicrotask(() => this.reply('pixels', { request: command.request, image: { width: 1, height: 1, pixels: new Uint8Array([0, 0, 0, 255]) }, snapshot }, message.sequence)); }
     else if (command.kind === 'snapshot') { /* Tests choose when its async encoder returns. */ }
     else queueMicrotask(() => this.reply('frame', { snapshot: this.snapshot() }, message.sequence));
   }
@@ -49,7 +50,7 @@ after(() => {
 async function createAvatar() {
   const avatar = document.createElement('worker-test-avatar'); avatar.setActivity('still');
   avatar.getBoundingClientRect = () => ({ width: 200, height: 200, left: 0, top: 0 });
-  document.body.append(avatar); await Promise.resolve(); await Promise.resolve(); assert.equal(avatar.ready, true); return avatar;
+  document.body.append(avatar); await new Promise(resolve => avatar.addEventListener('sidekick-ready', resolve, { once: true })); assert.equal(avatar.ready, true); return avatar;
 }
 
 test('successful worker startup transfers the canvas without probing WebGL on main', async () => {
@@ -61,7 +62,7 @@ test('successful worker startup transfers the canvas without probing WebGL on ma
 
 test('capture during connection startup queues behind initialization and disconnection rejects pending captures', async () => {
   const avatar = document.createElement('worker-test-avatar'); avatar.setActivity('still'); document.body.append(avatar);
-  const result = await avatar.capturePixelsAsync(); assert.equal(result.pixels[3], 255); assert.equal(avatar.ready, true);
+  const result = await avatar.capturePixelsAsync(); assert.equal(result.pixels[3], 255); if (!avatar.ready) await new Promise(resolve => avatar.addEventListener('sidekick-ready', resolve, { once: true })); assert.equal(avatar.ready, true);
   const pending = avatar.snapshot(); avatar.remove(); await assert.rejects(pending, /disconnected/);
 });
 
@@ -124,7 +125,7 @@ test('error listeners may disconnect or reconnect without the failed generation 
       assert.equal(avatar.shadowRoot.querySelector('canvas'), reconnectedCanvas);
       assert.equal(avatar.diagnostics.generation, originalGeneration + 1);
       assert.equal(avatar.diagnostics.backend, 'worker'); assert.equal(current.terminated, 0);
-      const image = await avatar.capturePixelsAsync(); assert.equal(image.pixels[3], 255); assert.equal(avatar.ready, true);
+      const image = await avatar.capturePixelsAsync(); assert.equal(image.pixels[3], 255); if (!avatar.ready) await new Promise(resolve => avatar.addEventListener('sidekick-ready', resolve, { once: true })); assert.equal(avatar.ready, true);
       worker.reply('error', { message: 'stale generation failure' });
       assert.equal(avatar.shadowRoot.querySelector('canvas'), reconnectedCanvas); assert.equal(current.terminated, 0);
     } else {
@@ -202,4 +203,22 @@ test('camera listeners disconnecting or reconnecting during pointer-down flush c
     assert.equal(captures.size, 0); assert.equal(avatar.pointers.size, 0);
     if (reconnect) await avatar.capturePixelsAsync(); avatar.remove();
   }
+});
+
+test('startup canvas stays hidden until a latest-revision draw barrier, including late authored attributes', async () => {
+  const avatar = document.createElement('worker-test-avatar');
+  avatar.setActivity('still');
+  document.body.append(avatar);
+  const canvas = avatar.shadowRoot.querySelector('canvas'), worker = workers.at(-1);
+  assert.equal(canvas.hidden, true);
+  avatar.setAttribute('shape', 'heart');
+  avatar.setAttribute('expression', 'smile');
+  await new Promise(resolve => avatar.addEventListener('sidekick-ready', resolve, { once: true }));
+  assert.equal(canvas.hidden, false);
+  assert.equal(avatar.design.body.shape, 'heart');
+  const present = worker.messages.find(message => message.command?.kind === 'present');
+  assert.ok(present);
+  assert.ok(worker.messages.some(message => message.sequence < present.sequence && message.command?.kind === 'batch'));
+  assert.equal(avatar.diagnostics.acknowledgedRevision >= present.sequence, true);
+  avatar.remove();
 });

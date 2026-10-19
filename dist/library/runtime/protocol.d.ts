@@ -88,6 +88,9 @@ export type RuntimeCommand = {
 } | {
     kind: 'reset-tracking';
 } | {
+    kind: 'present';
+    request: number;
+} | {
     kind: 'flush';
     request: number;
 } | {

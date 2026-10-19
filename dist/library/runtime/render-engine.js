@@ -254,6 +254,25 @@ export class RenderEngine {
                 this.velocity = [0, 0];
                 this.timeline.pose.gaze = [...this.state.gaze];
                 break;
+            case 'present': {
+                // Startup barrier: commands queued during module/worker loading belong
+                // to the initial configuration, not an animation from fallback defaults.
+                this.timeline.advance(60000);
+                this.shape.finish();
+                this.activityBlend.finish();
+                this.emotion.set(this.emotionTarget());
+                this.emotionEyeControl.advance(60000);
+                this.orientation.set(this.orientationTarget());
+                this.attention.set([this.state.attention ? 1 : 0]);
+                this.timeline.pose.gaze = [...this.state.gaze];
+                this.velocity = [0, 0];
+                this.equipmentImmediate = true;
+                this.render(true);
+                if (!this.animated())
+                    this.stop();
+                this.notify({ kind: 'complete', request: command.request, result: { finished: true }, snapshot: this.snapshot });
+                return;
+            }
             case 'flush':
                 this.render(true);
                 this.notify({ kind: 'complete', request: command.request, result: { finished: true }, snapshot: this.snapshot });

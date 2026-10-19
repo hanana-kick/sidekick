@@ -35,6 +35,7 @@ export type RuntimeCommand =
   | { kind: 'state'; state: Partial<Omit<RuntimeState, 'design' | 'pose' | 'width' | 'height' | 'dpr'>> }
   | { kind: 'resize'; width: number; height: number; dpr: number }
   | { kind: 'reset-tracking' }
+  | { kind: 'present'; request: number }
   | { kind: 'flush'; request: number }
   | { kind: 'capture'; request: number }
   | { kind: 'snapshot'; request: number; options: SnapshotOptions }
