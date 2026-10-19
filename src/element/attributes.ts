@@ -25,6 +25,7 @@ export interface SidekickAttributes {
   'emotion-intensity'?: NumericAttribute;
   behavior?: string;
   entrance?: string;
+  positioning?: string;
   placement?: AvatarPlacement;
   'position-x'?: NumericAttribute;
   'position-y'?: NumericAttribute;
@@ -84,7 +85,7 @@ export interface SidekickAttributes {
 export type SidekickAttributeName = keyof SidekickAttributes;
 export const ACCESSORY_ATTRIBUTE_SLOTS = Object.freeze({ head: 'head', eyes: 'eyes', mouth: 'mouth', neck: 'neck', 'left-ear': 'leftEar', 'right-ear': 'rightEar' } as const);
 export const SIDEKICK_ATTRIBUTES = Object.freeze([
-  'emotion', 'emotion-intensity', 'behavior', 'entrance',
+  'emotion', 'emotion-intensity', 'behavior', 'entrance', 'positioning',
   'placement', 'position-x', 'position-y', 'movement-bounds', 'move-duration', 'move-easing', 'move-travel', 'move-max-speed', 'move-acceleration', 'move-deceleration',
   'design', 'shape', 'body-color', 'eye-color', 'expression', 'left-expression', 'right-expression',
   'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'accessories',

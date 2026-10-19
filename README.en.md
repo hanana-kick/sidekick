@@ -1534,3 +1534,30 @@ Guide example links retain the source section, learning level, applied options, 
 Each scenario progresses through **simple usage → adjust options → connect app events → compose actions directly**. See the running bot alongside the actual executable code and copy it. Installation/concept lessons are distinguished from live demos. A three-level table of contents and URL hashes link directly to each step; navigation collapses on mobile.
 
 Only one example runs at a time to avoid unnecessary renderers. Instances are removed on exit/switching, and rendering pauses for invisible sections or hidden pages. Studio settings are read-only; experiments do not save over them. Unless otherwise stated, asynchronous demo tasks are local simulations; connect real service requests and result events in your app.
+
+### Declarative positioning
+
+`positioning` selects a target and placement. It is distinct from the read-only `position` coordinates and CSS `placement="inline|viewport"` mode. It does not reparent DOM nodes or allocate a full-page canvas.
+
+```html
+<sidekick-avatar placement="viewport"
+  positioning='{"target":"viewport","placement":"bottom-right","gap":16}'>
+</sidekick-avatar>
+```
+
+```tsx
+<SidekickAvatar placement="viewport"
+  positioning={{ target: '#status', placement: 'center-right', gap: 16 }} />
+```
+
+- `target`: required; `'viewport'`, a same-document selector, or `Element`. HTML JSON accepts strings.
+- `placement`: defaults to `'bottom-right'`; one of `top-left`, `top-center`, `top-right`, `center-left`, `center`, `center-right`, `bottom-left`, `bottom-center`, `bottom-right`.
+- `gap`: defaults to 16 CSS px. Viewport placements are inset; element placements sit outside the named edge. Corners are outside both axes. `center` overlaps the center.
+- `offset`: optional `{ x, y }` adjustment; omitted axes default to zero; negative values are allowed.
+- `follow`: defaults to `true`; pursues scroll, size and layout changes using inertia. `false` samples once. Pursuit becomes idle while both the current and destination boxes are offscreen.
+
+The initial declaration is staged before the first visible frame. Later changes use the existing movement acceleration/deceleration settings. Equivalent declarations do not restart movement. Missing or removed targets emit `sidekick-error` and detach. A different node matching the same selector is not rebound automatically.
+
+`positioning = null` detaches and brakes. Explicit `moveTo`, `moveBy`, `moveToElement`, `cancelMove`, `detachAnchor`, `enter` or `exit` relinquishes declarative positioning. Assign a new declaration to resume. React equivalent prop rerenders preserve manual control; set `null` first or change the declaration to reapply.
+
+With `entrance`, the entrance source remains the starting point and positioning supplies the destination; following begins after entry. Existing movement bounds remain applicable. Coordinates use the owning document/iframe's layout viewport in CSS px while preserving the avatar's DOM origin. CSS transform/zoom on avatar ancestors is unsupported. Reduced motion applies movement immediately.

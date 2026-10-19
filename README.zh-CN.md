@@ -1534,3 +1534,30 @@ export function Example() {
 每个场景按**简单使用 → 调整选项 → 连接应用事件 → 自行组合动作**的顺序组织。可同时查看正在运行的角色及对应执行代码，并复制代码。安装/概念说明与实际运行演示分开呈现，可通过大类、中类、小类目录和 URL hash 直接跳到所需阶段。移动端可折叠目录。
 
 同一时间仅激活一个示例，避免创建不必要的渲染器。示例结束或切换时移除实例，暂停不可见章节和隐藏页面中的渲染。仅仅读取 Studio 设置，不将实验动作保存到原始数据。运行示例中的异步任务，除非另有说明，均为本地模拟；实际应用中请连接服务请求与结果事件。
+
+### 声明式位置设置
+
+`positioning` 通过目标和方位设置位置，与只读坐标 `position` 及 CSS 布局模式 `placement="inline|viewport"` 分开。不会移动 DOM 节点，也不会创建全屏画布。
+
+```html
+<sidekick-avatar placement="viewport"
+  positioning='{"target":"viewport","placement":"bottom-right","gap":16}'>
+</sidekick-avatar>
+```
+
+```tsx
+<SidekickAvatar placement="viewport"
+  positioning={{ target: '#status', placement: 'center-right', gap: 16 }} />
+```
+
+- `target`：必填，`'viewport'`、同一文档的 CSS 选择器或 `Element`。HTML JSON 使用字符串。
+- `placement`：默认为 `'bottom-right'`。可选 `top-left`、`top-center`、`top-right`、`center-left`、`center`、`center-right`、`bottom-left`、`bottom-center`、`bottom-right`。
+- `gap`：默认 16 CSS px。视口使用内边距，元素使用外部间距。角落在两个轴上均位于外部；`center` 与中心重叠。
+- `offset`：可选 `{ x, y }` 偏移，省略的轴为 0，可以使用负数。
+- `follow`：默认 `true`，通过惯性跟随滚动、尺寸和布局变化。`false` 仅读取一次位置。当前位置和目标位置均在屏幕外时进入空闲状态。
+
+初始位置在第一帧显示前应用，后续修改使用现有移动加速和减速设置。相同声明不会重启动画。目标缺失或移除时触发 `sidekick-error` 并解除绑定；不会自动绑定匹配同一选择器的新节点。
+
+`positioning = null` 解除绑定并减速。显式调用 `moveTo`、`moveBy`、`moveToElement`、`cancelMove`、`detachAnchor`、`enter` 或 `exit` 会解除声明式位置控制。重新指定声明可恢复。React 的相同 prop 重渲染不会覆盖手动控制；先设为 `null` 或修改声明后重新应用。
+
+与 `entrance` 一起使用时，从 entrance 的起点进入 positioning 的目的地，入场结束后开始跟随。现有边界限制仍然有效。坐标以所属文档或 iframe 的布局视口 CSS px 为单位，保留原 DOM 原点。不支持机器人祖先元素上的 CSS transform/zoom。减少动态效果模式立即应用位置。

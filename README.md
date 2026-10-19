@@ -1534,3 +1534,30 @@ export function Example() {
 각 시나리오는 **간단하게 사용 → 옵션 조절 → 앱 이벤트 연결 → 직접 동작 조합** 순서로 구성됩니다. 실행 중인 봇과 해당 실행 코드를 함께 보고 복사할 수 있습니다. 설치·개념 설명과 실제 실행 데모를 구분하며, 대분류·중분류·소분류 목차와 주소 해시로 원하는 단계에 바로 이동합니다. 모바일에서는 목차를 접을 수 있습니다.
 
 한 번에 한 예제만 활성화하여 불필요한 렌더러를 만들지 않습니다. 예제 종료·전환 시 인스턴스를 제거하고, 보이지 않는 섹션과 숨겨진 페이지의 렌더링을 일시 정지합니다. Studio 설정은 읽기만 하며 실험 동작은 원본에 저장하지 않습니다. 실행 예제의 비동기 작업은 별도 표시가 없다면 로컬 시뮬레이션이며, 실제 앱에서는 서비스 요청과 결과 이벤트를 연결하세요.
+
+### 선언형 위치 지정
+
+`positioning`은 대상과 배치만으로 위치를 지정합니다. 현재 좌표를 반환하는 `position` 및 CSS 배치 모드를 지정하는 `placement="inline|viewport"`와는 별도입니다. DOM을 옮기거나 전체 화면 캔버스를 생성하지 않습니다.
+
+```html
+<sidekick-avatar placement="viewport"
+  positioning='{"target":"viewport","placement":"bottom-right","gap":16}'>
+</sidekick-avatar>
+```
+
+```tsx
+<SidekickAvatar placement="viewport"
+  positioning={{ target: '#status', placement: 'center-right', gap: 16 }} />
+```
+
+- `target`: 필수. `'viewport'`, 같은 문서의 CSS 선택자 또는 `Element`. HTML JSON에서는 문자열만 사용합니다.
+- `placement`: 기본 `'bottom-right'`. `top-left`, `top-center`, `top-right`, `center-left`, `center`, `center-right`, `bottom-left`, `bottom-center`, `bottom-right`.
+- `gap`: 기본 16 CSS px. 화면 기준은 안쪽 여백, 엘리먼트 기준은 바깥 간격입니다. 모서리는 두 축 모두 바깥에 배치하며 `center`는 중앙에 겹칩니다.
+- `offset`: 선택적인 `{ x, y }` 미세 조정. 생략한 축은 0이며 음수도 가능합니다.
+- `follow`: 기본 `true`. 스크롤·크기·배치 변화에 관성으로 따라갑니다. `false`는 적용 시점의 위치만 읽습니다. 현재 위치와 목표 위치가 모두 화면 밖이면 추적 이동은 유휴 상태가 됩니다.
+
+최초 설정은 첫 프레임 노출 전에 적용하고 이후 변경은 기존 이동 가속·감속 설정을 사용합니다. 동일한 선언을 다시 전달해도 진행 중인 이동을 재시작하지 않습니다. 대상이 없거나 제거되면 `sidekick-error`가 발생하고 연결이 해제됩니다. 다른 엘리먼트가 같은 선택자를 차지해도 자동으로 다시 연결하지 않습니다.
+
+`positioning = null`은 연결을 해제하고 감속합니다. `moveTo`, `moveBy`, `moveToElement`, `cancelMove`, `detachAnchor`, 직접 호출한 `enter`/`exit`는 선언형 위치 제어를 해제합니다. 다시 사용하려면 새 선언을 지정합니다. React에서는 동일한 prop 재렌더가 수동 제어를 덮어쓰지 않으므로, `null`을 거쳐 다시 지정하거나 값을 변경합니다.
+
+`entrance`와 함께 지정하면 `entrance`의 출발 지점에서 `positioning`의 목적지로 등장한 뒤 추적을 시작합니다. 설정된 화면 경계 제한은 그대로 적용됩니다. 좌표는 해당 문서/iframe의 레이아웃 뷰포트 CSS px 기준이며 기존 DOM 원점을 보존합니다. 아바타 조상에 CSS transform/zoom이 있으면 지원하지 않습니다. 축소 모션 환경에서는 이동을 즉시 적용합니다.

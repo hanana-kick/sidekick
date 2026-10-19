@@ -1534,3 +1534,30 @@ export function Example() {
 各シナリオは、**簡単に使う → オプションを調整 → アプリのイベントに接続 → 動作を直接組み合わせる**という順序で構成します。実行中のキャラクターと、その実行コードを一緒に確認してコピーできます。インストール・概念の説明と実際の実行デモを区別し、大分類・中分類・小分類の目次と URL ハッシュで目的の段階へ直接移動します。モバイルでは目次を折りたためます。
 
 一度にひとつの例だけを有効にし、不要なレンダラーを作りません。例の終了・切り替え時にはインスタンスを削除し、見えないセクションと非表示のページのレンダリングを一時停止します。Studio の設定は読み取りのみで、実験の動作は原本に保存しません。実行例の非同期処理は、特記がなければローカルのシミュレーションです。実際のアプリでは、サービスのリクエストと結果のイベントを接続してください。
+
+### 宣言的な位置指定
+
+`positioning` は対象と配置から位置を指定します。読み取り専用座標 `position` および CSS 配置モード `placement="inline|viewport"` とは別です。DOM の移動や全画面キャンバスの作成は行いません。
+
+```html
+<sidekick-avatar placement="viewport"
+  positioning='{"target":"viewport","placement":"bottom-right","gap":16}'>
+</sidekick-avatar>
+```
+
+```tsx
+<SidekickAvatar placement="viewport"
+  positioning={{ target: '#status', placement: 'center-right', gap: 16 }} />
+```
+
+- `target`：必須。`'viewport'`、同じ文書の CSS セレクター、または `Element`。HTML JSON は文字列を使用します。
+- `placement`：既定値は `'bottom-right'`。`top-left`、`top-center`、`top-right`、`center-left`、`center`、`center-right`、`bottom-left`、`bottom-center`、`bottom-right` を指定できます。
+- `gap`：既定値は 16 CSS px。画面では内側の余白、要素では外側の間隔です。角の配置は両軸で外側になり、`center` は中央に重なります。
+- `offset`：任意の `{ x, y }` 補正。省略した軸は 0、負数も使用できます。
+- `follow`：既定値は `true`。スクロール、寸法、配置の変化を慣性で追跡します。`false` は適用時に一度だけ位置を読み取ります。現在位置と目的位置が両方画面外の場合は待機します。
+
+初期位置は最初のフレーム表示前に適用し、その後の変更には既存の移動加速・減速設定を使用します。同じ宣言を渡しても移動は再開されません。対象が存在しない、または削除された場合は `sidekick-error` を通知して解除します。同じセレクターに一致する別ノードには自動で再接続しません。
+
+`positioning = null` は接続を解除して減速します。`moveTo`、`moveBy`、`moveToElement`、`cancelMove`、`detachAnchor`、直接の `enter` / `exit` は宣言的な位置制御を解除します。再開するには宣言を再設定します。React の同じ prop による再描画は手動操作を上書きしないため、一度 `null` にするか宣言を変更してください。
+
+`entrance` と併用すると entrance の出発位置から positioning の目的位置へ登場し、その後に追跡を開始します。既存の移動境界は引き続き適用されます。座標は所属文書・iframe のレイアウトビューポートの CSS px で、DOM 原点を保持します。アバターの祖先にある CSS transform/zoom は未対応です。動きを減らす設定では位置を即時適用します。

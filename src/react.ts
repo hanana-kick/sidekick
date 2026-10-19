@@ -1,3 +1,5 @@
+import { samePositioning, copyPositioning } from './element/positioning.js';
+import type { Positioning } from './element/positioning.js';
 'use client';
 
 import { createElement, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
@@ -45,6 +47,7 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
   /** Declarative intent, assigned as a property after the native element upgrades. */
   behavior?: BotBehavior | null;
   entrance?: Entrance | null;
+  positioning?: Positioning | null;
   emotion?: Emotion;
   emotionIntensity?: number;
   onEmotionChange?: SidekickEventHandler<'sidekick-emotion-change'>;
@@ -193,7 +196,7 @@ export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
   for (const name of ['camera', 'cameraYaw', 'cameraPitch', 'cameraRoll', 'cameraZoom', 'view', 'viewYaw', 'viewPitch', 'viewRoll', 'viewZoom', 'onCameraChange', 'onViewChange', 'camera-yaw', 'camera-pitch', 'camera-roll', 'camera-zoom', 'view-yaw', 'view-pitch', 'view-roll', 'view-zoom']) {
     if (Object.prototype.hasOwnProperty.call(props, name)) throw new TypeError(`${name} has been removed; use bodyOrientation, bodyYaw/bodyPitch/bodyRoll, zoom, onBodyOrientationChange or onZoomChange instead`);
   }
-  const { ref, design, accessories, bodyOrientation, motion, behavior: _behavior, entrance: _entrance, ...html } = props;
+  const { ref, design, accessories, bodyOrientation, motion, behavior: _behavior, entrance: _entrance, positioning: _positioning, ...html } = props;
   const element = useRef<SidekickElement | null>(null);
   const readyNotified = useRef(false);
   const deliveredReadyEvent = useRef<Event | null>(null);
@@ -204,6 +207,7 @@ export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
   const drainErrors = useRef<(() => void) | null>(null);
   const useClientEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
   const ownedAttributes = useRef(new Set<string>());
+  const appliedPositioning = useRef<{ node: SidekickElement; value: Positioning | null } | null>(null);
   const appliedEntrance = useRef<{ node: SidekickElement; value: Entrance | null } | null>(null);
   const appliedBehavior = useRef<{ node: SidekickElement; value: BotBehavior | null } | null>(null);
   const published = useRef<{ node: SidekickElement; ref: Ref<SidekickElement> | undefined; cleanup?: () => void } | null>(null);
@@ -277,6 +281,15 @@ export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
     const notify = () => {
       if (!active || element.current !== node) return;
       if (typeof node.setDesign === 'function') {
+        const positioning = callbacks.current.positioning;
+        const previousPositioning = appliedPositioning.current;
+        if (positioning !== undefined || previousPositioning?.node === node) {
+          const value = positioning ?? null;
+          if (previousPositioning?.node !== node || !samePositioning(previousPositioning.value, value)) {
+            appliedPositioning.current = { node, value: copyPositioning(value) };
+            try { node.positioning = value; } catch (error) { node.dispatchEvent(new CustomEvent('sidekick-error', { detail: { message: String(error), attribute: 'positioning' }, bubbles: true, composed: true })); }
+          }
+        }
         const entrance = callbacks.current.entrance;
         const previousEntrance = appliedEntrance.current;
         if (entrance !== undefined || previousEntrance?.node === node) {
@@ -384,3 +397,5 @@ export type { BotBehavior, BehaviorTarget, BehaviorSide, BehaviorPhase, Behavior
 export type { Emotion, EmotionValue, EmotionOptions, ReactionOptions, EmotionState, EmotionResult } from './core/emotion.js';
 
 export type { Entrance } from './element/entrance.js';
+
+export type { Positioning, PositionPlacement, ResolvedPositioning } from './element/positioning.js';
