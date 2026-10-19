@@ -232,7 +232,7 @@ export class MotionTimeline {
             }
         }
     }
-    cancelEyes() { for (const channel of ['left', 'right', 'openness'])
+    cancelEyes(sides = eyeSides) { for (const channel of [...sides, 'openness'])
         this.stopChannel(channel); }
     cancel() { for (const channel of this.tracks.keys())
         this.stopChannel(channel); }

@@ -31,3 +31,10 @@ test('reaction end and cancel preserve the latest manual eyes; new reaction recl
   reaction=a.reactTo('surprised',{duration:60000});near(r.render().pose.eyes.left.openness,1);await a.setExpression('right','blink',{duration:0});a.cancelReaction();await reaction;near(r.render().pose.eyes.right.openness,0);near(r.render().pose.eyes.left.smile,.85);
  }finally{a.cancelReaction();r.engine.dispose();}
 });
+
+test('pre-upgrade properties and initial attributes give explicit emotion the same precedence',()=>{
+ const f=bareAvatarFixture(SidekickAvatar,RenderEngine,false),a=f.avatar;
+ Object.defineProperty(a,'emotion',{value:'happy',configurable:true,writable:true});
+ Object.defineProperty(a,'design',{value:createDesign({eyes:{left:{weights:{smile:.3}}}}),configurable:true,writable:true});
+ a.upgradeProperties();const r=f.connect();try{near(r.render().pose.eyes.left.smile,.85);assert.equal(a.design.eyes.left.weights.smile,.3);}finally{r.engine.dispose();}
+});

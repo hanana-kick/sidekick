@@ -65,7 +65,7 @@ export declare class MotionTimeline {
     removeAccessories(ids: string[]): void;
     to(target: MotionTarget, options?: MotionOptions): Promise<MotionResult>;
     advance(ms: number): void;
-    cancelEyes(): void;
+    cancelEyes(sides?: readonly EyeSide[]): void;
     cancel(): void;
 }
 export interface ActivityFrame {

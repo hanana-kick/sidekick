@@ -56,6 +56,7 @@ export declare class RenderEngine {
     capture(): PixelBuffer;
     private updateTracking;
     private gazeMoving;
+    private cancelManualEyeControl;
     private emotionTarget;
     private emotionFrame;
     private orientationTarget;

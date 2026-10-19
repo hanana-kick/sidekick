@@ -61,3 +61,12 @@ test('short expression completion includes its eye-ownership transition', () => 
  f.engine.command({kind:'motion',target:{eyes:{left:{weights:{smile:0,blink:1}}}},options:{duration:90},request:3});
  f.step(30);f.step(30);f.step(30);near(f.last().pose.eyes.left.openness,0);near(f.last().pose.eyes.left.smile,0);f.engine.dispose();
 });
+
+test('cancelling authored motion cannot freeze a newer emotion reclaim midway', () => {
+ const f=fixture();f.engine.command({kind:'eye-control',overrides:{left:true,right:true},sides:['left','right'],options:{duration:0}});
+ f.engine.command({kind:'motion',target:{eyes:{left:{weights:{blink:1}},right:{weights:{blink:1}}}},options:{duration:0},request:4});
+ f.engine.command({kind:'eye-control',overrides:{left:false,right:false},sides:['left','right'],options:{duration:400}});
+ f.engine.command({kind:'state',state:{emotion:{emotion:'concerned',intensity:1}}});f.step();f.step(100);
+ f.engine.command({kind:'cancel'});for(let i=0;i<160;i++)f.step();
+ near(f.last().pose.eyes.left.openness,.78);near(f.last().pose.eyes.right.openness,.78);f.engine.dispose();
+});

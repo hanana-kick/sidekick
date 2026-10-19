@@ -150,8 +150,8 @@ export class RenderEngine {
       case 'motion': this.complete(command.request, this.timeline.to(command.target, command.options)); break;
       case 'shape': this.complete(command.request, this.shape.to(command.shape, command.options)); this.state.design = { ...this.state.design, body: { ...this.state.design.body, shape: command.shape } }; break;
       case 'persist-design': this.state.design = command.design; break;
-      case 'cancel-assets': if (command.shape) this.shape.cancel(); if (command.expression) { this.timeline.cancelEyes(); this.emotionEyeControl.cancelEyes(); } break;
-      case 'cancel': this.timeline.cancel(); this.emotionEyeControl.cancel(); break;
+      case 'cancel-assets': if (command.shape) this.shape.cancel(); if (command.expression) { this.timeline.cancelEyes(); this.cancelManualEyeControl(); } break;
+      case 'cancel': this.timeline.cancel(); this.cancelManualEyeControl(); break;
       case 'state': {
         const changed = Object.entries(command.state).some(([key, value]) => {
           const previous = this.state[key as keyof RuntimeState];
@@ -206,6 +206,9 @@ export class RenderEngine {
   }
   private updateTracking(): void { this.tracking.follow(this.state.trackingMode === 'eyes-and-body' && !this.state.reduced ? this.state.trackedGaze : undefined); }
   private gazeMoving(): boolean { return this.state.gaze.some((target, i) => Math.abs(target - this.timeline.pose.gaze[i]!) > .0001 || Math.abs(this.velocity[i]!) > .0001); }
+  private cancelManualEyeControl(): void {
+    this.emotionEyeControl.cancelEyes((['left', 'right'] as const).filter(side => this.state.emotionEyeOverrides?.[side]));
+  }
   private emotionTarget(): number[] { const e = resolveEmotionFrame(this.state.emotion ?? { emotion: 'neutral', intensity: 1 }, this.state.time, this.state.reduced); return [e.smile, e.blink, e.eyeWeight, e.bob, e.roll, e.pitch, ...e.gaze, e.squash]; }
   private emotionFrame(): EmotionFrame { const [smile, blink, eyeWeight, bob, roll, pitch, x, y, squash] = this.emotion.values; return { smile: smile!, blink: blink!, eyeWeight: eyeWeight!, bob: bob!, roll: roll!, pitch: pitch!, gaze: [x!, y!], squash: squash! }; }
   private orientationTarget(): number[] { const o = this.state.bodyOrientation; return [o.yaw, o.pitch, o.roll]; }

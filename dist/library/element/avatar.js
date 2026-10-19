@@ -911,7 +911,7 @@ export class SidekickAvatar extends HTMLElementBase {
         if (this.propertiesUpgraded)
             return;
         this.propertiesUpgraded = true;
-        for (const name of ['emotion', 'emotionIntensity', 'behavior', 'placement', 'movementBounds', 'design', 'bodyOrientation', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode']) {
+        for (const name of ['behavior', 'placement', 'movementBounds', 'design', 'emotion', 'emotionIntensity', 'bodyOrientation', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode']) {
             if (!Object.prototype.hasOwnProperty.call(this, name))
                 continue;
             const value = this[name];
