@@ -727,6 +727,7 @@ export class SidekickAvatar extends HTMLElementBase {
     // Attach rejection handling even when transport failure replaced the bridge.
 
     void request.promise.then(result => {
+      if (!this.connected || generation !== this.generation || this.bridge !== bridge) return;
       const reveal = (): void => {
       try {
       if (!this.connected || generation !== this.generation || !this.bridge) return;
