@@ -88,3 +88,21 @@ test('same equipment identity refreshes resolved mount geometry without fading',
   assert.deepEqual(t.sample([updated], 0), [{ accessory: updated, opacity: 1 }]);
   assert.equal(t.active, false); assert.ok(t.envelope.every(item => item === updated));
 });
+
+test('same-ID preset replacement preserves outgoing pose and releases it for the incoming mesh', () => {
+  const fixture = countingCanvas(), r = new AvatarRenderer(fixture.canvas), pose = initialPose();
+  const old = createAccessory('halo', 'hat'), next = createAccessory('beret', 'hat');
+  pose.accessories.hat = [.3, .2, .4];
+  const frame = { pose, activity: 'still' as const, time: 0, delta: 0, reduced: false, style: 'flat' as const };
+  let models: number[][] = [];
+  fixture.gl.uniformMatrix4fv = (location: { name: string }, _transpose: boolean, value: number[]) => { if (location.name === 'model') models.push([...value]); };
+  r.render(createDesign({ accessories: [old] }), frame); const before = models.at(-1); models = [];
+  delete pose.accessories.hat;
+  r.render(createDesign({ accessories: [next] }), frame);
+  assert.deepEqual(models.at(-1), before, 'replacement with reused ID retains the outgoing preset offset');
+  models = []; r.render(createDesign({ accessories: [next] }), { ...frame, delta: .05 });
+  assert.deepEqual(models.at(-1), before, 'outgoing pose persists for the fade');
+  r.render(createDesign({ accessories: [next] }), { ...frame, delta: .15 });
+  assert.equal(r.stats.drawCalls, 3, 'the incoming beret now owns the slot');
+  r.dispose();
+});

@@ -153,6 +153,7 @@ export class AvatarRenderer {
   private bodyContour?: ShapeContour;
   private bodyDeformation = '';
   private lag = new Map<string, [number, number]>();
+  private accessoryPose = new Map<string, Vec3>();
   private disposed = false;
   private drawCount = 0;
   private blinkGate = new EyeBlinkGate();
@@ -330,6 +331,10 @@ export class AvatarRenderer {
     this.draw(body, bodyRoot, design.body.color);
     gl.uniform1i(this.uniforms.eyesOn, 0);
     const localDraw = (mesh: Mesh, parent: Mat4, color: string, position: Vec3, size: Vec3, rotation: Vec3 = [0, 0, 0]): void => this.draw(mesh, multiply(parent, transform(position, rotation, size)), color);
+    const poseKey = (a: ResolvedAccessoryDesign): string => `${a.slot}:${a.id}:${a.preset}`;
+    const authoredEquipment = new Set(design.accessories.map(poseKey));
+    const visibleEquipment = new Set(equipment.filter(a => a.opacity > 0).map(a => poseKey(a.accessory)));
+    for (const key of this.accessoryPose.keys()) if (!visibleEquipment.has(key)) this.accessoryPose.delete(key);
     const activeIds = new Set(equipment.map(({ accessory }) => accessory.id));
     for (const id of this.lag.keys()) if (!activeIds.has(id)) this.lag.delete(id);
     const activeSlots = new Set(equipment.map(({ accessory }) => accessory.slot));
@@ -344,7 +349,13 @@ export class AvatarRenderer {
       const oldLag = this.lag.get(accessory.id) ?? [roll, 0];
       const lag = state.reduced ? [roll, 0] as [number, number] : spring(oldLag[0], oldLag[1], roll, state.delta, 11);
       this.lag.set(accessory.id, lag);
-      const extra = pose.accessories[accessory.id] ?? [0, 0, 0];
+      const key = poseKey(accessory);
+      // The authored timeline drops removed tracks immediately. Preserve only
+      // the outgoing mesh's last displayed offset while it remains visible.
+      const extra: Vec3 = authoredEquipment.has(key)
+        ? pose.accessories[accessory.id] ?? [0, 0, 0]
+        : this.accessoryPose.get(key) ?? [0, 0, 0];
+      this.accessoryPose.set(key, [...extra]);
       const rotation = accessory.rotation.map((v, i) => v + extra[i]!) as Vec3;
       if (accessory.anchor.region === 'crown') { if (accessory.preset !== 'beret') rotation[1] -= (lag[0] - roll) * accessory.follow; }
       else rotation[2] += (lag[0] - roll) * accessory.follow;
@@ -436,6 +447,6 @@ export class AvatarRenderer {
     for (const mesh of Object.values(this.meshes)) this.deleteMesh(mesh);
     for (const cached of this.catalogMeshes.values()) this.deleteMesh(cached.mesh);
     this.catalogMeshes.clear();
-    this.gl.deleteProgram(this.program); this.lag.clear();
+    this.gl.deleteProgram(this.program); this.lag.clear(); this.accessoryPose.clear();
   }
 }
