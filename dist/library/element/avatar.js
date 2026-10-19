@@ -16,6 +16,7 @@ import { bodyOrientationPreset, createBodyOrientation, patchBodyOrientation } fr
 import { createZoom, pinchZoom, wheelZoom } from '../core/zoom.js';
 import { validateSnapshotOptions } from '../core/pixels.js';
 import { LocalRenderBridge, WorkerRenderBridge, supportsRenderWorker } from '../runtime/render-bridge.js';
+import { presentationSignature, matchesPresentation } from '../runtime/presentation.js';
 import { ACCESSORY_ATTRIBUTE_SLOTS, SIDEKICK_ATTRIBUTES, REMOVED_ORIENTATION_ATTRIBUTES, SidekickAttributeError, resolveSidekickAttributes } from './attributes.js';
 const HTMLElementBase = (typeof HTMLElement === 'undefined' ? class {
 } : HTMLElement);
@@ -948,7 +949,7 @@ export class SidekickAvatar extends HTMLElementBase {
                 if ('snapshot' in event)
                     this.acceptSnapshot(event.snapshot, revision);
                 if (event.kind === 'complete')
-                    this.resolveRequest(event.request, event.result);
+                    this.resolveRequest(event.request, event.presentation ? { ...event.result, presentation: event.presentation } : event.result);
                 else if (event.kind === 'pixels')
                     this.resolveRequest(event.request, event.image);
                 else if (event.kind === 'snapshot')
@@ -973,28 +974,83 @@ export class SidekickAvatar extends HTMLElementBase {
             this.runtimeFailure(error instanceof Error ? error : new Error(String(error)), generation, attemptWorker);
         }
     }
+    startupFrame = 0;
+    startupDeadline;
+    cancelStartupPresentation() {
+        if (this.startupFrame)
+            cancelAnimationFrame(this.startupFrame);
+        this.startupFrame = 0;
+        clearTimeout(this.startupDeadline);
+        this.startupDeadline = undefined;
+    }
     presentInitialFrame(generation) {
         if (!this.connected || generation !== this.generation || !this.bridge)
             return;
         this.flushAttributes();
+        this.cancelStartupPresentation();
         const request = this.request('barrier');
-        this.bridge.send({ kind: 'present', request: request.id });
+        this.bridge.send({ kind: 'present', request: request.id, verifySurface: this.bridge.backend === 'worker' });
         const revision = this.bridge.revision;
-        void request.promise.then(() => {
-            if (!this.connected || generation !== this.generation || !this.bridge)
-                return;
-            // A newer configuration can arrive while the worker processes the fence.
-            // Never reveal its obsolete frame; acknowledge and draw the latest one.
-            this.flushAttributes();
-            if (this.bridge.revision !== revision) {
-                this.presentInitialFrame(generation);
-                return;
-            }
-            this.readyState = true;
-            this.canvas.hidden = false;
-            this.fallback.hidden = true;
-            this.updateMouseTracking();
-            this.emit('sidekick-ready', {});
+        void request.promise.then(result => {
+            const reveal = () => {
+                try {
+                    if (!this.connected || generation !== this.generation || !this.bridge)
+                        return;
+                    // A newer configuration can arrive while the worker processes the fence.
+                    // Never reveal its obsolete frame; acknowledge and draw the latest one.
+                    this.flushAttributes();
+                    if (!this.connected || generation !== this.generation || !this.bridge)
+                        return;
+                    if (this.bridge.revision !== revision) {
+                        this.presentInitialFrame(generation);
+                        return;
+                    }
+                    if (result.presentation) {
+                        const proof = result.presentation, output = this.captureCanvas ??= this.ownerDocument.createElement('canvas');
+                        if (this.canvas.width !== proof.width || this.canvas.height !== proof.height) {
+                            this.startupFrame = requestAnimationFrame(reveal);
+                            return;
+                        }
+                        if (output.width !== proof.width)
+                            output.width = proof.width;
+                        if (output.height !== proof.height)
+                            output.height = proof.height;
+                        const context = output.getContext('2d', { willReadFrequently: true });
+                        if (!context) {
+                            this.runtimeFailure(new Error('Startup surface verification is unavailable'), generation);
+                            return;
+                        }
+                        context.clearRect(0, 0, proof.width, proof.height);
+                        context.drawImage(this.canvas, 0, 0, proof.width, proof.height);
+                        const actual = presentationSignature({ width: proof.width, height: proof.height, pixels: context.getImageData(0, 0, proof.width, proof.height).data });
+                        if (!matchesPresentation(proof, actual)) {
+                            this.startupFrame = requestAnimationFrame(reveal);
+                            return;
+                        }
+                        output.width = 1;
+                        output.height = 1;
+                        this.captureCanvas = undefined;
+                        const bridge = this.bridge;
+                        bridge.send({ kind: 'resume-presentation' });
+                        if (!this.connected || generation !== this.generation || this.bridge !== bridge)
+                            return;
+                    }
+                    this.cancelStartupPresentation();
+                    this.readyState = true;
+                    this.canvas.hidden = false;
+                    this.fallback.hidden = true;
+                    this.updateMouseTracking();
+                    this.emit('sidekick-ready', {});
+                }
+                catch (error) {
+                    this.runtimeFailure(error instanceof Error ? error : new Error(String(error)), generation);
+                }
+            };
+            // A watchdog falls back to main rendering if a browser never propagates
+            // its placeholder. It never treats elapsed time as presentation success.
+            if (result.presentation)
+                this.startupDeadline = setTimeout(() => this.runtimeFailure(new Error('Worker surface presentation timed out'), generation), 5000);
+            reveal();
         }).catch(() => { });
     }
     runtimeFailure(error, generation, wasWorker = this.bridge?.backend === 'worker') {
@@ -1032,6 +1088,7 @@ export class SidekickAvatar extends HTMLElementBase {
             this.currentPose = structuredClone(snapshot.pose);
     }
     disposeBridge(reason) {
+        this.cancelStartupPresentation();
         const bridge = this.bridge;
         this.bridge = undefined;
         this.transferred ||= bridge?.transferred ?? false;

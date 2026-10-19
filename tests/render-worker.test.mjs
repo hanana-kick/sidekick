@@ -440,3 +440,26 @@ test('startup presentation fence draws the latest authored shape and eyes before
   assert.ok(f.engine.snapshot.pose.eyes.left.smile > 0 && f.engine.snapshot.pose.eyes.left.smile < 1);
   f.engine.dispose();
 });
+
+test('worker presentation proof freezes startup pixels until resume and accepts blank images', async () => {
+  const { presentationSignature, matchesPresentation } = await import('../dist/src/runtime/presentation.js');
+  const f=fixture({activity:'idle'});
+  f.engine.command({kind:'present',request:77,verifySurface:true});
+  const event=f.events.find(event=>event.kind==='complete'&&event.request===77);
+  assert.ok(event.presentation); assert.equal(f.callbacks.size,0);
+  f.step(100); assert.equal(f.callbacks.size,0);
+  f.engine.command({kind:'resume-presentation'}); assert.equal(f.callbacks.size,1); f.engine.dispose();
+  const blank={width:2,height:2,pixels:new Uint8Array(16)};
+  assert.ok(matchesPresentation(presentationSignature(blank,true),presentationSignature(blank)));
+  const bottom={width:1,height:2,pixels:new Uint8Array([0,0,0,0,20,40,60,255])};
+  const top={width:1,height:2,pixels:new Uint8Array([20,40,60,255,0,0,0,0])};
+  assert.ok(matchesPresentation(presentationSignature(bottom,true),presentationSignature(top)));
+  assert.equal(matchesPresentation(presentationSignature(bottom),presentationSignature(top)),false);
+});
+
+test('startup signature detects changed spatial eye pixels even with identical silhouette and mean color', async()=>{
+ const {presentationSignature,matchesPresentation}=await import('../dist/src/runtime/presentation.js');
+ const a={width:2,height:1,pixels:new Uint8Array([0,0,0,255,255,200,50,255])};
+ const b={width:2,height:1,pixels:new Uint8Array([255,200,50,255,0,0,0,255])};
+ assert.equal(matchesPresentation(presentationSignature(a),presentationSignature(b)),false);
+});

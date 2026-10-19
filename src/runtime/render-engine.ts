@@ -14,6 +14,7 @@ import type { PixelBuffer, SnapshotOptions } from '../core/pixels.js';
 import { AvatarRenderer } from '../renderer/webgl.js';
 import type { RenderState } from '../renderer/webgl.js';
 import type { AvatarDesign, Vec2 } from '../core/design.js';
+import { presentationSignature } from './presentation.js';
 import type { RuntimeCommand, RuntimeEvent, RuntimeSnapshot, RuntimeState } from './protocol.js';
 
 export interface RuntimeRenderer {
@@ -185,6 +186,7 @@ export class RenderEngine {
         this.resizePending = true; break;
       }
       case 'reset-tracking': this.tracking.reset(); this.velocity = [0, 0]; this.timeline.pose.gaze = [...this.state.gaze]; break;
+      case 'resume-presentation': this.presentationHeld = false; this.wake(); return;
       case 'present': {
         // Startup barrier: commands queued during module/worker loading belong
         // to the initial configuration, not an animation from fallback defaults.
@@ -193,8 +195,10 @@ export class RenderEngine {
         this.orientation.set(this.orientationTarget()); this.attention.set([this.state.attention ? 1 : 0]);
         this.timeline.pose.gaze = [...this.state.gaze]; this.velocity = [0, 0];
         this.equipmentImmediate = true;
-        this.render(true); if (!this.animated()) this.stop();
-        this.notify({ kind: 'complete', request: command.request, result: { finished: true }, snapshot: this.snapshot });
+        this.presentationHeld = command.verifySurface === true;
+        this.render(true); if (this.presentationHeld || !this.animated()) this.stop();
+        const presentation = this.presentationHeld ? presentationSignature({ width: this.renderer.canvas.width, height: this.renderer.canvas.height, pixels: this.renderer.readPixels() }, true) : undefined;
+        this.notify({ kind: 'complete', request: command.request, result: { finished: true }, presentation, snapshot: this.snapshot });
         return;
       }
       case 'flush': this.render(true); this.notify({ kind: 'complete', request: command.request, result: { finished: true }, snapshot: this.snapshot }); return;
@@ -233,8 +237,9 @@ export class RenderEngine {
     return !this.dirty && !this.renderer.animating && !this.presentationMoving() && this.state.activity === 'idle' && !this.state.paused && !this.state.reduced && !this.activityBlend.active && !this.timeline.active && !this.shape.active && !this.gazeMoving() && !this.tracking.active;
   }
   private resetPacing(): void { this.idleDrawElapsed = 0; this.rendererDelta = 0; }
+  private presentationHeld = false;
   private wake(): void {
-    if (this.disposed || this.scheduled || !this.state.active || (!this.dirty && !this.animated())) return;
+    if (this.disposed || this.presentationHeld || this.scheduled || !this.state.active || (!this.dirty && !this.animated())) return;
     this.scheduled = this.scheduler.request(this.tick);
   }
   private stop(): void { if (this.scheduled) this.scheduler.cancel(this.scheduled); this.scheduled = 0; this.lastTick = 0; this.resetPacing(); }
