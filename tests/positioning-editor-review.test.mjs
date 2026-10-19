@@ -43,6 +43,8 @@ test('positioning and coordinate controls exclude each other and reset to neutra
 });
 test('positioning simple controls follow the explicit enable checkbox and reset',()=>{
  const x=mount();try{
+  assert.equal(x.field('position-x').disabled,true);assert.equal(x.field('position-y').disabled,true);
+  assert.doesNotMatch(x.get('.state-lab-source-panel').textContent,/JSX/);
   const disabled=value=>{for(const key of ['target','placement','gap','follow'])assert.equal(x.control(key).disabled,value,key);};
   disabled(true);x.enabled('positioning').checked=true;x.change(x.enabled('positioning'));disabled(false);
   x.enabled('positioning').checked=false;x.change(x.enabled('positioning'));disabled(true);

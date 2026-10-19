@@ -41,13 +41,13 @@ export function mountStateReference(host,id,{session}){
  for(const key of ['parameter','type','initial','effect'])bindText(make('th','',head),key).scope='col';
  const body=table.createTBody();
  const sourcePanel=make('details','state-lab-source-panel',preview);sourcePanel.open=(window.matchMedia?.('(min-width: 1051px)').matches ?? true);const sourceHeading=bindText(make('summary','',sourcePanel),'source');const tools=make('div','state-lab-tools',sourcePanel);const copyButton=bindText(make('button','',tools),'copy');copyButton.type='button';const tryLink=bindText(make('a','state-try',tools),'try');tryLink.dataset.stateTry='';const copyStatus=make('span','',tools);copyStatus.setAttribute('role','status');
- bindText(make('p','',sourcePanel),'sourceNote');const source=make('pre','state-lab-source',sourcePanel);source.tabIndex=0;source.dataset.stateSource='';
+ const sourceNote=make('p','',sourcePanel);const source=make('pre','state-lab-source',sourcePanel);source.tabIndex=0;source.dataset.stateSource='';
  bindText(make('h3'),'readOnly');bindText(make('p'),'readOnlyNote');make('p','state-lab-readonly').textContent=READ_ONLY_STATE.join(' · ');
  const names=[];
  function fieldType(item){return item.values?.join(' | ')??(item.kind==='number'?`number · ${item.min}…${item.max} ${item.unit}`:item.kind==='json'?`JSON${item.nullable?' | null':''}`:item.kind);}
  function error(message){status.setAttribute('role','alert');status.textContent=copy('invalid')+' '+message;}
  function updateSource(){
-  const mode=getFramework();source.dataset.framework=mode;source.textContent=referenceSource(scene,edits,mode,id);sourceHeading.textContent=copy('source')+' · '+(mode==='react'?'React':'Custom Element');
+  const mode=getFramework();sourceNote.textContent=copy(mode==='react'?'sourceNoteReact':'sourceNoteElement');source.dataset.framework=mode;source.textContent=referenceSource(scene,edits,mode,id);sourceHeading.textContent=copy('source')+' · '+(mode==='react'?'React':'Custom Element');
   for(const [el,item]of names){const name=mode==='react'?item.prop:item.attribute;el.textContent=name;controls.querySelector(`[data-state-control="${item.attribute}"]`)?.setAttribute('aria-label',name);controls.querySelector(`[data-state-enable="${item.attribute}"]`)?.setAttribute('aria-label',copy('enabled')+' '+name);}
   for(const [index,item]of fields.entries())body.rows[index].cells[0].textContent=mode==='react'?item.prop:item.attribute;
   saved.set(id,structuredClone(edits));
