@@ -77,6 +77,14 @@ export class MotionTimeline {
   private eyeStates = initialEyes();
   private tracks = new Map<MotionChannel, MotionTrack>();
   constructor(eyes?: EyeStates) { if (eyes) this.setEyes(eyes); }
+  /** Restore an authored pose and its eye targets together before resuming commands. */
+  seedPose(pose: Pose): void {
+    const next = structuredClone(pose);
+    const states = Object.fromEntries(eyeSides.map(side => [side, parseEyeState({ weights: {
+      smile: next.eyes[side].smile, blink: 1 - next.eyes[side].openness,
+    } }, `eyes.${side}`)])) as EyeStates;
+    this.cancel(); this.pose = next; this.eyeStates = states;
+  }
   get active(): boolean { return this.tracks.size > 0; }
   get eyeMotion(): Record<EyeSide, boolean> {
     return { left: this.tracks.has('left') || this.tracks.has('openness'), right: this.tracks.has('right') || this.tracks.has('openness') };

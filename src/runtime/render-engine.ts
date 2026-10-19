@@ -83,7 +83,7 @@ export class RenderEngine {
     this.orientation = new SmoothValues([initial.bodyOrientation.yaw, initial.bodyOrientation.pitch, initial.bodyOrientation.roll], 22, .0001);
     this.attention = new SmoothValues([initial.attention ? 1 : 0]);
     this.timeline = new MotionTimeline({ left: initial.design.eyes.left, right: initial.design.eyes.right });
-    this.timeline.pose = structuredClone(initial.pose);
+    this.timeline.seedPose(initial.pose);
     if (initial.paused || initial.reduced) this.timeline.pose.gaze = [...initial.gaze];
     this.activityBlend = new ActivityBlend(initial.activity, initial.time, initial.reduced);
     this.shape = new ShapeTimeline(initial.design.body.shape);
