@@ -35,7 +35,7 @@ export function scenarioCode(source, markup, options) {
 
  if(getFramework()==='react')return reactExample(source,markup,options);
  const body=source.replace(/const bot = document\.querySelector\(['"]#demo-bot['"]\);\s*/g,'');
- return `<div id="demo-app" style="position:relative;min-height:360px">\n${markup}\n  <sidekick-avatar id="demo-bot" placement="inline" movement-bounds="none"\n    style="position:absolute;left:0;top:0;width:140px;height:140px"></sidekick-avatar>\n</div>\n<script type="module">\nimport 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.13.0/dist/browser/sidekick.js';\nconst bot = document.querySelector('#demo-bot');\n${options?.design?'bot.design = '+JSON.stringify(options.design,null,2)+';\n':''}async function start() {\n${indent(body,2)}\n}\nif (bot.ready) void start();\nelse bot.addEventListener('sidekick-ready', start, { once:true });\n</script>`;
+ return `<div id="demo-app" style="position:relative;min-height:360px">\n${markup}\n  <sidekick-avatar id="demo-bot" placement="inline" movement-bounds="none"\n    style="position:absolute;left:0;top:0;width:140px;height:140px"></sidekick-avatar>\n</div>\n<script type="module">\nimport 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.14.0/dist/browser/sidekick.js';\nconst bot = document.querySelector('#demo-bot');\n${options?.design?'bot.design = '+JSON.stringify(options.design,null,2)+';\n':''}async function start() {\n${indent(body,2)}\n}\nif (bot.ready) void start();\nelse bot.addEventListener('sidekick-ready', start, { once:true });\n</script>`;
 
 }
 const reactLessons={

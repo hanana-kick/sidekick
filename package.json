@@ -1,6 +1,6 @@
 {
   "name": "@hanana-kick/sidekick",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "API-designed flat companions with transparent rendering and direct contour transitions.",
   "type": "module",
   "private": true,
