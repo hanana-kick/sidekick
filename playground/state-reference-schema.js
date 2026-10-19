@@ -28,7 +28,7 @@ export const STATE_FIELDS = Object.freeze({
 export const STATE_IDS = Object.freeze(Object.keys(STATE_FIELDS));
 export const ALL_STATE_FIELDS = Object.freeze(Object.values(STATE_FIELDS).flat());
 export const FIELD_BY_KEY = new Map(ALL_STATE_FIELDS.map(item => [item.attribute, item]));
-export const READ_ONLY_STATE = Object.freeze(['behaviorState', 'emotionState', 'movementState']);
+export const READ_ONLY_STATE = Object.freeze(['behaviorState', 'emotionState', 'movementState', 'presenceState', 'elementAnchor']);
 export const REFERENCE_TARGET_HTML = '<div id="reference-target">Target</div><ol id="reference-list"><li class="reference-item">Item 1</li><li class="reference-item">Item 2</li><li class="reference-item">Item 3</li></ol>';
 export const REFERENCE_CSS = `html,body{margin:0;min-height:100%;font:14px system-ui;color:#334155}body{padding:16px;box-sizing:border-box;background:#f8fafc}#reference-root{position:relative;min-height:280px}#reference-target{margin-left:16px;width:84px;padding:10px;border:1px solid #cbd5e1;border-radius:6px}#reference-list{position:absolute;right:8px;top:70px;width:100px;padding:0;list-style:none}.reference-item{margin:6px 0;padding:8px;border:1px solid #cbd5e1;border-radius:6px}#reference-bot{display:block;width:144px;height:144px;margin:48px 0 0 12px}`;
 
@@ -55,7 +55,7 @@ export function validateStateValue(item, value, scene, document) {
  else if(item.kind==='color'){if(typeof value!=='string'||!/^#[\da-f]{6}$/i.test(value))throw new TypeError(`${item.attribute}: #RRGGBB`);}
  else if(item.kind==='json'){
   const encoded=JSON.stringify(value);if(!encoded||encoded.length>65536)throw new RangeError('JSON: ≤65536 characters');
-  if(item.attribute==='design')parseDesign(value);
+  if(item.attribute==='design'){if(!value||typeof value!=='object'||Array.isArray(value))throw new TypeError('design: object required');parseDesign(value);}
   if(item.attribute==='accessories')parseDesign({...scene.design,accessories:value});
   if(item.attribute==='behavior'&&value!==null){if(!document)throw new Error('Document required');validateBehavior(value,document);}
   if(item.attribute==='motion'){const timeline=new MotionTimeline({left:scene.design.eyes.left,right:scene.design.eyes.right});void timeline.to(value,{duration:0});}
