@@ -37,3 +37,11 @@ test('copyable event function cancels stale submit timer on another event and cl
     assert.equal(calls.length,count);
   } finally { globalThis.CustomEvent = previous; }
 });
+
+import { scenarioGroups, scenarios, scenarioById } from '../playground/scenario-catalog.js';
+test('semantic scenario catalog has three real navigation depths and unique routes',()=>{
+ assert.equal(scenarioGroups.length,3);assert.equal(scenarioGroups.flatMap(g=>g.groups).length,6);assert.equal(scenarios.length,12);
+ assert.equal(new Set(scenarios.map(s=>s.id)).size,12);
+ for(const item of scenarios){assert.ok(item.major&&item.middle&&item.title&&item.sentence&&item.hint);assert.equal(scenarioById(item.id).id,item.id);}
+ assert.equal(scenarioById('unknown').id,'loading');
+});
