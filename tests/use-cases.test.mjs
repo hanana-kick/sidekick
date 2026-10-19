@@ -57,7 +57,7 @@ test('application controls feed the displayed declaration across all routes (moc
  w.ResizeObserver=class{observe(){}};w.scrollTo=()=>{};
  Object.assign(w,{emotionFlowById,emotionMarkup,emotionCode,runEmotionAction,customizeEmotionAction,scenarioGroups,scenarioById,lessons,lessonById,guideTranslations,getSiteLocale:()=>'ko',subscribeSiteLocale:()=>{},loadStudioSession:()=>({scene:{},message:'mock'}),applyStudioSession:async()=>{},mountSiteHeader:()=>{}});
  class Bot extends w.HTMLElement {
- setEmotion(){} reactTo(){return Promise.resolve();} cancelReaction(){} setExpression(){return Promise.resolve();}
+ setActivity(){} setEmotion(){} reactTo(){return Promise.resolve();} cancelReaction(){} setExpression(){return Promise.resolve();}
 
   connectedCallback(){queueMicrotask(()=>{this.ready=true;this.dispatchEvent(new w.CustomEvent('sidekick-ready'));});}
   stopBehavior(){this.stopped=true;}
@@ -85,7 +85,7 @@ test('all guide routes localize visible prose without untranslated Korean (mock 
  const dom=new JSDOM(html,{url:'https://example.com/guide.html#html-start',runScripts:'outside-only'}),w=dom.window;let locale='en';
  w.ResizeObserver=class{observe(){}};w.scrollTo=()=>{};
  Object.assign(w,{emotionFlowById,emotionMarkup,emotionCode,runEmotionAction,customizeEmotionAction,scenarioGroups,scenarioById,lessons,lessonById,guideTranslations,getSiteLocale:()=>locale,subscribeSiteLocale:()=>{},loadStudioSession:()=>({scene:{zoom:1},message:'아직 저장된 Studio 설정이 없어 기본 봇을 표시합니다.'}),applyStudioSession:async()=>{},mountSiteHeader:()=>{}});
- class Bot extends w.HTMLElement{setEmotion(){}reactTo(){return Promise.resolve();}cancelReaction(){}setExpression(){return Promise.resolve();}connectedCallback(){queueMicrotask(()=>{this.ready=true;this.dispatchEvent(new w.CustomEvent('sidekick-ready'));});}stopBehavior(){}set behavior(v){this.value=v;}get behavior(){return this.value;}}
+ class Bot extends w.HTMLElement{setActivity(){} setEmotion(){}reactTo(){return Promise.resolve();}cancelReaction(){}setExpression(){return Promise.resolve();}connectedCallback(){queueMicrotask(()=>{this.ready=true;this.dispatchEvent(new w.CustomEvent('sidekick-ready'));});}stopBehavior(){}set behavior(v){this.value=v;}get behavior(){return this.value;}}
  w.customElements.define('sidekick-avatar',Bot);w.eval(script);
  try{for(const language of ['en','zh-CN','ja']){locale=language;w.localizeGuide();for(const item of [...lessons,...scenarios]){w.location.hash=item.id;await new Promise(r=>setTimeout(r,4));const walker=w.document.createTreeWalker(w.document.querySelector('.catalog-layout'),w.NodeFilter.SHOW_TEXT);let node;while(node=walker.nextNode())if(!node.parentElement.closest('pre,[hidden]'))assert.ok(!/[가-힣]/.test(node.nodeValue),`${language}/${item.id}: ${node.nodeValue}`);}}}
  finally{w.dispatchEvent(new w.Event('pagehide'));w.close();}

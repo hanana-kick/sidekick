@@ -1,5 +1,7 @@
 // Explicit translations of guide prose; public API names and copyable code stay stable.
 const rows = [
+['생각하기로 전환','Switch to thinking','切换为思考','考える動作に切り替える'],
+['말하기로 전환','Switch to speaking','切换为说话','話す動作に切り替える'],
 ["감정과 앱 흐름","Emotion and app flows","情绪与应用流程","感情とアプリの流れ"],
 ["결과와 반응","Outcomes and reactions","结果与反应","結果とリアクション"],
 ["중단과 조합","Interruptions and composition","中断与组合","中断と組み合わせ"],
