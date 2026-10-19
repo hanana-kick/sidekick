@@ -19,22 +19,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 如需固定版本，请指定发布标签。
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.12.0
+npm install https://github.com/hanana-kick/sidekick.git#v0.13.0
 ```
 
-仓库中包含已构建的 ESM、类型声明及浏览器包，**使用方无需构建 Sidekick 源码。** 将依赖和 lockfile 一起提交，可确保团队使用相同版本。软件包名称为 `@hanana-kick/sidekick`，当前版本为 `0.12.0`。**该软件包尚未发布到 npm 注册表，请勿仅凭包名运行 `npm install @hanana-kick/sidekick`。**
+仓库中包含已构建的 ESM、类型声明及浏览器包，**使用方无需构建 Sidekick 源码。** 将依赖和 lockfile 一起提交，可确保团队使用相同版本。软件包名称为 `@hanana-kick/sidekick`，当前版本为 `0.13.0`。**该软件包尚未发布到 npm 注册表，请勿仅凭包名运行 `npm install @hanana-kick/sidekick`。**
 
 不使用 npm 的 HTML 网站可以从 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases) 下载已构建的文件。提供 ESM、用于普通 `<script>` 的 JS，以及专用渲染 worker；该浏览器核心不需要 React、打包工具、Node.js、单独的 CSS 或字体。
 
 ### 从 GitHub Release 下载
 
 1. 打开 [Releases](https://github.com/hanana-kick/sidekick/releases)。
-2. 在所选标签的 **Assets** 中下载 `sidekick-browser-0.12.0.zip` 或 `hanana-kick-sidekick-0.12.0.tgz`。其他版本请选择与标签一致的文件名。自动生成的 **Source code (zip/tar.gz)** 是源码归档，请注意与浏览器分发 ZIP 区分。
+2. 在所选标签的 **Assets** 中下载 `sidekick-browser-0.13.0.zip` 或 `hanana-kick-sidekick-0.13.0.tgz`。其他版本请选择与标签一致的文件名。自动生成的 **Source code (zip/tar.gz)** 是源码归档，请注意与浏览器分发 ZIP 区分。
 3. 对于普通 HTML 网站，解压浏览器 ZIP，并将以下文件复制到网站的静态文件目录。阅读附带的 `START-HERE.txt`，然后打开 `esm.html`、`classic.html` 或 `react.html` 中所需的示例。示例中的 `/vendor/sidekick/` 是**你的网站路径**，请根据部署路径调整。
 
 | 已构建的文件 | 用途 | 所需文件与依赖 |
 | --- | --- | --- |
-| `sidekick-browser-0.12.0.zip` | 普通 HTML/React 浏览器分发包 | 包含 `esm.html`、`classic.html`、`react.html`、下列 6 个 JS 文件、可选的 `vendor/`、README 和声明 |
+| `sidekick-browser-0.13.0.zip` | 普通 HTML/React 浏览器分发包 | 包含 `esm.html`、`classic.html`、`react.html`、下列 6 个 JS 文件、可选的 `vendor/`、README 和声明 |
 | `sidekick.js` | 浏览器 ESM；使用 `import` 和 `<script type="module">` | 将 `sidekick.worker.js` 保留在同一目录 |
 | `sidekick.iife.js` | 普通 classic `<script>`；API 位于 `window.Sidekick` | 将 `sidekick.worker.js` 保留在同一目录；不使用 `type="module"` |
 | `sidekick-react.js` | React 19 的 ESM 组件 | 将 `sidekick-element.js`、`sidekick-fallback.js` 和 `sidekick.worker.js` 保留在同一目录，并提供 `react` 对等依赖 |
@@ -42,7 +42,7 @@ npm install https://github.com/hanana-kick/sidekick.git#v0.12.0
 | `sidekick-fallback.js` | 无法使用 worker 时，由 React 元素加载的渲染器 | 不要直接 import；与其余文件保持相同版本 |
 | `sidekick.worker.js` | OffscreenCanvas 专用 worker | 放在浏览器入口文件旁；不要通过单独的 script 标签加载 |
 | `vendor/react.js`, `vendor/react-dom-client.js` | 浏览器 ZIP 中可选的 React 19/ReactDOM ESM | 用于下方免构建 React 示例；通过 import map 连接；已有 React 的应用不需要 |
-| `hanana-kick-sidekick-0.12.0.tgz` | 可安装到现有 npm 项目的软件包 | 包含已构建的 ESM、类型声明、浏览器包和声明 |
+| `hanana-kick-sidekick-0.13.0.tgz` | 可安装到现有 npm 项目的软件包 | 包含已构建的 ESM、类型声明、浏览器包和声明 |
 | `SHA256SUMS` | 校验 ZIP 与 tarball 的下载完整性 | 同一 Release 的校验和文件 |
 
 请同时保留 ZIP 中附带的 README 以及第三方许可/来源声明。**请先下载 GitHub Release 附件，再通过你自己的网站提供这些文件。** 下载 URL 并非浏览器 JS 托管地址，其响应的 MIME、CORS 行为与静态托管不同。下方示例中的 `src`/`import` 使用的是你的网站上提供这些已下载文件的路径。
@@ -54,7 +54,7 @@ npm install https://github.com/hanana-kick/sidekick.git#v0.12.0
 在目标项目中安装从 Release 下载的 tarball。此命令不会编译 Sidekick 源码，也不会构建 Studio。
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.12.0.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.13.0.tgz
 ```
 
 仅使用 React 封装时才需要 React 19。用于挂载网页的 `react-dom` 也需由使用方准备相同版本。仅使用核心的项目不需要 React。
@@ -123,12 +123,12 @@ bot.setEmotion('neutral');
 
 ## 通过 CDN 免构建使用
 
-目前推荐的 CDN 版本为 **0.12.0**。下列 URL 由 jsDelivr 提供已提交到 GitHub 标签中的**预构建 JS**，无需构建源码、安装 npm 或拥有 npm 账号。请固定**精确标签**，不要使用 `main`、`latest` 或版本范围。旧版 `v0.2.7` 文件未作修改。0.2.7 仍可通过相同的 CDN 路径下载，但在不同来源的页面上会因 worker 创建受限而回退到主线程，因此新的 CDN 集成请使用上述固定的当前版本。
+目前推荐的 CDN 版本为 **0.13.0**。下列 URL 由 jsDelivr 提供已提交到 GitHub 标签中的**预构建 JS**，无需构建源码、安装 npm 或拥有 npm 账号。请固定**精确标签**，不要使用 `main`、`latest` 或版本范围。旧版 `v0.2.7` 文件未作修改。0.2.7 仍可通过相同的 CDN 路径下载，但在不同来源的页面上会因 worker 创建受限而回退到主线程，因此新的 CDN 集成请使用上述固定的当前版本。
 
 ### 普通 HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.12.0/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.13.0/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
@@ -140,7 +140,7 @@ bot.setEmotion('neutral');
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.12.0/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.13.0/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -156,15 +156,15 @@ ESM 和 classic 会自动注册同一个元素。一个页面中只使用其中�
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.12.0/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.12.0/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.13.0/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.13.0/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.12.0/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.13.0/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
@@ -1326,7 +1326,7 @@ API 体验默认开启“默认最高速度 · 1350 CSS px/s”，生成的调�
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.12.0/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.13.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { maxSpeed: 320, acceleration: 900, deceleration: 1200 });
@@ -1363,7 +1363,7 @@ API 体验默认开启“默认最高速度 · 1350 CSS px/s”，生成的调�
 <button id="flight-stop" type="button">활동 중단</button>
 <p id="flight-status" aria-live="off">idle</p>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.12.0/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.13.0/dist/browser/sidekick.js';
   const stage = document.getElementById('flight-stage');
   const bot = document.getElementById('flight-avatar');
   const status = document.getElementById('flight-status');
