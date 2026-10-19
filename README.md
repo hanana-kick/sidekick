@@ -4,7 +4,7 @@
 
 - [설치](#설치) · [HTML](#html에서-바로-사용하기) · [React](#react에서-사용하기)
 - [전체 속성](#html-속성과-react-props) · [디자인과 액세서리](#디자인-json과-액세서리) · [애니메이션/API](#애니메이션과-명령형-api)
-- [화면 이동/비행](#렌더링이동-표준-v03) · [이벤트/정리](#이벤트와-정리) · [SSR](#ssr과-브라우저-지원) · [Studio/개발](#studio와-개발)
+- [선언형 행동](#선언형-행동-behavior) · [화면 이동/비행](#렌더링이동-표준-v03) · [이벤트/정리](#이벤트와-정리) · [SSR](#ssr과-브라우저-지원) · [Studio/개발](#studio와-개발)
 
 ## 설치
 
@@ -17,22 +17,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 버전을 고정하려면 릴리스 태그를 지정합니다.
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.9.0
+npm install https://github.com/hanana-kick/sidekick.git#v0.10.0
 ```
 
-빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.9.0`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
+빌드된 ESM·타입 선언·브라우저 번들이 저장소에 포함되어 있어 **설치하는 쪽에서 Sidekick 소스를 빌드할 필요가 없습니다.** 의존성 및 lockfile을 함께 커밋하면 팀도 같은 버전을 사용합니다. 패키지 이름은 `@hanana-kick/sidekick`, 이 버전은 `0.10.0`입니다. **npm 레지스트리에는 발행하지 않았으므로 이름만으로 `npm install @hanana-kick/sidekick`을 실행하지 마세요.**
 
 npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases)의 빌드된 파일을 내려받으세요. ESM과 일반 `<script>`용 JS, 전용 렌더링 worker를 제공하며, 이 브라우저 코어에는 React·번들러·Node.js·별도 CSS·글꼴이 필요 없습니다.
 
 ### GitHub Release에서 다운로드
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases)를 엽니다.
-2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.9.0.zip` 또는 `hanana-kick-sidekick-0.9.0.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
+2. 사용할 태그의 **Assets**에서 `sidekick-browser-0.10.0.zip` 또는 `hanana-kick-sidekick-0.10.0.tgz`를 받습니다. 다른 버전은 태그와 일치하는 파일명을 선택하세요. 자동 생성된 **Source code (zip/tar.gz)**는 소스 아카이브이므로 브라우저 배포 ZIP과 구분하세요.
 3. 일반 HTML 사이트에서는 브라우저 ZIP을 풀고 아래 파일을 사이트의 정적 파일 디렉터리에 복사합니다. 동봉된 `START-HERE.txt`를 읽고 `esm.html`, `classic.html`, `react.html` 중 원하는 예제를 열면 됩니다. 예제의 `/vendor/sidekick/`은 **사용자 사이트의 경로**입니다. 배포 경로에 맞게 바꾸세요.
 
 | 빌드된 파일 | 용도 | 필요한 파일·의존성 |
 | --- | --- | --- |
-| `sidekick-browser-0.9.0.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
+| `sidekick-browser-0.10.0.zip` | 일반 HTML/React 브라우저 배포 | `esm.html`·`classic.html`·`react.html`, 아래 JS 6개, 선택적 `vendor/`, README·고지 포함 |
 | `sidekick.js` | 브라우저 ESM. `import`와 `<script type="module">` 사용 | `sidekick.worker.js`를 같은 디렉터리에 유지 |
 | `sidekick.iife.js` | 일반 classic `<script>`. API는 `window.Sidekick` | `sidekick.worker.js`를 같은 디렉터리에 유지. `type="module"` 사용 안 함 |
 | `sidekick-react.js` | React 19용 ESM 컴포넌트 | `sidekick-element.js`·`sidekick-fallback.js`·`sidekick.worker.js`를 같은 디렉터리에 유지하고 `react` peer를 제공 |
@@ -40,7 +40,7 @@ npm을 쓰지 않는 HTML 사이트에서는 [GitHub Releases](https://github.co
 | `sidekick-fallback.js` | worker를 사용할 수 없을 때 React 요소가 불러오는 렌더러 | 직접 import하지 않음. 나머지 파일과 같은 버전 사용 |
 | `sidekick.worker.js` | OffscreenCanvas 전용 worker | 브라우저 진입 파일 옆에 배치. 별도 script 태그로 불러오지 않음 |
 | `vendor/react.js`, `vendor/react-dom-client.js` | 브라우저 ZIP의 선택적 React 19/ReactDOM ESM | 아래 빌드 없는 React 예제용. import map으로 연결하며 React를 이미 제공하는 앱에는 불필요 |
-| `hanana-kick-sidekick-0.9.0.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
+| `hanana-kick-sidekick-0.10.0.tgz` | 기존 npm 기반 프로젝트에 설치하는 패키지 | 빌드된 ESM·타입 선언·브라우저 번들·고지 포함 |
 | `SHA256SUMS` | ZIP과 tarball의 다운로드 무결성 확인 | 같은 Release의 체크섬 파일 |
 
 ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보관하세요. **GitHub Release 자산은 다운로드한 뒤 본인 사이트에서 제공하세요.** 다운로드 URL은 브라우저 JS 호스팅용 URL이 아니며 자산 응답의 MIME·CORS 동작이 정적 호스팅과 다릅니다. 아래 예제의 `src`/`import`는 내려받은 파일을 제공하는 사이트 경로를 사용합니다.
@@ -52,7 +52,7 @@ ZIP에 함께 들어 있는 README와 제3자 라이선스/출처 고지도 보�
 Release에서 받은 tarball을 사용할 프로젝트에서 설치합니다. 이 명령은 Sidekick 소스를 컴파일하거나 Studio를 빌드하지 않습니다.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.9.0.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.10.0.tgz
 ```
 
 React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 마운트하는 `react-dom`도 사용자가 같은 버전으로 준비합니다. 코어만 쓰는 프로젝트에는 React가 필요 없습니다.
@@ -71,12 +71,12 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 
 ## CDN으로 빌드 없이 사용하기
 
-현재 CDN 권장 버전은 **0.9.0**입니다. 아래 URL은 GitHub 태그에 커밋된 **빌드 완료 JS**를 jsDelivr가 제공하므로 소스 빌드, npm 설치, npm 계정이 필요 없습니다. `main`, `latest`, 버전 범위 대신 **정확한 태그**를 고정하세요. 이전 `v0.2.7` 파일은 변경하지 않았습니다. 0.2.7도 같은 CDN 경로로 다운로드할 수 있지만, 다른 출처의 페이지에서는 worker 생성이 막혀 메인 스레드로 폴백하므로 신규 CDN 사용에는 위에 고정한 현재 버전을 사용하세요.
+현재 CDN 권장 버전은 **0.10.0**입니다. 아래 URL은 GitHub 태그에 커밋된 **빌드 완료 JS**를 jsDelivr가 제공하므로 소스 빌드, npm 설치, npm 계정이 필요 없습니다. `main`, `latest`, 버전 범위 대신 **정확한 태그**를 고정하세요. 이전 `v0.2.7` 파일은 변경하지 않았습니다. 0.2.7도 같은 CDN 경로로 다운로드할 수 있지만, 다른 출처의 페이지에서는 worker 생성이 막혀 메인 스레드로 폴백하므로 신규 CDN 사용에는 위에 고정한 현재 버전을 사용하세요.
 
 ### 일반 HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.9.0/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.10.0/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
@@ -88,7 +88,7 @@ React 래퍼를 사용할 때만 React 19가 필요합니다. 웹페이지를 �
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.9.0/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.10.0/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -104,15 +104,15 @@ React와 ReactDOM은 동일한 19.3.1의 미리 빌드된 ESM을 제공합니다
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.9.0/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.9.0/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.10.0/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.10.0/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.9.0/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.10.0/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
@@ -457,6 +457,7 @@ const design = createDesign({
 
 | HTML 속성 | React prop | React 타입 | 허용 값 / 기본값 |
 | --- | --- | --- | --- |
+| `behavior` | `behavior` | `BotBehavior \| null` | HTML은 JSON 문자열, React는 실제 객체/Element. `null` 또는 제거는 행동 취소. 아래 선언형 행동 참고 |
 | `activity` | `activity` | `Activity` | `idle` / `thinking` / `listening` / `speaking` / `celebrating` / `still`. 기본 `idle` |
 | `paused` | `paused` | `boolean` | 기본 `false`. 반복 모션 일시 정지 |
 | `interaction` | `interaction` | `'none' \| 'box'` | 기본 `none`. `box`는 드래그/클릭/키보드 활성화 |
@@ -500,6 +501,8 @@ React의 `bodyOrientation={{ yaw: 35 }}`는 `body-yaw` 속성으로 연결됩니
 | React prop | 타입 | 값·동작 |
 | --- | --- | --- |
 | `ref` | `React.Ref<SidekickAvatarRef>` | 기본 없음. 객체 ref 또는 callback ref. 실제 커스텀 요소가 업그레이드된 뒤 전달, 정리 시 해제 |
+| `onBehaviorChange` | `SidekickEventHandler<'sidekick-behavior-change'>` | `CustomEvent<BehaviorState>`. 행동 상태와 검토 진행 상황 |
+| `onBehaviorEnd` | `SidekickEventHandler<'sidekick-behavior-end'>` | `CustomEvent<BehaviorResult>`. 완료·취소·런타임 오류 |
 | `onReady` | `SidekickEventHandler<'sidekick-ready'>` | `CustomEvent<{}>`. props 적용 후 렌더 준비 완료 |
 | `onError` | `SidekickEventHandler<'sidekick-error'>` | `CustomEvent<SidekickErrorDetail>`. `message: string`, 선택 `attribute: string`, `value: string \| null`, `recoverable: boolean` |
 | `onDesignChange` | `SidekickEventHandler<'sidekick-design-change'>` | `CustomEvent<{design: AvatarDesign}>` |
@@ -531,6 +534,138 @@ await Promise.resolve(); // 같은 작업의 속성 적용 이후
 bot.setAttribute('tracking-mode', 'off');
 bot.removeAttribute('body-color'); // design의 색 또는 기본 색으로 복원
 bot.setAttribute('head-accessory', 'none'); // design에 모자가 있어도 해제
+```
+
+## 선언형 행동 (behavior)
+
+`behavior`는 애플리케이션이 원하는 행동을 선언하는 결정론적 API입니다. LLM, 자연어 추론, 네트워크 요청을 사용하지 않습니다. 실제 로딩·저장·검증 상태는 앱이 판단하고, Sidekick은 선언에 맞춰 이동과 기존 활동·표정을 조합합니다. `wait`가 서버 작업을 검사하거나 `review`가 항목 내용을 검증하는 것은 아닙니다.
+
+```ts
+import { defineSidekick } from '@hanana-kick/sidekick/register';
+import type { BotBehavior, SidekickAvatar } from '@hanana-kick/sidekick/register';
+
+defineSidekick();
+const bot = document.querySelector<SidekickAvatar>('#bot')!;
+const intent: BotBehavior = { type: 'wait', target: '#results' };
+bot.behavior = intent;
+// 현재 행동을 교체합니다. Promise가 필요하면 perform()을 사용하세요.
+const result = await bot.perform({ type: 'celebrate' });
+console.log(result.status); // completed, cancelled 또는 error
+bot.stopBehavior(); // bot.behavior = null 과 같은 취소
+```
+
+| 선언 | 대상·시간 | 동작 |
+| --- | --- | --- |
+| `{ type: 'wait', target }` | CSS selector 또는 같은 문서의 `Element` | 대상으로 이동해 기다림. 교체·취소까지 지속 |
+| `{ type: 'follow', target }` | CSS selector 또는 같은 문서의 `Element` | 대상으로 이동하고 대상의 위치 변경을 따라감. 교체·취소까지 지속 |
+| `{ type: 'guide', target }` | CSS selector 또는 같은 문서의 `Element` | 대상으로 이동해 안내하는 동작. 교체·취소까지 지속 |
+| `{ type: 'review', targets }` | CSS selector 또는 `readonly Element[]` | 대상 목록을 순서대로 방문. 각 대상에서 `dwell` 기본 1000ms |
+| `{ type: 'celebrate' }` | `duration` 기본 1600ms | 축하 동작 후 완료 |
+| `{ type: 'error' }` | `duration` 기본 1800ms | 오류를 알리는 동작 후 완료 |
+| `{ type: 'idle' }` | 기본 무기한 | 교체·취소까지 대기 동작 |
+
+- `wait`·`follow`·`guide`·`idle`에는 선택적으로 `duration`을 지정해 자동 완료할 수 있습니다. 대상이 있는 행동의 `duration`은 도착 후부터 계산합니다. 모든 시간 단위는 ms입니다.
+- 대상이 필요한 행동은 `side: 'right'`(기본) / `'left'` / `'above'` / `'below'`, `gap: 16`(기본 CSS px), `timeout: 5000`(기본 ms)을 받습니다. 이동 속도·가속도는 기존 이동 설정을 사용합니다. 현재 부모 DOM과 `placement`를 유지하며 다른 컨테이너로 옮기지 않습니다.
+- selector는 문서에서 찾습니다. `wait`·`follow`·`guide`는 처음 일치하는 연결된 요소를 사용합니다. 아직 없으면 DOM 변경을 기다리고 `timeout` 안에 나타나지 않으면 `error`로 끝납니다. `Element`도 같은 문서에 연결될 때까지 기다립니다. 잘못된 selector는 입력 오류입니다.
+- `review`의 selector는 처음 연결된 대상들을 찾았을 때 목록을 한 번 스냅샷합니다. 명시적 `Element[]`는 즉시 스냅샷하고 연결되지 않은 항목을 건너뛰며, 남은 항목이 없으면 바로 완료합니다. selector는 문서 순서, 배열은 전달한 순서입니다. 스냅샷 이후 새로 추가된 항목은 포함하지 않고, 제거된 항목은 건너뜁니다. 목록을 새로 읽으려면 새 `perform()`을 시작하세요.
+- `behavior` 프로퍼티와 HTML 선언은 요소를 문서에 추가하기 전에 설정할 수도 있으며 연결 후 시작합니다. 반면 `perform()`은 연결된 요소에서 실행하세요. 연결되지 않은 요소에서는 `status: 'error'` 결과를 돌려줍니다.
+- 새 선언은 이전 행동을 `cancelled`로 끝내고 교체합니다. `stopBehavior()`, `behavior = null`, HTML 속성 제거, React prop 제거와 요소 연결 해제도 취소합니다. `perform(declaration, { signal })`에 `AbortSignal`을 전달하면 `abort()`로 취소할 수 있습니다.
+- 행동이 관리하는 이동·활동·시선에 새 명령을 내리면 그 행동의 제어를 해제합니다. 예를 들어 직접 `moveTo()` 또는 `motion.to()`를 호출하거나 활동·추적 속성을 바꾸면 행동을 취소하고 새 입력을 적용합니다. 이전 행동의 정리로 새 입력을 덮어쓰지 않습니다.
+- 잘못된 선언은 현재 행동을 바꾸기 전에 검증합니다. JavaScript 메서드/프로퍼티 입력은 예외를 던지며, HTML/React 입력 오류는 `sidekick-error` / `onError`로 전달됩니다. 유효한 `perform()`의 Promise는 실제 종료 시 `BehaviorResult`로 해결됩니다. 대상 timeout 등의 런타임 실패는 `status: 'error'`, 교체·취소는 `status: 'cancelled'`입니다. 완료 여부를 확인한 뒤 다음 단계를 시작하세요.
+- `bot.behaviorState` 및 `sidekick-behavior-change`의 `detail`은 `{ id, type, status, itemIndex, itemCount, completedItems }`입니다. 상태는 `idle`, `resolving`, `moving`, `acting`, `completed`, `cancelled`, `error`; `itemIndex`는 0부터 시작하며 대상 선택 전에는 -1입니다. 종료 이벤트와 Promise 결과는 `{ id, type, status, reason?, completedItems }`입니다.
+
+### 실제 로딩이 끝날 때까지 기다리기
+
+대상 컨테이너는 요청 전에 DOM에 있어야 합니다. 서버 작업의 완료를 앱에서 기다린 뒤 축하 또는 오류 행동으로 바꿉니다. 요청이 끝나기 전에는 행동에 임의의 완료 시간을 주지 않습니다.
+
+```ts
+import { defineSidekick } from '@hanana-kick/sidekick/register';
+import type { SidekickAvatar } from '@hanana-kick/sidekick/register';
+
+defineSidekick();
+const bot = document.querySelector<SidekickAvatar>('#bot')!;
+const results = document.querySelector<HTMLElement>('#results')!;
+
+export async function loadResults(): Promise<void> {
+  bot.behavior = { type: 'wait', target: results, side: 'left' };
+  results.setAttribute('aria-busy', 'true');
+  try {
+    const response = await fetch('/api/results');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data: unknown = await response.json();
+    results.textContent = JSON.stringify(data, null, 2);
+    await bot.perform({ type: 'celebrate' });
+  } catch (error) {
+    results.textContent = error instanceof Error ? error.message : String(error);
+    await bot.perform({ type: 'error' });
+  } finally {
+    results.removeAttribute('aria-busy');
+  }
+}
+```
+
+### 항목을 순서대로 검토하기
+
+`review`는 각 항목을 방문하는 시각적 동작입니다. 실제 검사 결과는 별도의 앱 로직으로 처리하세요. 중단되거나 대상이 없으면 축하 동작을 시작하지 않습니다.
+
+```ts
+import { defineSidekick } from '@hanana-kick/sidekick/register';
+import type { SidekickAvatar } from '@hanana-kick/sidekick/register';
+
+defineSidekick();
+const bot = document.querySelector<SidekickAvatar>('#bot')!;
+const cancel = new AbortController();
+const result = await bot.perform({
+  type: 'review', targets: '.review-item', side: 'left', gap: 12, dwell: 1000,
+}, { signal: cancel.signal });
+if (result.status === 'completed') await bot.perform({ type: 'celebrate' });
+// 페이지 전환이나 취소 버튼에서는 cancel.abort() 또는 bot.stopBehavior().
+```
+
+### React: 앱 상태를 행동에 연결하기
+
+`behavior`는 문자열 속성으로 직렬화하지 않고 요소 업그레이드 후 실제 JavaScript 프로퍼티에 전달합니다. `Element`의 정체성과 배열 순서를 보존하며 같은 내용의 inline 객체를 다시 렌더해도 행동을 다시 시작하지 않습니다. React는 SSR에서 DOM을 조회하거나 행동을 실행하지 않습니다. 서버 렌더에서는 selector를 쓰고, 실제 `Element`는 클라이언트에서 얻은 뒤 전달하세요. 유한 행동을 의도적으로 다시 시작할 때는 ref의 `perform()`을 호출합니다.
+
+```tsx
+'use client';
+import { useState } from 'react';
+import { SidekickAvatar } from '@hanana-kick/sidekick/react';
+import type { BotBehavior, BehaviorState } from '@hanana-kick/sidekick/react';
+
+type RequestStatus = 'idle' | 'loading' | 'success' | 'error';
+export function ResultsCompanion({ status }: { status: RequestStatus }) {
+  const [behaviorStatus, setBehaviorStatus] = useState<BehaviorState['status']>('idle');
+  const behavior: BotBehavior = status === 'loading'
+    ? { type: 'wait', target: '#results', side: 'left' }
+    : status === 'success' ? { type: 'celebrate' }
+    : status === 'error' ? { type: 'error' }
+    : { type: 'idle' };
+  return <>
+    <section id="results" aria-busy={status === 'loading'}>검색 결과</section>
+    <SidekickAvatar behavior={behavior} aria-label="결과 안내 도우미"
+      onBehaviorChange={event => setBehaviorStatus(event.detail.status)}
+      onBehaviorEnd={event => {
+        if (event.detail.status === 'error') console.warn(event.detail.reason);
+      }} />
+    <output aria-live="polite">{behaviorStatus}</output>
+  </>;
+}
+```
+
+### HTML JSON 선언
+
+HTML의 `behavior`는 JSON이므로 대상은 selector 문자열로 지정합니다. 실제 `Element` / `Element[]`는 JavaScript 프로퍼티 또는 React prop으로만 전달합니다.
+
+```html
+<section id="results">결과를 기다리는 중</section>
+<sidekick-avatar id="bot"
+  behavior='{"type":"wait","target":"#results","side":"left"}'></sidekick-avatar>
+```
+
+```js
+bot.setAttribute('behavior', JSON.stringify({ type: 'review', targets: '.review-item' }));
+bot.removeAttribute('behavior'); // 실행 중인 행동 취소
+bot.behavior = null; // JavaScript에서도 명시적으로 취소
 ```
 
 ## 마우스 추적과 드래그
@@ -743,6 +878,8 @@ worker 파일은 페이지와 같은 origin에서 올바른 JavaScript MIME으�
 
 | DOM 이벤트 | React 콜백 | `detail` |
 | --- | --- | --- |
+| `sidekick-behavior-change` | `onBehaviorChange` | `BehaviorState`: id, type, status, itemIndex, itemCount, completedItems |
+| `sidekick-behavior-end` | `onBehaviorEnd` | `BehaviorResult`: id, type, status, reason?, completedItems |
 | `sidekick-ready` | `onReady` | `{}` |
 | `sidekick-error` | `onError` | `{ message, ... }`; 복구 가능한 컨텍스트 손실에는 `recoverable: true` |
 | `sidekick-design-change` | `onDesignChange` | `{ design }` |
@@ -1042,7 +1179,7 @@ API playground는 “기본 최고 속도 · 1350 CSS px/s”이 기본으로 �
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.9.0/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.10.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { maxSpeed: 320, acceleration: 900, deceleration: 1200 });
@@ -1079,7 +1216,7 @@ API playground는 “기본 최고 속도 · 1350 CSS px/s”이 기본으로 �
 <button id="flight-stop" type="button">활동 중단</button>
 <p id="flight-status" aria-live="off">idle</p>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.9.0/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.10.0/dist/browser/sidekick.js';
   const stage = document.getElementById('flight-stage');
   const bot = document.getElementById('flight-avatar');
   const status = document.getElementById('flight-status');

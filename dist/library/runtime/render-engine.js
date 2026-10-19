@@ -343,7 +343,7 @@ export class RenderEngine {
         const pose = travelPose(tracked, travel);
         this.renderedRotation = [...pose.rotation];
         const started = performance.now();
-        this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, activityFrame: travelActivity(this.activityBlend.sample(this.state.time, this.state.reduced), travel), travel, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', bodyOrientation: this.state.bodyOrientation, zoom: this.state.zoom });
+        this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, activityFrame: { ...travelActivity(this.activityBlend.sample(this.state.time, this.state.reduced), travel), ...(this.state.attention ? { gaze: [0, 0] } : {}) }, travel, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', bodyOrientation: this.state.bodyOrientation, zoom: this.state.zoom });
         const duration = performance.now() - started;
         this.renderCpu.lastMs = duration;
         this.renderCpu.totalMs += duration;

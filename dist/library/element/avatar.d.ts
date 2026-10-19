@@ -1,3 +1,4 @@
+import type { BotBehavior, BehaviorState, BehaviorResult, PerformOptions } from './behavior.js';
 import type { ElementAnchorState } from './element-anchor.js';
 import type { MoveToElementOptions } from './element-target.js';
 import type { EnterOptions, ExitOptions, PresenceResult, PresenceState } from './presence.js';
@@ -23,6 +24,20 @@ export declare class SidekickAvatar extends HTMLElementBase {
     removeEventListener<K extends keyof SidekickEventMap>(type: K, listener: (this: SidekickAvatar, event: SidekickEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
     removeEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
     removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions): void;
+    private behaviorCommand;
+    private behaviorAttention;
+    private pendingBehavior;
+    private behaviorController;
+    /** A deterministic semantic intent; null stops it. DOM targets are retained by identity. */
+    get behavior(): BotBehavior | null;
+    set behavior(value: BotBehavior | null);
+    get behaviorState(): BehaviorState;
+    perform(value: BotBehavior, options?: PerformOptions): Promise<BehaviorResult>;
+    stopBehavior(): void;
+    private interruptBehavior;
+    private behaviorOperation;
+    private behaviorPlacement;
+    private watchBehaviorTarget;
     private playbackCommand;
     private playback;
     private ownPlaybackCommand;

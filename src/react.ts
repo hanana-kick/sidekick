@@ -10,6 +10,7 @@ import type { TrackingMode } from './core/tracking.js';
 import type { MaterialShapeName } from './core/shapes.js';
 import type { SidekickAvatar as SidekickElement } from './element/avatar.js';
 import type { SidekickAttributes, SidekickEventMap } from './element/attributes.js';
+import type { BotBehavior } from './element/behavior.js';
 
 export type SidekickAvatarRef = SidekickElement;
 export type SidekickEventHandler<K extends keyof SidekickEventMap> = (event: SidekickEventMap[K]) => void;
@@ -33,6 +34,10 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
   onMoveEnd?: SidekickEventHandler<'sidekick-move-end'>;
   onPlayEnd?: SidekickEventHandler<'sidekick-play-end'>;
   onAssetTransitionEnd?: SidekickEventHandler<'sidekick-transition-end'>;
+  /** Declarative intent, assigned as a property after the native element upgrades. */
+  behavior?: BotBehavior | null;
+  onBehaviorChange?: SidekickEventHandler<'sidekick-behavior-change'>;
+  onBehaviorEnd?: SidekickEventHandler<'sidekick-behavior-end'>;
   design?: AvatarDesign;
   shape?: MaterialShapeName;
   bodyColor?: string;
@@ -106,6 +111,7 @@ const attributeProps = {
 const eventProps = {
   onEnterEnd: 'sidekick-enter-end', onExitEnd: 'sidekick-exit-end',
   onMoveEnd: 'sidekick-move-end', onMoveProgress: 'sidekick-move-progress', onPlayEnd: 'sidekick-play-end', onAssetTransitionEnd: 'sidekick-transition-end',
+  onBehaviorChange: 'sidekick-behavior-change', onBehaviorEnd: 'sidekick-behavior-end',
   onReady: 'sidekick-ready', onDesignChange: 'sidekick-design-change', onMotionEnd: 'sidekick-motion-end',
   onShapeEnd: 'sidekick-shape-end', onBodyOrientationChange: 'sidekick-body-orientation-change', onZoomChange: 'sidekick-zoom-change', onActivate: 'sidekick-activate', onError: 'sidekick-error',
 } as const;
@@ -118,6 +124,32 @@ function serialize(value: unknown): string {
     }
     return item;
   });
+}
+
+// Behavior data is shallow, except for review's ordered Element array. Keep DOM
+// targets by identity; JSON serialization would collapse every Element to {}.
+// No DOM globals or eager controller imports are needed in this SSR-safe entry.
+function sameBehavior(previous: BotBehavior | null, next: BotBehavior | null): boolean {
+  if (previous === null || next === null) return previous === next;
+  if (typeof previous !== 'object' || typeof next !== 'object') return Object.is(previous, next);
+  const keys = Reflect.ownKeys(previous);
+  if (keys.length !== Reflect.ownKeys(next).length || Object.getPrototypeOf(previous) !== Object.getPrototypeOf(next)) return false;
+  return keys.every(key => {
+    const before = Object.getOwnPropertyDescriptor(previous, key);
+    const after = Object.getOwnPropertyDescriptor(next, key);
+    if (!before || !after || !Object.hasOwn(before, 'value') || !Object.hasOwn(after, 'value') || before.enumerable !== after.enumerable) return false;
+    const a: unknown = before.value, b: unknown = after.value;
+    return Array.isArray(a) && Array.isArray(b) ? a.length === b.length && a.every((item, index) => Object.is(item, b[index])) : Object.is(a, b);
+  });
+}
+
+function copyBehavior(value: BotBehavior | null): BotBehavior | null {
+  if (value === null || typeof value !== 'object') return value;
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  for (const descriptor of Object.values(descriptors)) {
+    if (Object.hasOwn(descriptor, 'value') && Array.isArray(descriptor.value)) descriptor.value = [...descriptor.value];
+  }
+  return Object.create(Object.getPrototypeOf(value), descriptors) as BotBehavior;
 }
 
 // Keep validation local: eager core imports create additional shared browser chunks
@@ -146,7 +178,7 @@ export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
   for (const name of ['camera', 'cameraYaw', 'cameraPitch', 'cameraRoll', 'cameraZoom', 'view', 'viewYaw', 'viewPitch', 'viewRoll', 'viewZoom', 'onCameraChange', 'onViewChange', 'camera-yaw', 'camera-pitch', 'camera-roll', 'camera-zoom', 'view-yaw', 'view-pitch', 'view-roll', 'view-zoom']) {
     if (Object.prototype.hasOwnProperty.call(props, name)) throw new TypeError(`${name} has been removed; use bodyOrientation, bodyYaw/bodyPitch/bodyRoll, zoom, onBodyOrientationChange or onZoomChange instead`);
   }
-  const { ref, design, accessories, bodyOrientation, motion, ...html } = props;
+  const { ref, design, accessories, bodyOrientation, motion, behavior: _behavior, ...html } = props;
   const element = useRef<SidekickElement | null>(null);
   const readyNotified = useRef(false);
   const deliveredReadyEvent = useRef<Event | null>(null);
@@ -157,6 +189,7 @@ export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
   const drainErrors = useRef<(() => void) | null>(null);
   const useClientEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
   const ownedAttributes = useRef(new Set<string>());
+  const appliedBehavior = useRef<{ node: SidekickElement; value: BotBehavior | null } | null>(null);
   const published = useRef<{ node: SidekickElement; ref: Ref<SidekickElement> | undefined; cleanup?: () => void } | null>(null);
   const attributes: Record<string, string> = {};
   if (design !== undefined) attributes.design = serialize(design);
@@ -227,7 +260,28 @@ export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
     let readyEvent: SidekickEventMap['sidekick-ready'] | undefined;
     const notify = () => {
       if (!active || element.current !== node) return;
-      if (typeof node.setDesign === 'function') publish(node);
+      if (typeof node.setDesign === 'function') {
+        const requested = callbacks.current.behavior;
+        const previous = appliedBehavior.current;
+        // Omission does not claim ownership on first mount. Once supplied,
+        // removing the prop is an explicit cancellation, just like null.
+        if (requested !== undefined || previous?.node === node) {
+          const value = requested ?? null;
+          try {
+            if (previous?.node !== node || !sameBehavior(previous.value, value)) {
+              // Remember this attempt before synchronous native events can cause
+              // another render. Invalid unchanged props also report only once.
+              appliedBehavior.current = { node, value: copyBehavior(value) };
+              node.behavior = value;
+            }
+          } catch (error: unknown) {
+            node.dispatchEvent(new CustomEvent('sidekick-error', {
+              detail: { message: error instanceof Error ? error.message : String(error), attribute: 'behavior' }, bubbles: true, composed: true,
+            }));
+          }
+        }
+        publish(node);
+      }
       if ((readyEvent && deliveredReadyEvent.current !== readyEvent) || (!readyNotified.current && node.ready)) {
         readyNotified.current = true;
         deliveredReadyEvent.current = readyEvent ?? null;
@@ -299,3 +353,5 @@ export function SidekickAvatar(props: SidekickAvatarProps): ReactElement {
 export type { MoveToElementOptions, HorizontalAlignment, VerticalAlignment } from './element/element-target.js';
 
 export type { ElementAnchorState } from './element/element-anchor.js';
+
+export type { BotBehavior, BehaviorTarget, BehaviorSide, BehaviorPhase, BehaviorState, BehaviorResult, PerformOptions } from './element/behavior.js';

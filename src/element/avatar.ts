@@ -1,3 +1,5 @@
+import { BehaviorController, validateBehavior } from './behavior.js';
+import type { BotBehavior, BehaviorState, BehaviorResult, PerformOptions, BehaviorSide } from './behavior.js';
 import { observeElementAnchor } from './element-anchor.js';
 import type { ElementAnchorState } from './element-anchor.js';
 import { assertAnchorHierarchy, resolveElementTarget } from './element-target.js';
@@ -44,6 +46,77 @@ export class SidekickAvatar extends HTMLElementBase {
   removeEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
   removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions): void;
   removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions): void { if (listener) super.removeEventListener(type, listener, options); }
+  private behaviorCommand = false;
+  private behaviorAttention = false;
+  private pendingBehavior: BotBehavior | null | undefined;
+  private behaviorController = new BehaviorController({
+    document: this.ownerDocument,
+    connected: () => this.isConnected,
+    capture: () => {
+      const activity = this.currentActivity, tracking = this.trackingModeState;
+      const orientation = this.bodyOrientation, gaze: Vec2 = [...this.manualGaze];
+      return () => {
+        this.behaviorAttention = false; this.currentActivity = activity; this.trackingModeState = tracking;
+        this.orientationState = orientation; this.manualGaze = gaze; this.gazeTarget = [...gaze];
+        this.send({ kind: 'state', state: { bodyOrientation: orientation } });
+        void this.behaviorOperation(() => this.motion.to({ eyes: { left: this.configuration.eyes.left, right: this.configuration.eyes.right } }, { duration: 180 }));
+        this.updateMouseTracking(); this.syncState();
+      };
+    },
+    prepare: (activity, expression, current) => {
+      this.playback.cancelPlayback(); if (!current()) return; this.playback.cancelTransition(); if (!current()) return;
+      this.behaviorAttention = true; this.currentActivity = activity; this.trackingModeState = 'off'; this.resetTracking();
+      this.updateMouseTracking(); this.syncState();
+      const weights = eyeExpressionWeights(expression);
+      void this.behaviorOperation(() => this.motion.to({ eyes: { left: { weights }, right: { weights } } }, { duration: 180 }));
+    },
+    move: (target, side, gap) => this.behaviorOperation(() => this.moveToElement(target, this.behaviorPlacement(side, gap))),
+    watch: (target, lost) => this.watchBehaviorTarget(target, lost),
+    stop: () => this.behaviorOperation(() => { this.releaseAnchor(false); this.movement.cancel(); }),
+    change: state => this.emit('sidekick-behavior-change', state),
+    end: result => this.emit('sidekick-behavior-end', result),
+  });
+  /** A deterministic semantic intent; null stops it. DOM targets are retained by identity. */
+  get behavior(): BotBehavior | null { return this.pendingBehavior === undefined ? this.behaviorController.declaration : this.pendingBehavior === null ? null : validateBehavior(this.pendingBehavior, this.ownerDocument); }
+  set behavior(value: BotBehavior | null) {
+    const next = value === null ? null : validateBehavior(value, this.ownerDocument);
+    if (!this.isConnected) { this.pendingBehavior = next; return; }
+    this.pendingBehavior = undefined;
+    if (next === null) this.stopBehavior(); else void this.perform(next);
+  }
+  get behaviorState(): BehaviorState { return this.behaviorController.state; }
+  perform(value: BotBehavior, options: PerformOptions = {}): Promise<BehaviorResult> { return this.behaviorController.perform(value, options); }
+  stopBehavior(): void { this.pendingBehavior = undefined; this.behaviorController.cancel(); }
+  private interruptBehavior(): void { if (!this.behaviorCommand) this.behaviorController.cancel('manual-command'); }
+  private behaviorOperation<T>(action: () => T): T { const previous = this.behaviorCommand; this.behaviorCommand = true; try { return action(); } finally { this.behaviorCommand = previous; } }
+  private behaviorPlacement(side: BehaviorSide, gap: number): MoveToElementOptions {
+    const rect = this.getBoundingClientRect();
+    return side === 'left' ? { anchor: true, alignX: 'left', alignY: 'center', x: -rect.width - gap }
+      : side === 'right' ? { anchor: true, alignX: 'right', alignY: 'center', x: rect.width + gap }
+      : side === 'above' ? { anchor: true, alignX: 'center', alignY: 'top', y: -rect.height - gap }
+      : { anchor: true, alignX: 'center', alignY: 'bottom', y: rect.height + gap };
+  }
+  private watchBehaviorTarget(target: Element, lost: () => void): () => void {
+    let asleep = false, ended = false;
+    const cleanup = observeElementAnchor(this.ownerDocument, () => {
+      if (ended) return;
+      if (!target.isConnected || target.ownerDocument !== this.ownerDocument) { ended = true; this.behaviorOperation(() => this.cancelMove()); lost(); return; }
+      const own = this.getBoundingClientRect(), other = target.getBoundingClientRect(), view = this.ownerDocument.defaultView!;
+      asleep = !this.getClientRects().length || !target.getClientRects().length || own.right <= 0 || own.bottom <= 0 || own.left >= view.innerWidth || own.top >= view.innerHeight;
+      if (asleep) return;
+      const dx = other.left + other.width / 2 - own.left - own.width / 2;
+      const dy = other.top + other.height / 2 - own.top - own.height / 2;
+      const x = clamp(dx / Math.max(own.width, 120), -1, 1), y = clamp(-dy / Math.max(own.height, 120), -1, 1);
+      if (Math.abs(x - this.manualGaze[0]) < .002 && Math.abs(y - this.manualGaze[1]) < .002) { asleep = this.movement.state.phase === 'idle'; return; }
+      return () => {
+        if (ended) return;
+        this.manualGaze = [x, y]; this.gazeTarget = [x, y];
+        this.orientationState = { yaw: x * 30, pitch: -y * 12, roll: 0 };
+        this.send({ kind: 'state', state: { bodyOrientation: this.bodyOrientation, gaze: [x, y] } });
+      };
+    }, () => asleep);
+    return () => { ended = true; cleanup(); };
+  }
   private playbackCommand = false;
   private playback = new PlaybackController({
     setActivity: activity => this.ownPlaybackCommand(() => this.setActivity(activity)),
@@ -60,9 +133,9 @@ export class SidekickAvatar extends HTMLElementBase {
     const previous = this.playbackCommand; this.playbackCommand = true;
     try { return operation(); } finally { this.playbackCommand = previous; }
   }
-  play(activity: Activity, options: PlayOptions = {}): Promise<MotionResult> { return this.playback.play(activity, options); }
-  stop(): void { this.playback.stop(); }
-  transitionTo(target: AssetTransitionTarget, options: MotionOptions = {}): Promise<MotionResult> { return this.playback.transitionTo(target, options); }
+  play(activity: Activity, options: PlayOptions = {}): Promise<MotionResult> { this.interruptBehavior(); return this.playback.play(activity, options); }
+  stop(): void { this.interruptBehavior(); this.playback.stop(); }
+  transitionTo(target: AssetTransitionTarget, options: MotionOptions = {}): Promise<MotionResult> { this.interruptBehavior(); return this.playback.transitionTo(target, options); }
   cancelTransition(): void { this.playback.cancelTransition(); }
   private placementState: AvatarPlacement = 'inline';
   private boundsState: MovementBounds = 'viewport';
@@ -142,7 +215,7 @@ export class SidekickAvatar extends HTMLElementBase {
   /** Inline: offset from normal layout. Viewport: layout viewport top-left, CSS pixels. */
   get position(): AvatarPosition { return this.movement.position; }
   get movementState(): MovementState { return this.movement.state; }
-  moveTo(position: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { const target = this.constrainPosition(validatePosition(position), true); validateMoveOptions(options); this.releaseAnchor(false); const revision = this.presence.reveal(); if (!this.presence.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.to(target, options).then(result => { if (result.finished) this.presence.recovered(revision); return result; }); }
+  moveTo(position: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { const target = this.constrainPosition(validatePosition(position), true); validateMoveOptions(options); this.interruptBehavior(); this.releaseAnchor(false); const revision = this.presence.reveal(); if (!this.presence.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.to(target, options).then(result => { if (result.finished) this.presence.recovered(revision); return result; }); }
   /** Sample the target's viewport border-box and align matching anchors, then move with inertia. */
   moveToElement(target: Element, options: MoveToElementOptions = {}): Promise<MoveResult> {
     const resolved = resolveElementTarget(this, this.position, target, options);
@@ -152,8 +225,8 @@ export class SidekickAvatar extends HTMLElementBase {
     if (state && this.anchorRevision === expectedRevision) this.attachAnchor(state);
     return result;
   }
-  moveBy(delta: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { validatePosition(delta); validateMoveOptions(options); this.releaseAnchor(false); const revision = this.presence.reveal(); if (!this.presence.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.by(delta, options, point => this.constrainPosition(point, true)).then(result => { if (result.finished) this.presence.recovered(revision); return result; }); }
-  cancelMove(): void { this.releaseAnchor(false); const revision = this.presence.interrupt(); if (this.presence.owns(revision)) this.movement.cancel(); }
+  moveBy(delta: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { validatePosition(delta); validateMoveOptions(options); this.interruptBehavior(); this.releaseAnchor(false); const revision = this.presence.reveal(); if (!this.presence.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.by(delta, options, point => this.constrainPosition(point, true)).then(result => { if (result.finished) this.presence.recovered(revision); return result; }); }
+  cancelMove(): void { this.interruptBehavior(); this.releaseAnchor(false); const revision = this.presence.interrupt(); if (this.presence.owns(revision)) this.movement.cancel(); }
   private constrainPosition(point: AvatarPosition, presenceTarget = false): AvatarPosition {
     if (!presenceTarget && this.presence?.bypassBounds) return { ...point };
     if (this.placementState !== 'viewport' || this.boundsState === 'none' || !this.connected) return { ...point };
@@ -225,6 +298,7 @@ export class SidekickAvatar extends HTMLElementBase {
       // Probe without mutating even the validation reducer until ownership checks pass.
       void new MotionTimeline({ left: this.configuration.eyes.left, right: this.configuration.eyes.right }).to(target, { ...timing, duration: 0 });
       for (const id of Object.keys(target.accessories ?? {})) if (!this.configuration.accessories.some(a => a.id === id)) throw new RangeError(`액세서리 ${id}가 없습니다.`);
+      this.interruptBehavior();
       this.validator.pose = structuredClone(this.currentPose);
       void this.validator.to(target, { ...timing, duration: 0 });
       const duration = this.immediateMotion() ? 0 : timing.duration;
@@ -235,13 +309,13 @@ export class SidekickAvatar extends HTMLElementBase {
       if (!this.bridge) this.resolveRequest(pending.id, { finished: true });
       return pending.promise;
     },
-    cancel: (): void => { this.send({ kind: 'cancel' }); },
+    cancel: (): void => { this.interruptBehavior(); this.send({ kind: 'cancel' }); },
   };
   get design(): AvatarDesign { return parseDesign(this.configuration); }
-  set design(value: AvatarDesign) { const next = parseDesign(value); if (!this.playbackCommand) this.playback.cancelTransition(); this.applyDesign(next); }
-  async setDesign(value: AvatarDesign | string): Promise<void> { const next = typeof value === 'string' ? parseDesign(JSON.parse(value)) : parseDesign(value); if (!this.playbackCommand) this.playback.cancelTransition(); this.applyDesign(next); }
+  set design(value: AvatarDesign) { const next = parseDesign(value); this.interruptBehavior(); if (!this.playbackCommand) this.playback.cancelTransition(); this.applyDesign(next); }
+  async setDesign(value: AvatarDesign | string): Promise<void> { const next = typeof value === 'string' ? parseDesign(JSON.parse(value)) : parseDesign(value); this.interruptBehavior(); if (!this.playbackCommand) this.playback.cancelTransition(); this.applyDesign(next); }
   /** Apply selections/colors or expression weights without disturbing unrelated animation. */
-  async updateDesign(patch: DesignPatch): Promise<void> { const next = patchDesign(this.configuration, patch); if (!this.playbackCommand) this.playback.cancelTransition(); this.applyDesign(next); }
+  async updateDesign(patch: DesignPatch): Promise<void> { const next = patchDesign(this.configuration, patch); if (patch.eyes) this.interruptBehavior(); if (!this.playbackCommand) this.playback.cancelTransition(); this.applyDesign(next); }
   /** Replace only the selected equipment slot, preserving unrelated animation clocks. */
   async equipAccessory(accessory: AccessoryDesign): Promise<void> { const next = equipAccessory(this.configuration, accessory); if (!this.playbackCommand) this.playback.cancelTransition(); this.applyDesign(next); }
   /** Remove one instance by ID; the opposite earring and its motion remain independent. */
@@ -292,6 +366,7 @@ export class SidekickAvatar extends HTMLElementBase {
       eyes[eye] = { weights: next.eyes[eye].weights };
     }
     validateMotionOptions(options);
+    this.interruptBehavior();
     if (!this.playbackCommand) this.playback.cancelTransition();
     const result = this.motion.to({ eyes }, options);
     // The whole command is validated before changing the persisted design.
@@ -314,6 +389,7 @@ export class SidekickAvatar extends HTMLElementBase {
   get activity(): Activity { return this.currentActivity; }
   setActivity(value: Activity): void {
     if (!ACTIVITIES.includes(value)) throw new TypeError('지원하지 않는 activity입니다.');
+    this.interruptBehavior();
     if (!this.playbackCommand) this.playback.cancelPlayback();
     this.reflectAttribute('activity', value);
   }
@@ -329,7 +405,7 @@ export class SidekickAvatar extends HTMLElementBase {
     this.reflectAttribute('mouse-tracking', value ? '' : 'false');
   }
   get trackingMode(): TrackingMode { return this.trackingModeState; }
-  set trackingMode(value: TrackingMode) { this.reflectAttribute('tracking-mode', parseTrackingMode(value)); }
+  set trackingMode(value: TrackingMode) { const next = parseTrackingMode(value); this.interruptBehavior(); this.reflectAttribute('tracking-mode', next); }
   /** Clear transient cursor reaction immediately, for explicit scene resets/imports. */
   resetTracking(): void {
     this.lastTrackedPointer = undefined; this.pendingPointer = undefined; this.trackedGaze = undefined;
@@ -352,6 +428,7 @@ export class SidekickAvatar extends HTMLElementBase {
   set bodyOrientation(value: BodyOrientation) { this.setBodyOrientation(value); }
   setBodyOrientation(angles: Partial<BodyOrientation>): void {
     const next = patchBodyOrientation(this.orientationState, angles);
+    this.interruptBehavior();
     if (next.yaw === this.orientationState.yaw && next.pitch === this.orientationState.pitch && next.roll === this.orientationState.roll) return;
     this.orientationState = next;
     this.send({ kind: 'state', state: { bodyOrientation: this.bodyOrientation } });
@@ -369,7 +446,8 @@ export class SidekickAvatar extends HTMLElementBase {
   }
   lookAt(target: { space: 'view'; x: number; y: number }): void {
     if (target.space !== 'view') throw new TypeError('시선 좌표계는 view입니다.');
-    this.manualGaze = [finite(target.x, -1, 1, 'gaze.x'), finite(target.y, -1, 1, 'gaze.y')];
+    const gaze: Vec2 = [finite(target.x, -1, 1, 'gaze.x'), finite(target.y, -1, 1, 'gaze.y')];
+    this.interruptBehavior(); this.manualGaze = gaze;
     this.setGazeTarget(this.manualGaze);
   }
   seek(seconds: number): void { this.elapsed = finite(seconds, 0, 86400, 'time'); this.send({ kind: 'state', state: { time: this.elapsed } }); this.timeRevision = this.bridge?.revision ?? 0; }
@@ -410,6 +488,7 @@ export class SidekickAvatar extends HTMLElementBase {
     this.connected = true;
     this.flushAttributes();
     this.upgradeProperties();
+    if (this.pendingBehavior !== undefined) this.behavior = this.pendingBehavior;
     if (!this.connected || !this.isConnected) return;
     if (!this.shadowRoot) {
       const shadow = this.attachShadow({ mode: 'open' });
@@ -444,6 +523,7 @@ export class SidekickAvatar extends HTMLElementBase {
     this.initializeRenderer();
   }
   disconnectedCallback(): void {
+    this.behaviorController.cancel('disconnected');
     this.connected = false; this.releaseAnchor(false);
     this.presence.cancel(); this.playback.disconnect(); this.movement.disconnect();
     this.ownerDocument.defaultView?.removeEventListener('resize', this.onViewportResize);
@@ -482,6 +562,7 @@ export class SidekickAvatar extends HTMLElementBase {
     for (const [name, value] of pending) { if (value === null) candidate.delete(name); else candidate.set(name, value); }
     try {
       const resolved = resolveSidekickAttributes(candidate);
+      const behavior = pending.has('behavior') && candidate.has('behavior') ? validateBehavior(JSON.parse(candidate.get('behavior')!), this.ownerDocument) : null;
       const touched = (...names: string[]): boolean => names.some(name => pending.has(name));
       const allDesign = touched('design');
       const next = this.design;
@@ -519,6 +600,7 @@ export class SidekickAvatar extends HTMLElementBase {
         void new MotionTimeline({ left: validated.eyes.left, right: validated.eyes.right }).to(target, { duration: 0 });
       }
       // Validation is complete before any live state, request or listener changes.
+      if (touched('activity', 'mouse-tracking', 'tracking-mode', 'expression', 'left-expression', 'right-expression', 'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'design', 'motion')) this.interruptBehavior();
       this.batch(() => {
       this.acceptedAttributes = candidate;
       if (touched('paused')) { this.pausedState = resolved.paused; if (resolved.paused) this.movement.finish(); this.playback.policyChanged(); }
@@ -547,6 +629,7 @@ export class SidekickAvatar extends HTMLElementBase {
       if (target) void this.motion.to(target, resolved.motionOptions);
       this.syncState();
       });
+      if (touched('behavior')) this.behavior = behavior;
     } catch (error) {
       // Keep rejected writes together: repairing one field retries the original batch.
       for (const [name, value] of pending) if (!this.pendingAttributes.has(name)) this.pendingAttributes.set(name, value);
@@ -556,7 +639,7 @@ export class SidekickAvatar extends HTMLElementBase {
   private upgradeProperties(): void {
     if (this.propertiesUpgraded) return;
     this.propertiesUpgraded = true;
-    for (const name of ['placement', 'movementBounds', 'design', 'bodyOrientation', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode'] as const) {
+    for (const name of ['behavior', 'placement', 'movementBounds', 'design', 'bodyOrientation', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode'] as const) {
       if (!Object.prototype.hasOwnProperty.call(this, name)) continue;
       const value: unknown = this[name];
       Reflect.deleteProperty(this, name);
@@ -634,10 +717,10 @@ export class SidekickAvatar extends HTMLElementBase {
   }
   private runtimeState(): RuntimeState {
     const rect = this.getBoundingClientRect();
-    return { travel: this.travelPresentation, design: this.design, bodyOrientation: this.bodyOrientation, zoom: this.zoom, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
+    return { attention: this.behaviorAttention, travel: this.travelPresentation, design: this.design, bodyOrientation: this.bodyOrientation, zoom: this.zoom, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
   }
   private syncState(): void {
-    this.send({ kind: 'state', state: { activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze } });
+    this.send({ kind: 'state', state: { attention: this.behaviorAttention, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze } });
     if (this.paused || this.reduced) { this.currentPose.gaze = [...this.gazeTarget]; this.poseRevision = this.bridge?.revision ?? 0; }
   }
   private attachCanvasListeners(): void {

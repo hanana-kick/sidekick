@@ -7,6 +7,7 @@ import type { TrackingMode } from './core/tracking.js';
 import type { MaterialShapeName } from './core/shapes.js';
 import type { SidekickAvatar as SidekickElement } from './element/avatar.js';
 import type { SidekickAttributes, SidekickEventMap } from './element/attributes.js';
+import type { BotBehavior } from './element/behavior.js';
 export type SidekickAvatarRef = SidekickElement;
 export type SidekickEventHandler<K extends keyof SidekickEventMap> = (event: SidekickEventMap[K]) => void;
 /** React 19 wrapper. The ref is published after the custom element has upgraded. */
@@ -28,6 +29,10 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
     onMoveEnd?: SidekickEventHandler<'sidekick-move-end'>;
     onPlayEnd?: SidekickEventHandler<'sidekick-play-end'>;
     onAssetTransitionEnd?: SidekickEventHandler<'sidekick-transition-end'>;
+    /** Declarative intent, assigned as a property after the native element upgrades. */
+    behavior?: BotBehavior | null;
+    onBehaviorChange?: SidekickEventHandler<'sidekick-behavior-change'>;
+    onBehaviorEnd?: SidekickEventHandler<'sidekick-behavior-end'>;
     design?: AvatarDesign;
     shape?: MaterialShapeName;
     bodyColor?: string;
@@ -88,3 +93,4 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
 export declare function SidekickAvatar(props: SidekickAvatarProps): ReactElement;
 export type { MoveToElementOptions, HorizontalAlignment, VerticalAlignment } from './element/element-target.js';
 export type { ElementAnchorState } from './element/element-anchor.js';
+export type { BotBehavior, BehaviorTarget, BehaviorSide, BehaviorPhase, BehaviorState, BehaviorResult, PerformOptions } from './element/behavior.js';

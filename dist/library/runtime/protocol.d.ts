@@ -9,6 +9,8 @@ import type { PixelBuffer, SnapshotOptions } from '../core/pixels.js';
 /** Private wire format. A generation owns exactly one transferred surface. */
 export declare const PROTOCOL_VERSION = 1;
 export interface RuntimeState {
+    /** Semantic target attention suppresses unrelated activity eye wandering. */
+    attention?: boolean;
     design: AvatarDesign;
     bodyOrientation: BodyOrientation;
     zoom: number;

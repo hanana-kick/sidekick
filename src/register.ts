@@ -11,3 +11,5 @@ export type { PresenceEdge, PresenceState, PresenceResult, EnterOptions, ExitOpt
 export type { MoveToElementOptions, HorizontalAlignment, VerticalAlignment } from './element/element-target.js';
 
 export type { ElementAnchorState } from './element/element-anchor.js';
+
+export type { BotBehavior, BehaviorTarget, BehaviorSide, BehaviorPhase, BehaviorState, BehaviorResult, PerformOptions } from './element/behavior.js';
