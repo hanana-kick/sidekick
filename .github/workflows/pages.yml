@@ -97,7 +97,7 @@ jobs:
           SIDEKICK_HEADED: '1'
           SIDEKICK_SCREENSHOTS: artifacts
       - name: Verify published interactive state reference in both frameworks
-        run: xvfb-run -a node --test --test-name-pattern='six state pages.*in en|mobile controls' tests/state-reference-browser.test.mjs
+        run: xvfb-run -a node --test --test-name-pattern='state pages.*in en|mobile controls' tests/state-reference-browser.test.mjs
         env:
           SIDEKICK_STATE_LIVE_URL: https://sidekick.hananakick.cc
           SIDEKICK_HEADED: '1'
