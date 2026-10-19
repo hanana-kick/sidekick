@@ -11,7 +11,7 @@ let browser,server,base;
 before(async()=>{server=createAppServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));base=process.env.SIDEKICK_GUIDE_LIVE_URL??`http://127.0.0.1:${server.address().port}`;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??(existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined),headless:process.env.SIDEKICK_HEADED!=='1',args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});});
 after(async()=>{await browser?.close();await new Promise(r=>server?.close(r));});
 for(const lang of ['ko','en','zh-CN','ja'])test(`actual contextual link clicks for all 26 Guide sections: ${lang}`,{timeout:180000},async()=>{
- const page=await browser.newPage({viewport:{width:1280,height:900},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const page=await browser.newPage({viewport:{width:1280,height:900},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error('GUIDE PAGE ERROR',e.stack)});page.on('console',m=>{if(m.type()==='error')console.error('GUIDE CONSOLE',m.text())});
  try{
   for(const item of scenarios){
    await page.goto(`${base}/guide.html?lang=${lang}#${item.id}`);await page.waitForSelector('#demo-bot[data-configured]');
@@ -35,7 +35,7 @@ for(const lang of ['ko','en','zh-CN','ja'])test(`actual contextual link clicks f
    await page.locator('#guide-source-return').click();await page.waitForSelector('[data-lesson-destination]');assert.equal(new URL(page.url()).hash,'#'+lesson.id);
   }
   assert.deepEqual(errors,[]);
- }finally{await page.close();}
+ }catch(error){console.error('GUIDE DIAGNOSTICS',page.url(),await page.locator('#run-status').textContent().catch(()=>''),await page.locator('#demo-bot').count());throw error;}finally{await page.close();}
 });
 test('direct reload, source scroll, history, manual level and invalid context',async()=>{
  const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
