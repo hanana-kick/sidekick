@@ -9,6 +9,7 @@ import { TrackingBodyLayer } from '../core/tracking.js';
 import { cropPixels } from '../core/pixels.js';
 import { automaticBlink } from '../core/expressions.js';
 import { AvatarRenderer } from '../renderer/webgl.js';
+import { presentationSignature } from './presentation.js';
 const IDLE_DRAW_INTERVAL = 1 / 30;
 export function frameScheduler(scope = globalThis) {
     let next = 0;
@@ -254,6 +255,10 @@ export class RenderEngine {
                 this.velocity = [0, 0];
                 this.timeline.pose.gaze = [...this.state.gaze];
                 break;
+            case 'resume-presentation':
+                this.presentationHeld = false;
+                this.wake();
+                return;
             case 'present': {
                 // Startup barrier: commands queued during module/worker loading belong
                 // to the initial configuration, not an animation from fallback defaults.
@@ -267,10 +272,12 @@ export class RenderEngine {
                 this.timeline.pose.gaze = [...this.state.gaze];
                 this.velocity = [0, 0];
                 this.equipmentImmediate = true;
+                this.presentationHeld = command.verifySurface === true;
                 this.render(true);
-                if (!this.animated())
+                if (this.presentationHeld || !this.animated())
                     this.stop();
-                this.notify({ kind: 'complete', request: command.request, result: { finished: true }, snapshot: this.snapshot });
+                const presentation = this.presentationHeld ? presentationSignature({ width: this.renderer.canvas.width, height: this.renderer.canvas.height, pixels: this.renderer.readPixels() }, true) : undefined;
+                this.notify({ kind: 'complete', request: command.request, result: { finished: true }, presentation, snapshot: this.snapshot });
                 return;
             }
             case 'flush':
@@ -322,8 +329,9 @@ export class RenderEngine {
         return !this.dirty && !this.renderer.animating && !this.presentationMoving() && this.state.activity === 'idle' && !this.state.paused && !this.state.reduced && !this.activityBlend.active && !this.timeline.active && !this.shape.active && !this.gazeMoving() && !this.tracking.active;
     }
     resetPacing() { this.idleDrawElapsed = 0; this.rendererDelta = 0; }
+    presentationHeld = false;
     wake() {
-        if (this.disposed || this.scheduled || !this.state.active || (!this.dirty && !this.animated()))
+        if (this.disposed || this.presentationHeld || this.scheduled || !this.state.active || (!this.dirty && !this.animated()))
             return;
         this.scheduled = this.scheduler.request(this.tick);
     }

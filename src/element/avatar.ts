@@ -35,6 +35,8 @@ import { validateSnapshotOptions } from '../core/pixels.js';
 import type { SnapshotOptions } from '../core/pixels.js';
 import { LocalRenderBridge, WorkerRenderBridge, supportsRenderWorker } from '../runtime/render-bridge.js';
 import type { RenderBridge } from '../runtime/render-bridge.js';
+import { presentationSignature, matchesPresentation } from '../runtime/presentation.js';
+import type { PresentationSignature } from '../runtime/presentation.js';
 import type { DesignTransition, RuntimeCommand, RuntimeEvent, RuntimeSnapshot, RuntimeState } from '../runtime/protocol.js';
 import type { PixelBuffer } from '../core/pixels.js';
 import { ACCESSORY_ATTRIBUTE_SLOTS, SIDEKICK_ATTRIBUTES, REMOVED_ORIENTATION_ATTRIBUTES, SidekickAttributeError, resolveSidekickAttributes } from './attributes.js';
@@ -780,7 +782,7 @@ export class SidekickAvatar extends HTMLElementBase {
       event: (event: RuntimeEvent, revision: number): void => {
         if (!this.connected || generation !== this.generation) return;
         if ('snapshot' in event) this.acceptSnapshot(event.snapshot, revision);
-        if (event.kind === 'complete') this.resolveRequest(event.request, event.result);
+        if (event.kind === 'complete') this.resolveRequest(event.request, event.presentation ? { ...event.result, presentation: event.presentation } : event.result);
         else if (event.kind === 'pixels') this.resolveRequest(event.request, event.image);
         else if (event.kind === 'snapshot') this.resolveRequest(event.request, event.blob);
         else if (event.kind === 'request-error') { const pending = this.requests.get(event.request); this.requests.delete(event.request); pending?.reject(new Error(event.message)); }
@@ -794,24 +796,61 @@ export class SidekickAvatar extends HTMLElementBase {
       this.bridge.start(this.runtimeState()); this.transferred ||= this.bridge?.transferred ?? false;
     } catch (error) { this.runtimeFailure(error instanceof Error ? error : new Error(String(error)), generation, attemptWorker); }
   }
+  private startupFrame = 0;
+  private startupDeadline?: ReturnType<typeof setTimeout>;
+  private cancelStartupPresentation(): void {
+    if (this.startupFrame) cancelAnimationFrame(this.startupFrame); this.startupFrame = 0;
+    clearTimeout(this.startupDeadline); this.startupDeadline = undefined;
+  }
   private presentInitialFrame(generation: number): void {
     if (!this.connected || generation !== this.generation || !this.bridge) return;
     this.flushAttributes();
-    const request = this.request<MotionResult>('barrier');
-    this.bridge.send({ kind: 'present', request: request.id });
-    const revision = this.bridge.revision;
-    void request.promise.then(() => {
+    if (!this.connected || generation !== this.generation || !this.bridge) return;
+    this.cancelStartupPresentation();
+    const request = this.request<MotionResult & { presentation?: PresentationSignature }>('barrier');
+    const bridge = this.bridge;
+    bridge.send({ kind: 'present', request: request.id, verifySurface: bridge.backend === 'worker' });
+    const revision = bridge.revision;
+    // Attach rejection handling even when transport failure replaced the bridge.
+
+    void request.promise.then(result => {
+      if (!this.connected || generation !== this.generation || this.bridge !== bridge) return;
+      const reveal = (): void => {
+      try {
       if (!this.connected || generation !== this.generation || !this.bridge) return;
       // A newer configuration can arrive while the worker processes the fence.
       // Never reveal its obsolete frame; acknowledge and draw the latest one.
       this.flushAttributes();
+      if (!this.connected || generation !== this.generation || !this.bridge) return;
       if (this.bridge.revision !== revision) { this.presentInitialFrame(generation); return; }
+      if (result.presentation) {
+        const proof = result.presentation, output = this.captureCanvas ??= this.ownerDocument.createElement('canvas');
+        if (this.canvas!.width !== proof.width || this.canvas!.height !== proof.height) { this.startupFrame = requestAnimationFrame(reveal); return; }
+        if (output.width !== proof.width) output.width = proof.width;
+        if (output.height !== proof.height) output.height = proof.height;
+        const context = output.getContext('2d', { willReadFrequently: true });
+        if (!context) { this.runtimeFailure(new Error('Startup surface verification is unavailable'), generation); return; }
+        context.clearRect(0, 0, proof.width, proof.height); context.drawImage(this.canvas!, 0, 0, proof.width, proof.height);
+        const actual = presentationSignature({ width: proof.width, height: proof.height, pixels: context.getImageData(0, 0, proof.width, proof.height).data });
+        if (!matchesPresentation(proof, actual)) { this.startupFrame = requestAnimationFrame(reveal); return; }
+        output.width = 1; output.height = 1; this.captureCanvas = undefined;
+        const bridge = this.bridge;
+        bridge.send({ kind: 'resume-presentation' });
+        if (!this.connected || generation !== this.generation || this.bridge !== bridge) return;
+      }
+      this.cancelStartupPresentation();
       this.readyState = true;
       this.startEntrance();
       this.refreshEntranceClip?.();
       if (!this.connected || generation !== this.generation || !this.bridge) return;
       this.canvas!.hidden = false; this.fallback!.hidden = true;
       this.updateMouseTracking(); this.emit('sidekick-ready', {});
+      } catch (error) { this.runtimeFailure(error instanceof Error ? error : new Error(String(error)), generation); }
+      };
+      // A watchdog falls back to main rendering if a browser never propagates
+      // its placeholder. It never treats elapsed time as presentation success.
+      if (result.presentation) this.startupDeadline = setTimeout(() => this.runtimeFailure(new Error('Worker surface presentation timed out'), generation), 5000);
+      reveal();
     }).catch(() => { /* Disconnect/fallback owns cancellation and error reporting. */ });
   }
   private runtimeFailure(error: Error, generation: number, wasWorker = this.bridge?.backend === 'worker'): void {
@@ -830,6 +869,7 @@ export class SidekickAvatar extends HTMLElementBase {
     if (revision >= this.poseRevision) this.currentPose = structuredClone(snapshot.pose);
   }
   private disposeBridge(reason: Error): void {
+    this.cancelStartupPresentation();
     const bridge = this.bridge; this.bridge = undefined;
     this.transferred ||= bridge?.transferred ?? false; bridge?.dispose();
     for (const [id, pending] of this.requests) {

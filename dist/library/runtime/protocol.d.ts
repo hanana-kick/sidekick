@@ -1,3 +1,4 @@
+import type { PresentationSignature } from './presentation.js';
 import type { EmotionValue } from '../core/emotion.js';
 import type { TravelPresentation } from '../core/travel.js';
 import type { Activity, AvatarDesign, Vec2 } from '../core/design.js';
@@ -90,6 +91,9 @@ export type RuntimeCommand = {
 } | {
     kind: 'present';
     request: number;
+    verifySurface?: boolean;
+} | {
+    kind: 'resume-presentation';
 } | {
     kind: 'flush';
     request: number;
@@ -127,6 +131,7 @@ export type RuntimeEvent = {
     kind: 'complete';
     request: number;
     result: MotionResult;
+    presentation?: PresentationSignature;
     snapshot: RuntimeSnapshot;
 } | {
     kind: 'pixels';

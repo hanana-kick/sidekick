@@ -1,3 +1,4 @@
+import type { PresentationSignature } from './presentation.js';
 import type { EmotionValue } from '../core/emotion.js';
 import type { TravelPresentation } from '../core/travel.js';
 import type { Activity, AvatarDesign, Vec2 } from '../core/design.js';
@@ -35,7 +36,8 @@ export type RuntimeCommand =
   | { kind: 'state'; state: Partial<Omit<RuntimeState, 'design' | 'pose' | 'width' | 'height' | 'dpr'>> }
   | { kind: 'resize'; width: number; height: number; dpr: number }
   | { kind: 'reset-tracking' }
-  | { kind: 'present'; request: number }
+  | { kind: 'present'; request: number; verifySurface?: boolean }
+  | { kind: 'resume-presentation' }
   | { kind: 'flush'; request: number }
   | { kind: 'capture'; request: number }
   | { kind: 'snapshot'; request: number; options: SnapshotOptions }
@@ -47,7 +49,7 @@ export interface RuntimeSnapshot {
 }
 export type RuntimeEvent =
   | { kind: 'frame'; snapshot: RuntimeSnapshot }
-  | { kind: 'complete'; request: number; result: MotionResult; snapshot: RuntimeSnapshot }
+  | { kind: 'complete'; request: number; result: MotionResult; presentation?: PresentationSignature; snapshot: RuntimeSnapshot }
   | { kind: 'pixels'; request: number; image: PixelBuffer; snapshot: RuntimeSnapshot }
   | { kind: 'snapshot'; request: number; blob: Blob; snapshot: RuntimeSnapshot }
   | { kind: 'request-error'; request: number; message: string }

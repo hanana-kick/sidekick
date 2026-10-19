@@ -64,6 +64,7 @@ export declare class RenderEngine {
     private animated;
     private paceIdle;
     private resetPacing;
+    private presentationHeld;
     private wake;
     private stop;
     private tick;

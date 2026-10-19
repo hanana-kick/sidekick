@@ -243,3 +243,42 @@ test('an obsolete startup draw acknowledgement cannot reveal a newer authored co
   assert.equal(canvas.hidden, false);
   avatar.remove();
 });
+
+test('worker draw ACK cannot reveal a placeholder until its actual bitmap arrives', async () => {
+  const { presentationSignature } = await import('../dist/src/runtime/presentation.js');
+  const original = dom.window.HTMLCanvasElement.prototype.getContext;
+  let arrived = false;
+  dom.window.HTMLCanvasElement.prototype.getContext = function(kind) {
+    assert.equal(kind, '2d');
+    return { clearRect() {}, drawImage() {}, getImageData() { return { data: new Uint8ClampedArray(arrived ? [20, 40, 60, 255] : [0, 0, 0, 0]) }; } };
+  };
+  const avatar = document.createElement('worker-test-avatar'); avatar.setActivity('still'); document.body.append(avatar);
+  avatar.shadowRoot.querySelector('canvas').width=1; avatar.shadowRoot.querySelector('canvas').height=1;
+  const worker = workers.at(-1), reply = worker.reply.bind(worker);
+  worker.reply = (kind, data, sequence) => reply(kind, kind === 'complete' ? { ...data, presentation: presentationSignature({ width: 1, height: 1, pixels: new Uint8Array([20, 40, 60, 255]) }) } : data, sequence);
+  try {
+    for (let n=0;n<8;n++) await Promise.resolve();
+    assert.equal(avatar.ready, false); assert.equal(avatar.shadowRoot.querySelector('canvas').hidden, true);
+    for (let n=0;n<2;n++) { const callbacks=[...frames.values()];frames.clear();callbacks.forEach(callback=>callback(16*(n+1)));for(let k=0;k<8;k++)await Promise.resolve();assert.equal(avatar.ready,false); }
+    arrived = true;
+    for(let n=0;n<4&&!avatar.ready;n++){const callbacks=[...frames.values()];frames.clear();callbacks.forEach(callback=>callback(64));for(let k=0;k<8;k++)await Promise.resolve();}
+    assert.equal(avatar.ready,true); assert.equal(avatar.shadowRoot.querySelector('canvas').hidden,false);
+    assert.ok(worker.messages.some(message=>message.command?.kind==='resume-presentation'));
+  } finally { avatar.remove(); dom.window.HTMLCanvasElement.prototype.getContext=original; }
+});
+
+test('resume transport failure cannot reveal the replacement fallback canvas', async () => {
+  const { presentationSignature } = await import('../dist/src/runtime/presentation.js');
+  const original = dom.window.HTMLCanvasElement.prototype.getContext;
+  dom.window.HTMLCanvasElement.prototype.getContext = function(kind) {
+    if(kind!=='2d') throw new Error('Main WebGL unavailable');
+    return { clearRect() {}, drawImage() {}, getImageData() { return { data: new Uint8ClampedArray([20,40,60,255]) }; } };
+  };
+  const avatar=document.createElement('worker-test-avatar');avatar.setActivity('still');document.body.append(avatar);
+  avatar.shadowRoot.querySelector('canvas').width=1;avatar.shadowRoot.querySelector('canvas').height=1;
+  const worker=workers.at(-1),reply=worker.reply.bind(worker),post=worker.postMessage.bind(worker);
+  worker.reply=(kind,data,sequence)=>reply(kind,kind==='complete'?{...data,presentation:presentationSignature({width:1,height:1,pixels:new Uint8Array([20,40,60,255])})}:data,sequence);
+  worker.postMessage=message=>{if(message.command?.kind==='resume-presentation')throw new Error('Resume transport failed');post(message);};
+  try {for(let k=0;k<20;k++)await Promise.resolve();assert.equal(avatar.ready,false);assert.equal(avatar.shadowRoot.querySelector('canvas').hidden,true);assert.equal(worker.terminated,1);}
+  finally {avatar.remove();dom.window.HTMLCanvasElement.prototype.getContext=original;}
+});
