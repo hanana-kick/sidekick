@@ -800,7 +800,7 @@ for (const name of ['root', 'project']) for (const route of ['', 'playground/', 
     assert.ok(result.fonts.some(family => family.includes('Geist')), 'The actual bundled font loaded');
     assert.match(result.fontFamily, /Geist/);
     assert.equal(new URL(result.favicon.href).pathname, `${deployment.basePath}favicon.svg`); assert.equal(result.favicon.status, 200); assert.ok(result.favicon.width > 0);
-    assert.equal(result.home, `${deployment.url}?lang=ko`, 'Home works from both the directory and explicit nested index entry');
+    assert.equal(result.home, `${deployment.url}?lang=ko&framework=element`, 'Home works from both the directory and explicit nested index entry');
     await page.waitForLoadState('networkidle');
     const diagnostics = assertDeploymentResources(page, deployment), successful = new Set(diagnostics.responses.map(response => response.url));
     for (const url of [...result.modules, ...result.stylesheets.map(sheet => sheet.href), ...result.images.map(image => image.src), result.favicon.href]) assert.ok(successful.has(url), `No successful response for ${url}`);
