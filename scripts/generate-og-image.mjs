@@ -29,9 +29,10 @@ function recordGL() {
     bufferSubData:(target,offset,data)=>{const b=target===gl.ARRAY_BUFFER?arrayBuffer:(vao?.index??defaultIndex);Buffer.from(data.buffer,data.byteOffset,data.byteLength).copy(buffers.get(b),offset);},
     enableVertexAttribArray(){},vertexAttribPointer:(loc,size,type,normalized,stride,offset)=>vao.attributes.set(loc,{buffer:arrayBuffer,size,type,normalized,stride,offset}),vertexAttrib3f(){},
     uniformMatrix4fv:(loc,_transpose,values)=>uniforms.set(loc.name,{kind:16,values:Array.from(values)}),
+    uniform1f:(loc,value)=>uniforms.set(loc.name,{kind:1,values:[value]}),
     uniform1i:(loc,value)=>uniforms.set(loc.name,{kind:0,values:[value]}),
     uniform2f:(loc,...values)=>uniforms.set(loc.name,{kind:2,values}),uniform3f:(loc,...values)=>uniforms.set(loc.name,{kind:3,values}),uniform4f:(loc,...values)=>uniforms.set(loc.name,{kind:4,values}),
-    viewport(){},clear(){draws.length=0;},clearColor(){},enable(){},cullFace(){},useProgram(){},isContextLost:()=>false,
+    viewport(){},clear(){draws.length=0;},clearColor(){},enable(){},disable(){},blendFunc(){},cullFace(){},useProgram(){},isContextLost:()=>false,
     drawElements:(_mode,count,_type,offset=0)=>draws.push({uniforms:structuredClone(uniforms),vertices:buffers.get(vao.attributes.get(0).buffer).slice(),directions:buffers.get(vao.attributes.get(2)?.buffer)?.slice(),indices:buffers.get(vao.index).subarray(offset,offset+count*2).slice()}),
     deleteBuffer(){},deleteVertexArray(){},deleteProgram(){}
   });
