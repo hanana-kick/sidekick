@@ -12,7 +12,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,7 +24,13 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
-      - run: xvfb-run -a npm run test:browser
+      - name: Verify startup and interactive reference in Chromium
+        run: xvfb-run -a npm run test:browser:reference
+        env:
+          SIDEKICK_HEADED: '1'
+          SIDEKICK_SCREENSHOTS: artifacts
+      - name: Verify existing browser regressions
+        run: xvfb-run -a npm run test:browser:regression
         env:
           SIDEKICK_HEADED: '1'
           SIDEKICK_SCREENSHOTS: artifacts
