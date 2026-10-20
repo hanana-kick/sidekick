@@ -1,5 +1,7 @@
 # Sidekick
 
+![白色背景上，戴着眼镜、贝雷帽和蝴蝶结的黄色Ghostish角色与Sidekick标志](https://raw.githubusercontent.com/hanana-kick/sidekick/main/public/og-sidekick.png)
+
 [한국어](README.md) · [English](README.en.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 **以 35 种 Material 形状打造透明平面角色的库。** 从一个默认的 `<sidekick-avatar>` 开始，即可通过 HTML 属性、JavaScript API 或 React 封装，以你习惯的方式进行控制。支持形状过渡、左右独立表情、鼠标视线跟踪、身体方向旋转、六个配饰位置，以及具有朝向的屏幕移动。核心采用不依赖框架的 TypeScript + Web Component + WebGL2/Canvas2D。

@@ -1,5 +1,7 @@
 # Sidekick
 
+![白い背景のSidekickロゴの隣で眼鏡、ベレー帽、蝶ネクタイを着けた黄色いGhostishキャラクター](https://raw.githubusercontent.com/hanana-kick/sidekick/main/public/og-sidekick.png)
+
 [한국어](README.md) · [English](README.en.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 **35 種類の Material 図形で作る、背景が透明なフラットキャラクターのライブラリ。** 基本の `<sidekick-avatar>` ひとつから始めて、HTML 属性、JavaScript API、React ラッパーの使いやすい方法で制御できます。図形の切り替え、左右の表情、マウスへの視線追従、体の向きの回転、6 スロットのアクセサリー、方向性のある画面内移動に対応します。コアはフレームワークに依存しない TypeScript + Web Component + WebGL2/Canvas2D です。

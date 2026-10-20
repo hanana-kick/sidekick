@@ -1,5 +1,7 @@
 # Sidekick
 
+![A yellow Ghostish Sidekick wearing glasses, a beret and bow tie beside the Sidekick name on white](https://raw.githubusercontent.com/hanana-kick/sidekick/main/public/og-sidekick.png)
+
 [한국어](README.md) · [English](README.en.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 **A transparent, flat-style character library built from 35 Material shapes.** Start with a single `<sidekick-avatar>` and control it through HTML attributes, JavaScript APIs, or a React wrapper. It supports shape morphing, independent eye expressions, pointer tracking, body orientation, six accessory slots, and directional movement across the page. The framework-independent core uses TypeScript, Web Components, and WebGL2/Canvas2D.

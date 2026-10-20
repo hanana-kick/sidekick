@@ -1,5 +1,7 @@
 # Sidekick
 
+![흰 배경의 Sidekick 로고 옆에서 안경, 베레모와 나비넥타이를 착용한 노란 Ghostish 캐릭터](https://raw.githubusercontent.com/hanana-kick/sidekick/main/public/og-sidekick.png)
+
 [한국어](README.md) · [English](README.en.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 **35개 Material 도형으로 만드는 투명 Flat 캐릭터 라이브러리.** 기본 `<sidekick-avatar>` 하나로 시작하고 HTML 속성, JavaScript API, React 래퍼 중 편한 방식으로 제어할 수 있습니다. 도형 전환, 좌우 표정, 마우스 시선 추적, 몸체 방향 회전, 여섯 슬롯의 액세서리와 방향성 있는 화면 이동을 지원합니다. 코어는 프레임워크 의존성이 없는 TypeScript + Web Component + WebGL2/Canvas2D입니다.
