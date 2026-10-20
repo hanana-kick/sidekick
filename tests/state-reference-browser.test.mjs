@@ -14,9 +14,45 @@ const forceCanvas = process.env.SIDEKICK_FORCE_CANVAS2D === '1';
 before(async()=>{server=createAppServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));base=process.env.SIDEKICK_STATE_LIVE_URL??`http://127.0.0.1:${server.address().port}`;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??(existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined),headless:process.env.SIDEKICK_HEADED!=='1',args:['--no-sandbox','--disable-dev-shm-usage',...(forceCanvas?['--disable-webgl']:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'])]});});
 after(async()=>{await browser?.close();await new Promise(r=>server?.close(r));});
 const cases=[['state-lifecycle','presence',JSON.stringify({visible:true})],['state-emotion','emotion','curious'],['state-position','position-x','28'],['state-behavior','behavior',JSON.stringify({type:'idle'})],['state-facing','body-yaw','25'],['state-appearance','shape','heart'],['state-execution','activity','thinking']];
-async function frameFor(page){await page.waitForSelector('[data-state-reference][data-configured]');const frame=page.frames().find(f=>f.url().includes('/state-preview.html'));assert.ok(frame);await frame.waitForFunction(()=>document.querySelector('#reference-bot')?.ready);await assertGraphics(frame);return frame;}
+async function dismissLiveAnalyticsConsent(page){
+ if(!process.env.SIDEKICK_STATE_LIVE_URL)return;
+ const panel=page.locator('#site-analytics-panel');
+ await panel.waitFor({state:'attached'});
+ if(await panel.isVisible()){
+  // Published checks begin in English. Exercise the real consent control;
+  // never hide the panel, preseed storage, or bypass hit testing with force.
+  await panel.getByRole('button',{name:'Do not allow',exact:true}).click();
+  await panel.waitFor({state:'hidden'});
+ }
+}
+async function frameFor(page){await page.waitForSelector('[data-state-reference][data-configured]');await dismissLiveAnalyticsConsent(page);const frame=page.frames().find(f=>f.url().includes('/state-preview.html'));assert.ok(frame);await frame.waitForFunction(()=>document.querySelector('#reference-bot')?.ready);await assertGraphics(frame);return frame;}
 async function edit(page,key,value){if(key==='behavior'&&JSON.parse(value).type==='idle'&&Object.keys(JSON.parse(value)).length===1){await page.selectOption('[data-behavior-preset]','idle');return;}await page.check(`[data-state-enable="${key}"]`);const control=page.locator(`[data-state-control="${key}"]`);if(await control.evaluate(e=>e.tagName)==='SELECT')await control.selectOption(value);else{await control.fill(value);if(await control.evaluate(e=>e.tagName)==='TEXTAREA')await page.locator(`[data-state-field="${key}"] button`).click();else await control.dispatchEvent('change');}}
 async function snapshot(frame){return frame.locator('#reference-bot').evaluate(bot=>({design:bot.design,orientation:bot.bodyOrientation,zoom:bot.zoom,tracking:bot.trackingMode,emotion:bot.emotionState.emotion,emotionIntensity:bot.emotionState.intensity,activity:bot.activity,behavior:bot.behavior,presence:bot.presence,position:bot.position,paused:bot.paused}));}
+for(const viewport of [{width:320,height:320},{width:360,height:480}])for(const choice of ['Do not allow','Close'])test(`mobile controls: initial analytics ${choice} is reachable at ${viewport.width}x${viewport.height}`,{skip:!process.env.SIDEKICK_STATE_LIVE_URL},async()=>{
+ const page=await newReferencePage({viewport,deviceScaleFactor:3}),requests=[];
+ page.on('request',request=>{if(/google-analytics\.com|googletagmanager\.com/.test(request.url()))requests.push(request.url());});
+ try{
+  await page.goto(`${base}/guide.html?lang=en#state-appearance`);
+  const panel=page.locator('#site-analytics-panel');
+  await panel.waitFor({state:'visible'});
+  assert.equal(await panel.getAttribute('aria-labelledby'),'site-analytics-title');
+  assert.ok((await page.locator('#site-analytics-title').textContent()).includes('Allow Google Analytics'));
+  const button=panel.getByRole('button',{name:choice,exact:true});
+  await button.scrollIntoViewIfNeeded();
+  const box=await button.boundingBox();assert.ok(box);
+  assert.ok(box.x>=0&&box.y>=0&&box.x+box.width<=viewport.width&&box.y+box.height<=viewport.height,'initial consent action is inside the small viewport');
+  assert.ok(box.width>=24&&box.height>=24,'consent action has a usable target');
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal overflow');
+  await button.click();await panel.waitFor({state:'hidden'});
+  const toggle=page.locator('.site-analytics-toggle');
+  assert.equal(await toggle.getAttribute('aria-expanded'),'false');
+  await toggle.click();await panel.waitFor({state:'visible'});
+  await page.keyboard.press('Tab');
+  assert.equal(await panel.getByRole('button',{name:'Do not allow',exact:true}).evaluate(el=>document.activeElement===el),true,'reopened panel supports keyboard refusal');
+  await page.keyboard.press('Enter');await panel.waitFor({state:'hidden'});
+  assert.deepEqual(requests,[],'close/refusal never loads analytics');
+ }finally{await page.close();}
+});
 for(const locale of ['ko','en','zh-CN','ja'])for(const mode of ['element','react'])test(`seven state pages edit selected ${mode} source and actual renderer in ${locale}`,{timeout:120000},async()=>{
  const page=await newReferencePage({viewport:{width:1280,height:900},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  try{
