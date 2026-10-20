@@ -483,3 +483,190 @@ test('removing a rest gaze target releases partial rest and reports one lifecycl
   assert.deepEqual(avatar.position, point); assert.notEqual(avatar.behaviorState.status, 'acting');
   await advance(1000); assert.equal(f.errors.length, 1);
 });
+
+test('declarative exit reversal preserves position, velocity, acceleration and travel pose', async t => {
+  const { avatar } = fixture(t);
+  await avatar.moveTo({ x: 300, y: 250 }, { duration: 0 });
+  avatar.pausedState = false;
+  avatar.presence = { visible: false, exit: { to: 'right' } };
+  await drain(); await advance(160);
+  const before = avatar.movementState, pose = structuredClone(avatar.travelPresentation);
+  assert.ok(before.speed > 0);
+  avatar.presence = { visible: true, entrance: { source: 'viewport', edge: 'left' } };
+  await drain();
+  const after = avatar.movementState;
+  assert.deepEqual(after.position, before.position, 'reversal must not stage at the opposite edge');
+  assert.deepEqual(after.velocity, before.velocity);
+  assert.deepEqual(after.acceleration, before.acceleration);
+  assert.deepEqual(avatar.travelPresentation, pose, 'reversal retains the airborne presentation');
+  await until(() => avatar.presenceState === 'visible', 'reversed arrival');
+});
+
+test('show without entrance returns from a completed explicit exit to the last visible position', async t => {
+  const { avatar } = fixture(t);
+  const origin = { x: 300, y: 250 };
+  await avatar.moveTo(origin, { duration: 0 });
+  avatar.presence = { visible: false, exit: { to: 'right', duration: 0 } };
+  await until(() => avatar.presenceState === 'hidden', 'completed exit');
+  assert.ok(avatar.position.x > dom.window.innerWidth);
+  avatar.presence = { visible: true };
+  await until(() => avatar.presenceState === 'visible' && avatar.lifecycleState.phase === 'idle', 'unconfigured reentry');
+  assert.deepEqual(avatar.position, origin, 'show must restore a usable onscreen position');
+});
+
+test('bare hide/show stays in place and repeated visibility remains idempotent', async t => {
+  const { avatar } = fixture(t);
+  const origin = { x: 300, y: 250 };
+  await avatar.moveTo(origin, { duration: 0 });
+  avatar.pausedState = false;
+  avatar.presence = { visible: false };
+  await until(() => avatar.presenceState === 'hidden', 'in-place hide');
+  assert.deepEqual(avatar.position, origin);
+  avatar.presence = { visible: true };
+  await until(() => avatar.presenceState === 'visible' && avatar.lifecycleState.phase === 'idle', 'in-place reveal');
+  const events = [];
+  avatar.addEventListener('sidekick-enter-end', event => events.push(event.detail));
+  avatar.presence = { visible: true };
+  await advance(300);
+  assert.deepEqual(avatar.position, origin);
+  assert.equal(events.length, 0);
+});
+
+test('masked declarative reentry does not relocate a still-visible exiting avatar', async t => {
+  const { avatar, workTarget } = fixture(t);
+  await avatar.moveTo({ x: 300, y: 250 }, { duration: 0 });
+  avatar.pausedState = false;
+  avatar.presence = { visible: false, exit: { to: 'right' } };
+  await drain(); await advance(160);
+  const before = avatar.movementState;
+  avatar.presence = { visible: true, entrance: { source: 'element', target: workTarget, direction: 'left' } };
+  await drain();
+  assert.deepEqual(avatar.position, before.position);
+  assert.deepEqual(avatar.movementState.velocity, before.velocity);
+  assert.notEqual(avatar.canvas.style.clipPath, 'inset(100%)', 'replacement must not flash a fully clipped frame');
+  await until(() => avatar.presenceState === 'visible', 'masked reversal');
+  assert.equal(avatar.canvas.style.clipPath, '');
+});
+
+test('same-visible home edits during arrival retarget without restarting entrance', async t => {
+  const f = fixture(t), { avatar } = f;
+  avatar.pausedState = false;
+  avatar.home = f.home();
+  avatar.presence = { visible: true, entrance: { source: 'viewport', edge: 'left' } };
+  await drain(); await advance(160);
+  const before = avatar.movementState;
+  avatar.home = { ...f.home(), positioning: { ...f.home().positioning, gap: 40 } };
+  await drain();
+  assert.deepEqual(avatar.position, before.position);
+  assert.deepEqual(avatar.movementState.velocity, before.velocity);
+  await until(() => avatar.lifecycleState.phase === 'resting', 'updated home');
+  assert.deepEqual(avatar.position, { x: 140, y: 430 });
+});
+
+test('same-visible task replacement during entrance runs only the latest task', async t => {
+  const f = fixture(t), { avatar } = f;
+  avatar.pausedState = false;
+  avatar.task = f.task('old-arrival-task');
+  avatar.presence = { visible: true, entrance: { source: 'viewport', edge: 'left' } };
+  await drain(); await advance(160);
+  const before = avatar.movementState;
+  avatar.task = { id: 'latest-arrival-task', status: 'pending', behavior: { type: 'wait', target: f.homeTarget, side: 'right', gap: 20 } };
+  await drain();
+  assert.deepEqual(avatar.position, before.position);
+  assert.deepEqual(avatar.movementState.velocity, before.velocity);
+  await until(() => avatar.behaviorState.status === 'acting', 'latest arrival task');
+  assert.equal(avatar.lifecycleState.taskId, 'latest-arrival-task');
+  assert.equal(avatar.behavior.target, f.homeTarget);
+  assert.deepEqual(f.errors, []);
+});
+
+test('imperative movement reveals an avatar hidden by a visibility fade', async t => {
+  const { avatar } = fixture(t);
+  avatar.presence = { visible: false };
+  await until(() => avatar.presenceState === 'hidden', 'faded hidden state');
+  await avatar.moveTo({ x: 300, y: 250 }, { duration: 0 });
+  await advance(300);
+  assert.equal(avatar.presenceState, 'visible');
+  assert.equal(Number(avatar.canvas.style.opacity || 1), 1, 'manual reveal must release opacity ownership');
+});
+
+test('explicit entrance reversing a partial fade retains alpha and position', async t => {
+  const { avatar } = fixture(t);
+  await avatar.moveTo({ x: 300, y: 250 }, { duration: 0 });
+  avatar.pausedState = false;
+  avatar.presence = { visible: false };
+  await drain(); await advance(70);
+  const alpha = Number(avatar.canvas.style.opacity), point = avatar.position;
+  assert.ok(alpha > 0 && alpha < 1);
+  avatar.presence = { visible: true, entrance: { source: 'viewport', edge: 'left' } };
+  await drain();
+  assert.deepEqual(avatar.position, point, 'partially visible body must not jump to an edge');
+  assert.equal(Number(avatar.canvas.style.opacity || 1), alpha, 'reversal preserves alpha');
+  await until(() => avatar.presenceState === 'visible' && avatar.lifecycleState.phase === 'idle', 'entrance after fade reversal');
+  assert.equal(Number(avatar.canvas.style.opacity || 1), 1);
+});
+
+test('bare show after hiding a masked arrival clears the old entrance mask', async t => {
+  const { avatar, workTarget } = fixture(t);
+  avatar.pausedState = false;
+  avatar.presence = { visible: true, entrance: { source: 'element', target: workTarget, direction: 'left' } };
+  await drain(); await advance(160);
+  avatar.presence = { visible: false };
+  await drain(); await advance(60);
+  avatar.presence = { visible: true };
+  await until(() => avatar.lifecycleState.phase === 'idle', 'bare show after masked reversal');
+  await advance(300);
+  assert.equal(avatar.canvas.style.clipPath, '', 'old entrance cannot mask the now-visible avatar');
+  assert.equal(Number(avatar.canvas.style.opacity || 1), 1);
+});
+
+test('manual move from interrupted entrance completion wins over an older hide fade', async t => {
+  const { avatar } = fixture(t);
+  avatar.pausedState = false;
+  avatar.presence = { visible: true, entrance: { source: 'viewport', edge: 'left' } };
+  await drain(); await advance(100);
+  let replacement;
+  avatar.addEventListener('sidekick-enter-end', event => {
+    if (!event.detail.finished && !replacement) replacement = avatar.moveTo({ x: 300, y: 250 }, { duration: 0 });
+  });
+  avatar.presence = { visible: false };
+  await drain();
+  assert.ok(replacement);
+  await replacement; await advance(500);
+  assert.equal(avatar.lifecycleState.phase, 'suspended');
+  assert.equal(avatar.presenceState, 'visible', 'stale fade must not hide a manual replacement');
+  assert.deepEqual(avatar.position, { x: 300, y: 250 });
+  assert.equal(Number(avatar.canvas.style.opacity || 1), 1);
+});
+
+test('explicit exit during fade-in remembers the visible return position', async t => {
+  const { avatar } = fixture(t);
+  const origin = { x: 300, y: 250 };
+  await avatar.moveTo(origin, { duration: 0 });
+  avatar.presence = { visible: false };
+  await until(() => avatar.presenceState === 'hidden', 'initial hidden state');
+  avatar.pausedState = false;
+  avatar.presence = { visible: true };
+  await drain(); await advance(70);
+  avatar.presence = { visible: false, exit: { to: 'right' } };
+  await until(() => avatar.presenceState === 'hidden', 'explicit exit during fade-in');
+  avatar.presence = { visible: true };
+  await until(() => avatar.lifecycleState.phase === 'idle' && avatar.presenceState === 'visible', 'return after fade-in exit');
+  assert.deepEqual(avatar.position, origin);
+  assert.equal(Number(avatar.canvas.style.opacity || 1), 1);
+});
+
+test('hiding an arrival before it reaches the viewport does not clamp its position', async t => {
+  const { avatar } = fixture(t);
+  avatar.pausedState = false;
+  avatar.presence = { visible: true, entrance: { source: 'viewport', edge: 'left' } };
+  await drain(); await advance(30);
+  const before = avatar.position;
+  assert.ok(before.x < -60);
+  avatar.presence = { visible: false };
+  await drain();
+  assert.deepEqual(avatar.position, before);
+  await advance(1000 / 60);
+  assert.ok(Math.abs(avatar.position.x - before.x) < 10, 'visibility change cannot re-enable bounds during braking');
+  await until(() => avatar.presenceState === 'hidden', 'hidden interrupted entrance');
+});

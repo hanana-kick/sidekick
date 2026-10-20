@@ -1,0 +1,288 @@
+import test, { before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import ts from 'typescript';
+import { join } from 'node:path';
+import { chromium } from 'playwright-core';
+import { createAppServer } from '../scripts/serve.mjs';
+
+// Run with SIDEKICK_HEADED=1 under xvfb. No golden images: numerical continuity
+// assertions accompany sequential rendered frames and a reviewable contact sheet.
+const output = process.env.SIDEKICK_SCREENSHOTS;
+let browser, server, base;
+before(async () => {
+  if (output) await mkdir(output, { recursive: true });
+  server = createAppServer();
+  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
+  base = `http://127.0.0.1:${server.address().port}`;
+  browser = await chromium.launch({
+    executablePath: process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined),
+    headless: process.env.SIDEKICK_HEADED !== '1',
+    args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'],
+  });
+});
+after(async () => { await browser?.close(); if (server?.listening) await new Promise(resolve => server.close(resolve)); });
+const slug = name => name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const hidden = scope => scope.waitForFunction(() => window.qaBot.presenceState === 'hidden');
+const visible = scope => scope.waitForFunction(() => window.qaBot.presenceState === 'visible' && window.qaBot.movementState.phase === 'idle' && Number(getComputedStyle(window.qaBot.shadowRoot.querySelector('canvas')).opacity) === 1);
+
+async function newPage(t, options = {}) {
+  const name = slug(t.name), errors = [];
+  const context = await browser.newContext({ viewport: { width: 960, height: 720 }, reducedMotion: 'no-preference',
+    ...(output ? { recordVideo: { dir: join(output, 'video'), size: { width: 960, height: 720 } } } : {}), ...options });
+  const page = await context.newPage();
+  page.on('pageerror', error => errors.push(error.message));
+  t.after(async () => {
+    if (output && !page.isClosed()) {
+      await page.screenshot({ path: join(output, `${name}-last.png`) });
+      // Preserve evidence even when an assertion or a wait fails mid-sequence.
+      for (const [index, frame] of page.frames().entries()) {
+        const samples = await frame.evaluate(() => window.qaSamples ?? null).catch(() => null);
+        if (samples) await writeFile(join(output, `${name}-frame-${index}-all-samples.json`), JSON.stringify(samples, null, 2));
+      }
+    }
+    const video = page.video(); await context.close();
+    if (output && video) await video.saveAs(join(output, `${name}.webm`));
+    assert.deepEqual(errors, [], 'no browser exceptions');
+  });
+  return page;
+}
+
+async function installSampler(scope, selector) {
+  await scope.evaluate(selector => {
+    window.qaBot = document.querySelector(selector);
+    window.qaOriginalCanvas = window.qaBot.shadowRoot.querySelector('canvas');
+    window.qaGeneration = window.qaBot.diagnostics.generation;
+    window.qaSamples = []; window.qaSegment = 'baseline';
+    window.qaSnapshot = () => {
+      const bot = window.qaBot, canvas = bot.shadowRoot.querySelector('canvas');
+      return { time: performance.now(), segment: window.qaSegment, position: bot.position,
+        movement: bot.movementState, presence: bot.presenceState, lifecycle: bot.lifecycleState,
+        opacity: Number(getComputedStyle(canvas).opacity), visibility: getComputedStyle(bot).visibility,
+        clip: canvas.style.clipPath, design: JSON.stringify(bot.design),
+        sameCanvas: canvas === window.qaOriginalCanvas, generation: bot.diagnostics.generation,
+        frames: bot.diagnostics.frames, running: bot.diagnostics.running };
+    };
+    window.qaSampling = true;
+    const sample = () => { if (!window.qaSampling) return; window.qaSamples.push(window.qaSnapshot()); requestAnimationFrame(sample); };
+    requestAnimationFrame(sample);
+  }, selector);
+}
+
+async function fixture(t, backend = 'worker', options) {
+  const page = await newPage(t, options);
+  if (backend === 'main') await page.addInitScript(() => { window.Worker = undefined; });
+  await page.route('**/presence-continuity-fixture', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><style>
+    body{margin:0;background:#f5f2eb;color:#34443c;font:18px system-ui}h1{margin:28px;font-size:26px}p{margin:28px;color:#607167}
+    #card{position:absolute;left:320px;top:220px;width:300px;height:280px;background:#294a40;border-radius:16px}
+    sidekick-avatar{width:120px;height:120px}
+    </style><h1>Presence continuity</h1><p>Heart · sage body · same canvas throughout</p><div id="card"></div>
+    <sidekick-avatar id="bot" placement="viewport" shape="heart" body-color="#9ab58e" eye-color="#263d32" tracking-mode="off"></sidekick-avatar>
+    <script type="module" src="/browser/sidekick.js"></script></html>` }));
+  await page.goto(`${base}/presence-continuity-fixture`);
+  await page.waitForFunction(() => document.querySelector('#bot')?.ready);
+  await page.evaluate(async () => { const bot = document.querySelector('#bot'); await bot.moveTo({ x: 160, y: 300 }, { duration: 0 }); bot.presence = { visible: true }; });
+  await installSampler(page, '#bot'); await visible(page);
+  assert.equal(await page.evaluate(() => window.qaBot.diagnostics.backend), backend);
+  return page;
+}
+
+// Screenshots are deliberately serial, preserving their real capture order.
+// rAF trajectories continue independently, including frames between screenshots.
+async function sequence(page, scope, name, action, duration = 380) {
+  await scope.evaluate(name => { window.qaSegment = name; }, name);
+  const frames = [], start = Date.now();
+  await action();
+  do {
+    if (output) {
+      const png = await page.screenshot();
+      const state = await scope.evaluate(() => window.qaSnapshot());
+      const file = `${slug(name)}-${String(frames.length).padStart(3, '0')}.png`;
+      await writeFile(join(output, file), png);
+      frames.push({ file, png: png.toString('base64'), state });
+    }
+    await page.waitForTimeout(35);
+  } while (Date.now() - start < duration);
+  if (output) {
+    await writeFile(join(output, `${slug(name)}-screenshots.json`), JSON.stringify(frames.map(({ png, ...frame }) => frame), null, 2));
+    // Dedicated page avoids disturbing the application or its animation clock.
+    const sheet = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    await sheet.setContent(`<style>body{margin:12px;background:#e8e8e8;font:13px monospace}main{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}img{width:100%}figure{margin:0;background:white}figcaption{padding:7px}</style><h2>${slug(name)}</h2><main>${frames.map(({ png, state }, i) => `<figure><img src="data:image/png;base64,${png}"><figcaption>${i} · ${Math.round(state.time)}ms · ${state.presence} · opacity ${state.opacity.toFixed(2)}<br>x ${state.position.x.toFixed(1)} y ${state.position.y.toFixed(1)}</figcaption></figure>`).join('')}</main>`);
+    await sheet.screenshot({ path: join(output, `${slug(name)}-contact-sheet.png`), fullPage: true }); await sheet.close();
+  }
+}
+async function finish(scope, name) {
+  const result = await scope.evaluate(async () => {
+    const bot = window.qaBot;
+    // Never retain a state snapshot across asynchronous GPU capture.
+    const image = await bot.capturePixelsAsync();
+    let opaquePixels = 0;
+    for (let i = 3; i < image.pixels.length; i += 4) if (image.pixels[i] > 127) opaquePixels++;
+    const state = window.qaSnapshot(); window.qaSampling = false;
+    return { opaquePixels, state, samples: window.qaSamples, originalGeneration: window.qaGeneration };
+  });
+  if (output) await writeFile(join(output, `${slug(name)}-trajectory.json`), JSON.stringify(result, null, 2));
+  assert.ok(result.opaquePixels > 100, 'final configured companion has rendered pixels');
+  assert.ok(result.samples.every(s => s.sameCanvas && s.generation === result.originalGeneration), 'renderer and canvas persist');
+  assert.ok(result.samples.every(s => s.design === result.samples[0].design), 'no default appearance flash');
+  for (let i = 1; i < result.samples.length; i++) {
+    const a = result.samples[i - 1], b = result.samples[i];
+    if (a.presence === 'hidden' || b.presence === 'hidden' || a.opacity === 0 || b.opacity === 0) continue;
+    const elapsed = (b.time - a.time) / 1000;
+    const allowance = 12 + 2 * Math.max(a.movement.speed, b.movement.speed) * elapsed;
+    assert.ok(distance(a.position, b.position) <= allowance, `no visible frame jump at ${b.time.toFixed(1)}ms: ${distance(a.position, b.position).toFixed(1)}px > ${allowance.toFixed(1)}px`);
+  }
+  return result;
+}
+
+for (const backend of ['worker', 'main']) {
+  test(`plain presence fades in place over 180ms and stops hidden rendering ${backend}`, { timeout: 60000 }, async t => {
+    const page = await fixture(t, backend), origin = await page.evaluate(() => window.qaBot.position);
+    await sequence(page, page, `${backend}-plain-hide`, () => page.evaluate(() => { window.qaBot.presence = { visible: false }; }));
+    await hidden(page); await page.waitForTimeout(100);
+    const frames = await page.evaluate(() => window.qaBot.diagnostics.frames);
+    await page.waitForTimeout(180);
+    assert.deepEqual(await page.evaluate(() => ({ frames: window.qaBot.diagnostics.frames, running: window.qaBot.diagnostics.running })), { frames, running: false });
+    await sequence(page, page, `${backend}-plain-show`, () => page.evaluate(() => { window.qaBot.presence = { visible: true }; }));
+    await visible(page);
+    const result = await finish(page, t.name);
+    assert.ok(result.samples.every(s => distance(s.position, origin) < .1), 'plain visibility cannot travel');
+    for (const part of ['hide', 'show']) {
+      const samples = result.samples.filter(s => s.segment === `${backend}-plain-${part}`);
+      assert.ok(samples.some(s => s.opacity > .05 && s.opacity < .95), `${part} must have intermediate opacity`);
+      const first = samples.find(s => part === 'hide' ? s.opacity < 1 : s.opacity > 0);
+      const last = samples.find(s => part === 'hide' ? s.presence === 'hidden' : s.opacity === 1);
+      assert.ok(last && first && last.time - first.time >= 100 && last.time - first.time < 500, `${part} is approximately 180ms (rAF tolerance)`);
+    }
+  });
+  for (const edge of ['left', 'right', 'top', 'bottom']) test(`explicit ${edge} exit reentry and reversal ${backend}`, { timeout: 60000 }, async t => {
+    const page = await fixture(t, backend);
+    await sequence(page, page, `${backend}-${edge}-full-exit`, () => page.evaluate(edge => { window.qaBot.presence = { visible: false, exit: { to: edge } }; }, edge), 1200);
+    await hidden(page);
+    await sequence(page, page, `${backend}-${edge}-full-entry`, () => page.evaluate(edge => { window.qaBot.presence = { visible: true, entrance: { source: 'viewport', edge, inset: 110 } }; }, edge), 1200);
+    await visible(page);
+    await page.evaluate(edge => { window.qaBot.presence = { visible: false, exit: { to: edge } }; }, edge);
+    await page.waitForFunction(() => window.qaBot.movementState.speed > 100);
+    let reversal;
+    await sequence(page, page, `${backend}-${edge}-reverse`, async () => {
+      reversal = await page.evaluate(async edge => {
+        const before = window.qaSnapshot();
+        window.qaBot.presence = { visible: true, entrance: { source: 'viewport', edge, inset: 110 } };
+        for (let i = 0; i < 20; i++) await Promise.resolve();
+        return { before, after: window.qaSnapshot() };
+      }, edge);
+    }, 1200);
+    assert.ok(distance(reversal.before.position, reversal.after.position) < 1, 'retarget does not teleport');
+    assert.ok(distance(reversal.before.movement.velocity, reversal.after.movement.velocity) < 1, 'retarget preserves instantaneous velocity');
+    await visible(page); const result = await finish(page, t.name);
+    assert.ok(result.samples.some(s => s.presence === 'exiting' && s.movement.speed > 20));
+    assert.ok(result.samples.some(s => s.presence === 'entering' && s.movement.speed > 20));
+    if (output) await writeFile(join(output, `${slug(t.name)}-reversal.json`), JSON.stringify(reversal, null, 2));
+  });
+}
+
+for (const edge of ['left', 'right', 'top', 'bottom']) test(`element ${edge} mask survives reversing entrance to exit`, { timeout: 60000 }, async t => {
+  const page = await fixture(t);
+  await page.evaluate(() => { window.qaBot.presence = { visible: false }; }); await hidden(page);
+  await page.evaluate(edge => { window.qaBot.presence = { visible: true, entrance: { source: 'element', target: '#card', direction: edge } }; }, edge);
+  await page.waitForFunction(() => window.qaBot.movementState.speed > 80 && window.qaBot.shadowRoot.querySelector('canvas').style.clipPath.startsWith('polygon'));
+  const reversal = await page.evaluate(async edge => {
+    const before = window.qaSnapshot(); window.qaBot.presence = { visible: false, exit: { to: edge } };
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+    return { before, after: window.qaSnapshot() };
+  }, edge);
+  assert.ok(distance(reversal.before.position, reversal.after.position) < 1);
+  assert.ok(distance(reversal.before.movement.velocity, reversal.after.movement.velocity) < 1);
+  assert.ok(reversal.after.clip.startsWith('polygon'), 'interrupted reveal keeps its occlusion mask');
+  await sequence(page, page, `element-${edge}-reversal`, async () => {}, 1200); await hidden(page);
+  await sequence(page, page, `element-${edge}-reenter`, () => page.evaluate(edge => { window.qaBot.presence = { visible: true, entrance: { source: 'element', target: '#card', direction: edge } }; }, edge), 1200);
+  await visible(page); assert.equal(await page.evaluate(() => window.qaBot.shadowRoot.querySelector('canvas').style.clipPath), '');
+  await finish(page, t.name);
+});
+
+for (const mode of ['reduced', 'paused', 'rapid']) test(`${mode} visibility reaches latest intent`, { timeout: 45000 }, async t => {
+  const page = await fixture(t, 'worker', mode === 'reduced' ? { reducedMotion: 'reduce' } : {});
+  if (mode === 'paused') await page.evaluate(() => { window.qaBot.paused = true; });
+  await sequence(page, page, `${mode}-visibility`, async () => {
+    await page.evaluate(async mode => {
+      const bot = window.qaBot;
+      for (let i = 0; i < (mode === 'rapid' ? 9 : 1); i++) {
+        bot.presence = { visible: i % 2 !== 0 };
+        await new Promise(resolve => setTimeout(resolve, mode === 'rapid' ? 30 : 0));
+      }
+    }, mode);
+  });
+  await hidden(page);
+  await page.evaluate(() => { window.qaBot.presence = { visible: true }; }); await visible(page);
+  await finish(page, t.name);
+});
+
+for (const framework of ['element', 'react']) test(`Guide lifecycle ${framework} visibility controls fade without displacement`, { timeout: 60000 }, async t => {
+  const page = await newPage(t, { viewport: { width: 1280, height: 1000 } });
+  await page.goto(`${base}/guide.html?lang=en&framework=${framework}#state-lifecycle`);
+  await page.waitForSelector('[data-state-reference="state-lifecycle"][data-configured]');
+  await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
+  const frame = page.frames().find(frame => frame.url().includes('/state-preview.html')); assert.ok(frame);
+  await frame.waitForFunction(() => document.querySelector('#reference-bot')?.ready && document.querySelector('#reference-bot').lifecycleState.phase === 'resting');
+  await installSampler(frame, '#reference-bot');
+  const origin = await frame.evaluate(() => window.qaBot.position);
+  for (const action of ['hide', 'show']) {
+    await sequence(page, frame, `guide-${framework}-${action}`, () => frame.locator('[data-lifecycle-action="visible"]').click());
+    if (action === 'hide') await hidden(frame); else await visible(frame);
+  }
+  const result = await finish(frame, t.name);
+  assert.ok(result.samples.every(s => distance(s.position, origin) < 1), 'real Guide visibility toggle remains at home');
+});
+
+test('API playground lifecycle visibility toggle stays in place', { timeout: 60000 }, async t => {
+  const page = await newPage(t, { viewport: { width: 1280, height: 1000 } });
+  await page.goto(`${base}/api-playground.html?lang=en&lesson=declarative-lifecycle`);
+  await page.waitForFunction(() => !document.querySelector('#execute')?.disabled);
+  await page.locator('#execute').click();
+  await page.waitForFunction(() => document.querySelector('#bot')?.lifecycleState.phase === 'resting');
+  await installSampler(page, '#bot'); const origin = await page.evaluate(() => window.qaBot.position);
+  for (const action of ['hide', 'show']) {
+    await sequence(page, page, `api-${action}`, () => page.locator('[data-lifecycle-action="visible"]').click());
+    if (action === 'hide') await hidden(page); else await visible(page);
+  }
+  const result = await finish(page, t.name);
+  assert.ok(result.samples.every(s => distance(s.position, origin) < 1));
+});
+
+for (const framework of ['element', 'react']) test(`copied ${framework} lifecycle runtime preserves plain visibility`, { timeout: 60000 }, async t => {
+  const sourcePage = await browser.newPage();
+  let source;
+  try {
+    await sourcePage.goto(`${base}/guide.html?lang=en&framework=${framework}#state-lifecycle`);
+    await sourcePage.waitForSelector('[data-state-reference="state-lifecycle"][data-configured]');
+    source = await sourcePage.locator('[data-state-source]').textContent();
+  } finally { await sourcePage.close(); }
+  const page = await newPage(t);
+  let html = source;
+  if (framework === 'element') {
+    html = source.replace(/import ['"](?:@hanana-kick\/sidekick\/auto|https:\/\/cdn\.jsdelivr\.net\/gh\/hanana-kick\/sidekick@v[^/'"]+\/dist\/browser\/sidekick\.js)['"];?/, "import '/browser/sidekick.js';");
+    assert.notEqual(html, source, 'copy uses recognized browser installation URL');
+  } else {
+    const output = ts.transpileModule(`import React from 'react';\nimport { createRoot } from 'react-dom/client';\n${source}\ncreateRoot(document.getElementById('root')).render(<React.StrictMode><LifecycleExample /></React.StrictMode>);`, {
+      compilerOptions: { jsx: ts.JsxEmit.React, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+    }).outputText;
+    for (const peer of ['react', 'react-dom-client']) await page.route(`${base}/presence-peers/${peer}.js`, async route => route.fulfill({
+      contentType: 'text/javascript', body: await readFile(new URL(`../cdn/react-19.3.1/${peer}.js`, import.meta.url), 'utf8'),
+    }));
+    const imports = { react: '/presence-peers/react.js', 'react-dom/client': '/presence-peers/react-dom-client.js', '@hanana-kick/sidekick/react': '/browser/sidekick-react.js' };
+    html = `<!doctype html><div id="root"></div><script type="importmap">${JSON.stringify({ imports })}</script><script type="module">${output}</script>`;
+  }
+  await page.route(`${base}/presence-copy.html`, route => route.fulfill({ contentType: 'text/html', body: html }));
+  await page.goto(`${base}/presence-copy.html`);
+  await page.waitForFunction(() => document.querySelector('#reference-bot')?.ready && document.querySelector('#reference-bot').lifecycleState.phase === 'resting');
+  await installSampler(page, '#reference-bot'); const origin = await page.evaluate(() => window.qaBot.position);
+  for (const action of ['hide', 'show']) {
+    await sequence(page, page, `copied-${framework}-${action}`, () => page.locator('[data-lifecycle-action="visible"]').click());
+    if (action === 'hide') await hidden(page); else await visible(page);
+  }
+  const result = await finish(page, t.name);
+  assert.ok(result.samples.every(s => distance(s.position, origin) < 1));
+  assert.ok(result.samples.some(s => s.opacity > .05 && s.opacity < .95), 'copied application actually animates visibility');
+});

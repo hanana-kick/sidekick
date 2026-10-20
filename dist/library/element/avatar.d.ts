@@ -48,6 +48,12 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private lifecyclePositionPromise?;
     private lifecyclePositionCurrent?;
     private lifecycleEntrancePromise?;
+    private presenceReturn?;
+    private presenceFlightReturn;
+    private presenceOpacity;
+    private presenceFade?;
+    private cancelPresenceFade;
+    private fadePresence;
     private lifecycleController;
     get presence(): SidekickPresence | null;
     set presence(value: SidekickPresence | null);

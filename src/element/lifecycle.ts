@@ -206,6 +206,7 @@ export class LifecycleController {
     const sameVisibility = previous.presence?.visible === next.presence?.visible;
     // Destination/rest edits must not restart ongoing work or cut off its terminal reaction.
     if (!this.scheduled && !this.suspended && this.owned && sameVisibility) {
+      if (this.presencePending) return;
       if (next.presence?.visible === false) { this.publish(this.revision, 'hidden'); return; }
       if (sameTaskWork && (next.task?.status === 'pending' || this.last.phase === 'reacting')) return;
       if (sameTaskWork && same(previous.home, next.home)) return;
@@ -293,7 +294,7 @@ export class LifecycleController {
   }
   private async execute(revision: number): Promise<void> {
     const current = () => this.current(revision);
-    const { presence, task } = this.declaration;
+    const { presence } = this.declaration;
     if (presence && presence.visible !== this.appliedVisibility) {
       this.publish(revision, presence.visible ? 'entering' : 'hidden');
       if (!current()) return;
@@ -303,6 +304,7 @@ export class LifecycleController {
       this.presencePending = false;
     }
     if (presence?.visible === false) { this.publish(revision, 'hidden'); return; }
+    const { task } = this.declaration;
     if (task?.status === 'pending') {
       if (!task.behavior) { this.publish(revision, 'pending'); return; }
       this.publish(revision, 'working');

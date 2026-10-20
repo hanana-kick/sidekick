@@ -1,0 +1,29 @@
+name: Presence continuity visual QA
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build:all
+      - run: node node_modules/playwright-core/cli.js install --with-deps chromium ffmpeg
+      - name: Capture headed presence trajectories and visual sequences
+        run: xvfb-run -a node --test --test-concurrency=1 tests/presence-continuity-browser.test.mjs tests/lifecycle-docs-browser.test.mjs
+        env:
+          SIDEKICK_HEADED: '1'
+          SIDEKICK_SCREENSHOTS: artifacts/presence
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: presence-continuity-visuals
+          path: artifacts/presence/
+          if-no-files-found: warn

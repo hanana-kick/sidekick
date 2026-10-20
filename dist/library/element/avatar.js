@@ -68,10 +68,68 @@ export class SidekickAvatar extends HTMLElementBase {
     lifecyclePositionPromise;
     lifecyclePositionCurrent;
     lifecycleEntrancePromise;
+    presenceReturn;
+    presenceFlightReturn = false;
+    presenceOpacity = 1;
+    presenceFade;
+    cancelPresenceFade() {
+        const fade = this.presenceFade;
+        this.presenceFade = undefined;
+        if (fade) {
+            cancelAnimationFrame(fade.frame);
+            fade.resolve();
+        }
+    }
+    fadePresence(visible, physical = false, current = () => true) {
+        this.cancelPresenceFade();
+        const from = this.presenceHidden ? 0 : this.presenceOpacity, to = visible ? 1 : 0;
+        this.presenceOpacity = from;
+        this.canvas?.style.setProperty('opacity', String(from));
+        if (!physical)
+            this.presenceController.setVisible(true);
+        if (!current())
+            return Promise.resolve();
+        const duration = this.paused || this.reduced || !this.connected ? 0 : 180 * Math.abs(to - from);
+        return new Promise(resolve => {
+            const fade = { frame: 0, resolve };
+            this.presenceFade = fade;
+            const start = performance.now();
+            const tick = (now) => {
+                if (this.presenceFade !== fade)
+                    return;
+                if (!current()) {
+                    this.cancelPresenceFade();
+                    return;
+                }
+                const progress = duration && !this.paused && !this.reduced && this.connected ? Math.min(1, (now - start) / duration) : 1;
+                this.presenceOpacity = from + (to - from) * progress * progress * (3 - 2 * progress);
+                this.canvas?.style.setProperty('opacity', String(this.presenceOpacity));
+                if (progress < 1) {
+                    fade.frame = requestAnimationFrame(tick);
+                    return;
+                }
+                this.presenceFade = undefined;
+                if (!physical)
+                    this.presenceController.setVisible(visible);
+                resolve();
+            };
+            if (duration)
+                fade.frame = requestAnimationFrame(tick);
+            else
+                tick(start);
+        });
+    }
     lifecycleController = new LifecycleController({
         document: this.ownerDocument,
         connected: () => this.connected && this.ready,
         cancel: (reason, current) => this.lifecycleOperation(() => {
+            const continuingPresence = reason === 'declaration-changed' && !!this.lifecycleController.presence &&
+                (!!this.presenceFade || this.presenceState === 'entering' || this.presenceState === 'exiting');
+            this.cancelPresenceFade();
+            if (reason !== 'declaration-changed') {
+                this.presenceOpacity = 1;
+                this.canvas?.style.removeProperty('opacity');
+            }
             this.pendingBehavior = undefined;
             this.lifecycleCancelling = true;
             try {
@@ -96,6 +154,8 @@ export class SidekickAvatar extends HTMLElementBase {
             this.lifecyclePositionCurrent = undefined;
             this.clearPositioning();
             this.releaseAnchor(false);
+            if (continuingPresence)
+                return;
             this.entranceRevision++;
             this.clearEntrance();
             const owner = this.presenceController.interrupt();
@@ -105,9 +165,35 @@ export class SidekickAvatar extends HTMLElementBase {
         presence: (value, current) => this.lifecycleOperation(() => {
             if (!current())
                 return;
-            if (!value.visible)
-                return this.exit(this.presenceHidden && this.presenceState === 'visible' ? { ...value.exit, duration: 0 } : value.exit ?? {});
+            if (!value.visible) {
+                if (value.exit || this.presenceController.destination)
+                    this.presenceFlightReturn = true;
+                if (this.presenceState !== 'exiting' && this.presenceState !== 'hidden')
+                    this.presenceReturn = this.presenceController.destination ?? this.presenceReturn ?? this.position;
+                if (!value.exit) {
+                    this.movement.cancel();
+                    return this.fadePresence(false, false, current).then(() => { if (current()) {
+                        this.entranceRevision++;
+                        this.clearEntrance();
+                    } });
+                }
+                // Keep an interrupted element entrance's mask until the departing body clears it.
+                this.entranceRevision++;
+                const exiting = this.exit(this.presenceHidden && this.presenceState === 'visible' ? { ...value.exit, duration: 0 } : value.exit);
+                if (current() && !this.presenceHidden && this.presenceOpacity < 1)
+                    void this.fadePresence(true, true, current);
+                return exiting.then(result => {
+                    if (current())
+                        this.clearEntrance();
+                    return result;
+                });
+            }
             if (value.entrance) {
+                const partial = !this.presenceHidden && this.presenceOpacity < 1;
+                if (!partial) {
+                    this.presenceOpacity = 1;
+                    this.canvas?.style.removeProperty('opacity');
+                }
                 const home = this.lifecycleController.home;
                 if (home && !this.lifecycleController.task) {
                     this.positioningDeclaration = validatePositioning(home.positioning, this.ownerDocument);
@@ -118,7 +204,9 @@ export class SidekickAvatar extends HTMLElementBase {
                 this.entranceDeclaration = value.entrance;
                 this.entranceApplied = false;
                 this.lifecycleEntrancePromise = undefined;
-                this.startEntrance();
+                this.startEntrance(partial);
+                if (partial)
+                    void this.fadePresence(true, true, current);
                 const entered = this.lifecycleEntrancePromise;
                 if (!entered)
                     throw new Error('Declarative entrance could not start');
@@ -126,15 +214,26 @@ export class SidekickAvatar extends HTMLElementBase {
                     if (current() && !result.finished)
                         throw new Error('Declarative entrance was interrupted');
                     if (current()) {
+                        this.presenceReturn = undefined;
+                        this.presenceFlightReturn = false;
                         this.clearPositioning();
                         this.releaseAnchor(false);
                     }
                     return result;
                 });
             }
-            const owner = this.presenceController.reveal();
-            if (current() && this.presenceController.owns(owner))
-                this.presenceController.recovered(owner);
+            if (this.presenceReturn && this.presenceFlightReturn) {
+                const target = this.presenceReturn;
+                this.presenceReturn = undefined;
+                this.presenceFlightReturn = false;
+                const entered = this.presenceController.enter(target, {}, this.position, !this.presenceHidden);
+                if (current() && this.presenceOpacity < 1)
+                    void this.fadePresence(true, true, current);
+                return entered.then(result => { if (current())
+                    this.clearEntrance(); return result; });
+            }
+            this.presenceReturn = undefined;
+            return this.fadePresence(true, false, current);
         }),
         perform: (value, _current) => this.lifecycleOperation(() => this.behaviorController.perform(value)),
         reactTo: (value, _current) => this.lifecycleOperation(() => { const { emotion, ...options } = value; return this.reactTo(emotion, options); }),
@@ -636,7 +735,7 @@ export class SidekickAvatar extends HTMLElementBase {
         }
     }
     clearEntrance() { this.entranceCleanup?.(); this.entranceCleanup = undefined; this.refreshEntranceClip = undefined; this.canvas?.style?.removeProperty('clip-path'); }
-    startEntrance() {
+    startEntrance(continueFlight = false) {
         const config = this.entranceDeclaration;
         if (!config || this.entranceApplied || !this.connected || !this.canvas)
             return;
@@ -715,7 +814,7 @@ export class SidekickAvatar extends HTMLElementBase {
             const motion = resolveSidekickAttributes(this.acceptedAttributes).moveOptions;
             if (!this.acceptedAttributes.has('move-duration'))
                 delete motion.duration;
-            this.lifecycleEntrancePromise = this.presenceController.enter(this.positioningDestination() ?? local(geometry.end), { ...motion, from: config.source === 'viewport' ? config.edge : config.direction }, source ? local(source) : undefined).then(result => {
+            this.lifecycleEntrancePromise = this.presenceController.enter(this.positioningDestination() ?? local(geometry.end), { ...motion, from: config.source === 'viewport' ? config.edge : config.direction }, source ? local(source) : undefined, continueFlight).then(result => {
                 if (revision === this.entranceRevision && this.entranceCleanup === cleanup) {
                     this.clearEntrance();
                     this.startPositioning();

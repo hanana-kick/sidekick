@@ -42,9 +42,12 @@ export declare class AvatarPresence {
     private state;
     private operation?;
     get current(): PresenceState;
+    get destination(): AvatarPosition | undefined;
+    /** Visibility-only declarations retain their layout position. */
+    setVisible(visible: boolean): void;
     get bypassBounds(): boolean;
     constructor(host: PresenceHost);
-    enter(point: AvatarPosition, input?: EnterOptions, start?: AvatarPosition): Promise<PresenceResult>;
+    enter(point: AvatarPosition, input?: EnterOptions, start?: AvatarPosition, continueFlight?: boolean): Promise<PresenceResult>;
     exit(input?: ExitOptions): Promise<PresenceResult>;
     /** Superseding normal moves reveal the bot without restarting its activity or resetting momentum. */
     reveal(): number;

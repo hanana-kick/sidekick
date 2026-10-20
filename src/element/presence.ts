@@ -50,12 +50,19 @@ export class AvatarPresence {
   private state: PresenceState = 'visible';
   private operation?: Operation;
   get current(): PresenceState { return this.state; }
+  get destination(): AvatarPosition | undefined { return this.operation?.kind === 'enter' ? { ...this.operation.point } : undefined; }
+  /** Visibility-only declarations retain their layout position. */
+  setVisible(visible: boolean): void {
+    const revision = ++this.revision; this.cancel();
+    if (revision !== this.revision) return;
+    this.state = visible ? 'visible' : 'hidden'; this.host.visibility(!visible);
+  }
   get bypassBounds(): boolean { return !!this.operation || this.recovery || this.state === 'hidden'; }
   constructor(private readonly host: PresenceHost) {}
-  enter(point: AvatarPosition, input: EnterOptions = {}, start?: AvatarPosition): Promise<PresenceResult> {
+  enter(point: AvatarPosition, input: EnterOptions = {}, start?: AvatarPosition, continueFlight = false): Promise<PresenceResult> {
     const target = validatePosition(point), parsed = validatePresenceOptions(input, 'from'); this.host.assertViewport();
     const revision = ++this.revision;
-    const interrupted = !!this.operation;
+    const interrupted = !!this.operation || continueFlight;
     this.cancel();
     if (revision !== this.revision) return Promise.resolve({ finished: false, position: this.host.position(), presence: this.state });
     const destination = this.host.constrain(target);
@@ -96,7 +103,7 @@ export class AvatarPresence {
   }
   retarget(point: AvatarPosition): void {
     const operation = this.operation;
-    if (!operation || operation.kind !== 'enter' || (operation.point.x === point.x && operation.point.y === point.y)) return;
+    if (!operation || operation.kind !== 'enter' || (Math.abs(operation.point.x - point.x) < .01 && Math.abs(operation.point.y - point.y) < .01)) return;
     operation.point = point; this.run(operation);
   }
   resize(): void {

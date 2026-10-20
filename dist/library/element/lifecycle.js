@@ -210,6 +210,8 @@ export class LifecycleController {
         const sameVisibility = previous.presence?.visible === next.presence?.visible;
         // Destination/rest edits must not restart ongoing work or cut off its terminal reaction.
         if (!this.scheduled && !this.suspended && this.owned && sameVisibility) {
+            if (this.presencePending)
+                return;
             if (next.presence?.visible === false) {
                 this.publish(this.revision, 'hidden');
                 return;
@@ -349,7 +351,7 @@ export class LifecycleController {
     }
     async execute(revision) {
         const current = () => this.current(revision);
-        const { presence, task } = this.declaration;
+        const { presence } = this.declaration;
         if (presence && presence.visible !== this.appliedVisibility) {
             this.publish(revision, presence.visible ? 'entering' : 'hidden');
             if (!current())
@@ -365,6 +367,7 @@ export class LifecycleController {
             this.publish(revision, 'hidden');
             return;
         }
+        const { task } = this.declaration;
         if (task?.status === 'pending') {
             if (!task.behavior) {
                 this.publish(revision, 'pending');

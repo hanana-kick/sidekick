@@ -1,6 +1,6 @@
 {
   "name": "@hanana-kick/sidekick",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "description": "API-designed flat companions with transparent rendering and direct contour transitions.",
   "type": "module",
   "private": true,
@@ -63,7 +63,7 @@
     "build:browser": "npm run build:library",
     "pack:release": "npm run check:library && node scripts/package-release.mjs",
     "test:browser:reference": "node --test --test-concurrency=1 tests/first-frame-browser.test.mjs tests/framework-docs-browser.test.mjs tests/framework-example-layout-browser.test.mjs tests/state-reference-browser.test.mjs",
-    "test:browser:regression": "node --test --test-concurrency=1 tests/lifecycle-browser.test.mjs tests/lifecycle-docs-browser.test.mjs tests/guide-navigation-browser.test.mjs tests/eye-ownership-browser.test.mjs tests/animation-continuity-browser.test.mjs tests/site-i18n-browser.test.mjs tests/behavior-browser.test.mjs tests/browser.test.mjs tests/library-browser.test.mjs tests/worker-browser.test.mjs tests/performance-browser.test.mjs tests/cdn-browser.test.mjs tests/movement-browser.test.mjs tests/entrance-browser.test.mjs tests/presence-browser.test.mjs tests/api-playground-browser.test.mjs tests/use-cases-browser.test.mjs tests/travel-browser.test.mjs tests/studio-session-browser.test.mjs"
+    "test:browser:regression": "node --test --test-concurrency=1 tests/presence-continuity-browser.test.mjs tests/lifecycle-browser.test.mjs tests/lifecycle-docs-browser.test.mjs tests/guide-navigation-browser.test.mjs tests/eye-ownership-browser.test.mjs tests/animation-continuity-browser.test.mjs tests/site-i18n-browser.test.mjs tests/behavior-browser.test.mjs tests/browser.test.mjs tests/library-browser.test.mjs tests/worker-browser.test.mjs tests/performance-browser.test.mjs tests/cdn-browser.test.mjs tests/movement-browser.test.mjs tests/entrance-browser.test.mjs tests/presence-browser.test.mjs tests/api-playground-browser.test.mjs tests/use-cases-browser.test.mjs tests/travel-browser.test.mjs tests/studio-session-browser.test.mjs"
   },
   "devDependencies": {
     "@fontsource-variable/geist": "^5.3.0",
