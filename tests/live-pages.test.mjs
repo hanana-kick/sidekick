@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
+import { apiDemoFrame } from './helpers/api-demo-frame.mjs';
 
 // Run only as an explicit post-deployment check, never in the offline test suite.
 // Both entry points must settle at the user's approved custom-domain root.
@@ -133,9 +134,11 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
       assert.equal(page.url(), new URL('api-playground.html?lang=ko&framework=element', canonical).href);
       // Renderer readiness precedes asynchronous Studio session restoration.
       // Wait until the page has applied its initial position before testing flight.
-      await page.waitForFunction(() => document.getElementById('bot')?.ready === true && document.getElementById('bot').hasAttribute('data-configured'));
+      const frame = await apiDemoFrame(page);
+      assert.equal(frame.url(), new URL('api-demo.html?site=company&lang=ko', canonical).href, 'The authored demo stays on the verified canonical origin and root path');
+      assert.equal(await page.locator('#bot').count(), 0, 'The API controls document must not allocate a second avatar');
       await page.emulateMedia({ reducedMotion: 'no-preference' });
-      const flight = await page.evaluate(async () => {
+      const flight = await frame.evaluate(async () => {
         const bot = document.getElementById('bot');
         const before = bot.position;
         const result = await bot.moveBy({x: -30, y: 20}, {duration: 400, travel: 'natural'});
