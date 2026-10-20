@@ -334,7 +334,7 @@ test('direct lifecycle preset opens a valid guide return link and app outcomes r
  f.$('execute').click();await new Promise(resolve=>setImmediate(resolve));
  assert.equal(f.bot.home.positioning.target,'#reference-home');assert.equal(f.bot.task,null);
  f.w.document.querySelector('[data-lifecycle-action="wait"]').click();
- assert.equal(f.bot.task.status,'pending');assert.match(f.$('invocation').textContent,/sidekick@v0\.15\.0/);
+ assert.equal(f.bot.task.status,'pending');assert.match(f.$('invocation').textContent,/sidekick@v0\.15\.1/);
  f.w.document.querySelector('[data-lifecycle-action="success"]').click();await new Promise(resolve=>setImmediate(resolve));
  assert.equal(f.bot.task.status,'success');
  f.w.document.querySelector('[data-lifecycle-action="follow"]').click();assert.equal(f.bot.task.id,2);

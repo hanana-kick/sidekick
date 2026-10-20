@@ -92,5 +92,5 @@ test('lifecycle reference validates public JSON and preserves matching typed Rea
  const props=referenceReactProps(attributes);for(const key of ['presence','task','home'])assert.deepEqual(props[key],valid[key]);
  const html=referenceSource(scene,valid,'element','state-lifecycle'),dom=new JSDOM(html);
  for(const key of ['presence','task','home'])assert.deepEqual(JSON.parse(dom.window.document.querySelector('sidekick-avatar').getAttribute(key)),valid[key]);
- assert.match(html,/sidekick@v0\.15\.0/);dom.window.close();
+ assert.match(html,/sidekick@v0\.15\.1/);dom.window.close();
 });
