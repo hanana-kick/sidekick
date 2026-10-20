@@ -20,6 +20,24 @@ const html = readFileSync(new URL('../guide.html', import.meta.url), 'utf8');
 const script = readFileSync(new URL('../playground/use-cases.js', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '');
 const tick = () => new Promise(resolve => setTimeout(resolve, 10));
 
+test('field change events preserve typed guide context and the current scroll position', async () => {
+ const page=await mount({id:'state-emotion',level:1});
+ try {
+  Object.defineProperty(page.w,'scrollY',{configurable:true,value:321});
+  page.$('behavior-gap').value='28';
+  page.$('behavior-gap').dispatchEvent(new page.w.Event('change',{bubbles:true}));
+  const context=navigation.readGuideContext(page.w.location.href);
+  assert.equal(context.id,'state-emotion');
+  assert.equal(context.level,1);
+  assert.equal(context.gap,28);
+  assert.equal(context.scroll,321);
+  const destination=navigation.readGuideSource(page.$('context-playground-link').href);
+  assert.equal(destination.id,'state-emotion');
+  assert.equal(destination.gap,28);
+  assert.equal(destination.scroll,321);
+ } finally { page.close(); }
+});
+
 // Exercise the real Guide controller with a recording renderer. Browser integration
 // separately verifies template mounting, WebGL, layout, and real browser history.
 async function mount(context, { exercise = false, source = null, hash, locale = 'en' } = {}) {

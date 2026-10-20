@@ -50,9 +50,9 @@ function currentEvents(){
  if(id==='search')return active.events.includes('app-search')?['app-search']:[];
  return [];
 }
-function contextSnapshot(){return {id:currentId,level,side:active?.declaration.side??$('behavior-side').value,gap:active?.declaration.gap??Number($('behavior-gap').value),dwell:active?.declaration.dwell??Number($('behavior-dwell').value),intensity:active?.emotionOptions?.intensity??Number($('guide-emotion-intensity').value),duration:active?.emotionOptions?.duration??Number($('guide-emotion-duration').value),event:active?.emotionEvent??-1,events:currentEvents(),inputValid:currentId==='input'&&active?.declaration.type==='celebrate',emailValid:currentId==='validation'&&active?.declaration.type==='celebrate',searchMatches:active?.searchMatches??[],emotionCustomized:active?.emotionCustomized??false,scroll:Math.round(scrollY)};}
-function updateContextLinks(){
- const context=contextSnapshot(), link=$('context-playground-link');
+function contextSnapshot(scroll=Math.round(scrollY)){return {id:currentId,level,side:active?.declaration.side??$('behavior-side').value,gap:active?.declaration.gap??Number($('behavior-gap').value),dwell:active?.declaration.dwell??Number($('behavior-dwell').value),intensity:active?.emotionOptions?.intensity??Number($('guide-emotion-intensity').value),duration:active?.emotionOptions?.duration??Number($('guide-emotion-duration').value),event:active?.emotionEvent??-1,events:currentEvents(),inputValid:currentId==='input'&&active?.declaration.type==='celebrate',emailValid:currentId==='validation'&&active?.declaration.type==='celebrate',searchMatches:active?.searchMatches??[],emotionCustomized:active?.emotionCustomized??false,scroll};}
+function updateContextLinks(context=contextSnapshot()){
+ const link=$('context-playground-link');
  if(link){link.hidden=!!lessonById(currentId);link.href=lessonById(currentId)?technicalHref(currentId,getSiteLocale(),context):guideHref(context,getSiteLocale(),true,context);link.textContent=navText().try;}
  // A native anchor/history change can queue scroll before hashchange. Never overwrite its new route.
  if(!restoringContext&&(!location.hash||location.hash.slice(1)===currentId)){const url=new URL(guideHref(context,getSiteLocale(),exerciseMode,sourceContext),location.href);history.replaceState(history.state,'',url);}
@@ -174,7 +174,12 @@ async function activate(id, runRequested = false) {
  document.querySelectorAll('[data-scenario]').forEach(link=>{if(link.dataset.scenario===item.id){link.setAttribute('aria-current','page');link.closest('details').open=true;}else link.removeAttribute('aria-current');});
  $('breadcrumb').textContent=(lessonById(item.id)?[item.major,item.middle,item.title]:['사용 예시',item.major,item.title]).map(t).join(' / ');
  setText('scenario-title',item.title);setText('scenario-sentence',item.sentence);setText('scenario-hint',item.hint);
- if(lesson){renderLesson(lesson);localizeGuideBindings();restoringContext=false;updateContextLinks();return;}
+ if(lesson){
+  // Activation explicitly scrolls to the top. Reuse that context through the
+  // DOM writes below instead of reading scrollY and flushing layout each time.
+  const context=contextSnapshot(0);
+  renderLesson(lesson,context);localizeGuideBindings(context);restoringContext=false;updateContextLinks(context);return;
+ }
  $('demo-app').innerHTML=applicationMarkup(item.id);$('event-code').textContent=eventCode(item.id);delete $('copy-status').dataset.guideI18n;$('copy-status').textContent='';setText('run-status','봇 준비 중…');
  const bot=document.createElement('sidekick-avatar');bot.id='demo-bot';bot.dataset.scenario=item.id;bot.className='demo-bot';seedStudioSession(bot,session.scene);bot.setAttribute('placement','inline');bot.setAttribute('interaction','none');bot.setAttribute('movement-bounds','none');
  const entry=active={bot,controller,item,ready:false,events:[],emotionEvent:-1};
@@ -268,7 +273,7 @@ function lessonDestinationLabel(id){
  const target=lessonDestinations[id];
  return target.id?navText().related+': '+t(scenarioById(target.id).title)+' · '+target.level:navText()[target.label];
 }
-function renderLesson(lesson){
+function renderLesson(lesson,context=contextSnapshot()){
  const host=$('lesson-content');host.replaceChildren();
  for(const text of lesson.paragraphs){const p=document.createElement('p');p.dataset.guideI18n=text;p.textContent=t(text);host.append(p);}
  if(lesson.id.startsWith('state-')) {
@@ -277,25 +282,26 @@ function renderLesson(lesson){
   if(lesson.install&&getFramework()==='react'){const install=document.createElement('pre');install.textContent=lesson.install;host.append(install);}
   const pre=document.createElement('pre');pre.dataset.frameworkCode=getFramework();pre.textContent=lessonCode(lesson,lessonById('html-start'));pre.tabIndex=0;host.append(pre);
  }
- const link=document.createElement('a');link.dataset.lessonDestination=lesson.id;link.href=technicalHref(lesson.id,getSiteLocale(),contextSnapshot());link.textContent=lessonDestinationLabel(lesson.id);host.append(link);
+ const link=document.createElement('a');link.dataset.lessonDestination=lesson.id;link.href=technicalHref(lesson.id,getSiteLocale(),context);link.textContent=lessonDestinationLabel(lesson.id);host.append(link);
 }
 // Explicit bindings only: never scan or replace arbitrary application content.
-function localizeGuideBindings(){
+function localizeGuideBindings(context=contextSnapshot()){
  for(const element of document.querySelectorAll('[data-guide-column-label]'))element.dataset.label=t(element.dataset.guideColumnLabel);
  for(const element of document.querySelectorAll('[data-guide-i18n]'))element.textContent=t(element.dataset.guideI18n);
  for(const element of document.querySelectorAll('[data-guide-placeholder]'))element.setAttribute('placeholder',t(element.dataset.guidePlaceholder));
  for(const element of document.querySelectorAll('[data-guide-label]'))element.setAttribute('aria-label',t(element.dataset.guideLabel));
  if(!exerciseMode)document.title='Sidekick · '+t('가이드');
  if(exerciseMode)$('restart-demo').textContent=navText().run;
- for(const link of document.querySelectorAll('[data-lesson-destination]')){link.href=technicalHref(link.dataset.lessonDestination,getSiteLocale(),contextSnapshot());link.textContent=lessonDestinationLabel(link.dataset.lessonDestination);}
- updateContextLinks();
+ for(const link of document.querySelectorAll('[data-lesson-destination]')){link.href=technicalHref(link.dataset.lessonDestination,getSiteLocale(),context);link.textContent=lessonDestinationLabel(link.dataset.lessonDestination);}
+ updateContextLinks(context);
  for(const link of document.querySelectorAll('.catalog-layout a[href]'))if(!link.getAttribute('href').startsWith('#')){const url=new URL(link.href);url.searchParams.set('lang',getSiteLocale());link.href=url.href;}
 }
 function localizeGuide(){
+ const context=contextSnapshot();
  $('session-status').textContent=t(session.message);
  const item=lessonById(location.hash.slice(1))??active?.item??lessonById('state-emotion');
  if(item)$('breadcrumb').textContent=(lessonById(item.id)?[item.major,item.middle,item.title]:['사용 예시',item.major,item.title]).map(t).join(' / ');
- localizeGuideBindings();
+ localizeGuideBindings(context);
  for(const el of document.querySelectorAll('[data-workflow-message]'))el.textContent=t(el.dataset.workflowMessage);
  const progress=$('progress-label')?.dataset.progress;if(progress!==undefined)$('progress-label').textContent=progress+'% · '+t(Number(progress)===100?'업로드 완료':'전송 중');
  if(active){renderLevel();const state=active.bot.behaviorState;if(state&&!$('run-status').dataset.guideI18n)$('run-status').textContent=t(labels[state.status]??state.status)+(state.itemCount?' · '+state.completedItems+'/'+state.itemCount:'');}
@@ -312,11 +318,12 @@ if(!exerciseMode&&sourceContext){const back=document.createElement('a');back.id=
 if((location.hash&&!guideIds.includes(location.hash.slice(1)))||(new URL(location.href).searchParams.has('context')&&!incomingContext)){const warning=document.createElement('p');warning.id='invalid-guide-context';warning.setAttribute('role','alert');warning.textContent=navText().invalid;$('scenario-main').prepend(warning);}
 activate(location.hash.slice(1)||'state-emotion');
 window.addEventListener('scroll',()=>{if(!restoringContext)updateContextLinks();},{passive:true});
-for(const field of ['behavior-side','behavior-gap','behavior-dwell','guide-emotion-intensity','guide-emotion-duration'])$(field).addEventListener('change',updateContextLinks);
+for(const field of ['behavior-side','behavior-gap','behavior-dwell','guide-emotion-intensity','guide-emotion-duration'])$(field).addEventListener('change',()=>updateContextLinks());
 
 subscribeFramework(()=>{
+ const context=contextSnapshot();
  if(active)renderCurrentCode();
- else {const lesson=lessonById(currentId);if(lesson&&!lesson.id.startsWith('state-'))renderLesson(lesson);}
- localizeGuideBindings();
+ else {const lesson=lessonById(currentId);if(lesson&&!lesson.id.startsWith('state-'))renderLesson(lesson,context);}
+ localizeGuideBindings(context);
  for(const link of document.querySelectorAll('.catalog-layout a[href]'))if(!link.getAttribute('href').startsWith('#'))link.href=frameworkHref(link.href);
 });
