@@ -4,8 +4,10 @@ import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
 import { createAppServer } from '../scripts/serve.mjs';
+import { forceCanvasForPage } from './helpers/force-no-webgl.mjs';
 
 const forceCanvas = process.env.SIDEKICK_FORCE_CANVAS2D === '1';
+const canvasAudits = new WeakMap();
 let browser, server, base;
 before(async () => {
   server = createAppServer();
@@ -16,10 +18,21 @@ before(async () => {
 after(async () => { await browser?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
 async function pageFor(t, options = {}) {
   const page = await browser.newPage({ locale: 'ko-KR', viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce', ...options });
+  // One entry point serves every API test, later navigation and fresh avatars.
+  // The real site renderer uses a Vite-hashed worker, not the package worker URL.
+  const canvasAudit = forceCanvas ? await forceCanvasForPage(page) : null;
+  if (canvasAudit) canvasAudits.set(page, canvasAudit);
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   t.after(async () => { await page.close(); assert.deepEqual(errors, []); });
   await page.goto(`${base}/api-playground.html`);
   await page.waitForFunction(() => document.getElementById('bot')?.ready && document.getElementById('invocation').textContent.includes('moveTo') && document.getElementById('status').textContent.includes('준비'));
+  if (canvasAudit) {
+    await page.waitForFunction(() => [...document.querySelectorAll('sidekick-avatar')].every(avatar => avatar.ready));
+    const diagnostics = await page.locator('#bot').evaluate(bot => bot.diagnostics);
+    assert.equal(diagnostics.backend, 'worker', 'Forced Canvas API coverage must keep the real dedicated worker');
+    assert.equal(diagnostics.graphics, 'canvas2d', 'The production renderer must discover missing WebGL itself');
+    await canvasAudit.assertDenied({ worker: true, minWorkerResponses: 1 });
+  }
   await page.evaluate(() => {
     const bot = document.getElementById('bot');
     window.apiCalls = [];
@@ -488,6 +501,12 @@ for (const framework of ['element', 'react']) test(`live viewport resize preserv
       assert.equal(await frame.getAttribute('src'), previewURL);
       assert.equal(await page.locator('#bot-tools-launcher').getAttribute('aria-expanded'), String(open));
     }
+  }
+  if (forceCanvas) {
+    const diagnostics = await page.locator('#bot').evaluate(bot => bot.diagnostics);
+    assert.equal(diagnostics.backend, 'worker');
+    assert.equal(diagnostics.graphics, 'canvas2d', 'Resize must retain the selected graphics backend');
+    await canvasAudits.get(page).assertDenied({ worker: true, minWorkerResponses: 1 });
   }
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#bot-tools').isVisible(), false);

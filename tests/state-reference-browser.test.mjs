@@ -5,16 +5,20 @@ import {readFile,mkdir} from 'node:fs/promises';
 import {chromium} from 'playwright-core';
 import ts from 'typescript';
 import {createAppServer} from '../scripts/serve.mjs';
+import {forceCanvasForPage} from './helpers/force-no-webgl.mjs';
 let browser,server,base;
+const canvasAudits=new WeakMap();
+async function newReferencePage(options){const page=await browser.newPage(options);if(forceCanvas)canvasAudits.set(page,await forceCanvasForPage(page));return page;}
+async function assertGraphics(frame){const diagnostics=await frame.locator('#reference-bot').evaluate(bot=>bot.diagnostics);assert.equal(diagnostics.graphics,forceCanvas?'canvas2d':'webgl2','reference suite must exercise the explicitly selected graphics renderer');if(forceCanvas)await canvasAudits.get(frame.page?.()??frame).assertDenied({worker:diagnostics.backend==='worker'});}
 const forceCanvas = process.env.SIDEKICK_FORCE_CANVAS2D === '1';
 before(async()=>{server=createAppServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));base=process.env.SIDEKICK_STATE_LIVE_URL??`http://127.0.0.1:${server.address().port}`;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??(existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined),headless:process.env.SIDEKICK_HEADED!=='1',args:['--no-sandbox','--disable-dev-shm-usage',...(forceCanvas?['--disable-webgl']:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'])]});});
 after(async()=>{await browser?.close();await new Promise(r=>server?.close(r));});
 const cases=[['state-lifecycle','presence',JSON.stringify({visible:true})],['state-emotion','emotion','curious'],['state-position','position-x','28'],['state-behavior','behavior',JSON.stringify({type:'idle'})],['state-facing','body-yaw','25'],['state-appearance','shape','heart'],['state-execution','activity','thinking']];
-async function frameFor(page){await page.waitForSelector('[data-state-reference][data-configured]');const frame=page.frames().find(f=>f.url().includes('/state-preview.html'));assert.ok(frame);await frame.waitForFunction(()=>document.querySelector('#reference-bot')?.ready);assert.equal(await frame.locator('#reference-bot').evaluate(bot=>bot.diagnostics.graphics),forceCanvas?'canvas2d':'webgl2','reference suite must exercise the explicitly selected graphics renderer');return frame;}
+async function frameFor(page){await page.waitForSelector('[data-state-reference][data-configured]');const frame=page.frames().find(f=>f.url().includes('/state-preview.html'));assert.ok(frame);await frame.waitForFunction(()=>document.querySelector('#reference-bot')?.ready);await assertGraphics(frame);return frame;}
 async function edit(page,key,value){if(key==='behavior'&&JSON.parse(value).type==='idle'&&Object.keys(JSON.parse(value)).length===1){await page.selectOption('[data-behavior-preset]','idle');return;}await page.check(`[data-state-enable="${key}"]`);const control=page.locator(`[data-state-control="${key}"]`);if(await control.evaluate(e=>e.tagName)==='SELECT')await control.selectOption(value);else{await control.fill(value);if(await control.evaluate(e=>e.tagName)==='TEXTAREA')await page.locator(`[data-state-field="${key}"] button`).click();else await control.dispatchEvent('change');}}
 async function snapshot(frame){return frame.locator('#reference-bot').evaluate(bot=>({design:bot.design,orientation:bot.bodyOrientation,zoom:bot.zoom,tracking:bot.trackingMode,emotion:bot.emotionState.emotion,emotionIntensity:bot.emotionState.intensity,activity:bot.activity,behavior:bot.behavior,presence:bot.presence,position:bot.position,paused:bot.paused}));}
 for(const locale of ['ko','en','zh-CN','ja'])for(const mode of ['element','react'])test(`seven state pages edit selected ${mode} source and actual renderer in ${locale}`,{timeout:120000},async()=>{
- const page=await browser.newPage({viewport:{width:1280,height:900},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const page=await newReferencePage({viewport:{width:1280,height:900},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  try{
   for(const [id,key,value]of cases){
    await page.goto(`${base}/guide.html?lang=${locale}&framework=${mode}#${id}`);let frame=await frameFor(page);await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
@@ -30,7 +34,7 @@ for(const locale of ['ko','en','zh-CN','ja'])for(const mode of ['element','react
  }finally{await page.close();}
 });
 test('mobile controls, JSON rejection, reset, locale switch and navigation retain independent state',async()=>{
- const page=await browser.newPage({viewport:{width:320,height:480},reducedMotion:'reduce'});
+ const page=await newReferencePage({viewport:{width:320,height:480},reducedMotion:'reduce'});
  try{
   await page.goto(`${base}/guide.html?lang=en#state-appearance`);await frameFor(page);await edit(page,'shape','flower');
   await page.check('[data-state-enable="design"]');const before=await page.locator('[data-state-source]').textContent();await page.fill('[data-state-control="design"]','{"unsupported":true}');await page.locator('[data-state-field="design"] button').click();
@@ -44,12 +48,12 @@ test('mobile controls, JSON rejection, reset, locale switch and navigation retai
  }finally{await page.close();}
 });
 test('actual copied Custom Element and React source replay matching Studio configuration',async()=>{
- const page=await browser.newPage({viewport:{width:900,height:700},reducedMotion:'reduce'});
+ const page=await newReferencePage({viewport:{width:900,height:700},reducedMotion:'reduce'});
  try{
   for(const mode of ['element','react']){
    await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-appearance`);await frameFor(page);await edit(page,'shape','heart');await edit(page,'body-color','#345678');await edit(page,'left-smile','0.65');
    const frame=await frameFor(page);await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await page.waitForTimeout(100);const expected=await snapshot(frame),source=await page.locator('[data-state-source]').textContent();
-   const replay=await browser.newPage({viewport:{width:400,height:320},reducedMotion:'reduce'});
+   const replay=await newReferencePage({viewport:{width:400,height:320},reducedMotion:'reduce'});
    try{
     let html=source.replace("'@hanana-kick/sidekick/auto'",`'${base}/browser/sidekick.js'`);
     if(mode==='react'){
@@ -58,7 +62,7 @@ test('actual copied Custom Element and React source replay matching Studio confi
      html=`<!doctype html><div id="root"></div><script type="importmap">${JSON.stringify({imports})}</script><script type="module">${output}</script>`;
      for(const name of ['react','react-dom-client'])await replay.route(`${base}/${name}.js`,async route=>route.fulfill({contentType:'text/javascript',body:await readFile(new URL(`../cdn/react-19.3.1/${name}.js`,import.meta.url),'utf8')}));
     }
-    await replay.route(`${base}/state-replay.html`,route=>route.fulfill({contentType:'text/html',body:html}));await replay.goto(`${base}/state-replay.html`);await replay.waitForFunction(()=>document.querySelector('#reference-bot')?.ready);const actual=await snapshot(replay);assert.deepEqual(actual,expected);
+    await replay.route(`${base}/state-replay.html`,route=>route.fulfill({contentType:'text/html',body:html}));await replay.goto(`${base}/state-replay.html`);await replay.waitForFunction(()=>document.querySelector('#reference-bot')?.ready);await assertGraphics(replay);const actual=await snapshot(replay);assert.deepEqual(actual,expected);
    }finally{await replay.close();}
   }
  }finally{await page.close();}
@@ -91,7 +95,7 @@ function assertEntranceGeometry(actual) {
 for(const locale of ['ko','en','zh-CN','ja'])for(const mode of ['element','react'])test(`declarative entrance source, geometry and configured bot: ${locale}/${mode}`,{timeout:120000},async()=>{
  const {createScene}=await import('../dist/src/core/scene.js'),{createDesign}=await import('../dist/src/core/design.js');
  const scene=createScene({design:createDesign({body:{shape:'heart',color:'#345678'}}),trackingMode:'off',activity:'still'});
- const page=await browser.newPage({viewport:{width:1280,height:900},reducedMotion:'reduce'}),errors=[];
+ const page=await newReferencePage({viewport:{width:1280,height:900},reducedMotion:'reduce'}),errors=[];
  page.on('pageerror',error=>errors.push(error.message));
  await page.addInitScript(scene=>localStorage.setItem('sidekick.studio.scene.v3',JSON.stringify(scene)),scene);
  try{
@@ -119,14 +123,14 @@ for(const locale of ['ko','en','zh-CN','ja'])for(const mode of ['element','react
 });
 
 test('copied entrance examples replay the exact source declaration and canvas geometry', {timeout:120000},async()=>{
- const page=await browser.newPage({viewport:{width:1280,height:900},reducedMotion:'reduce'});
+ const page=await newReferencePage({viewport:{width:1280,height:900},reducedMotion:'reduce'});
  try{
   for(const mode of ['element','react'])for(const source of ['element','viewport']){
    await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-entrance`);const frame=await frameFor(page);await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
    await page.selectOption('[data-entrance-control="source"]',source);
    const declaration=source==='element'?{source,target:'#reference-target',direction:'right',at:.5,gap:16}:{source,edge:'left',at:.5,inset:24};
    const expected=await entranceSettled(frame,declaration),code=await page.locator('[data-state-source]').textContent();
-   const replay=await browser.newPage({viewport:expected.viewport,reducedMotion:'reduce'});
+   const replay=await newReferencePage({viewport:expected.viewport,reducedMotion:'reduce'});
    try{
     let html=code.replace("'@hanana-kick/sidekick/auto'",`'${base}/browser/sidekick.js'`);
     if(mode==='react'){
@@ -136,14 +140,14 @@ test('copied entrance examples replay the exact source declaration and canvas ge
      for(const name of ['react','react-dom-client'])await replay.route(`${base}/${name}.js`,async route=>route.fulfill({contentType:'text/javascript',body:await readFile(new URL(`../cdn/react-19.3.1/${name}.js`,import.meta.url),'utf8')}));
     }
     await replay.route(`${base}/entrance-replay.html`,route=>route.fulfill({contentType:'text/html',body:html}));await replay.goto(`${base}/entrance-replay.html`);
-    const actual=await entranceSettled(replay,declaration);assertEntranceGeometry(actual);assert.deepEqual(actual.design,expected.design);assert.deepEqual(actual.entrance,expected.entrance);
+    const actual=await entranceSettled(replay,declaration);await assertGraphics(replay);assertEntranceGeometry(actual);assert.deepEqual(actual.design,expected.design);assert.deepEqual(actual.entrance,expected.entrance);
     for(const axis of ['left','top','width','height'])assert.ok(Math.abs(actual.box[axis]-expected.box[axis])<1,axis+' matches the copied preview');
    }finally{await replay.close();}
   }
  }finally{await page.close();}
 });
 test('reference workspace aligns headings and preview at desktop and narrow widths', {timeout:120000}, async()=>{
- const page=await browser.newPage({reducedMotion:'reduce'});
+ const page=await newReferencePage({reducedMotion:'reduce'});
  try{
   for(const width of [1280,390,320])for(const locale of ['ko','en','zh-CN','ja']){
    await page.setViewportSize({width,height:900});
@@ -161,7 +165,7 @@ test('reference workspace aligns headings and preview at desktop and narrow widt
 });
 
 test('positioning controls generate matching CE and React placements without coordinate arithmetic',{timeout:120000},async()=>{
- const page=await browser.newPage({viewport:{width:1280,height:900},reducedMotion:'reduce'});
+ const page=await newReferencePage({viewport:{width:1280,height:900},reducedMotion:'reduce'});
  try{for(const mode of ['element','react']){
   await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-position`);await frameFor(page);await page.check('[data-state-enable="positioning"]');
   for(const gap of [16,0,-20]) for(const target of ['viewport','#reference-target']){
@@ -204,7 +208,7 @@ async function settledBehavior(frame,declaration,previousId){
  return frame.evaluate(()=>({box:window.behaviorRect(),samples:window.behaviorSamples.splice(0),state:document.querySelector('#reference-bot').behaviorState}));
 }
 for(const mode of ['element','react'])for(const width of [320,1280])test(`behavior bounds matrix: ${mode}, ${width}px, 163 declarations`,{timeout:300000},async()=>{
- const page=await browser.newPage({viewport:{width,height:800},reducedMotion:'reduce'});
+ const page=await newReferencePage({viewport:{width,height:800},reducedMotion:'reduce'});
  try{
   await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);await page.check('[data-state-enable="behavior"]');await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await frame.waitForFunction(()=>document.querySelector('#reference-bot').behaviorState.status==='acting');await trackBehavior(frame);
   assert.equal(behaviorMatrix.length,163);
@@ -236,14 +240,14 @@ for(const mode of ['element','react'])for(const width of [320,1280])test(`behavi
 });
 
 test('behavior copied CE/React source keeps all four sides and review in a narrow viewport',{timeout:120000},async()=>{
- const page=await browser.newPage({viewport:{width:1280,height:800},reducedMotion:'reduce'});
+ const page=await newReferencePage({viewport:{width:1280,height:800},reducedMotion:'reduce'});
  try{for(const mode of ['element','react']){
   await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);
   for(const declaration of [...['left','right','above','below'].map(side=>({type:'wait',target:'#reference-target',side,gap:16,duration:0})),{type:'review',targets:'.reference-item',side:'below',gap:10000,dwell:0}]){
    const previousId=await frame.locator('#reference-bot').evaluate(bot=>bot.behaviorState.id);
    await edit(page,'behavior',JSON.stringify(declaration));await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
    await frame.waitForFunction(({type,previousId})=>document.querySelector('#reference-bot').behaviorState.id>previousId&&document.querySelector('#reference-bot').behaviorState.type===type&&document.querySelector('#reference-bot').behaviorState.status==='completed',{type:declaration.type,previousId});
-   const source=await page.locator('[data-state-source]').textContent(),replay=await browser.newPage({viewport:{width:240,height:320},reducedMotion:'reduce'});
+   const source=await page.locator('[data-state-source]').textContent(),replay=await newReferencePage({viewport:{width:240,height:320},reducedMotion:'reduce'});
    try{
     let html=source.replace("'@hanana-kick/sidekick/auto'",`'${base}/browser/sidekick.js'`);
     if(mode==='react'){
@@ -253,7 +257,7 @@ test('behavior copied CE/React source keeps all four sides and review in a narro
      for(const name of ['react','react-dom-client'])await replay.route(`${base}/${name}.js`,async route=>route.fulfill({contentType:'text/javascript',body:await readFile(new URL(`../cdn/react-19.3.1/${name}.js`,import.meta.url),'utf8')}));
     }
     await replay.route(`${base}/behavior-replay.html`,route=>route.fulfill({contentType:'text/html',body:html}));await replay.goto(`${base}/behavior-replay.html`);
-    await replay.waitForFunction(()=>document.querySelector('#reference-bot')?.ready&&document.querySelector('#reference-bot').behaviorState.status==='completed');
+    await replay.waitForFunction(()=>document.querySelector('#reference-bot')?.ready&&document.querySelector('#reference-bot').behaviorState.status==='completed');await assertGraphics(replay);
     const actual=await replay.locator('#reference-bot').evaluate(bot=>{const b=bot.getBoundingClientRect();return {box:{left:b.left,top:b.top,right:b.right,bottom:b.bottom,viewportWidth:innerWidth,viewportHeight:innerHeight},state:bot.behaviorState,placement:bot.placement,bounds:bot.movementBounds};});
     assertBehaviorBox(actual.box,mode+' copied '+JSON.stringify(declaration));assert.equal(actual.placement,'viewport');assert.equal(actual.bounds,'viewport');assert.equal(actual.state.completedItems,declaration.type==='review'?3:1);
    }finally{await replay.close();}
@@ -262,7 +266,7 @@ test('behavior copied CE/React source keeps all four sides and review in a narro
 });
 
 for(const mode of ['element','react'])test(`behavior normal-motion paths, interruption and resize: ${mode}`,{timeout:120000},async()=>{
- const page=await browser.newPage({viewport:{width:900,height:700},reducedMotion:'no-preference'});
+ const page=await newReferencePage({viewport:{width:900,height:700},reducedMotion:'no-preference'});
  try{
   await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);
   await page.check('[data-state-enable="behavior"]');await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await frame.waitForFunction(()=>document.querySelector('#reference-bot').behaviorState.status==='acting');await trackBehavior(frame);
@@ -290,7 +294,7 @@ for(const mode of ['element','react'])test(`behavior normal-motion paths, interr
 });
 
 for(const mode of ['element','react'])for(const width of [320,1280])test(`explicit size preserves active behavior anchoring: ${mode}, ${width}px`,{timeout:120000},async()=>{
- const page=await browser.newPage({viewport:{width,height:800},reducedMotion:'no-preference'});
+ const page=await newReferencePage({viewport:{width,height:800},reducedMotion:'no-preference'});
  try{
   await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);
   await page.check('[data-state-enable="behavior"]');await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
@@ -355,7 +359,7 @@ async function waitForLiveAnchor(frame,side,size){
  assertBehaviorBox(await frame.evaluate(()=>window.behaviorRect()),'realigned target after viewport resize');
 }
 for(const mode of ['element','react'])test(`live viewport shrink, grow and height changes during motion: ${mode}`,{timeout:120000},async()=>{
- const page=await browser.newPage({viewport:{width:1000,height:800},deviceScaleFactor:2,reducedMotion:'no-preference'});
+ const page=await newReferencePage({viewport:{width:1000,height:800},deviceScaleFactor:2,reducedMotion:'no-preference'});
  try{
   await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);
   // Keep this motion fixture genuinely onscreen through responsive reflow.
@@ -384,7 +388,7 @@ for(const mode of ['element','react'])test(`live viewport shrink, grow and heigh
  }finally{await page.close();}
 });
 for(const mode of ['element','react'])test(`live viewport and consecutive size changes preserve wait/follow anchors: ${mode}`,{timeout:120000},async()=>{
- const page=await browser.newPage({viewport:{width:1000,height:800},deviceScaleFactor:2,reducedMotion:'no-preference'});
+ const page=await newReferencePage({viewport:{width:1000,height:800},deviceScaleFactor:2,reducedMotion:'no-preference'});
  try{
   await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);
   await page.locator('.state-lab iframe').evaluate(iframe=>{iframe.style.height='55vh';});
@@ -403,7 +407,7 @@ for(const mode of ['element','react'])test(`live viewport and consecutive size c
 });
 
 for(const mode of ['element','react'])test(`offscreen Guide policy finishes a move and does not replay it on return: ${mode}`,{timeout:120000},async()=>{
- const page=await browser.newPage({viewport:{width:1000,height:800},reducedMotion:'no-preference'});
+ const page=await newReferencePage({viewport:{width:1000,height:800},reducedMotion:'no-preference'});
  try{
   await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);
   await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await trackBehavior(frame);

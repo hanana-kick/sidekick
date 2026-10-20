@@ -121,3 +121,60 @@ test('no-WebGL browser fixture denies both realm context APIs without faking Can
     assert.equal(realm.graphics, undefined, 'fixture cannot forge backend diagnostics');
   }
 });
+
+test('forced Canvas worker URL inventory covers all emitted distributions without unrelated scripts', async () => {
+  const { isSidekickWorkerURL } = await import('./helpers/force-no-webgl.mjs');
+  for (const path of ['/src/runtime/render-worker.js', '/library/runtime/render-worker.js', '/runtime/render-worker.js', '/browser/sidekick.worker.js', '/prebuilt/browser/sidekick.worker.js', '/sidekick.worker.js', '/assets/render-worker-a_B-123.js', '/deploy/subpath/assets/render-worker-hash.js']) {
+    for (const suffix of ['', '?v=123', '?worker_file&type=module']) assert.equal(isSidekickWorkerURL(`https://fixture.test${path}${suffix}`), true, path + suffix);
+  }
+  for (const path of ['/src/auto.js', '/browser/sidekick.js', '/assets/index-123.js', '/assets/other-worker-123.js', '/runtime/render-worker.js.map', '/assets/render-worker-123.js.map']) assert.equal(isSidekickWorkerURL(`https://fixture.test${path}`), false, path);
+});
+
+test('shared forced Canvas setup instruments before navigation and audits real active realms', async () => {
+  const { forceCanvasForPage, isSidekickWorkerURL, installNoWebGL } = await import('./helpers/force-no-webgl.mjs');
+  let init, matcher, handler, responseCount = 0, denied = 0, workerDenied = 0;
+  const worker = { url: () => 'https://fixture.test/assets/render-worker-123.js', evaluate: async () => workerDenied };
+  const page = {
+    addInitScript: async fn => { init = fn; },
+    context: () => ({ route: async (match, fn) => { matcher = match; handler = fn; } }),
+    frames: () => [{ evaluate: async () => denied }], workers: () => [worker],
+  };
+  const audit = await forceCanvasForPage(page);
+  assert.equal(init, installNoWebGL); assert.equal(matcher, isSidekickWorkerURL);
+  await assert.rejects(audit.assertDenied(), /No Window/);
+  await assert.rejects(audit.assertDenied({ worker: true }), /instrumented worker/);
+  for (let i = 0; i < 2; i++) {
+    const response = { text: async () => '/* actual production worker unchanged */' };
+    await handler({ fetch: async () => response, fulfill: async value => {
+      responseCount++; assert.equal(value.response, response);
+      assert.equal(value.body, `(${installNoWebGL.toString()})();\n/* actual production worker unchanged */`);
+    } });
+  }
+  await assert.rejects(audit.assertDenied({ worker: true }), /No active Sidekick worker/);
+  denied = 1; workerDenied = 1;
+  await audit.assertDenied(); await audit.assertDenied({ worker: true, minWorkerResponses: 2 });
+  assert.equal((await audit.read()).workerResponses, responseCount);
+  await assert.rejects(audit.assertDenied({ worker: true, minWorkerResponses: 3 }), /instrumented worker/);
+});
+
+test('forced Canvas entrypoint inventory routes every state reference page including copied examples', async () => {
+  const { readFile, readdir } = await import('node:fs/promises');
+  const files = ['state-reference', 'size', 'canvas-fallback', 'api-playground'];
+  const discovered = [];
+  for (const file of await readdir(new URL('.', import.meta.url))) {
+    if (!file.endsWith('-browser.test.mjs')) continue;
+    const source = await readFile(new URL(file, import.meta.url), 'utf8');
+    if (/SIDEKICK_FORCE_CANVAS2D|--disable-webgl/.test(source)) discovered.push(file.replace('-browser.test.mjs', ''));
+  }
+  assert.deepEqual(discovered.sort(), [...files].sort(), 'new forced Canvas entrypoints must join the shared setup inventory');
+  for (const name of files) {
+    const text = await readFile(new URL(`./${name}-browser.test.mjs`, import.meta.url), 'utf8');
+    assert.match(text, /forceCanvasForPage/, `${name} uses the shared fixture, not browser flags alone`);
+    // All entrypoints create their pages in one setup wrapper (or one test loop)
+    // so adding an uninstrumented replay/new tab fails this source inventory.
+    assert.equal((text.match(/browser\.newPage\(/g) ?? []).length, 1, `${name}: all pages share one setup path`);
+    assert.doesNotMatch(text, /addInitScript\(installNoWebGL\)/, `${name}: no drifting private fixture`);
+  }
+  const reference = await readFile(new URL('./state-reference-browser.test.mjs', import.meta.url), 'utf8');
+  assert.equal((reference.match(/await assertGraphics\(replay\)/g) ?? []).length, 3, 'all three copied-source replay families verify graphics and denial after readiness');
+});

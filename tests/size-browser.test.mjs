@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { createAppServer } from '../scripts/serve.mjs';
-import { installNoWebGL } from './helpers/force-no-webgl.mjs';
+import { forceCanvasForPage } from './helpers/force-no-webgl.mjs';
 let browser, server, origin;
 const forceCanvas = process.env.SIDEKICK_FORCE_CANVAS2D === '1';
 before(async () => {
@@ -14,17 +14,7 @@ before(async () => {
 after(async () => { await browser?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
 for (const backend of ['main', 'worker']) for (const dpr of [1, 2]) test(`size controls real host/canvas at DPR ${dpr} (${backend}), then restores live CSS`, async t => {
   const page = await browser.newPage({ deviceScaleFactor: dpr, reducedMotion: 'reduce' }); t.after(() => page.close());
-  let forcedWorkerResponses = 0;
-  if (forceCanvas) {
-    // Browser flags alone did not deny WebGL in the published dedicated-worker
-    // entry on CI. Instrument both realms before the real renderer initializes.
-    await page.addInitScript(installNoWebGL);
-    await page.context().route('**/browser/sidekick.worker.js', async route => {
-      const response = await route.fetch();
-      forcedWorkerResponses++;
-      await route.fulfill({ response, body: `(${installNoWebGL.toString()})();\n${await response.text()}` });
-    });
-  }
+  const canvasAudit = forceCanvas ? await forceCanvasForPage(page) : null;
   if (backend === 'main') await page.addInitScript(() => { window.Worker = undefined; });
   await page.route('**/size-fixture.html', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' }));
   await page.goto(`${origin}/size-fixture.html`);
@@ -55,13 +45,7 @@ for (const backend of ['main', 'worker']) for (const dpr of [1, 2]) test(`size c
     assert.equal(result[key].width, size, key); assert.equal(result[key].height, size, key);
     assert.deepEqual(result[key].backing, [Math.round(size*dpr),Math.round(size*dpr)], key);
   }
-  if (forceCanvas) {
-    if (backend === 'worker') {
-      assert.ok(forcedWorkerResponses >= 2, 'both initial and reconnected published workers received the unavailable-context fixture');
-      const worker = page.workers().at(-1); assert.ok(worker, 'a real dedicated worker remains active');
-      assert.ok(await worker.evaluate(() => globalThis.__sidekickNoWebGL?.denied > 0), 'worker actually attempted and was denied WebGL context creation');
-    } else assert.ok(await page.evaluate(() => globalThis.__sidekickNoWebGL?.denied > 0), 'main renderer actually attempted and was denied WebGL context creation');
-  }
+  if (canvasAudit) await canvasAudit.assertDenied({ worker: backend === 'worker', minWorkerResponses: 2 });
   assert.equal(result.updated.zoom, 1.5); assert.equal(result.released.zoom, 1.5);
   assert.deepEqual([result.released.width,result.released.height], [340,190]);
   assert.deepEqual(result.style, ['340px','190px']);
