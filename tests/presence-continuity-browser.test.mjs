@@ -25,6 +25,13 @@ before(async () => {
 after(async () => { await browser?.close(); if (server?.listening) await new Promise(resolve => server.close(resolve)); });
 const slug = name => name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+// These fixtures use default natural travel (1350 CSS px/s), never a tween or
+// a custom higher speed. A snapshot can precede this frame's movement callback,
+// so its position may still represent the previous rAF. Include that frame and
+// the 1/240s integrator remainder, not the time between delayed sampler calls.
+// Endpoint speed is not a bound: it can peak between snapshots or reset on arrival.
+const frameTravelAllowance = (a, b) =>
+  1350 * (Math.max(0, b.time - a.previousFrameTime) / 1000 + 1 / 240) + .1;
 const hidden = scope => scope.waitForFunction(() => window.qaBot.presenceState === 'hidden');
 const visible = scope => scope.waitForFunction(() => window.qaBot.presenceState === 'visible' && window.qaBot.movementState.phase === 'idle' && Number(getComputedStyle(window.qaBot.shadowRoot.querySelector('canvas')).opacity) === 1);
 
@@ -72,7 +79,7 @@ async function installSampler(scope, selector) {
       return { time: performance.now(), segment: window.qaSegment, position: bot.position,
         movement: bot.movementState, presence: bot.presenceState, lifecycle: bot.lifecycleState,
         opacity: Number(getComputedStyle(canvas).opacity), visibility: getComputedStyle(bot).visibility,
-        clip, fullyOccluded, cardRect: card?.toJSON() ?? null, design: JSON.stringify(bot.design),
+        clip, fullyOccluded, outsideViewport: botRect.right <= 0 || botRect.bottom <= 0 || botRect.left >= innerWidth || botRect.top >= innerHeight, cardRect: card?.toJSON() ?? null, design: JSON.stringify(bot.design),
         sameCanvas: canvas === window.qaOriginalCanvas, generation: bot.diagnostics.generation,
         frames: bot.diagnostics.frames, running: bot.diagnostics.running,
         scroll: { x: scrollX, y: scrollY },
@@ -80,7 +87,13 @@ async function installSampler(scope, selector) {
         botRect: botRect.toJSON() };
     };
     window.qaSampling = true;
-    const sample = () => { if (!window.qaSampling) return; window.qaSamples.push(window.qaSnapshot()); requestAnimationFrame(sample); };
+    let previousFrameTime;
+    const sample = frameTime => {
+      if (!window.qaSampling) return;
+      window.qaSamples.push({ ...window.qaSnapshot(), frameTime, previousFrameTime });
+      previousFrameTime = frameTime;
+      requestAnimationFrame(sample);
+    };
     requestAnimationFrame(sample);
   }, selector);
 }
@@ -143,13 +156,24 @@ async function finish(scope, name) {
   assert.ok(result.samples.every(s => s.design === result.samples[0].design), 'no default appearance flash');
   for (let i = 1; i < result.samples.length; i++) {
     const a = result.samples[i - 1], b = result.samples[i];
-    if (a.presence === 'hidden' || b.presence === 'hidden' || a.opacity === 0 || b.opacity === 0 || a.fullyOccluded || b.fullyOccluded) continue;
-    const elapsed = (b.time - a.time) / 1000;
-    const allowance = 12 + 2 * Math.max(a.movement.speed, b.movement.speed) * elapsed;
+    if (a.presence === 'hidden' || b.presence === 'hidden' || a.opacity === 0 || b.opacity === 0 || a.fullyOccluded || b.fullyOccluded || a.outsideViewport || b.outsideViewport) continue;
+    if (a.previousFrameTime === undefined) continue;
+    const allowance = frameTravelAllowance(a, b);
     assert.ok(distance(a.position, b.position) <= allowance, `no visible frame jump at ${b.time.toFixed(1)}ms: ${distance(a.position, b.position).toFixed(1)}px > ${allowance.toFixed(1)}px`);
   }
   return result;
 }
+
+test('continuity oracle uses represented frame time, not delayed callback spacing', () => {
+  // CI sampled callbacks 2.7ms apart, although movement integrated a full frame.
+  const a = { time: 1319.7, previousFrameTime: 1283.3 };
+  const b = { time: 1322.4 };
+  const allowance = frameTravelAllowance(a, b);
+  assert.ok(18.44 <= allowance, 'normal 16.67ms motion survives sampler jitter');
+  assert.ok(260 > allowance, 'a viewport staging teleport is still rejected');
+  assert.ok(frameTravelAllowance({ previousFrameTime: 1000 }, { time: 1000 }) < 6,
+    'no unexplained fixed 12px jump allowance');
+});
 
 async function captureReversal(scope, declaration, name) {
   const reversal = await scope.evaluate(async declaration => {
