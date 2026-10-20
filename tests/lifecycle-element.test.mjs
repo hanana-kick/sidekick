@@ -724,3 +724,16 @@ test('ordinary pixel-offset anchors stay authored after size changes', async t =
     assert.equal(avatar.position.y, workTarget.getBoundingClientRect().top + 7);
   }
 });
+
+test('preview-style pause finishes a running move and unpause does not replay it', async t => {
+  const { avatar } = fixture(t, { immediate: false });
+  const target = { x: 200, y: 180 };
+  const pending = avatar.moveTo(target, { duration: 10000, travel: 'none' });
+  await advance(100);
+  assert.equal(avatar.movementState.phase, 'flight');
+  avatar.paused = true;
+  const result = await pending;
+  assert.equal(result.finished, true); assert.deepEqual(result.position, target);
+  avatar.paused = false; await advance(200);
+  assert.equal(avatar.movementState.phase, 'idle'); assert.deepEqual(avatar.position, target);
+});

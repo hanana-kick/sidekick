@@ -25,25 +25,33 @@ jobs:
       - run: npm test
       - name: Verify site analytics remains isolated from consumer packages
         run: npm run test:site-analytics:build
+  browser:
+    name: Chromium (${{ matrix.suite }})
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [reference, regression, canvas-interactions]
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check:library
+      - run: npm run build:all
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
-      - name: Verify startup and interactive reference in Chromium
-        run: xvfb-run -a npm run test:browser:reference
+      - name: Verify complete independent browser suite
+        run: xvfb-run -a npm run test:browser:${{ matrix.suite }}
         env:
           SIDEKICK_HEADED: '1'
-          SIDEKICK_SCREENSHOTS: artifacts
-      - name: Verify existing browser regressions
-        run: xvfb-run -a npm run test:browser:regression
-        env:
-          SIDEKICK_HEADED: '1'
-          SIDEKICK_SCREENSHOTS: artifacts
-      - name: Verify full behavior matrix and size interactions without WebGL
-        run: xvfb-run -a npm run test:browser:canvas-interactions
-        env:
-          SIDEKICK_HEADED: '1'
-          SIDEKICK_SCREENSHOTS: artifacts/canvas2d
+          SIDEKICK_SCREENSHOTS: artifacts/${{ matrix.suite }}
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
-          name: browser-screenshots
+          name: browser-screenshots-${{ matrix.suite }}
           path: artifacts/
           if-no-files-found: ignore

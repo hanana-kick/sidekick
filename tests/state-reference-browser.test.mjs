@@ -358,8 +358,12 @@ for(const mode of ['element','react'])test(`live viewport shrink, grow and heigh
  const page=await browser.newPage({viewport:{width:1000,height:800},deviceScaleFactor:2,reducedMotion:'no-preference'});
  try{
   await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);
-  await page.locator('.state-lab iframe').evaluate(iframe=>{iframe.style.height='55vh';});
+  // Keep this motion fixture genuinely onscreen through responsive reflow.
+  // The Guide intentionally pauses offscreen previews, which finishes a move;
+  // that separate contract is tested below rather than mistaken for resize.
+  await page.locator('.state-lab iframe').evaluate(iframe=>{Object.assign(iframe.style,{position:'fixed',left:'0',top:'0',width:'100vw',height:'55vh',zIndex:'2147483647'});});
   await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await trackBehavior(frame);
+  await frame.waitForFunction(()=>document.querySelector('#reference-bot').paused===false);
   await frame.evaluate(async()=>{
    const bot=document.querySelector('#reference-bot');bot.stopBehavior();bot.size=72;bot.placement='viewport';bot.movementBounds='viewport';
    await bot.moveTo({x:0,y:0},{duration:0});window.viewportMoveResult=null;
@@ -368,9 +372,10 @@ for(const mode of ['element','react'])test(`live viewport shrink, grow and heigh
   await frame.waitForFunction(()=>document.querySelector('#reference-bot').movementState.phase==='flight');
   const dimensions=[];
   for(const step of liveResizeSteps){
-   assert.equal(await frame.evaluate(()=>window.viewportMoveResult),null,'viewport sequence starts while original move remains in flight');
+   assert.deepEqual(await frame.evaluate(()=>({result:window.viewportMoveResult,paused:document.querySelector('#reference-bot').paused,phase:document.querySelector('#reference-bot').movementState.phase})),{result:null,paused:false,phase:'flight'},'each viewport transition begins during the same active unpaused move');
    const box=await resizeLiveReference(page,frame,step);dimensions.push([box.viewportWidth,box.viewportHeight]);
    await assertLiveBacking(frame,step.sizes.at(-1));
+   assert.deepEqual(await frame.evaluate(()=>({result:window.viewportMoveResult,paused:document.querySelector('#reference-bot').paused,phase:document.querySelector('#reference-bot').movementState.phase})),{result:null,paused:false,phase:'flight'},'visible viewport resize does not complete or pause the ongoing move');
   }
   assert.equal(new Set(dimensions.map(([w,h])=>`${w}x${h}`)).size,liveResizeSteps.length,'each resize changes the actual child viewport');
   const result=await frame.evaluate(async()=>{document.querySelector('#reference-bot').paused=true;return await window.viewportMove;});
@@ -394,5 +399,37 @@ for(const mode of ['element','react'])test(`live viewport and consecutive size c
     assert.equal(await frame.locator('#reference-bot').evaluate(bot=>bot.behaviorState.id),id,'resize must not restart behavior');
    }
   }
+ }finally{await page.close();}
+});
+
+for(const mode of ['element','react'])test(`offscreen Guide policy finishes a move and does not replay it on return: ${mode}`,{timeout:120000},async()=>{
+ const page=await browser.newPage({viewport:{width:1000,height:800},reducedMotion:'no-preference'});
+ try{
+  await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);
+  await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await trackBehavior(frame);
+  await frame.waitForFunction(()=>document.querySelector('#reference-bot').paused===false);
+  const target=await frame.evaluate(async()=>{
+   const bot=document.querySelector('#reference-bot');bot.stopBehavior();bot.size=72;bot.placement='viewport';bot.movementBounds='viewport';
+   await bot.moveTo({x:0,y:0},{duration:0});window.offscreenMoveResult=null;
+   const target={x:innerWidth-72,y:innerHeight-72};
+   window.offscreenMove=bot.moveTo(target,{duration:10000,travel:'none'}).then(result=>window.offscreenMoveResult=result);
+   return target;
+  });
+  await frame.waitForFunction(()=>document.querySelector('#reference-bot').movementState.phase==='flight');
+  const originalStyle=await page.locator('.state-lab iframe').evaluate(iframe=>{
+   const style=iframe.style.cssText,rect=iframe.getBoundingClientRect();
+   // Change only parent visibility, not the child's viewport dimensions.
+   Object.assign(iframe.style,{position:'fixed',left:'-10000px',top:'0',width:`${rect.width}px`,height:`${rect.height}px`});return style;
+  });
+  await frame.waitForFunction(()=>document.querySelector('#reference-bot').paused&&window.offscreenMoveResult!==null);
+  const result=await frame.evaluate(()=>window.offscreenMoveResult);
+  assert.equal(result.finished,true,'the documented pause policy completes, rather than cancels, current movement');
+  assert.ok(Math.abs(result.position.x-target.x)<1&&Math.abs(result.position.y-target.y)<1,'pause finishes at the constrained destination');
+  assertBehaviorBox(await frame.evaluate(()=>window.behaviorRect()),'offscreen completion keeps child viewport bounds');
+  await page.locator('.state-lab iframe').evaluate((iframe,style)=>{iframe.style.cssText=style;},originalStyle);
+  await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
+  await frame.waitForFunction(()=>document.querySelector('#reference-bot').paused===false);
+  const resumed=await frame.locator('#reference-bot').evaluate(bot=>({phase:bot.movementState.phase,position:bot.position}));
+  assert.equal(resumed.phase,'idle');assert.deepEqual(resumed.position,result.position,'visibility restoration does not restart completed movement');
  }finally{await page.close();}
 });
