@@ -1,3 +1,4 @@
+import { recordGuideSetting } from '../playground/guide-setting-analytics.js';
 import * as workflows from '../playground/application-workflows.js';
 import * as framework from '../playground/site-framework.js';
 import * as frameworkCode from '../playground/guide-framework-code.js';
@@ -37,7 +38,7 @@ async function mount(context, { exercise = false, source = null, hash, locale = 
   w.IntersectionObserver=class { observe() {} disconnect() {} };
   w.ResizeObserver = class { observe() {} };
   w.scrollTo = () => {};
-  Object.assign(w, workflows, stateSchema, {stateCopy,stateLessons}, navigation, emotions, catalog, lessons, framework, frameworkCode, {
+  Object.assign(w, {recordGuideSetting}, workflows, stateSchema, {stateCopy,stateLessons}, navigation, emotions, catalog, lessons, framework, frameworkCode, {
     guideTranslations,
     getSiteLocale: () => locale, subscribeSiteLocale: () => () => {},
     loadStudioSession: () => ({ scene: createScene(), message: 'mock' }),

@@ -6,11 +6,12 @@ import {chromium} from 'playwright-core';
 import ts from 'typescript';
 import {createAppServer} from '../scripts/serve.mjs';
 let browser,server,base;
-before(async()=>{server=createAppServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));base=process.env.SIDEKICK_STATE_LIVE_URL??`http://127.0.0.1:${server.address().port}`;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??(existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined),headless:process.env.SIDEKICK_HEADED!=='1',args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});});
+const forceCanvas = process.env.SIDEKICK_FORCE_CANVAS2D === '1';
+before(async()=>{server=createAppServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));base=process.env.SIDEKICK_STATE_LIVE_URL??`http://127.0.0.1:${server.address().port}`;browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??(existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined),headless:process.env.SIDEKICK_HEADED!=='1',args:['--no-sandbox','--disable-dev-shm-usage',...(forceCanvas?['--disable-webgl']:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'])]});});
 after(async()=>{await browser?.close();await new Promise(r=>server?.close(r));});
 const cases=[['state-lifecycle','presence',JSON.stringify({visible:true})],['state-emotion','emotion','curious'],['state-position','position-x','28'],['state-behavior','behavior',JSON.stringify({type:'idle'})],['state-facing','body-yaw','25'],['state-appearance','shape','heart'],['state-execution','activity','thinking']];
-async function frameFor(page){await page.waitForSelector('[data-state-reference][data-configured]');const frame=page.frames().find(f=>f.url().includes('/state-preview.html'));assert.ok(frame);await frame.waitForFunction(()=>document.querySelector('#reference-bot')?.ready);return frame;}
-async function edit(page,key,value){if(key==='behavior'&&JSON.parse(value).type==='idle'){await page.selectOption('[data-behavior-preset]','idle');return;}await page.check(`[data-state-enable="${key}"]`);const control=page.locator(`[data-state-control="${key}"]`);if(await control.evaluate(e=>e.tagName)==='SELECT')await control.selectOption(value);else{await control.fill(value);if(await control.evaluate(e=>e.tagName)==='TEXTAREA')await page.locator(`[data-state-field="${key}"] button`).click();else await control.dispatchEvent('change');}}
+async function frameFor(page){await page.waitForSelector('[data-state-reference][data-configured]');const frame=page.frames().find(f=>f.url().includes('/state-preview.html'));assert.ok(frame);await frame.waitForFunction(()=>document.querySelector('#reference-bot')?.ready);assert.equal(await frame.locator('#reference-bot').evaluate(bot=>bot.diagnostics.graphics),forceCanvas?'canvas2d':'webgl2','reference suite must exercise the explicitly selected graphics renderer');return frame;}
+async function edit(page,key,value){if(key==='behavior'&&JSON.parse(value).type==='idle'&&Object.keys(JSON.parse(value)).length===1){await page.selectOption('[data-behavior-preset]','idle');return;}await page.check(`[data-state-enable="${key}"]`);const control=page.locator(`[data-state-control="${key}"]`);if(await control.evaluate(e=>e.tagName)==='SELECT')await control.selectOption(value);else{await control.fill(value);if(await control.evaluate(e=>e.tagName)==='TEXTAREA')await page.locator(`[data-state-field="${key}"] button`).click();else await control.dispatchEvent('change');}}
 async function snapshot(frame){return frame.locator('#reference-bot').evaluate(bot=>({design:bot.design,orientation:bot.bodyOrientation,zoom:bot.zoom,tracking:bot.trackingMode,emotion:bot.emotionState.emotion,emotionIntensity:bot.emotionState.intensity,activity:bot.activity,behavior:bot.behavior,presence:bot.presence,position:bot.position,paused:bot.paused}));}
 for(const locale of ['ko','en','zh-CN','ja'])for(const mode of ['element','react'])test(`seven state pages edit selected ${mode} source and actual renderer in ${locale}`,{timeout:120000},async()=>{
  const page=await browser.newPage({viewport:{width:1280,height:900},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -179,4 +180,134 @@ test('positioning controls generate matching CE and React placements without coo
    }
   }
  }}finally{await page.close();}
+});
+
+// Every meaningful discrete behavior/side/target choice, including omitted defaults.
+// Numeric domains are sampled at zero, normal and upper boundary, not called exhaustive.
+const behaviorMatrix=[];
+for(const type of ['wait','follow','guide','review'])for(const side of [undefined,'left','right','above','below'])for(const target of ['#reference-target','.reference-item'])for(const gap of [undefined,0,16,10000]){
+ behaviorMatrix.push({type,...(type==='review'?{targets:target,dwell:0}:{target,duration:0}),...(side===undefined?{}:{side}),...(gap===undefined?{}:{gap})});
+}
+for(const type of ['idle','celebrate','error'])behaviorMatrix.push({type,duration:0});
+function assertBehaviorBox(box,label){assert.ok(box.left>=-1&&box.top>=-1&&box.right<=box.viewportWidth+1&&box.bottom<=box.viewportHeight+1,`${label}: ${JSON.stringify(box)}`);}
+async function trackBehavior(frame){
+ await frame.evaluate(()=>{
+  window.behaviorSamples=[];
+  const rect=()=>{const bot=document.querySelector('#reference-bot'),b=bot.getBoundingClientRect();return {left:b.left,top:b.top,right:b.right,bottom:b.bottom,width:b.width,height:b.height,viewportWidth:innerWidth,viewportHeight:innerHeight};};
+  window.behaviorRect=rect;
+  // Capture every acting item, not just the last review destination.
+  document.addEventListener('sidekick-behavior-change',event=>{if(event.detail.status==='acting'){const declaration=window.expectedBehavior;const target=declaration&&(declaration.target||declaration.targets)?document.querySelectorAll(declaration.target||declaration.targets)[event.detail.itemIndex]:null;const b=target?.getBoundingClientRect();window.behaviorSamples.push({state:event.detail,box:rect(),target:b?{left:b.left,top:b.top,width:b.width,height:b.height}:null});}});
+ });
+}
+async function settledBehavior(frame,declaration,previousId){
+ await frame.waitForFunction(expected=>{const bot=document.querySelector('#reference-bot');return bot?.ready&&bot.behaviorState.id>expected.previousId&&bot.behaviorState.type===expected.type&&bot.behaviorState.status==='completed';},{...declaration,previousId});
+ return frame.evaluate(()=>({box:window.behaviorRect(),samples:window.behaviorSamples.splice(0),state:document.querySelector('#reference-bot').behaviorState}));
+}
+for(const mode of ['element','react'])for(const width of [320,1280])test(`behavior bounds matrix: ${mode}, ${width}px, 163 declarations`,{timeout:300000},async()=>{
+ const page=await browser.newPage({viewport:{width,height:800},reducedMotion:'reduce'});
+ try{
+  await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);await page.check('[data-state-enable="behavior"]');await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await frame.waitForFunction(()=>document.querySelector('#reference-bot').behaviorState.status==='acting');await trackBehavior(frame);
+  assert.equal(behaviorMatrix.length,163);
+  for(const declaration of behaviorMatrix){
+   const previousId=await frame.evaluate(declaration=>{window.behaviorSamples=[];window.expectedBehavior=declaration;return document.querySelector('#reference-bot').behaviorState.id;},declaration);
+   await edit(page,'behavior',JSON.stringify(declaration));await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
+   const actual=await settledBehavior(frame,declaration,previousId),label=JSON.stringify(declaration);
+   assertBehaviorBox(actual.box,label);
+   const count=declaration.type==='review'&&declaration.targets==='.reference-item'?3:1;
+   assert.equal(actual.samples.length,count,label+' visits every target');
+   for(const sample of actual.samples){
+    assertBehaviorBox(sample.box,label+' item '+sample.state.itemIndex);
+    if(sample.target){const b=sample.box,t=sample.target,side=declaration.side??'right',gap=declaration.gap??16;let x=t.left+(t.width-b.width)/2,y=t.top+(t.height-b.height)/2;if(side==='left')x=t.left-b.width-gap;if(side==='right')x=t.left+t.width+gap;if(side==='above')y=t.top-b.height-gap;if(side==='below')y=t.top+t.height+gap;x=Math.max(0,Math.min(b.viewportWidth-b.width,x));y=Math.max(0,Math.min(b.viewportHeight-b.height,y));assert.ok(Math.abs(b.left-x)<1&&Math.abs(b.top-y)<1,label+' exact clamped destination');}
+   }
+   assert.equal(actual.state.completedItems,['idle','celebrate','error'].includes(declaration.type)?0:count);
+  }
+  // Real preset choices and their default-duration path, then disabling/resetting.
+  for(const type of ['wait','follow','guide','review','idle','celebrate','error']){
+   await page.selectOption('[data-behavior-preset]',type);await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
+   await frame.waitForFunction(type=>{const bot=document.querySelector('#reference-bot');return bot?.behaviorState.type===type&&['acting','completed'].includes(bot.behaviorState.status);},type);
+   assertBehaviorBox(await frame.evaluate(()=>window.behaviorRect()),type+' preset');
+  }
+  await page.uncheck('[data-state-enable="behavior"]');await frameFor(page);
+  assert.equal(await frame.locator('#reference-bot').evaluate(bot=>bot.behavior),null);
+  await page.locator('[data-state-text="reset"]').click();await frameFor(page);
+  assert.equal(await frame.locator('#reference-bot').evaluate(bot=>bot.placement),'viewport');
+  if(process.env.SIDEKICK_SCREENSHOTS){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/behavior-bounds-${mode}-${width}.png`});}
+ }finally{await page.close();}
+});
+
+test('behavior copied CE/React source keeps all four sides and review in a narrow viewport',{timeout:120000},async()=>{
+ const page=await browser.newPage({viewport:{width:1280,height:800},reducedMotion:'reduce'});
+ try{for(const mode of ['element','react']){
+  await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);
+  for(const declaration of [...['left','right','above','below'].map(side=>({type:'wait',target:'#reference-target',side,gap:16,duration:0})),{type:'review',targets:'.reference-item',side:'below',gap:10000,dwell:0}]){
+   const previousId=await frame.locator('#reference-bot').evaluate(bot=>bot.behaviorState.id);
+   await edit(page,'behavior',JSON.stringify(declaration));await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
+   await frame.waitForFunction(({type,previousId})=>document.querySelector('#reference-bot').behaviorState.id>previousId&&document.querySelector('#reference-bot').behaviorState.type===type&&document.querySelector('#reference-bot').behaviorState.status==='completed',{type:declaration.type,previousId});
+   const source=await page.locator('[data-state-source]').textContent(),replay=await browser.newPage({viewport:{width:240,height:320},reducedMotion:'reduce'});
+   try{
+    let html=source.replace("'@hanana-kick/sidekick/auto'",`'${base}/browser/sidekick.js'`);
+    if(mode==='react'){
+     const output=ts.transpileModule(`import React from 'react';\nimport {createRoot} from 'react-dom/client';\n${source}\ncreateRoot(document.getElementById('root')).render(<StateExample />);`,{compilerOptions:{jsx:ts.JsxEmit.React,module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+     const imports={react:`${base}/react.js`,'react-dom/client':`${base}/react-dom-client.js`,'@hanana-kick/sidekick/react':`${base}/browser/sidekick-react.js`};
+     html=`<!doctype html><div id="root"></div><script type="importmap">${JSON.stringify({imports})}</script><script type="module">${output}</script>`;
+     for(const name of ['react','react-dom-client'])await replay.route(`${base}/${name}.js`,async route=>route.fulfill({contentType:'text/javascript',body:await readFile(new URL(`../cdn/react-19.3.1/${name}.js`,import.meta.url),'utf8')}));
+    }
+    await replay.route(`${base}/behavior-replay.html`,route=>route.fulfill({contentType:'text/html',body:html}));await replay.goto(`${base}/behavior-replay.html`);
+    await replay.waitForFunction(()=>document.querySelector('#reference-bot')?.ready&&document.querySelector('#reference-bot').behaviorState.status==='completed');
+    const actual=await replay.locator('#reference-bot').evaluate(bot=>{const b=bot.getBoundingClientRect();return {box:{left:b.left,top:b.top,right:b.right,bottom:b.bottom,viewportWidth:innerWidth,viewportHeight:innerHeight},state:bot.behaviorState,placement:bot.placement,bounds:bot.movementBounds};});
+    assertBehaviorBox(actual.box,mode+' copied '+JSON.stringify(declaration));assert.equal(actual.placement,'viewport');assert.equal(actual.bounds,'viewport');assert.equal(actual.state.completedItems,declaration.type==='review'?3:1);
+   }finally{await replay.close();}
+  }
+ }}finally{await page.close();}
+});
+
+for(const mode of ['element','react'])test(`behavior normal-motion paths, interruption and resize: ${mode}`,{timeout:120000},async()=>{
+ const page=await browser.newPage({viewport:{width:900,height:700},reducedMotion:'no-preference'});
+ try{
+  await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);
+  await page.check('[data-state-enable="behavior"]');await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await frame.waitForFunction(()=>document.querySelector('#reference-bot').behaviorState.status==='acting');await trackBehavior(frame);
+  await frame.evaluate(()=>{window.pathSamples=[];window.samplePath=true;const sample=()=>{if(!window.samplePath)return;window.pathSamples.push(window.behaviorRect());requestAnimationFrame(sample);};requestAnimationFrame(sample);});
+  for(const type of ['wait','follow','guide','review'])for(const side of ['left','right','above','below']){
+   const declaration={type,...(type==='review'?{targets:'.reference-item',dwell:10}:{target:'#reference-target',duration:0}),side,gap:16};
+   const previousId=await frame.locator('#reference-bot').evaluate(bot=>bot.behaviorState.id);
+   await edit(page,'behavior',JSON.stringify(declaration));await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await settledBehavior(frame,declaration,previousId);
+  }
+  // Replacing active commands must not leave the previous trajectory running.
+  await edit(page,'behavior',JSON.stringify({type:'follow',target:'#reference-target',side:'below',gap:10000}));
+  await edit(page,'behavior',JSON.stringify({type:'wait',target:'.reference-item',side:'above',gap:0}));await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
+  await frame.waitForFunction(()=>document.querySelector('#reference-bot').behaviorState.type==='wait'&&document.querySelector('#reference-bot').behaviorState.status==='acting');
+  await page.setViewportSize({width:320,height:600});await page.waitForTimeout(500);
+  assertBehaviorBox(await frame.evaluate(()=>window.behaviorRect()),'after responsive resize');
+  const samples=await frame.evaluate(()=>{window.samplePath=false;return window.pathSamples;});assert.ok(samples.length>20);
+  // The viewport changes synchronously before ResizeObserver applies its new bounds;
+  // those resize frames are checked above after settling, not as animation defects.
+  const originalWidth=samples[0].viewportWidth;
+  for(const box of samples.filter(box=>box.viewportWidth===originalWidth))assertBehaviorBox(box,'normal animation frame');
+  await edit(page,'behavior',JSON.stringify({type:'wait',target:'#missing-target',timeout:0}));
+  await frame.waitForFunction(()=>document.querySelector('#reference-bot').behaviorState.status==='error');
+  assertBehaviorBox(await frame.evaluate(()=>window.behaviorRect()),'missing target leaves bot visible');
+ }finally{await page.close();}
+});
+
+for(const mode of ['element','react'])for(const width of [320,1280])test(`explicit size preserves active behavior anchoring: ${mode}, ${width}px`,{timeout:120000},async()=>{
+ const page=await browser.newPage({viewport:{width,height:800},reducedMotion:'no-preference'});
+ try{
+  await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);
+  await page.check('[data-state-enable="behavior"]');await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
+  for(const side of ['left','right','above','below']){
+   await edit(page,'behavior',JSON.stringify({type:'wait',target:'#reference-target',side,gap:16}));
+   await frame.waitForFunction(side=>{const bot=document.querySelector('#reference-bot');return bot.behavior?.side===side&&bot.behaviorState.status==='acting';},side);
+   for(const size of [48,96,160.5]){
+    await frame.locator('#reference-bot').evaluate((bot,size)=>{bot.size=size;},size);
+    await frame.waitForFunction(({side,size})=>{
+     const bot=document.querySelector('#reference-bot'),b=bot.getBoundingClientRect(),t=document.querySelector('#reference-target').getBoundingClientRect();
+     let x=t.left+(t.width-b.width)/2,y=t.top+(t.height-b.height)/2;
+     if(side==='left')x=t.left-b.width-16;if(side==='right')x=t.right+16;if(side==='above')y=t.top-b.height-16;if(side==='below')y=t.bottom+16;
+     x=Math.max(0,Math.min(innerWidth-b.width,x));y=Math.max(0,Math.min(innerHeight-b.height,y));
+     return bot.behaviorState.status==='acting'&&Math.abs(b.width-size)<.01&&Math.abs(b.height-size)<.01&&Math.abs(b.left-x)<1&&Math.abs(b.top-y)<1;
+    },{side,size});
+   }
+  }
+  await frame.locator('#reference-bot').evaluate(bot=>{bot.size=null;bot.stopBehavior();});
+ }finally{await page.close();}
 });

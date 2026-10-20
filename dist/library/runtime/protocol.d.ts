@@ -11,6 +11,8 @@ import type { PixelBuffer, SnapshotOptions } from '../core/pixels.js';
 /** Private wire format. A generation owns exactly one transferred surface. */
 export declare const PROTOCOL_VERSION = 1;
 export interface RuntimeState {
+    /** Private recovery selector; a lost/failed WebGL surface is replaced before this is used. */
+    renderer?: 'auto' | 'canvas2d';
     emotion?: EmotionValue;
     /** Explicit eye commands override only the selected eyes until a new emotion command. */
     emotionEyeOverrides?: {
@@ -108,6 +110,7 @@ export type RuntimeCommand = {
     kind: 'dispose';
 };
 export interface RuntimeSnapshot {
+    graphics?: 'webgl2' | 'canvas2d';
     travel?: TravelPresentation;
     renderCpu: {
         lastMs: number;
@@ -150,6 +153,7 @@ export type RuntimeEvent = {
 } | {
     kind: 'error';
     message: string;
+    rendererFallback?: boolean;
 };
 export type WorkerRequest = {
     version: typeof PROTOCOL_VERSION;

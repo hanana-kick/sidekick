@@ -1,8 +1,12 @@
+import { mountAPIPreview } from './api-preview.js';
 import { installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels } from './lifecycle-example.js';
 import { getFramework, subscribeFramework } from './site-framework.js';
 import { getSiteLocale, subscribeSiteLocale } from './site-i18n.js';
 import { apiText, applyApiLocale, apiError } from './api-locales.js';
 import { mountSiteHeader } from './shared-header.js';
+import { recordSiteEvent, setSiteSection, siteAnalyticsConsent, siteAnalyticsConsentVersion } from './site-analytics.js';
+import { botCombination, settingValueCategory } from './product-analytics-schema.js';
+import { recordSettingChange, cancelSettingChange } from './site-setting-analytics.js';
 import { createAccessory, MATERIAL_SHAPE_LABELS } from '../src/index.ts';
 import { codeForAction, executeAction } from './playground-actions.js';
 import { loadStudioSession, applyStudioSession, seedStudioSession } from './studio-session.ts';
@@ -22,6 +26,7 @@ $('studio-session-status').textContent = studioSession.message;
 let initialized = false, initializing = false, gesture = null, selectedAction = null, code = '', lastAction = null, lastCode = '', execution = 0;
 const samples = [];
 const t = (key, values) => apiText(key, values, getSiteLocale());
+const preview = mountAPIPreview(document, t, () => refresh());
 const notices = new Map([['status', { key: 'initializing' }]]);
 const logErrors = new WeakMap();
 let validationError = null;
@@ -50,6 +55,7 @@ function refreshLabels() {
 }
 function refreshLocale() {
   applyApiLocale(document);
+  preview.refreshLabels();
   if($('lifecycle-live')?.querySelector('#reference-home'))refreshLifecycleLabels($('lifecycle-live'),getSiteLocale());
   const lifecycleLink=document.querySelector('[data-api-i18n="lifecycleGuide"]');if(lifecycleLink)lifecycleLink.href=`./guide.html?lang=${getSiteLocale()}&framework=${getFramework()}#state-lifecycle`;
   refreshLabels();
@@ -78,6 +84,7 @@ for (const value of Object.keys(MATERIAL_SHAPE_LABELS)) {
 }
 $('shape').value = 'heart'; $('head-accessory').value = 'beret'; $('eyes-accessory').value = 'glasses';
 const technicalLesson=new URL(location.href).searchParams.get('lesson');
+if (['#action-panel', '#invocation', '#diagnostics', '#install-guide'].includes(location.hash)) preview.setOpen(true, false);
 const technicalKinds={'placement':'movement','element-anchor':'movement','manual-motion':'manual-motion','performance':'performance','declarative-lifecycle':'lifecycle'};
 if(technicalKinds[technicalLesson]){
  const labels=navigationText[getSiteLocale()];
@@ -104,6 +111,7 @@ function readAction() {
       try { target = selector ? document.querySelector(selector) : null; }
       catch { throw apiError('selectorInvalid'); }
       if (!target) throw apiError('targetMissing');
+      if (target.closest('#preview-demo')?.hidden) throw apiError('previewDemoRequired');
       return { method: 'moveToElement', args: [selector, { x: numeric('target-x'), y: numeric('target-y'), alignX: $('align-x').value, alignY: $('align-y').value, anchor: $('element-anchor').checked, ...movementOptions() }] };
     } return { method: $('move-method').value, args: [{ x: numeric('target-x'), y: numeric('target-y') }, movementOptions()] };
     case 'performance': return {property:'paused',value:$('render-paused').checked};
@@ -145,6 +153,7 @@ function renderLastCode(action) {
 }
 function refresh() {
   const kind = $('action-kind').value;
+  setSiteSection(window, 'api', kind);
   for (const panel of document.querySelectorAll('[data-action]')) panel.hidden = panel.dataset.action !== kind;
   const natural = $('travel').value === 'natural';
   $('physical-options').hidden = !natural; $('max-speed').disabled = !natural || $('auto-speed').checked; $('easing').disabled = natural;
@@ -179,7 +188,7 @@ function telemetry(detail = bot.movementState) {
   const phaseLabel = t(`phase.${phase}`);
   if ($('phase').textContent !== phaseLabel) $('phase').textContent = phaseLabel;
   // Hidden diagnostics must not add per-frame layout/graph work to the avatar.
-  if (!$('diagnostics').open) return;
+  if ($('bot-tools').hidden || !$('diagnostics').open) return;
   const progress = Math.max(0, Math.min(1, movement.progress)); $('progress').value = progress; $('progress-value').textContent = `${Math.round(progress * 100)}%`;
   $('position').textContent = `x ${number(position.x)} · y ${number(position.y)}`; $('activity-state').textContent = t(`activity.${bot.activity}`);
   $('speed').textContent = `${number(speed)} px/s`; $('velocity').textContent = `x ${number(velocity.x)} · y ${number(velocity.y)}`;
@@ -193,10 +202,12 @@ function report(kind, result) {
   value.textContent = JSON.stringify(kind === 'error' ? errorMessage(result) : result, null, 2); entry.append(title, value); $('result-log').prepend(entry);
   while ($('result-log').children.length > 12) $('result-log').lastElementChild.remove();
 }
-async function run(action) {
+async function run(action, explicit = false) {
+  const usageSection = $('action-kind').value, consent = siteAnalyticsConsent(window), version = siteAnalyticsConsentVersion(window);
   const id = ++execution; renderLastCode(action);
   notice('status', 'running');
   try {
+    if (action.lifecycle) preview.showDemo();
     if (action.lifecycle && !$('lifecycle-live').querySelector('#reference-home')) $('lifecycle-live').innerHTML = lifecycleMarkup(getSiteLocale());
     const promise = executeAction(bot, action, createAccessory);
     if (action.lifecycle) {
@@ -205,18 +216,42 @@ async function run(action) {
     }
     telemetry();
     const result = await promise;
+    // Only successful explicit Run actions count, never progress frames, cancellation or superseded runs.
+    if (explicit && id === execution && result?.finished !== false && consent && siteAnalyticsConsentVersion(window) === version) {
+      const combination = botCombination(bot.design);
+      if (combination) recordSiteEvent(window, 'bot_apply', { site_page: 'api', site_section: usageSection, ...combination, apply_kind: 'api' });
+    }
     report(action.method ?? action.property ?? 'bodyOrientation / zoom', result ?? { applied: true });
     if (id === execution) notice('status', result?.finished === false ? 'interrupted' : 'applied');
     telemetry();
   } catch (error) { report('error', error); if (id === execution) errorNotice(error); }
 }
-$('execute').onclick = () => { try { void run(readAction()); } catch (error) { errorNotice(error); } };
+$('execute').onclick = () => { try { void run(readAction(), true); } catch (error) { errorNotice(error); } };
 const cancelMove = () => void run({ method: 'cancelMove', args: [] });
 $('cancel').onclick = cancelMove; $('cancel-preview').onclick = cancelMove;
 $('detach-anchor').onclick = () => void run({ method: 'detachAnchor', args: [] });
 $('cancel-transition').onclick = () => void run({ method: 'cancelTransition', args: [] });
-for (const input of document.querySelectorAll('#action-panel input, #action-panel select, #action-panel textarea')) input.addEventListener('input', refresh);
+// Explicit known controls only. No selectors, coordinates, JSON, code, labels or generic field capture.
+const API_SETTING_CONTROLS = Object.freeze({
+  shape: 'body_shape', 'head-accessory': 'accessory_head', 'eyes-accessory': 'accessory_eyes', 'neck-accessory': 'accessory_neck',
+  'tracking-mode': 'tracking_mode', 'body-yaw': 'body_yaw', 'body-pitch': 'body_pitch', 'body-roll': 'body_roll', zoom: 'zoom',
+  activity: 'activity', 'activity-duration': 'activity_duration', 'expression-duration': 'expression_duration',
+  'emotion-name': 'emotion', 'emotion-intensity': 'emotion_intensity', 'emotion-duration': 'emotion_duration',
+  travel: 'move_travel', easing: 'move_easing', duration: 'move_duration', 'transition-duration': 'shape_duration',
+  'max-speed': 'move_max_speed', acceleration: 'move_acceleration', deceleration: 'move_deceleration',
+  'auto-speed': 'auto_speed', 'element-anchor': 'element_anchor', 'presence-edge': 'entrance_side', 'render-paused': 'paused',
+});
+function recordAPISetting(input) {
+  const setting_key = input.id === 'expression' ? ($('eye-side').value === 'both' ? 'expression' : `${$('eye-side').value}_expression`) : API_SETTING_CONTROLS[input.id];
+  if (!setting_key) return;
+  if (validationError || input.disabled || input.closest('[data-action]')?.hidden || !input.checkValidity()) { cancelSettingChange(window, { site_page: 'api', site_section: $('action-kind').value, setting_key }); return; }
+  const rawValue = input.type === 'checkbox' ? input.checked : input.type === 'number' ? (input.value === '' ? null : Number(input.value)) : input.id.endsWith('-accessory') ? input.value || 'none' : input.value;
+  const value_category = settingValueCategory(setting_key, rawValue);
+  if (value_category !== null) recordSettingChange(window, { site_page: 'api', site_section: $('action-kind').value, setting_key, value_category, change_source: 'control' }, { debounce: input.type === 'number' });
+}
+for (const input of document.querySelectorAll('#action-panel input, #action-panel select, #action-panel textarea')) input.addEventListener('input', () => { refresh(); recordAPISetting(input); });
 subscribeFramework(() => { if (selectedAction) renderCode(selectedAction); if (lastAction) renderLastCode(lastAction); renderInstallCode(); });
+$('bot-tools-launcher').addEventListener('click', () => telemetry());
 $('diagnostics').addEventListener('toggle', () => { if ($('diagnostics').open) telemetry(); });
 window.addEventListener('pagehide', () => disposeLifecycleExample?.(), { once: true });
 $('clear-log').onclick = () => $('result-log').replaceChildren();
@@ -228,7 +263,7 @@ function copyCode(sourceId, statusId, getCode) { return async () => {
 $('copy').onclick = copyCode('invocation', 'copy-status', () => code);
 $('copy-last').onclick = copyCode('last-invocation', 'last-copy-status', () => lastCode);
 // Controls, links, selectable code and the header never become destination clicks.
-const excluded = event => event.composedPath().some(target => target instanceof Element && Boolean(target.closest('button,input,select,textarea,label,a,summary,pre,[contenteditable],[role=button],[role=combobox],.card,.app-header,.flight-toolbar,details')));
+const excluded = event => event.composedPath().some(target => target instanceof Element && Boolean(target.closest('button,input,select,textarea,label,a,summary,pre,[contenteditable],[role=button],[role=combobox],.card,.app-header,.flight-toolbar,#bot-tools,.preview-url-bar,details')));
 document.addEventListener('pointerdown', event => {
   if (!initialized || !event.isPrimary || event.button !== 0 || excluded(event) || getSelection()?.toString()) { gesture = null; return; }
   gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, scrollX, scrollY, time: performance.now() };
@@ -258,8 +293,9 @@ async function initialize() {
   bot.setAttribute('data-configured', '');
   initialized = true; initializing = false;
   if(technicalKinds[technicalLesson]){
+   preview.setOpen(true, false);
    $('action-kind').value=technicalKinds[technicalLesson];
-   if(technicalLesson==='element-anchor'){$('move-method').value='moveToElement';$('target-selector').value='#action-panel';$('align-x').value='right';$('align-y').value='center';$('element-anchor').checked=true;$('target-x').value='16';$('target-y').value='0';}
+   if(technicalLesson==='element-anchor'){$('move-method').value='moveToElement';$('target-selector').value='#preview-target';$('align-x').value='right';$('align-y').value='center';$('element-anchor').checked=true;$('target-x').value='16';$('target-y').value='0';}
    if(technicalLesson==='placement'){$('target-x').value='120';$('target-y').value='80';}
    if(technicalLesson==='performance')$('diagnostics').open=true;
   }
@@ -271,9 +307,9 @@ const preference = matchMedia('(prefers-reduced-motion: reduce)');
 function showPreference() { $('motion-preference').textContent = t(preference.matches ? 'reducedMotion' : 'motionPreference'); }
 preference.addEventListener('change', showPreference);
 subscribeSiteLocale(refreshLocale); refreshLocale(); refresh();
-const elementInstallCode = `npm install github:hanana-kick/sidekick#v0.15.1\n\n<!-- HTML: Start with the companion configured in Studio -->\n<sidekick-avatar id="bot" placement="viewport"\n  style="width:180px;height:180px;pointer-events:none">\n</sidekick-avatar>\n<script type="module">\n  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.js';\n  const scene = ${JSON.stringify(studioSession.scene, null, 2)};\n  const bot = document.querySelector('#bot');\n  bot.design = scene.design;\n  bot.setActivity(scene.activity);\n  bot.bodyOrientation = scene.bodyOrientation;\n  bot.zoom = scene.zoom;\n  bot.trackingMode = scene.trackingMode;\n  bot.paused = scene.paused;\n  bot.lookAt({ space: 'view', ...scene.gaze });\n  bot.seek(scene.time);\n  await bot.motion.to(scene.motion, { duration: 0 });\n  // Insert the invocation code above here.\n</script>`;
+const elementInstallCode = `npm install github:hanana-kick/sidekick#v0.16.0\n\n<!-- HTML: Start with the companion configured in Studio -->\n<sidekick-avatar id="bot" placement="viewport" size="180"\n  style="pointer-events:none">\n</sidekick-avatar>\n<script type="module">\n  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.js';\n  const scene = ${JSON.stringify(studioSession.scene, null, 2)};\n  const bot = document.querySelector('#bot');\n  bot.design = scene.design;\n  bot.setActivity(scene.activity);\n  bot.bodyOrientation = scene.bodyOrientation;\n  bot.zoom = scene.zoom;\n  bot.trackingMode = scene.trackingMode;\n  bot.paused = scene.paused;\n  bot.lookAt({ space: 'view', ...scene.gaze });\n  bot.seek(scene.time);\n  await bot.motion.to(scene.motion, { duration: 0 });\n  // Insert the invocation code above here.\n</script>`;
 
-function renderInstallCode(){ $('install-code').textContent=getFramework()==='react'?'npm install github:hanana-kick/sidekick#v0.15.1\n\n'+codeForAction({property:'paused',value:false},'react',studioSession.scene):elementInstallCode; }
+function renderInstallCode(){ $('install-code').textContent=getFramework()==='react'?'npm install github:hanana-kick/sidekick#v0.16.0\n\n'+codeForAction({property:'paused',value:false},'react',studioSession.scene):elementInstallCode; }
 renderInstallCode();
 
 }

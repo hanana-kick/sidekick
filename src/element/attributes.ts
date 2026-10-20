@@ -6,6 +6,7 @@ import type { SidekickLifecycleState } from './lifecycle.js';
 import { ACTIVITIES, createAccessory, createDesign, equipAccessory, finite, parseDesign } from '../core/design.js';
 import type { AccessoryPreset, AccessorySlot, Activity, AvatarDesign, Vec2 } from '../core/design.js';
 import { bodyOrientationPreset, createBodyOrientation } from '../core/body-orientation.js';
+import { SIZE_RANGE } from '../core/size.js';
 import { ZOOM_RANGE } from '../core/zoom.js';
 import type { BodyOrientation, BodyOrientationPreset } from '../core/body-orientation.js';
 import { eyeExpressionWeights } from '../core/expressions.js';
@@ -70,6 +71,7 @@ export interface SidekickAttributes {
   'body-yaw'?: NumericAttribute;
   'body-pitch'?: NumericAttribute;
   'body-roll'?: NumericAttribute;
+  size?: NumericAttribute;
   'zoom'?: NumericAttribute;
   'gaze-x'?: NumericAttribute;
   'gaze-y'?: NumericAttribute;
@@ -95,7 +97,7 @@ export const SIDEKICK_ATTRIBUTES = Object.freeze([
   'smile', 'blink', 'left-smile', 'right-smile', 'left-blink', 'right-blink', 'accessories',
   'head-accessory', 'head-color', 'eyes-accessory', 'eyes-color', 'mouth-accessory', 'mouth-color',
   'neck-accessory', 'neck-color', 'left-ear-accessory', 'left-ear-color', 'right-ear-accessory', 'right-ear-color',
-  'body-orientation', 'body-yaw', 'body-pitch', 'body-roll', 'zoom', 'gaze-x', 'gaze-y', 'activity', 'paused',
+  'body-orientation', 'body-yaw', 'body-pitch', 'body-roll', 'size', 'zoom', 'gaze-x', 'gaze-y', 'activity', 'paused',
   'interaction', 'mouse-tracking', 'tracking-mode', 'render-style', 'shape-duration', 'shape-easing', 'motion-duration', 'motion-easing', 'motion', 'time',
 ] as const satisfies readonly SidekickAttributeName[]);
 
@@ -139,6 +141,7 @@ export interface ResolvedAttributes {
   moveOptions: MoveOptions;
   design: AvatarDesign;
   bodyOrientation: BodyOrientation;
+  size: number | null;
   zoom: number;
   gaze: Vec2;
   activity: Activity;
@@ -224,6 +227,7 @@ export function resolveSidekickAttributes(attributes: AttributeValues): Resolved
     const limit = axis === 'yaw' ? 360 : axis === 'pitch' ? 90 : 180;
     bodyOrientation = { ...bodyOrientation, [axis]: read(`body-${axis}`, value => number(value, -limit, limit, `body-${axis}`), bodyOrientation[axis]) };
   }
+  const size = read<number | null>('size', value => number(value, SIZE_RANGE.min, SIZE_RANGE.max, 'size'), null);
   const zoom = read('zoom', value => number(value, ZOOM_RANGE.min, ZOOM_RANGE.max, 'zoom'), 1);
   const options = (prefix: 'shape' | 'motion'): Required<MotionOptions> => {
     const duration = read(`${prefix}-duration`, value => number(value, 0, 60000, 'duration'), prefix === 'shape' ? 450 : 400);
@@ -246,7 +250,7 @@ export function resolveSidekickAttributes(attributes: AttributeValues): Resolved
     position: { x: read('position-x', value => number(value, -1e7, 1e7, 'position-x'), 0), y: read('position-y', value => number(value, -1e7, 1e7, 'position-y'), 0) },
     movementBounds: read('movement-bounds', value => choice(value, ['viewport', 'none']), 'viewport'),
     moveOptions: { maxSpeed: read('move-max-speed', value => number(value, 1, 100000, 'move-max-speed'), undefined), acceleration: read('move-acceleration', value => number(value, 1, 100000, 'move-acceleration'), 1800), deceleration: read('move-deceleration', value => number(value, 1, 100000, 'move-deceleration'), 2200), travel: read('move-travel', value => choice(value, ['natural', 'none'] as const), 'natural'), duration: read('move-duration', value => number(value, 0, 60000, 'move-duration'), 0), easing: read('move-easing', value => choice(value, ['linear', 'smooth'] as const), 'smooth') },
-    design: parseDesign(design), bodyOrientation, zoom,
+    design: parseDesign(design), bodyOrientation, size, zoom,
     gaze: [read('gaze-x', value => number(value, -1, 1, 'gaze-x'), 0), read('gaze-y', value => number(value, -1, 1, 'gaze-y'), 0)],
     activity: read('activity', value => choice(value, ACTIVITIES), 'idle'),
     paused: read('paused', parseBooleanAttribute, false),

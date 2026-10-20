@@ -1,3 +1,7 @@
+import { mountAPIPreview, validatePreviewURL } from '../playground/api-preview.js';
+import { recordSettingChange, cancelSettingChange } from '../playground/site-setting-analytics.js';
+import { recordSiteEvent, setSiteSection, siteAnalyticsConsent, siteAnalyticsConsentVersion } from '../playground/site-analytics.js';
+import { botCombination, settingValueCategory, sanitizeProductEvent } from '../playground/product-analytics-schema.js';
 import { installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels } from '../playground/lifecycle-example.js';
 import { navigationText, guideHref, readGuideSource } from '../playground/guide-navigation.js';
 import { getFramework, setFramework, subscribeFramework } from '../playground/site-framework.js';
@@ -146,7 +150,7 @@ async function controllerFixture(t, query = '') {
   t.after(() => dom.window.close());
   const w = dom.window, $ = id => w.document.getElementById(id);
   setFramework('element');
-  Object.assign(w, { installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels, navigationText, guideHref, readGuideSource, getFramework, subscribeFramework:callback=>{const cleanup=subscribeFramework(callback);t.after(cleanup);return cleanup;}, mountGuideExercise:async()=>false, apiText, applyApiLocale, apiError, getSiteLocale, subscribeSiteLocale: callback => { const cleanup = subscribeSiteLocale(callback); t.after(cleanup); return cleanup; }, structuredClone, codeForAction, executeAction, createAccessory, MATERIAL_SHAPE_LABELS: { heart: 'Heart', ghostish: 'Ghost' }, mountSiteHeader() {}, loadStudioSession: () => ({ message: 'Default scene', scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), seedStudioSession:()=>{}, applyStudioSession: async () => {} });
+  Object.assign(w, { mountAPIPreview, recordSettingChange, cancelSettingChange, settingValueCategory, recordSiteEvent, setSiteSection, siteAnalyticsConsent, siteAnalyticsConsentVersion, botCombination, installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels, navigationText, guideHref, readGuideSource, getFramework, subscribeFramework:callback=>{const cleanup=subscribeFramework(callback);t.after(cleanup);return cleanup;}, mountGuideExercise:async()=>false, apiText, applyApiLocale, apiError, getSiteLocale, subscribeSiteLocale: callback => { const cleanup = subscribeSiteLocale(callback); t.after(cleanup); return cleanup; }, structuredClone, codeForAction, executeAction, createAccessory, MATERIAL_SHAPE_LABELS: { heart: 'Heart', ghostish: 'Ghost' }, mountSiteHeader() {}, loadStudioSession: () => ({ message: 'Default scene', scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), seedStudioSession:()=>{}, applyStudioSession: async () => {} });
   w.matchMedia = () => ({ matches: false, addEventListener() {} });
   class Avatar extends w.HTMLElement {
     ready = true; calls = []; point = { x: 0, y: 0 }; activity = 'idle'; trackingMode = 'eyes-and-body'; zoom = 1;
@@ -158,7 +162,7 @@ async function controllerFixture(t, query = '') {
   }
   for (const method of ['setEmotion', 'reactTo', 'cancelReaction', 'setExpression', 'setActivity', 'play', 'stop', 'setBodyOrientation', 'transitionTo', 'cancelMove', 'cancelTransition', 'enter', 'exit', 'detachAnchor', 'moveToElement']) Avatar.prototype[method] = function (...args) { this.calls.push({ method, args }); return Promise.resolve({ finished: true }); };
   w.customElements.define('sidekick-avatar', Avatar);
-  w.eval(source); await new Promise(resolve => setImmediate(resolve)); const bot = $('bot'); bot.calls.length = 0;
+  w.eval(source); await new Promise(resolve => setImmediate(resolve)); const bot = $('bot'); bot.calls.length = 0; if ($('bot-tools').hidden) $('bot-tools-launcher').click();
   const input = (id, value) => { $(id).value = String(value); $(id).dispatchEvent(new w.Event('input', { bubbles: true })); };
   const pointer = (type, x, y, target = w.document.body, extra = {}) => { const event = new w.Event(type, { bubbles: true }); Object.assign(event, { clientX: x, clientY: y, isPrimary: true, pointerId: 1, button: 0, ...extra }); target.dispatchEvent(event); };
   return { w, $, bot, input, pointer };
@@ -203,7 +207,7 @@ test('controller free-page gestures ignore controls, drags, selections, cancella
   f.pointer('pointerdown', 700, 500); f.pointer('pointermove', 700, 550); f.pointer('pointerup', 700, 550);
   f.pointer('pointerdown', 700, 500); f.pointer('pointercancel', 700, 500); f.pointer('pointerup', 700, 500);
   f.pointer('pointerdown', 700, 500); f.pointer('pointerdown', 710, 500, f.w.document.body, { isPrimary: false, pointerId: 2 }); f.pointer('pointerup', 700, 500);
-  const range = f.w.document.createRange(); range.selectNodeContents(f.$('invocation')); f.w.getSelection().addRange(range);
+  const range = f.w.document.createRange(); range.selectNodeContents(f.$('invocation')); f.w.getSelection().removeAllRanges(); f.w.getSelection().addRange(range);
   f.pointer('pointerdown', 700, 500); f.pointer('pointerup', 700, 500);
   assert.equal(f.bot.calls.length, count);
   f.w.getSelection().removeAllRanges();
@@ -334,7 +338,7 @@ test('direct lifecycle preset opens a valid guide return link and app outcomes r
  f.$('execute').click();await new Promise(resolve=>setImmediate(resolve));
  assert.equal(f.bot.home.positioning.target,'#reference-home');assert.equal(f.bot.task,null);
  f.w.document.querySelector('[data-lifecycle-action="wait"]').click();
- assert.equal(f.bot.task.status,'pending');assert.match(f.$('invocation').textContent,/sidekick@v0\.15\.1/);
+ assert.equal(f.bot.task.status,'pending');assert.match(f.$('invocation').textContent,/sidekick@v0\.16\.0/);
  f.w.document.querySelector('[data-lifecycle-action="success"]').click();await new Promise(resolve=>setImmediate(resolve));
  assert.equal(f.bot.task.status,'success');
  f.w.document.querySelector('[data-lifecycle-action="follow"]').click();assert.equal(f.bot.task.id,2);
@@ -350,4 +354,134 @@ test('contextual lifecycle API return link restores the originating guide sectio
  assert.ok(back.textContent.trim());assert.equal(url.pathname,'/guide.html');assert.equal(url.hash,'#state-lifecycle');
  assert.deepEqual(JSON.parse(url.searchParams.get('context')),source);
  assert.equal(f.$('action-kind').value,'lifecycle');
+});
+
+
+test('API analytics only records successful explicit runs with current combination and bounded section', async t => {
+  const f = await controllerFixture(t), events = [], sections = [];
+  let granted = true, version = 0;
+  f.w.siteAnalyticsConsent = () => granted;
+  f.w.siteAnalyticsConsentVersion = () => version;
+  f.w.recordSiteEvent = (_win, name, properties) => { const safe = sanitizeProductEvent(name, properties); if (granted && safe) events.push({ name, properties: safe }); };
+  f.w.setSiteSection = (_win, page, section) => sections.push([page, section]);
+  f.bot.design = { body: { shape: 'heart', color: '#123456' }, eyes: { color: '#111111', left: { weights: { smile: 1, blink: 0 } }, right: { weights: { smile: 0, blink: 0 } } }, accessories: [{ id: 'PRIVATE-ID', color: '#abcdef', preset: 'beret', slot: 'head' }] };
+  const tick = () => new Promise(resolve => setImmediate(resolve));
+  f.input('action-kind', 'assets'); f.$('execute').click(); await tick();
+  assert.deepEqual(sections.at(-1), ['api', 'assets']); assert.equal(events.length, 1);
+  assert.equal(events[0].name, 'bot_apply'); assert.equal(events[0].properties.body_shape, 'heart'); assert.equal(events[0].properties.accessory_head, 'beret');
+  assert.doesNotMatch(JSON.stringify(events), /PRIVATE|#[a-f0-9]|weights/);
+  f.bot.dispatchEvent(new f.w.CustomEvent('sidekick-move-progress', { detail: f.bot.movementState }));
+  f.$('cancel-transition').click(); await tick(); assert.equal(events.length, 1);
+  f.bot.transitionTo = () => Promise.resolve({ finished: false }); f.$('execute').click(); await tick(); assert.equal(events.length, 1);
+  f.bot.transitionTo = () => Promise.reject(new Error('failed')); f.$('execute').click(); await tick(); assert.equal(events.length, 1);
+  let finish; f.bot.transitionTo = () => new Promise(resolve => { finish = resolve; });
+  f.$('execute').click(); f.$('cancel-transition').click(); finish({ finished: true }); await tick(); assert.equal(events.length, 1);
+  f.$('execute').click(); granted = false; version++; granted = true; version++; finish({ finished: true }); await tick(); assert.equal(events.length, 1);
+  granted = false; f.$('execute').click(); granted = true; version++; finish({ finished: true }); await tick(); assert.equal(events.length, 1);
+});
+
+test('API setting changes come only from mapped valid explicit controls, never initialization or freeform fields', async t => {
+  const f = await controllerFixture(t), changes = [];
+  f.w.recordSettingChange = (_win, properties, options) => { const safe = sanitizeProductEvent('setting_change', properties); if (safe) changes.push({ ...safe, debounce: options.debounce }); };
+  assert.equal(changes.length, 0);
+  f.input('action-kind', 'emotion'); assert.equal(changes.length, 0);
+  f.input('emotion-name', 'curious'); assert.equal(changes.at(-1).setting_key, 'emotion'); assert.equal(changes.at(-1).value_category, 'curious');
+  f.input('emotion-intensity', .7); assert.equal(changes.at(-1).value_category, 'high'); assert.equal(changes.at(-1).debounce, true);
+  const before = changes.length; f.input('emotion-intensity', 100); assert.equal(changes.length, before);
+  f.input('emotion-intensity', .5); f.input('action-kind', 'movement');
+  const count = changes.length; f.input('target-x', 99); f.input('target-selector', '#PRIVATE'); assert.equal(changes.length, count);
+  f.input('action-kind', 'assets'); f.input('shape', 'heart'); f.input('head-accessory', '');
+  assert.equal(changes.at(-1).setting_key, 'accessory_head'); assert.equal(changes.at(-1).value_category, 'none');
+  f.input('action-kind', 'orientation'); f.input('zoom', 1.5); assert.equal(changes.at(-1).value_category, 'enlarged');
+  f.bot.dispatchEvent(new f.w.CustomEvent('sidekick-move-progress', { detail: f.bot.movementState }));
+  assert.doesNotMatch(JSON.stringify(changes), /PRIVATE|target_selector|target_x|0\.7|1\.5/);
+});
+
+test('devtools close, Escape and reopen preserve draft, bot, generated code and restore launcher focus', async t => {
+  const f = await controllerFixture(t);
+  f.input('target-x', 237); f.input('duration', 800);
+  const draft = f.$('invocation').textContent, bot = f.bot;
+  for (const id of ['bot-tools-heading', 'preview-form', 'preview-url']) {
+    f.pointer('pointerdown', 600, 450, f.$(id)); f.pointer('pointerup', 600, 450, f.$(id));
+  }
+  assert.equal(bot.calls.length, 0);
+  f.$('bot-tools-close').click();
+  assert.equal(f.$('bot-tools').hidden, true);
+  assert.equal(f.$('bot-tools-launcher').getAttribute('aria-expanded'), 'false');
+  assert.equal(f.w.document.activeElement, f.$('bot-tools-launcher'));
+  f.$('bot-tools-launcher').click();
+  assert.equal(f.w.document.activeElement, f.$('bot-tools-close'));
+  f.w.document.dispatchEvent(new f.w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(f.$('bot-tools').hidden, true);
+  assert.equal(f.$('bot'), bot); assert.equal(f.$('invocation').textContent, draft);
+  assert.equal(f.$('target-x').value, '237'); assert.equal(bot.calls.length, 0);
+});
+
+test('preview never autoloads a query URL; explicit navigation is sandboxed, private and honest about load events', async t => {
+  const f = await controllerFixture(t, '?url=https://private.example/?secret=never&preview=https://private.example');
+  assert.equal(f.$('site-preview-frame'), null);
+  const originalStorage = f.w.localStorage.length;
+  f.$('preview-url').value = 'https://example.com/secret?token=PRIVATE#value';
+  f.$('preview-form').dispatchEvent(new f.w.Event('submit', { bubbles: true, cancelable: true }));
+  const frame = f.$('site-preview-frame');
+  assert.equal(frame.getAttribute('sandbox'), 'allow-scripts');
+  assert.equal(frame.referrerPolicy || frame.getAttribute('referrerpolicy'), 'no-referrer');
+  assert.equal(frame.src, 'https://example.com/secret?token=PRIVATE#value');
+  assert.equal(f.w.localStorage.length, originalStorage);
+  assert.ok(!f.w.location.href.includes('PRIVATE'));
+  const status = f.$('preview-status').textContent;
+  frame.dispatchEvent(new f.w.Event('load')); frame.dispatchEvent(new f.w.Event('error'));
+  assert.equal(f.$('preview-status').textContent, status);
+  assert.equal(f.$('preview-click-layer').hidden, true);
+  f.$('preview-capture').checked = true; f.$('preview-capture').dispatchEvent(new f.w.Event('change'));
+  assert.equal(f.$('preview-click-layer').hidden, false);
+  f.$('preview-refresh').click(); assert.notEqual(f.$('site-preview-frame'), frame);
+  f.input('move-method', 'moveToElement'); assert.equal(f.$('execute').disabled, true);
+  f.$('preview-demo-button').click();
+  assert.equal(f.$('site-preview-frame'), null); assert.equal(f.$('preview-demo').hidden, false);
+  assert.equal(f.$('preview-click-layer').hidden, true); assert.equal(f.$('execute').disabled, false);
+});
+
+test('invalid and mixed-content previews do not replace the current preview or leak input into messages', async t => {
+  const f = await controllerFixture(t);
+  for (const value of ['javascript:alert(1)', 'data:text/html,PRIVATE', 'file:///PRIVATE', 'https://user:PRIVATE@example.com', 'http://example.com/PRIVATE', '/PRIVATE']) {
+    f.$('preview-url').value = value;
+    f.$('preview-form').dispatchEvent(new f.w.Event('submit', { bubbles: true, cancelable: true }));
+    assert.equal(f.$('site-preview-frame'), null);
+    assert.equal(f.$('preview-url').getAttribute('aria-invalid'), 'true');
+    assert.ok(!f.$('preview-status').textContent.includes('PRIVATE'));
+  }
+});
+
+
+test('preview URL policy allows HTTP only on an HTTP host and never accepts credential-bearing URLs', () => {
+  assert.deepEqual(validatePreviewURL('http://example.test/page', 'http:'), { url: 'http://example.test/page' });
+  assert.deepEqual(validatePreviewURL('https://example.test/page', 'http:'), { url: 'https://example.test/page' });
+  assert.deepEqual(validatePreviewURL('http://example.test'), { error: 'previewMixedContent' });
+  for (const value of ['//example.test', 'example.test', 'https://user@example.test', 'https://:pass@example.test', 'javascript:alert(1)', 'blob:https://example.test/abc']) assert.equal(validatePreviewURL(value).error, 'previewInvalidURL');
+});
+
+test('preview URL editing, loading and refreshing never pass input to site analytics', async t => {
+  const f = await controllerFixture(t), events = [], settings = [], sections = [];
+  f.w.recordSiteEvent = (...args) => events.push(args);
+  f.w.recordSettingChange = (...args) => settings.push(args);
+  f.w.setSiteSection = (_win, ...args) => sections.push(args);
+  f.input('preview-url', 'https://example.com/PRIVATE?token=SECRET');
+  f.$('preview-form').dispatchEvent(new f.w.Event('submit', { bubbles: true, cancelable: true }));
+  f.$('preview-refresh').click(); f.$('preview-demo-button').click();
+  assert.deepEqual(events, []); assert.deepEqual(settings, []);
+  assert.doesNotMatch(JSON.stringify(sections), /PRIVATE|SECRET|example\.com/);
+});
+
+
+test('drawer sizing survives bfcache pagehide and still responds to viewport changes', async t => {
+  const f = await controllerFixture(t), panel = f.$('bot-tools');
+  f.w.dispatchEvent(new f.w.PageTransitionEvent('pagehide', { persisted: true }));
+  const before = panel.style.maxHeight;
+  f.w.innerHeight = 480; f.w.dispatchEvent(new f.w.Event('resize'));
+  assert.notEqual(panel.style.maxHeight, before);
+  assert.equal(panel.style.maxHeight, '384px');
+  f.w.dispatchEvent(new f.w.PageTransitionEvent('pagehide', { persisted: false }));
+  f.w.innerHeight = 900; f.w.dispatchEvent(new f.w.Event('resize'));
+  assert.equal(panel.style.maxHeight, '384px');
 });

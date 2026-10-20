@@ -61,6 +61,7 @@ export interface SidekickAttributes {
     'body-yaw'?: NumericAttribute;
     'body-pitch'?: NumericAttribute;
     'body-roll'?: NumericAttribute;
+    size?: NumericAttribute;
     'zoom'?: NumericAttribute;
     'gaze-x'?: NumericAttribute;
     'gaze-y'?: NumericAttribute;
@@ -86,7 +87,7 @@ export declare const ACCESSORY_ATTRIBUTE_SLOTS: Readonly<{
     readonly 'left-ear': "leftEar";
     readonly 'right-ear': "rightEar";
 }>;
-export declare const SIDEKICK_ATTRIBUTES: readonly ["emotion", "emotion-intensity", "behavior", "entrance", "positioning", "presence", "task", "home", "placement", "position-x", "position-y", "movement-bounds", "move-duration", "move-easing", "move-travel", "move-max-speed", "move-acceleration", "move-deceleration", "design", "shape", "body-color", "eye-color", "expression", "left-expression", "right-expression", "smile", "blink", "left-smile", "right-smile", "left-blink", "right-blink", "accessories", "head-accessory", "head-color", "eyes-accessory", "eyes-color", "mouth-accessory", "mouth-color", "neck-accessory", "neck-color", "left-ear-accessory", "left-ear-color", "right-ear-accessory", "right-ear-color", "body-orientation", "body-yaw", "body-pitch", "body-roll", "zoom", "gaze-x", "gaze-y", "activity", "paused", "interaction", "mouse-tracking", "tracking-mode", "render-style", "shape-duration", "shape-easing", "motion-duration", "motion-easing", "motion", "time"];
+export declare const SIDEKICK_ATTRIBUTES: readonly ["emotion", "emotion-intensity", "behavior", "entrance", "positioning", "presence", "task", "home", "placement", "position-x", "position-y", "movement-bounds", "move-duration", "move-easing", "move-travel", "move-max-speed", "move-acceleration", "move-deceleration", "design", "shape", "body-color", "eye-color", "expression", "left-expression", "right-expression", "smile", "blink", "left-smile", "right-smile", "left-blink", "right-blink", "accessories", "head-accessory", "head-color", "eyes-accessory", "eyes-color", "mouth-accessory", "mouth-color", "neck-accessory", "neck-color", "left-ear-accessory", "left-ear-color", "right-ear-accessory", "right-ear-color", "body-orientation", "body-yaw", "body-pitch", "body-roll", "size", "zoom", "gaze-x", "gaze-y", "activity", "paused", "interaction", "mouse-tracking", "tracking-mode", "render-style", "shape-duration", "shape-easing", "motion-duration", "motion-easing", "motion", "time"];
 export declare const REMOVED_ORIENTATION_ATTRIBUTES: Readonly<{
     camera: "body-orientation";
     'camera-yaw': "body-yaw";
@@ -144,6 +145,7 @@ export interface ResolvedAttributes {
     moveOptions: MoveOptions;
     design: AvatarDesign;
     bodyOrientation: BodyOrientation;
+    size: number | null;
     zoom: number;
     gaze: Vec2;
     activity: Activity;

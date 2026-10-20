@@ -80,6 +80,8 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
     bodyYaw?: number;
     bodyPitch?: number;
     bodyRoll?: number;
+    /** Nominal square footprint in CSS pixels (1–2048); omit to use consumer CSS. */
+    size?: number;
     zoom?: number;
     gazeX?: number;
     gazeY?: number;

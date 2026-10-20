@@ -1,9 +1,11 @@
+import { mountSiteAnalytics } from './site-analytics.js';
 import { getFramework, setFramework, subscribeFramework, frameworkHref } from './site-framework.js';
 import { readGuideSource, guideHref, navigationText } from './guide-navigation.js';
 import { SITE_LOCALES, SITE_LANGUAGE_NAMES, getSiteLocale, setSiteLocale, subscribeSiteLocale, translateSite, localizedSiteHref } from './site-i18n.js';
 /** One brand and navigation for both the React Studio and plain-JS API page. */
 export function mountSiteHeader(host, activePage, base = './') {
   const doc = host.ownerDocument;
+  mountSiteAnalytics(doc, activePage);
   const brand = doc.createElement('a');
   brand.className = 'brand'; brand.href = base;
 

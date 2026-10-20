@@ -91,6 +91,8 @@ export interface SidekickAvatarProps extends Omit<HTMLAttributes<SidekickElement
   bodyYaw?: number;
   bodyPitch?: number;
   bodyRoll?: number;
+  /** Nominal square footprint in CSS pixels (1–2048); omit to use consumer CSS. */
+  size?: number;
   zoom?: number;
   gazeX?: number;
   gazeY?: number;
@@ -128,7 +130,7 @@ const attributeProps = {
   headAccessory: 'head-accessory', headColor: 'head-color', eyesAccessory: 'eyes-accessory', eyesColor: 'eyes-color',
   mouthAccessory: 'mouth-accessory', mouthColor: 'mouth-color', neckAccessory: 'neck-accessory', neckColor: 'neck-color',
   leftEarAccessory: 'left-ear-accessory', leftEarColor: 'left-ear-color', rightEarAccessory: 'right-ear-accessory', rightEarColor: 'right-ear-color',
-  bodyYaw: 'body-yaw', bodyPitch: 'body-pitch', bodyRoll: 'body-roll', zoom: 'zoom', gazeX: 'gaze-x', gazeY: 'gaze-y',
+  bodyYaw: 'body-yaw', bodyPitch: 'body-pitch', bodyRoll: 'body-roll', size: 'size', zoom: 'zoom', gazeX: 'gaze-x', gazeY: 'gaze-y',
   activity: 'activity', paused: 'paused', interaction: 'interaction', mouseTracking: 'mouse-tracking', trackingMode: 'tracking-mode', renderStyle: 'render-style',
   shapeDuration: 'shape-duration', shapeEasing: 'shape-easing', motionDuration: 'motion-duration', motionEasing: 'motion-easing', time: 'time',
 } as const satisfies Partial<Record<keyof SidekickAvatarProps, string>>;

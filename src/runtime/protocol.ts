@@ -12,6 +12,8 @@ import type { PixelBuffer, SnapshotOptions } from '../core/pixels.js';
 /** Private wire format. A generation owns exactly one transferred surface. */
 export const PROTOCOL_VERSION = 1;
 export interface RuntimeState {
+  /** Private recovery selector; a lost/failed WebGL surface is replaced before this is used. */
+  renderer?: 'auto' | 'canvas2d';
   emotion?: EmotionValue;
   /** Explicit eye commands override only the selected eyes until a new emotion command. */
   emotionEyeOverrides?: { left: boolean; right: boolean };
@@ -43,6 +45,7 @@ export type RuntimeCommand =
   | { kind: 'snapshot'; request: number; options: SnapshotOptions }
   | { kind: 'dispose' };
 export interface RuntimeSnapshot {
+  graphics?: 'webgl2' | 'canvas2d';
   travel?: TravelPresentation;
   renderCpu: { lastMs: number; totalMs: number; maxMs: number };
   pose: Pose; time: number; renderedRotation: Pose['rotation']; frames: number; running: boolean; drawCalls: number; buffers: number; width: number; height: number;
@@ -53,7 +56,7 @@ export type RuntimeEvent =
   | { kind: 'pixels'; request: number; image: PixelBuffer; snapshot: RuntimeSnapshot }
   | { kind: 'snapshot'; request: number; blob: Blob; snapshot: RuntimeSnapshot }
   | { kind: 'request-error'; request: number; message: string }
-  | { kind: 'error'; message: string };
+  | { kind: 'error'; message: string; rendererFallback?: boolean };
 export type WorkerRequest = { version: typeof PROTOCOL_VERSION; generation: number; sequence: number } & (
   | { kind: 'init'; canvas: OffscreenCanvas; state: RuntimeState }
   | { kind: 'command'; command: RuntimeCommand }

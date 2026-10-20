@@ -4,6 +4,7 @@ import type { ActivityFrame, Pose } from '../core/motion.js';
 import type { BodyOrientation } from '../core/body-orientation.js';
 import type { ShapeProfile } from '../core/shape-profiles.js';
 import type { ShapeContour } from '../core/contours.js';
+import type { RendererOptions } from './render-backend.js';
 export interface RenderState {
     pose: Pose;
     activity: Activity;
@@ -25,12 +26,12 @@ export interface RenderState {
     contour?: ShapeContour;
     profile?: ShapeProfile;
 }
-/** Dependency-free WebGL2 backend. No DOM outside the supplied canvas is owned here. */
+/** Shared geometry and animation, presented through WebGL2 or Canvas2D. */
 export declare class AvatarRenderer {
     readonly canvas: HTMLCanvasElement | OffscreenCanvas;
-    readonly gl: WebGL2RenderingContext;
-    private program;
-    private uniforms;
+    private backend;
+    get gl(): WebGL2RenderingContext | undefined;
+    get graphics(): 'webgl2' | 'canvas2d';
     private meshes;
     private beretContour?;
     private beretKey;
@@ -52,7 +53,7 @@ export declare class AvatarRenderer {
     private displayAspect?;
     private inputSignature;
     private resolvedInput?;
-    constructor(canvas: HTMLCanvasElement | OffscreenCanvas);
+    constructor(canvas: HTMLCanvasElement | OffscreenCanvas, options?: RendererOptions);
     private upload;
     resize(width: number, height: number, dpr?: number): void;
     private draw;

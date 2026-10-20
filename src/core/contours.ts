@@ -100,7 +100,7 @@ interface DistanceNode {
   minX: number; minY: number; maxX: number; maxY: number;
   left?: DistanceNode; right?: DistanceNode; segments?: readonly number[];
 }
-interface DistanceIndex { edges: Float64Array; root: DistanceNode; buckets: readonly number[][]; minY: number; maxY: number; yScale: number }
+interface DistanceIndex { nearest: number; edges: Float64Array; root: DistanceNode; buckets: readonly number[][]; minY: number; maxY: number; yScale: number }
 const DISTANCE_STRIDE = 10, WINDING_BUCKETS = 64;
 const distanceIndexes = new WeakMap<ShapeContour, DistanceIndex>();
 const exactDistanceIndexes = new WeakMap<ShapeContour, DistanceIndex>();
@@ -129,7 +129,7 @@ function makeDistanceIndex(contour: ShapeContour, exact = false): DistanceIndex 
     const last = Math.max(0, Math.min(WINDING_BUCKETS - 1, Math.floor((edges[offset + 9]! - minY) * yScale)));
     for (let b = first; b <= last; b++) buckets[b]!.push(offset);
   }
-  const index = { edges, root, buckets, minY, maxY, yScale }; (exact ? exactDistanceIndexes : distanceIndexes).set(contour, index); return index;
+  const index = { nearest: 0, edges, root, buckets, minY, maxY, yScale }; (exact ? exactDistanceIndexes : distanceIndexes).set(contour, index); return index;
 }
 function boxDistance(node: DistanceNode, x: number, y: number): number {
   const dx = x < node.minX ? node.minX - x : x > node.maxX ? x - node.maxX : 0;
@@ -137,24 +137,32 @@ function boxDistance(node: DistanceNode, x: number, y: number): number {
   return dx * dx + dy * dy;
 }
 /** Allocation-free nearest-edge query over the current outline's cached AABB tree. */
-function nearestDistance(node: DistanceNode, edges: Float64Array, x: number, y: number, best: number): number {
+function nearestDistance(node: DistanceNode, index: DistanceIndex, x: number, y: number, best: number): number {
+  const edges = index.edges;
   if (node.segments) {
     for (const i of node.segments) {
       const ax = edges[i]!, ay = edges[i + 1]!, dx = edges[i + 2]!, dy = edges[i + 3]!;
       const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) * edges[i + 4]!));
-      const ex = x - ax - t * dx, ey = y - ay - t * dy; best = Math.min(best, ex * ex + ey * ey);
+      const ex = x - ax - t * dx, ey = y - ay - t * dy; const distance = ex * ex + ey * ey;
+      if (distance < best) { best = distance; index.nearest = i; }
     }
     return best;
   }
   const left = node.left!, right = node.right!, dl = boxDistance(left, x, y), dr = boxDistance(right, x, y);
-  if (dl <= dr) { if (dl < best) best = nearestDistance(left, edges, x, y, best); if (dr < best) best = nearestDistance(right, edges, x, y, best); }
-  else { if (dr < best) best = nearestDistance(right, edges, x, y, best); if (dl < best) best = nearestDistance(left, edges, x, y, best); }
+  if (dl <= dr) { if (dl < best) best = nearestDistance(left, index, x, y, best); if (dr < best) best = nearestDistance(right, index, x, y, best); }
+  else { if (dr < best) best = nearestDistance(right, index, x, y, best); if (dl < best) best = nearestDistance(left, index, x, y, best); }
   return best;
 }
 /** Positive inside, negative outside, zero on the current renderer silhouette. */
 function signedDistance(index: DistanceIndex, x: number, y: number): number {
   const { edges } = index;
-  const minimum = nearestDistance(index.root, edges, x, y, Infinity);
+  // Nearby cloth/normal samples usually share a nearest edge. Its exact
+  // distance is a valid upper bound even after an unrelated query: the AABB
+  // traversal still visits every node that could improve it, without quantizing.
+  const offset = index.nearest, ax = edges[offset]!, ay = edges[offset + 1]!, dx = edges[offset + 2]!, dy = edges[offset + 3]!;
+  const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) * edges[offset + 4]!));
+  const ex = x - ax - t * dx, ey = y - ay - t * dy;
+  const minimum = nearestDistance(index.root, index, x, y, ex * ex + ey * ey);
   let contained = false;
   if (y >= index.minY && y <= index.maxY) {
     const bucket = Math.max(0, Math.min(WINDING_BUCKETS - 1, Math.floor((y - index.minY) * index.yScale)));

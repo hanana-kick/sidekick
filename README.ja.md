@@ -2,7 +2,7 @@
 
 [한국어](README.md) · [English](README.en.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-**35 種類の Material 図形で作る、背景が透明なフラットキャラクターのライブラリ。** 基本の `<sidekick-avatar>` ひとつから始めて、HTML 属性、JavaScript API、React ラッパーの使いやすい方法で制御できます。図形の切り替え、左右の表情、マウスへの視線追従、体の向きの回転、6 スロットのアクセサリー、方向性のある画面内移動に対応します。コアはフレームワークに依存しない TypeScript + Web Component + WebGL2 です。
+**35 種類の Material 図形で作る、背景が透明なフラットキャラクターのライブラリ。** 基本の `<sidekick-avatar>` ひとつから始めて、HTML 属性、JavaScript API、React ラッパーの使いやすい方法で制御できます。図形の切り替え、左右の表情、マウスへの視線追従、体の向きの回転、6 スロットのアクセサリー、方向性のある画面内移動に対応します。コアはフレームワークに依存しない TypeScript + Web Component + WebGL2/Canvas2D です。
 
 - [インストール](#インストール) · [HTML](#html-で直接使う) · [React](#react-で使う)
 - [すべての属性](#html-属性と-react-props) · [デザインとアクセサリー](#デザイン-json-とアクセサリー) · [アニメーション/API](#アニメーションと命令型-api)
@@ -19,22 +19,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 バージョンを固定するには、リリースタグを指定します。
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.15.1
+npm install https://github.com/hanana-kick/sidekick.git#v0.16.0
 ```
 
-ビルド済みの ESM、型宣言、ブラウザーバンドルがリポジトリに含まれているため、**インストール先で Sidekick のソースをビルドする必要はありません。** 依存関係と lockfile を一緒にコミットすれば、チームでも同じバージョンを使えます。パッケージ名は `@hanana-kick/sidekick`、このバージョンは `0.15.1` です。**npm レジストリには公開していないため、名前だけで `npm install @hanana-kick/sidekick` を実行しないでください。**
+ビルド済みの ESM、型宣言、ブラウザーバンドルがリポジトリに含まれているため、**インストール先で Sidekick のソースをビルドする必要はありません。** 依存関係と lockfile を一緒にコミットすれば、チームでも同じバージョンを使えます。パッケージ名は `@hanana-kick/sidekick`、このバージョンは `0.16.0` です。**npm レジストリには公開していないため、名前だけで `npm install @hanana-kick/sidekick` を実行しないでください。**
 
 npm を使わない HTML サイトでは、[GitHub Releases](https://github.com/hanana-kick/sidekick/releases) からビルド済みファイルをダウンロードしてください。ESM と通常の `<script>` 用 JS、専用のレンダリング worker を提供します。このブラウザーコアには React、バンドラー、Node.js、追加の CSS、フォントは不要です。
 
 ### GitHub Release からダウンロード
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases) を開きます。
-2. 使用するタグの **Assets** から `sidekick-browser-0.15.1.zip` または `hanana-kick-sidekick-0.15.1.tgz` をダウンロードします。別のバージョンでは、タグに一致するファイル名を選んでください。自動生成される **Source code (zip/tar.gz)** はソースアーカイブなので、ブラウザー配布用 ZIP と区別してください。
+2. 使用するタグの **Assets** から `sidekick-browser-0.16.0.zip` または `hanana-kick-sidekick-0.16.0.tgz` をダウンロードします。別のバージョンでは、タグに一致するファイル名を選んでください。自動生成される **Source code (zip/tar.gz)** はソースアーカイブなので、ブラウザー配布用 ZIP と区別してください。
 3. 通常の HTML サイトでは、ブラウザー ZIP を展開して、以下のファイルをサイトの静的ファイルディレクトリにコピーします。同梱の `START-HERE.txt` を読み、`esm.html`、`classic.html`、`react.html` から希望する例を開いてください。例の `/vendor/sidekick/` は**利用するサイトのパス**です。配信先のパスに合わせて変更してください。
 
 | ビルド済みファイル | 用途 | 必要なファイル・依存関係 |
 | --- | --- | --- |
-| `sidekick-browser-0.15.1.zip` | 通常の HTML/React 向けブラウザー配布 | `esm.html`・`classic.html`・`react.html`、以下の JS 6 ファイル、任意の `vendor/`、README・告知を含む |
+| `sidekick-browser-0.16.0.zip` | 通常の HTML/React 向けブラウザー配布 | `esm.html`・`classic.html`・`react.html`、以下の JS 6 ファイル、任意の `vendor/`、README・告知を含む |
 | `sidekick.js` | ブラウザー ESM。`import` と `<script type="module">` を使用 | `sidekick.worker.js` を同じディレクトリに置く |
 | `sidekick.iife.js` | 通常の classic `<script>`。API は `window.Sidekick` | `sidekick.worker.js` を同じディレクトリに置く。`type="module"` は使用しない |
 | `sidekick-react.js` | React 19 用 ESM コンポーネント | `sidekick-element.js`・`sidekick-fallback.js`・`sidekick.worker.js` を同じディレクトリに置き、`react` peer を用意する |
@@ -42,7 +42,7 @@ npm を使わない HTML サイトでは、[GitHub Releases](https://github.com/
 | `sidekick-fallback.js` | worker が使えない場合に React 要素が読み込むレンダラー | 直接 import しない。他のファイルと同じバージョンを使う |
 | `sidekick.worker.js` | OffscreenCanvas 専用 worker | ブラウザーのエントリーファイルの隣に配置する。別の script タグでは読み込まない |
 | `vendor/react.js`, `vendor/react-dom-client.js` | ブラウザー ZIP に含まれる任意の React 19/ReactDOM ESM | 以下のビルド不要の React 例に使用。import map で接続し、React をすでに用意しているアプリでは不要 |
-| `hanana-kick-sidekick-0.15.1.tgz` | 既存の npm ベースのプロジェクトにインストールするパッケージ | ビルド済み ESM・型宣言・ブラウザーバンドル・告知を含む |
+| `hanana-kick-sidekick-0.16.0.tgz` | 既存の npm ベースのプロジェクトにインストールするパッケージ | ビルド済み ESM・型宣言・ブラウザーバンドル・告知を含む |
 | `SHA256SUMS` | ZIP と tarball のダウンロード整合性の確認 | 同じ Release のチェックサムファイル |
 
 ZIP に同梱されている README と第三者ライセンス・出典の告知も保管してください。**GitHub Release のアセットは、ダウンロードしてから自分のサイトで配信してください。** ダウンロード URL はブラウザー JS のホスティング用 URL ではなく、アセットの応答の MIME・CORS の挙動は静的ホスティングとは異なります。以下の例の `src`/`import` には、ダウンロードしたファイルを配信するサイトのパスを使います。
@@ -54,7 +54,7 @@ ZIP に同梱されている README と第三者ライセンス・出典の告�
 Release から取得した tarball を、使用するプロジェクトでインストールします。このコマンドは Sidekick のソースをコンパイルしたり、Studio をビルドしたりしません。
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.15.1.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.16.0.tgz
 ```
 
 React 19 が必要なのは React ラッパーを使う場合だけです。Web ページをマウントする `react-dom` も、利用者が同じバージョンで用意します。コアだけを使うプロジェクトには React は不要です。
@@ -123,12 +123,12 @@ bot.setEmotion('neutral');
 
 ## CDN を使ってビルドなしで利用する
 
-現在の CDN 推奨バージョンは **0.15.1** です。以下の URL は GitHub タグにコミットされた**ビルド済み JS** を jsDelivr が配信するため、ソースのビルド、npm のインストール、npm アカウントは不要です。`main`、`latest`、バージョン範囲ではなく、**正確なタグ**を固定してください。以前の `v0.2.7` のファイルは変更していません。0.2.7 も同じ CDN パスからダウンロードできますが、異なるオリジンのページでは worker の生成がブロックされてメインスレッドへフォールバックするため、CDN の新規利用では上記の現在の固定バージョンを使ってください。
+現在の CDN 推奨バージョンは **0.16.0** です。以下の URL は GitHub タグにコミットされた**ビルド済み JS** を jsDelivr が配信するため、ソースのビルド、npm のインストール、npm アカウントは不要です。`main`、`latest`、バージョン範囲ではなく、**正確なタグ**を固定してください。以前の `v0.2.7` のファイルは変更していません。0.2.7 も同じ CDN パスからダウンロードできますが、異なるオリジンのページでは worker の生成がブロックされてメインスレッドへフォールバックするため、CDN の新規利用では上記の現在の固定バージョンを使ってください。
 
 ### 通常の HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
@@ -140,7 +140,7 @@ bot.setEmotion('neutral');
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -156,15 +156,15 @@ React と ReactDOM は、同じ 19.3.1 のビルド済み ESM を提供します
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
@@ -180,7 +180,7 @@ React と ReactDOM は、同じ 19.3.1 のビルド済み ESM を提供します
 - CDN の JS 応答には JavaScript の MIME と `Access-Control-Allow-Origin: *` が必要です。jsDelivr はこれらを提供します。GitHub Release のダウンロード URL を `script src` に入れないでください。
 - 0.2.8 以降、CDN とページのオリジンが異なる場合は、ローカルの Blob module worker から CDN の `sidekick.worker.js` を静的に import します。実際のレンダリングは引き続き OffscreenCanvas worker で行います。Blob URL は起動完了/エラー/終了時に解放します。
 - CSP がある場合は、`worker-src 'self' blob:` と `script-src` の `https://cdn.jsdelivr.net` を許可する必要があります。上の inline 例と import map には、サイトのポリシーに合った nonce/hash も必要です。CSP 全体を無条件に緩和したり、`unsafe-inline` を追加したりする必要はありません。
-- worker/WebGL2/OffscreenCanvas が未対応、または CSP が worker をブロックする場合は、従来のメインスレッドレンダラーにフォールバックします。HTTPS で配信してください。HTTP のローカル開発では localhost を使ってください。
+- worker/OffscreenCanvas が未対応、または CSP が worker をブロックする場合は、メインスレッドで描画します。WebGL2 が使えない場合は Canvas2D に切り替わります。HTTPS で配信し、HTTP のローカル開発には localhost を使ってください。
 - セルフホスティングでは、ブラウザー ZIP の **JS 6 ファイルすべて**を同じディレクトリに置きます。React は同じバージョンの `sidekick-element.js` と `sidekick-fallback.js` を遅延読み込みします。worker ファイルや chunk だけを別のバージョンに置き換えてはいけません。
 - バージョンタグの配布物は変更しません。修正は新しい patch バージョンとして配布します。jsDelivr は最初にリクエストされたファイルを長期間保持するため、削除をロールバックの手段とみなさないでください。
 
@@ -197,7 +197,7 @@ CDN の公式の挙動とキャッシュポリシー：[jsDelivr GitHub 配信�
 <sidekick-avatar></sidekick-avatar>
 ```
 
-登録が完了すると、200 × 200px の背景が透明なキャラクターが表示されます。既定値は `#FFCC37` の黄色い `square`、暗い色の目、アクセサリーなし、`idle` 状態です。サイズは通常の CSS で指定します。外観はカタログ/装備の選択と色で設定し、各パーツの幾何学的なサイズ・奥行き・位置は公開していません。
+登録が完了すると、200 × 200px の背景が透明なキャラクターが表示されます。既定値は `#FFCC37` の黄色い `square`、暗い色の目、アクセサリーなし、`idle` 状態です。キャンバス寸法ではなく API でボットのサイズを指定します。外観はカタログ/装備の選択と色で設定し、各パーツの幾何学的なサイズ・奥行き・位置は公開していません。
 
 ### 完全な HTML 例：ESM import
 
@@ -316,6 +316,28 @@ bot.lookAt({ space: 'view', x: 0.6, y: 0.2 });
 ```
 
 `defineSidekick('my-companion')` で別のタグ名も登録できます。React ラッパーは基本の `sidekick-avatar` を使用します。`whenDefined()` はクラスの登録完了を意味し、GPU のレンダリング準備完了を意味しません。`ready` は Promise ではなく読み取り専用の boolean です。PNG が必要な場合は、`bot.ready === true` を確認するか、`sidekick-ready` を待ってください。
+
+## ボットのサイズ
+
+キャンバス寸法ではなく API でボットのサイズを指定します。
+
+```html
+<sidekick-avatar size="120"></sidekick-avatar>
+```
+```js
+bot.size = 120;
+bot.size = 160.5;
+bot.size = null;
+```
+```jsx
+<SidekickAvatar size={120} />
+```
+
+`size` は CSS ピクセル単位の正方形の基準サイズです。体を基準にしたフレーミングとアクセサリーの余白を含み、不透明な輪郭の正確な直径ではありません。HTML・JavaScript・React は小数を含む有限の **1–2048** を許容します。未指定時は既定の 200 で、既存の CSS サイズ指定と長方形ホストも維持します。
+
+明示した `size` は両寸法と最小・最大サイズを管理し、CSS `width`/`height` による変形を防ぎます。属性の削除、`bot.size = null`、React prop の削除で管理を解除し、その間に変更された利用側の CSS もそのまま適用します。`bot.size` は宣言値、未指定なら 200 を返し、実測 CSS 寸法ではありません。位置・margin・transform は CSS で設定でき、transform は見かけのサイズを変えられます。
+
+ホスト・キャンバス・デバイスピクセル解像度は内部で調整します。レンダラーの品質上限は論理サイズを変えずに内部解像度を制限する場合があります。縦横比と体・アクセサリーの基準フレーミングは維持します。`zoom` は領域内での独立した 0.5–3 倍率で、レイアウトを変更せず、大きな値では切れる場合があります。size はホストの設定であり、デザイン・シーン JSON のフィールドではありません。不正な JavaScript 値は変更前に例外を投げ、不正な HTML・React 値は `sidekick-error` を通知し、最後の有効な状態を維持します。
 
 ## React で使う
 
@@ -521,6 +543,7 @@ const design = createDesign({
 | `body-yaw` | `bodyYaw` | `number` | -360〜360 度。bodyOrientation プリセットの yaw、なければ 0 |
 | `body-pitch` | `bodyPitch` | `number` | -90〜90 度。bodyOrientation プリセットの pitch、なければ 0 |
 | `body-roll` | `bodyRoll` | `number` | -180〜180 度。bodyOrientation プリセットの roll、なければ 0 |
+| `size` | `size` | `number` | 1–2048 CSS px; 既定値 200 |
 | `zoom` | `zoom` | `number` | 0.5〜3 倍、既定は 1。中心を基準に拡大/縮小。削除すると 1 に戻る |
 | `gaze-x` | `gazeX` | `number` | -1〜1。既定は 0。マウス追従をオフにしたときに使う明示的な視線 |
 | `gaze-y` | `gazeY` | `number` | -1〜1。既定は 0 |
@@ -687,7 +710,7 @@ bot.entrance = null;
 
 ボットの表示状態、アプリが実行するタスク、休む場所を宣言します。Sidekick が登場 → 処理中の動作 → 結果への反応 → 慣性移動でホームへ復帰 → 休息をつなぎます。非同期処理はアプリが実行し、状態を明示的に知らせます。Sidekick はタイマーや動作の終了からタスク完了を推測しません。手動の復帰コマンドや座標計算は不要です。
 
-**リリースバージョン：** 以下のライフサイクル例は `v0.15.1` を対象とします。HTML は固定 CDN ブラウザーバンドル、React は対応するパッケージビルドを使用します。セルフホストの場合は、同じバージョンの `dist/browser/` ファイルをまとめて配信し、CDN の import をローカルの `sidekick.js` URL に置き換えてください。
+**リリースバージョン：** 以下のライフサイクル例は `v0.16.0` を対象とします。HTML は固定 CDN ブラウザーバンドル、React は対応するパッケージビルドを使用します。セルフホストの場合は、同じバージョンの `dist/browser/` ファイルをまとめて配信し、CDN の import をローカルの `sidekick.js` URL に置き換えてください。
 
 | HTML JSON / JavaScript プロパティ | React prop | 宣言 |
 | --- | --- | --- |
@@ -720,7 +743,7 @@ bot.entrance = null;
   home='{"positioning":{"target":"viewport","placement":"bottom-right","gap":20},"rest":{"behavior":{"type":"idle"},"emotion":"neutral","trackingMode":"eyes-and-body","bodyOrientation":"front"}}'>
 </sidekick-avatar>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#lifecycle-bot');
   let latestId = 0;
   document.querySelector('#lifecycle-save').addEventListener('click', async () => {
@@ -1126,6 +1149,7 @@ await bot.motion.to({
 | `lookAt({space:'view',x,y})` | -1〜1 の範囲の明示的な視線 |
 | `bodyOrientation`, `setBodyOrientation(patch)` | `BodyOrientation` の読み取り/部分設定。角度は度。getter はコピー |
 | `setBodyOrientationPreset(name)` | 正面・斜め・側面の向きのプリセット。拡大率は維持 |
+| `size` | 基準サイズの取得/設定。1–2048 CSS px、未指定時 200。null で CSS に戻す |
 | `zoom` | 独立した拡大率の読み取り/設定。0.5〜3、既定は 1 |
 | `motion.to(target,options)`, `motion.cancel()` | ポーズの切り替え/全ポーズチャンネルのキャンセル |
 | `seek(seconds)` | 繰り返しアニメーションの時間を 0〜86400 秒で指定 |
@@ -1133,11 +1157,13 @@ await bot.motion.to({
 | `snapshot({crop,padding}?)` | レンダリング準備後の透明 PNG `Promise<Blob>`。既定ではアルファ境界で切り抜く |
 | `capturePixels()` | 最近画面に表示されたキャンバス全体の同期読み取り。worker に送った最新のコマンドまでは待たない |
 | `capturePixelsAsync()` | 最新のコマンド以降の新しいフレームを待つ `Promise<{width,height,pixels}>`。下の行から RGBA |
-| `ready`, `diagnostics` | 準備状態、`worker`/`main` backend、世代・コマンド確認番号、アニメーション時間、フレーム・draw call・バッファー数 |
+| `ready`, `diagnostics` | 準備状態、`worker`/`main` backend + `webgl2`/`canvas2d` graphics、世代・コマンド確認番号、アニメーション時間、フレーム・draw call・バッファー数 |
 
 ## OffscreenCanvas とレンダリング
 
-対応ブラウザーでは、要素の canvas を `transferControlToOffscreen()` で専用の Web Worker に渡します。メッシュ・モーション/図形の切り替え・視線追従の spring・WebGL レンダリングは worker で処理します。メインスレッドは DOM、アクセシビリティ、入力、サイズの監視、コマンドの送信を担当します。`bot.diagnostics.backend` で、実際の実行経路が `worker` か `main` かを確認できます。
+対応ブラウザーでは、要素の canvas を `transferControlToOffscreen()` で専用の Web Worker に渡します。メッシュ・モーション/図形の切り替え・視線追従の spring・WebGL2/Canvas2D レンダリングは worker で処理します。メインスレッドは DOM、アクセシビリティ、入力、サイズの監視、コマンドの送信を担当します。`bot.diagnostics.backend` で、実際の実行経路が `worker` か `main` かを確認できます。
+
+`bot.diagnostics.backend` は実行場所（`worker`/`main`、初期化前は `none`）、`bot.diagnostics.graphics` は描画方式（`webgl2`/`canvas2d`、スナップショット取得前は `none`）です。Canvas2D も全 35 図形とアクセサリーの同じメッシュ、目の曲線、アニメーション、深度・遮蔽、透過スナップショット、ライフサイクル制御を使います。CPU ラスタライザーの描画バッファーの長辺は最大 384px で、CSS サイズや比率は変わりません。輪郭のアンチエイリアスは WebGL MSAA と異なり、CPU 性能も同等ではありません。
 
 セルフホスティングの場合は、worker ファイルをページと同じ origin から、正しい JavaScript MIME で配信してください。ブラウザーのセキュリティポリシー上、異なる origin の Worker URL をそのまま使うことはできません。CSP を使うサイトには、`worker-src 'self'` など該当 worker を許可するポリシーが必要です。この同一 origin のセルフホスティング経路では、Blob worker や特別なセキュリティヘッダーは不要です。異なる origin の CDN 経路では、前述の Blob module worker と対応する CSP 設定を使用します。未対応、CSP/ファイル読み込みの失敗、worker 初期化の失敗時には、新しい canvas に交換してメインスレッドレンダラーで復旧します。
 
@@ -1184,15 +1210,15 @@ events.abort(); // 애플리케이션이 붙인 리스너 제거
 bot.remove();   // RAF, 관찰자, 마우스 리스너, WebGL 자원 해제
 ```
 
-React はアンマウント時に、ラッパーのリスナーと要素をクリーンアップします。自分で作成した PNG ダウンロード用の Object URL は、使用後に `URL.revokeObjectURL()` で解放してください。要素を再接続すると保存されたデザインでレンダラーを作成し、進行中だった切り替えはキャンセルされます。WebGL コンテキストの喪失時にはエラーを送り、復旧するとレンダラーを再初期化します。
+React はアンマウント時に、ラッパーのリスナーと要素をクリーンアップします。自分で作成した PNG ダウンロード用の Object URL は、使用後に `URL.revokeObjectURL()` で解放してください。要素を再接続すると保存されたデザインでレンダラーを作成し、進行中だった切り替えはキャンセルされます。WebGL コンテキストの喪失やコンテキスト取得後の初期化失敗では、復旧可能なエラーを送り、新しい canvas で Canvas2D を一度試します。最後に確認されたポーズ・時間と現在の設定は保持しますが、実行中の明示的なモーション・図形切り替えの Promise はキャンセルし、残りのタイムラインは再開しません。Canvas2D も失敗すると読み取り可能なエラーを表示します。
 
 ## SSR とブラウザー対応
 
-サーバーでは `/core` を使ってデザインを作成し、シリアライズしてください。モジュールの import 自体は DOM グローバルなしで可能ですが、実際の Custom Element の登録・生成・WebGL レンダリングはブラウザーで行う必要があります。React ラッパーは SSR で通常の HTML/aria/style だけを持つ空のホストを作り、クライアントで props を適用して登録します。SSR で props が適用されたキャラクターのピクセルやデザイン属性が完成していると仮定しないでください。`ref` はアップグレード後に利用可能になり、`onReady` は props 適用後に渡されます。React ラッパーを使う Next.js コンポーネントには `'use client'` の境界を設けてください。サーバーで PNG を作る API は提供していません。
+サーバーでは `/core` を使ってデザインを作成し、シリアライズしてください。モジュールの import 自体は DOM グローバルなしで可能ですが、実際の Custom Element の登録・生成・canvas レンダリングはブラウザーで行う必要があります。React ラッパーは SSR で通常の HTML/aria/style だけを持つ空のホストを作り、クライアントで props を適用して登録します。SSR で props が適用されたキャラクターのピクセルやデザイン属性が完成していると仮定しないでください。`ref` はアップグレード後に利用可能になり、`onReady` は props 適用後に渡されます。React ラッパーを使う Next.js コンポーネントには `'use client'` の境界を設けてください。サーバーで PNG を作る API は提供していません。
 
 サーバー HTML の基本タグは、ブラウザーでの登録後にアップグレードされます。同じ DOM インスタンスを維持し、固定の CSS サイズを指定すれば、読み込み中のレイアウトのずれを減らせます。HTML を直接 SSR する場合、初期属性は文字列/JSON であり、DOM プロパティへの代入とは異なります。[React の Custom HTML Elements の案内](https://react.dev/reference/react-dom/components#custom-html-elements) を参照してください。
 
-WebGL2 と Custom Elements に対応する最新のブラウザーが必要です。グラフィックスの初期化に失敗すると、要素内に読み取り可能な fallback を表示し、`sidekick-error` を送ります。基本の要素は画像の役割を持ち、`interaction="box"` ではキーボードで有効化できるボタンの役割を持ちます。用途を説明する `aria-label` を指定してください。画面外・非アクティブのタブでの停止、reduced-motion、サイズ変更、削除時の GPU リソース解放を処理します。
+Custom Elements と Canvas2D に対応する最新のブラウザーが必要です。WebGL2 を優先しますが必須ではありません。両方の描画方式を初期化できない場合は、要素内に読み取り可能なエラーを表示し、`sidekick-error` を送ります。基本の要素は画像の役割を持ち、`interaction="box"` ではキーボードで有効化できるボタンの役割を持ちます。用途を説明する `aria-label` を指定してください。画面外・非アクティブのタブでの停止、reduced-motion、サイズ変更、削除時の GPU リソース解放を処理します。
 
 ## Studio と開発
 
@@ -1283,7 +1309,7 @@ SIDEKICK_HEADED=1 xvfb-run -a npm run test:browser
 
 曲線→ポリラインの許容誤差は、正規化した `[-1,1]` を基準に `0.00005` です。メッシュの細分化目標（表面距離 `0.010`、中央の高さ `0.006`）はサンプルを基準にしたもので、すべての位置・ピクセルの誤差を保証するものではありません。最大 8 回の分割・前面 12,000 点の予算を使うため、小さな三角形の近似誤差が見える場合があります。図形モーフの対応点の計算は Sidekick の方式であり、Android Material `Morph` とのピクセルの一致を保証しません。
 
-要素ごとにひとつの WebGL コンテキストと再利用バッファーを使用します。基本の体 + ベレー帽は 3 draw call で、目には追加の draw call はありません。DPR は最大 2 で、長辺が 2048px を超えると両軸に同じ倍率を適用します。幅や高さの大きいホストでも、キャラクターの比率を維持します。CPU の幾何学ベンチマークは GPU のフレーム時間/FPS の保証ではありません。任意の SVG・カスタムメッシュ・パーツプラグイン・布の物理・ピクセルのヒットテスト・コンテキストプール・AI サービスとの接続は対応範囲外です。
+WebGL2 モードでは、要素ごとにひとつの WebGL コンテキストと再利用バッファーを使用します。基本の体 + ベレー帽は 3 draw call で、目には追加の draw call はありません。DPR は最大 2 で、描画バッファーの長辺を WebGL2 では 2048px、Canvas2D では 384px に制限し、両軸に同じ倍率を適用します。幅や高さの大きいホストでも、キャラクターの比率を維持します。CPU の幾何学ベンチマークは GPU のフレーム時間/FPS の保証ではありません。任意の SVG・カスタムメッシュ・パーツプラグイン・布の物理・ピクセルのヒットテスト・コンテキストプール・AI サービスとの接続は対応範囲外です。
 
 このリポジトリのパッケージライセンスは `UNLICENSED` です。公開オープンソースライセンスを付与することを意味しないため、利用・配布の権限はリポジトリの所有者に確認してください。以下の第三者告知は別途維持します。
 
@@ -1319,7 +1345,7 @@ HTML のエントリーページには、正規 URL `https://sidekick.hananakick
 
 ## レンダリング・移動の標準 (v0.3)
 
-基本は**キャラクターサイズの透明なキャンバス + DOM 要素の移動**です。全画面を覆う WebGL キャンバスは作成しません。OffscreenCanvas worker が小さな面をレンダリングし、メインスレッドは CSS の `translate` で要素を移動します。DOM の移動によって WebGL の解像度・体の向きの設定・保存された体のデザインを変更しません。既定の飛行動作は、小さなキャンバス内のランタイムポーズとして合成します。画面サイズ・DPR の変更には、既存の ResizeObserver/解像度制限をそのまま適用します。
+基本は**キャラクターサイズの透明なキャンバス + DOM 要素の移動**です。全画面を覆う WebGL キャンバスは作成しません。OffscreenCanvas worker が小さな面をレンダリングし、メインスレッドは CSS の `translate` で要素を移動します。DOM の移動によって canvas の解像度・体の向きの設定・保存された体のデザインを変更しません。既定の飛行動作は、小さなキャンバス内のランタイムポーズとして合成します。画面サイズ・DPR の変更には、既存の ResizeObserver/解像度制限をそのまま適用します。
 
 [移動・アニメーションの API 体験](https://sidekick.hananakick.cc/api-playground.html) で、移動/停止/再生/アセットの切り替えを直接試せます。
 
@@ -1456,7 +1482,7 @@ API playground では「既定の最高速度 · 1350 CSS px/s」が既定で有
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { maxSpeed: 320, acceleration: 900, deceleration: 1200 });
@@ -1493,7 +1519,7 @@ API playground では「既定の最高速度 · 1350 CSS px/s」が既定で有
 <button id="flight-stop" type="button">활동 중단</button>
 <p id="flight-status" aria-live="off">idle</p>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.js';
   const stage = document.getElementById('flight-stage');
   const bot = document.getElementById('flight-avatar');
   const status = document.getElementById('flight-status');
@@ -1642,7 +1668,7 @@ export function Example() {
 - `anchor: false`（既定値）は、呼び出し時点の位置へ一度だけ移動します。その後のスクロール・レイアウトの変化には追従しません。
 - `anchor: true` は、選択した配置点とオフセットを維持し続けます。最初の移動中は同じ移動リクエストの目的地だけを更新し、速度・加速度・Promise を維持します。到着後も同じ最高速度・加速・減速設定で、目標に自然に追従します。目標が突然動いても、キャラクターの座標を瞬間的に合わせることはありません。最初の到着の Promise と移動完了イベントは一度だけ発生し、その後の追従では完了イベントを繰り返しません。停止状態では 0.5 CSS px 以下の誤差を無視します。ネストされたスクロール、サイズ変更、レイアウト変更、CSS/WAAPI transform を反映します。対象が動き続けると、最初の移動完了が遅れる場合があります。キャラクターまたは対象が `display: none` によってレイアウトから外れると、接続を維持したまま追従を一時停止し、再表示されたときに配置を合わせます。
 - キャラクターが完全に画面外へ出て、配置後の目的地も画面外なら、物理的な移動とレンダリングをアイドル状態にします。現在位置または目的地が再び画面と重なると、慣性を維持して追従を再開し、非表示の間の時間を一度に積分しません。レンダリングは、キャラクター自体が画面と重なったときだけ再開します。アンカー位置の確認は、有効な状態では文書ごとにひとつの RAF にまとめ、すべての接続がアイドルなら 250ms 間隔に下げます。スクロール・サイズ変更は直後の次のフレームで確認し、CSS transform だけで戻る場合も最大約 250ms 後に検知します。非表示のタブでは位置確認も停止します。そのため、完全に画面外にあるときは GPU フレームは止まりますが、復帰を検知するための少量の DOM 測定は残ります。
-- 対応環境では、OffscreenCanvas を転送した専用 worker の WebGL2 でレンダリングします。非表示中のサイズ変更はまとめて、次の実際のレンダリング時に適用します。未対応・CSP 制限のある環境では、メインスレッドの WebGL2 フォールバックを使います。DOM の位置測定と移動座標の更新は、DOM にアクセスできるメインスレッドに残ります。
+- 対応環境では、OffscreenCanvas を転送した専用 worker で WebGL2 を優先し、利用できない場合は Canvas2D で描画します。非表示中のサイズ変更はまとめて次の描画時に適用します。worker 未対応・CSP 制限環境では、同じグラフィックスフォールバックを備えたメインスレッドレンダラーを使います。DOM の位置測定と移動座標の更新はメインスレッドに残ります。
 - キャラクターの親 DOM や CSS positioning は変更しません。absolute/fixed/inline の配置はそのままで、キャラクター自身の移動オフセットだけを更新します。`detachAnchor()` は接続を解除し、進行中の最初の移動は最後の目的地まで継続します。最初の到着後の追従は、現在の慣性から減速して停止します。移動も止めるには、`cancelMove()` を使ってください。
 - 別の `moveTo / moveBy / moveToElement`、`cancelMove / enter / exit`、キャラクターの切断時には、既存のアンカーを解除します。対象の削除・別文書への移動・未対応の祖先 transform の変更時にも接続を解除し、進行中の最初の移動は最後の有効な目的地まで続きます。キャラクター自身やその子孫を継続的なアンカーの対象にする循環配置は拒否します。
 - 有効なアンカーは、文書ごとにひとつの RAF でレイアウトを読み、その後に位置を書き込みます。停止した位置には再書き込みしませんが、observer が検知できない transform だけのアニメーションにも追従するため、接続中はフレームごとの測定コストがあります。文書が非表示になると停止し、最後の接続が解除されるとループを削除します。必要な間だけ接続してください。

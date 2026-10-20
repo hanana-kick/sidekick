@@ -147,6 +147,7 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private validator;
     private currentPose;
     private bridge?;
+    private rendererPreference;
     private generation;
     private acknowledgedRevision;
     private poseRevision;
@@ -172,6 +173,9 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private canvas?;
     private fallback?;
     private sizeObserver?;
+    private dprMedia?;
+    private onDprChange;
+    private watchDpr;
     private visibilityObserver?;
     private media?;
     private visible;
@@ -232,6 +236,7 @@ export declare class SidekickAvatar extends HTMLElementBase {
     /** Last acknowledged worker pose; configuration and body orientation getters are immediate. */
     get pose(): Pose;
     get diagnostics(): {
+        graphics: 'webgl2' | 'canvas2d' | 'none';
         travel?: TravelPresentation;
         ready: boolean;
         running: boolean;
@@ -256,6 +261,12 @@ export declare class SidekickAvatar extends HTMLElementBase {
     setBodyOrientation(angles: Partial<BodyOrientation>): void;
     setBodyOrientationPreset(preset: BodyOrientationPreset): void;
     resetBodyOrientation(): void;
+    private explicitSize;
+    private sizeStyle?;
+    /** Nominal square footprint in CSS pixels; null releases sizing to consumer CSS. */
+    get size(): number;
+    set size(value: number | null);
+    private applySize;
     get zoom(): number;
     set zoom(value: number);
     lookAt(target: {

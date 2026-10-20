@@ -272,3 +272,12 @@ test('React forwards separate body orientation and zoom callbacks', async t => {
   f.avatar.dispatchEvent(new CustomEvent('sidekick-zoom-change', { detail: { zoom: 1.4 } }));
   assert.deepEqual(orientations, [{ bodyOrientation: { yaw: 30, pitch: 0, roll: 0 } }]); assert.deepEqual(zooms, [{ zoom: 1.4 }]);
 });
+
+test('size prop is a first-class attribute with runtime updates and removal, separate from style and zoom', async t => {
+  const f = await fixture(t, { size: 120, zoom: 1.5, style: { width: 300, height: 180 } });
+  assert.equal(f.avatar.getAttribute('size'), '120'); assert.equal(f.avatar.getAttribute('zoom'), '1.5');
+  await f.render({ size: 160.5, zoom: 1.5, style: { width: 340, height: 190 } });
+  assert.equal(f.avatar.getAttribute('size'), '160.5'); assert.equal(f.avatar.style.width, '340px');
+  await f.render({ zoom: 1.5, style: { width: 340, height: 190 } });
+  assert.equal(f.avatar.hasAttribute('size'), false); assert.equal(f.avatar.style.width, '340px'); assert.equal(f.avatar.getAttribute('zoom'), '1.5');
+});

@@ -2,6 +2,7 @@
 export * from './core/design.js';
 export * from './core/motion.js';
 export * from './core/body-orientation.js';
+export { SIZE_RANGE, validateSize } from './core/size.js';
 export { ZOOM_RANGE, createZoom } from './core/zoom.js';
 export { EYE_EXPRESSIONS, EYE_STATE_DEFAULTS, EYE_STATE_RANGES, createEyeState, parseEyeState, patchEyeState, eyeExpressionWeights } from './core/expressions.js';
 export type { EyeExpression, EyeShapeWeights, EyeState, EyeStatePatch, EyeStateInputPatch } from './core/expressions.js';

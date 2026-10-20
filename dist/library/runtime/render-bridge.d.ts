@@ -4,7 +4,7 @@ import type { PixelBuffer } from '../core/pixels.js';
 export interface BridgeCallbacks {
     ready(snapshot: RuntimeSnapshot, revision: number): void;
     event(event: RuntimeEvent, revision: number): void;
-    failed(error: Error): void;
+    failed(error: Error, rendererFallback?: boolean): void;
 }
 export interface RenderBridge {
     readonly backend: 'worker' | 'main';

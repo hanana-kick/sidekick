@@ -1,4 +1,5 @@
 import { studioText, studioFormat, studioMessage } from './studio-locales.js';
+import { prepareBotUsage } from './site-product-usage.js';
 import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { Button } from '@/components/ui/button';
@@ -44,7 +45,7 @@ export function CompositionPanel({ controller, composition: p, onChange, canvasR
   return <FieldGroup>
     <div className="section-heading"><h2>{studioText("장면 구성")}</h2><Button id="scene-refresh" variant="outline" size="sm" onClick={onRefresh}>{studioText("새 프레임")}</Button></div>
     <FieldDescription>{studioText("캐릭터와 텍스트를 배치해 OG 이미지·카드를 만듭니다. 미리보기의 캐릭터나 텍스트를 드래그해 이동하세요. 미리보기는 현재 캐릭터의 정지 프레임이며 몸체 방향 탭에서 방향을 조절할 수 있습니다.")}</FieldDescription>
-    <Button id="scene-og-preset" variant="outline" onClick={() => { if (controller.importJSON(JSON.stringify(ogAvatarScene()))) { onChange(defaultComposition()); onRefresh(); } }}>{studioText("Sidekick OG 프리셋 적용")}</Button>
+    <Button id="scene-og-preset" variant="outline" onClick={() => { if (controller.importJSON(JSON.stringify(ogAvatarScene()))) { onChange(defaultComposition()); onRefresh(); prepareBotUsage(window, 'preset_apply', controller.getSnapshot().design, { site_page: 'studio', site_section: 'scene', preset: 'sidekick_og' }, controller.getSnapshot())(); } }}>{studioText("Sidekick OG 프리셋 적용")}</Button>
     <FieldDescription>{studioText("프리셋은 캐릭터도 Ghostish · 안경 · 베레모 · 보타이 · 웃음으로 바꿉니다.")}</FieldDescription>
     <ChoiceField id="scene-size" label={studioText("캔버스 프리셋")} value={`${p.width}x${p.height}`} onChange={value => { const [width, height] = value.split('x').map(Number); patch({ width: width!, height: height! }); }} options={[{ value: '1200x630', label: 'OG · 1200 × 630' }, { value: '1080x1080', label: studioText("정사각형 · 1080 × 1080") }, { value: '1920x1080', label: studioText("와이드 · 1920 × 1080") }, ...(!['1200x630','1080x1080','1920x1080'].includes(`${p.width}x${p.height}`) ? [{ value: `${p.width}x${p.height}`, label: `${p.width} × ${p.height}` }] : [])]} />
     <div className="scene-dimensions">{(['width', 'height'] as const).map(key => <Field key={key}><FieldLabel htmlFor={`scene-${key}`}>{key === 'width' ? studioText("너비") : studioText("높이")} (px)</FieldLabel><Input id={`scene-${key}`} type="number" min={320} max={4096} value={p[key]} onChange={event => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 320 && value <= 4096 && value * p[key === 'width' ? 'height' : 'width'] <= 8388608) patch({ [key]: value }); }} /></Field>)}</div>

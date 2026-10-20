@@ -27,6 +27,7 @@ for(const locale of ['ko','en','zh-CN','ja'])for(const path of ['','api-playgrou
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),true);
  for(const href of await page.locator('.product-nav a').evaluateAll(links=>links.map(link=>link.href)))assert.ok(href.includes(`lang=${locale}`));
  if(path==='api-playground.html') {
+  await page.locator('#bot-tools-launcher').click();
   const titles={ko:'무엇을 하게 할까요?',en:'What should your companion do?','zh-CN':'想让伙伴做什么？',ja:'何をしてもらいましょう？'};
   assert.equal(await page.locator('h1').textContent(),titles[locale]);
   for(const action of ['movement','anchor','activity','expression','tracking','orientation','assets','presence']) {

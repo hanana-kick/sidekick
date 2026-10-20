@@ -1,0 +1,310 @@
+{
+  "node": "v24.19.0",
+  "platform": "linux",
+  "cpu": "AMD EPYC 9V74 80-Core Processor",
+  "framesPerRound": 360,
+  "warmupPerRound": 120,
+  "rounds": 3,
+  "shape": "puffy",
+  "activity": "speaking",
+  "excludesDriverGPUAndBrowser": true,
+  "measurements": [
+    {
+      "round": 0,
+      "implementation": "current",
+      "preset": "none",
+      "wallMs": 0.054654155555555584,
+      "processCpuMs": 0.08080833333333334,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 0,
+      "implementation": "reference",
+      "preset": "none",
+      "wallMs": 0.049239591666666624,
+      "processCpuMs": 0.0832611111111111,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 0,
+      "implementation": "current",
+      "preset": "beret",
+      "wallMs": 0.04818503055555538,
+      "processCpuMs": 0.07341388888888889,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 0,
+      "implementation": "reference",
+      "preset": "beret",
+      "wallMs": 0.1686524388888889,
+      "processCpuMs": 0.2735111111111111,
+      "uploadedBytesPerFrame": 49200
+    },
+    {
+      "round": 0,
+      "implementation": "current",
+      "preset": "glasses",
+      "wallMs": 1.2957897055555552,
+      "processCpuMs": 1.3537055555555555,
+      "uploadedBytesPerFrame": 33480
+    },
+    {
+      "round": 0,
+      "implementation": "reference",
+      "preset": "glasses",
+      "wallMs": 1.4132212666666673,
+      "processCpuMs": 1.5343138888888888,
+      "uploadedBytesPerFrame": 33480
+    },
+    {
+      "round": 0,
+      "implementation": "current",
+      "preset": "scarf",
+      "wallMs": 2.3474593500000007,
+      "processCpuMs": 2.5873194444444443,
+      "uploadedBytesPerFrame": 14160
+    },
+    {
+      "round": 0,
+      "implementation": "reference",
+      "preset": "scarf",
+      "wallMs": 2.3741691527777777,
+      "processCpuMs": 2.708277777777778,
+      "uploadedBytesPerFrame": 14160
+    },
+    {
+      "round": 0,
+      "implementation": "current",
+      "preset": "earring",
+      "wallMs": 0.4571531750000001,
+      "processCpuMs": 0.502975,
+      "uploadedBytesPerFrame": 8688
+    },
+    {
+      "round": 0,
+      "implementation": "reference",
+      "preset": "earring",
+      "wallMs": 0.4835167027777768,
+      "processCpuMs": 0.5354277777777777,
+      "uploadedBytesPerFrame": 8688
+    },
+    {
+      "round": 0,
+      "implementation": "current",
+      "preset": "all",
+      "wallMs": 4.341200358333332,
+      "processCpuMs": 4.667447222222222,
+      "uploadedBytesPerFrame": 58632
+    },
+    {
+      "round": 0,
+      "implementation": "reference",
+      "preset": "all",
+      "wallMs": 5.3150350305555545,
+      "processCpuMs": 5.708761111111111,
+      "uploadedBytesPerFrame": 107832
+    },
+    {
+      "round": 1,
+      "implementation": "reference",
+      "preset": "none",
+      "wallMs": 0.027789736111112184,
+      "processCpuMs": 0.027805555555555556,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 1,
+      "implementation": "current",
+      "preset": "none",
+      "wallMs": 0.028416794444446065,
+      "processCpuMs": 0.028558333333333335,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 1,
+      "implementation": "reference",
+      "preset": "beret",
+      "wallMs": 0.2257310027777799,
+      "processCpuMs": 0.3204388888888889,
+      "uploadedBytesPerFrame": 49200
+    },
+    {
+      "round": 1,
+      "implementation": "current",
+      "preset": "beret",
+      "wallMs": 0.06435510833333259,
+      "processCpuMs": 0.08144166666666666,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 1,
+      "implementation": "reference",
+      "preset": "glasses",
+      "wallMs": 1.563654980555556,
+      "processCpuMs": 1.6626833333333335,
+      "uploadedBytesPerFrame": 33480
+    },
+    {
+      "round": 1,
+      "implementation": "current",
+      "preset": "glasses",
+      "wallMs": 1.390319813888891,
+      "processCpuMs": 1.4681277777777777,
+      "uploadedBytesPerFrame": 33480
+    },
+    {
+      "round": 1,
+      "implementation": "reference",
+      "preset": "scarf",
+      "wallMs": 3.005311394444445,
+      "processCpuMs": 3.0999361111111114,
+      "uploadedBytesPerFrame": 14160
+    },
+    {
+      "round": 1,
+      "implementation": "current",
+      "preset": "scarf",
+      "wallMs": 3.7564827,
+      "processCpuMs": 3.2323361111111115,
+      "uploadedBytesPerFrame": 14160
+    },
+    {
+      "round": 1,
+      "implementation": "reference",
+      "preset": "earring",
+      "wallMs": 0.7354566111111075,
+      "processCpuMs": 0.680075,
+      "uploadedBytesPerFrame": 8688
+    },
+    {
+      "round": 1,
+      "implementation": "current",
+      "preset": "earring",
+      "wallMs": 0.7014350111111122,
+      "processCpuMs": 0.6400194444444445,
+      "uploadedBytesPerFrame": 8688
+    },
+    {
+      "round": 1,
+      "implementation": "reference",
+      "preset": "all",
+      "wallMs": 5.404388255555554,
+      "processCpuMs": 5.413541666666666,
+      "uploadedBytesPerFrame": 107832
+    },
+    {
+      "round": 1,
+      "implementation": "current",
+      "preset": "all",
+      "wallMs": 4.440317266666676,
+      "processCpuMs": 4.519716666666667,
+      "uploadedBytesPerFrame": 58632
+    },
+    {
+      "round": 2,
+      "implementation": "current",
+      "preset": "none",
+      "wallMs": 0.02489822777777388,
+      "processCpuMs": 0.024905555555555552,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 2,
+      "implementation": "reference",
+      "preset": "none",
+      "wallMs": 0.040656994444442617,
+      "processCpuMs": 0.040675,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 2,
+      "implementation": "current",
+      "preset": "beret",
+      "wallMs": 0.07243758888888704,
+      "processCpuMs": 0.07424444444444445,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 2,
+      "implementation": "reference",
+      "preset": "beret",
+      "wallMs": 0.15863324166666642,
+      "processCpuMs": 0.16069166666666665,
+      "uploadedBytesPerFrame": 49200
+    },
+    {
+      "round": 2,
+      "implementation": "current",
+      "preset": "glasses",
+      "wallMs": 1.3422511750000012,
+      "processCpuMs": 1.348286111111111,
+      "uploadedBytesPerFrame": 33480
+    },
+    {
+      "round": 2,
+      "implementation": "reference",
+      "preset": "glasses",
+      "wallMs": 1.3158883999999995,
+      "processCpuMs": 1.3229972222222222,
+      "uploadedBytesPerFrame": 33480
+    },
+    {
+      "round": 2,
+      "implementation": "current",
+      "preset": "scarf",
+      "wallMs": 2.2500108249999964,
+      "processCpuMs": 2.253775,
+      "uploadedBytesPerFrame": 14160
+    },
+    {
+      "round": 2,
+      "implementation": "reference",
+      "preset": "scarf",
+      "wallMs": 2.0943497500000072,
+      "processCpuMs": 2.1306861111111113,
+      "uploadedBytesPerFrame": 14160
+    },
+    {
+      "round": 2,
+      "implementation": "current",
+      "preset": "earring",
+      "wallMs": 0.4051899722222212,
+      "processCpuMs": 0.41705000000000003,
+      "uploadedBytesPerFrame": 8688
+    },
+    {
+      "round": 2,
+      "implementation": "reference",
+      "preset": "earring",
+      "wallMs": 0.42824088333333443,
+      "processCpuMs": 0.4698694444444444,
+      "uploadedBytesPerFrame": 8688
+    },
+    {
+      "round": 2,
+      "implementation": "current",
+      "preset": "all",
+      "wallMs": 4.076175697222222,
+      "processCpuMs": 4.192519444444445,
+      "uploadedBytesPerFrame": 58632
+    },
+    {
+      "round": 2,
+      "implementation": "reference",
+      "preset": "all",
+      "wallMs": 4.533277594444442,
+      "processCpuMs": 4.688311111111111,
+      "uploadedBytesPerFrame": 107832
+    }
+  ],
+  "referenceCommit": "f277c68",
+  "currentSourceCommit": "f47c4a3",
+  "allEquipment": [
+    "beret",
+    "glasses",
+    "moustache",
+    "scarf",
+    "left-earring"
+  ]
+}

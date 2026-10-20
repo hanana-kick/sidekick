@@ -37,6 +37,7 @@ test('Studio JSON and subsequent edit reach Playground with complete scene; temp
   const expected = JSON.parse(stored);
   assert.deepEqual(actual.design, expected.design); assert.deepEqual(actual.bodyOrientation, expected.bodyOrientation);
   assert.equal(actual.activity, expected.activity); assert.equal(actual.zoom, expected.zoom); assert.equal(actual.trackingMode, expected.trackingMode); assert.equal(actual.paused, expected.paused);
+  await page.locator('#bot-tools-launcher').click();
   await page.locator('#action-kind').selectOption('expression'); await page.locator('#execute').click();
   assert.equal(await page.evaluate(key => localStorage.getItem(key), key), stored);
   await page.reload(); await page.waitForFunction(() => document.getElementById('status').textContent.includes('준비되었습니다'));

@@ -28,7 +28,7 @@ export class LocalRenderBridge {
             if (!this.disposed)
                 this.callbacks.ready(this.engine.snapshot, this.revision);
         }).catch(error => { if (!this.disposed)
-            this.callbacks.failed(error instanceof Error ? error : new Error(String(error))); });
+            this.callbacks.failed(error instanceof Error ? error : new Error(String(error)), error instanceof Error && error.name === 'RendererInitializationError'); });
     }
     send(command) {
         if (this.disposed)
@@ -39,7 +39,7 @@ export class LocalRenderBridge {
                 this.engine.command(command, revision);
             }
             catch (error) {
-                this.callbacks.failed(error instanceof Error ? error : new Error(String(error)));
+                this.callbacks.failed(error instanceof Error ? error : new Error(String(error)), error instanceof Error && error.name === 'RendererInitializationError');
             }
         }
         else
@@ -101,14 +101,14 @@ export class WorkerRenderBridge {
             this.callbacks.ready(data.snapshot, data.sequence);
         }
         else if (data.kind === 'error')
-            this.fail(new Error(data.message));
+            this.fail(new Error(data.message), data.rendererFallback);
         else
             this.callbacks.event(data, data.sequence);
     };
     error = (event) => { event.preventDefault(); this.fail(new Error(event.message || 'Render worker failed to load')); };
     messageError = () => this.fail(new Error('Render worker message could not be decoded'));
-    fail(error) { if (this.disposed)
-        return; this.dispose(); this.callbacks.failed(error); }
+    fail(error, rendererFallback = false) { if (this.disposed)
+        return; this.dispose(); this.callbacks.failed(error, rendererFallback); }
     dispose() {
         if (this.disposed)
             return;

@@ -441,7 +441,7 @@ test('representative catalog shapes and curated accessories remain transparent a
   assert.ok(result.every(r => r.border === 0 && r.visible > 100), JSON.stringify(result.filter(r => r.border !== 0 || r.visible <= 100)));
 });
 
-test('WebGL unavailable produces a visible fallback, not a false ready state', async t => {
+test('WebGL unavailable produces a ready Canvas2D character rather than an error placeholder', async t => {
   const page = await browser.newPage({ locale: 'ko-KR', viewport: { width: 1024, height: 768 } }); t.after(() => page.close());
   const disableWebGL = () => {
     window.Worker = undefined;
@@ -450,9 +450,9 @@ test('WebGL unavailable produces a visible fallback, not a false ready state', a
   };
   await page.addInitScript(disableWebGL);
   if (offline) await loadOfflineFixture(page); else await page.goto(baseURL);
-  await page.waitForSelector('#flat');
-  const result = await page.locator('#flat').evaluate(a => ({ ready: a.ready, running: a.diagnostics.running, text: a.shadowRoot.querySelector('[part="fallback"]').textContent, hidden: a.shadowRoot.querySelector('[part="fallback"]').hidden }));
-  assert.equal(result.ready, false); assert.equal(result.running, false); assert.equal(result.hidden, false); assert.match(result.text, /WebGL2/);
+  await page.waitForFunction(() => document.querySelector('#flat')?.ready);
+  const result = await page.locator('#flat').evaluate(async a => { const image = await a.capturePixelsAsync(); return { ready: a.ready, graphics: a.diagnostics.graphics, hidden: a.shadowRoot.querySelector('[part="fallback"]').hidden, visible: image.pixels.some((v,i) => i % 4 === 3 && v > 0), transparent: image.pixels[3] === 0 }; });
+  assert.equal(result.ready, true); assert.equal(result.graphics, 'canvas2d'); assert.equal(result.hidden, true); assert.equal(result.visible, true); assert.equal(result.transparent, true);
 });
 
 

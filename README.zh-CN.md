@@ -2,7 +2,7 @@
 
 [한국어](README.md) · [English](README.en.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-**以 35 种 Material 形状打造透明平面角色的库。** 从一个默认的 `<sidekick-avatar>` 开始，即可通过 HTML 属性、JavaScript API 或 React 封装，以你习惯的方式进行控制。支持形状过渡、左右独立表情、鼠标视线跟踪、身体方向旋转、六个配饰位置，以及具有朝向的屏幕移动。核心采用不依赖框架的 TypeScript + Web Component + WebGL2。
+**以 35 种 Material 形状打造透明平面角色的库。** 从一个默认的 `<sidekick-avatar>` 开始，即可通过 HTML 属性、JavaScript API 或 React 封装，以你习惯的方式进行控制。支持形状过渡、左右独立表情、鼠标视线跟踪、身体方向旋转、六个配饰位置，以及具有朝向的屏幕移动。核心采用不依赖框架的 TypeScript + Web Component + WebGL2/Canvas2D。
 
 - [安装](#安装) · [HTML](#直接在-html-中使用) · [React](#在-react-中使用)
 - [全部属性](#html-属性与-react-props) · [设计与配饰](#设计-json-与配饰) · [动画/API](#动画与命令式-api)
@@ -19,22 +19,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 如需固定版本，请指定发布标签。
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.15.1
+npm install https://github.com/hanana-kick/sidekick.git#v0.16.0
 ```
 
-仓库中包含已构建的 ESM、类型声明及浏览器包，**使用方无需构建 Sidekick 源码。** 将依赖和 lockfile 一起提交，可确保团队使用相同版本。软件包名称为 `@hanana-kick/sidekick`，当前版本为 `0.15.1`。**该软件包尚未发布到 npm 注册表，请勿仅凭包名运行 `npm install @hanana-kick/sidekick`。**
+仓库中包含已构建的 ESM、类型声明及浏览器包，**使用方无需构建 Sidekick 源码。** 将依赖和 lockfile 一起提交，可确保团队使用相同版本。软件包名称为 `@hanana-kick/sidekick`，当前版本为 `0.16.0`。**该软件包尚未发布到 npm 注册表，请勿仅凭包名运行 `npm install @hanana-kick/sidekick`。**
 
 不使用 npm 的 HTML 网站可以从 [GitHub Releases](https://github.com/hanana-kick/sidekick/releases) 下载已构建的文件。提供 ESM、用于普通 `<script>` 的 JS，以及专用渲染 worker；该浏览器核心不需要 React、打包工具、Node.js、单独的 CSS 或字体。
 
 ### 从 GitHub Release 下载
 
 1. 打开 [Releases](https://github.com/hanana-kick/sidekick/releases)。
-2. 在所选标签的 **Assets** 中下载 `sidekick-browser-0.15.1.zip` 或 `hanana-kick-sidekick-0.15.1.tgz`。其他版本请选择与标签一致的文件名。自动生成的 **Source code (zip/tar.gz)** 是源码归档，请注意与浏览器分发 ZIP 区分。
+2. 在所选标签的 **Assets** 中下载 `sidekick-browser-0.16.0.zip` 或 `hanana-kick-sidekick-0.16.0.tgz`。其他版本请选择与标签一致的文件名。自动生成的 **Source code (zip/tar.gz)** 是源码归档，请注意与浏览器分发 ZIP 区分。
 3. 对于普通 HTML 网站，解压浏览器 ZIP，并将以下文件复制到网站的静态文件目录。阅读附带的 `START-HERE.txt`，然后打开 `esm.html`、`classic.html` 或 `react.html` 中所需的示例。示例中的 `/vendor/sidekick/` 是**你的网站路径**，请根据部署路径调整。
 
 | 已构建的文件 | 用途 | 所需文件与依赖 |
 | --- | --- | --- |
-| `sidekick-browser-0.15.1.zip` | 普通 HTML/React 浏览器分发包 | 包含 `esm.html`、`classic.html`、`react.html`、下列 6 个 JS 文件、可选的 `vendor/`、README 和声明 |
+| `sidekick-browser-0.16.0.zip` | 普通 HTML/React 浏览器分发包 | 包含 `esm.html`、`classic.html`、`react.html`、下列 6 个 JS 文件、可选的 `vendor/`、README 和声明 |
 | `sidekick.js` | 浏览器 ESM；使用 `import` 和 `<script type="module">` | 将 `sidekick.worker.js` 保留在同一目录 |
 | `sidekick.iife.js` | 普通 classic `<script>`；API 位于 `window.Sidekick` | 将 `sidekick.worker.js` 保留在同一目录；不使用 `type="module"` |
 | `sidekick-react.js` | React 19 的 ESM 组件 | 将 `sidekick-element.js`、`sidekick-fallback.js` 和 `sidekick.worker.js` 保留在同一目录，并提供 `react` 对等依赖 |
@@ -42,7 +42,7 @@ npm install https://github.com/hanana-kick/sidekick.git#v0.15.1
 | `sidekick-fallback.js` | 无法使用 worker 时，由 React 元素加载的渲染器 | 不要直接 import；与其余文件保持相同版本 |
 | `sidekick.worker.js` | OffscreenCanvas 专用 worker | 放在浏览器入口文件旁；不要通过单独的 script 标签加载 |
 | `vendor/react.js`, `vendor/react-dom-client.js` | 浏览器 ZIP 中可选的 React 19/ReactDOM ESM | 用于下方免构建 React 示例；通过 import map 连接；已有 React 的应用不需要 |
-| `hanana-kick-sidekick-0.15.1.tgz` | 可安装到现有 npm 项目的软件包 | 包含已构建的 ESM、类型声明、浏览器包和声明 |
+| `hanana-kick-sidekick-0.16.0.tgz` | 可安装到现有 npm 项目的软件包 | 包含已构建的 ESM、类型声明、浏览器包和声明 |
 | `SHA256SUMS` | 校验 ZIP 与 tarball 的下载完整性 | 同一 Release 的校验和文件 |
 
 请同时保留 ZIP 中附带的 README 以及第三方许可/来源声明。**请先下载 GitHub Release 附件，再通过你自己的网站提供这些文件。** 下载 URL 并非浏览器 JS 托管地址，其响应的 MIME、CORS 行为与静态托管不同。下方示例中的 `src`/`import` 使用的是你的网站上提供这些已下载文件的路径。
@@ -54,7 +54,7 @@ npm install https://github.com/hanana-kick/sidekick.git#v0.15.1
 在目标项目中安装从 Release 下载的 tarball。此命令不会编译 Sidekick 源码，也不会构建 Studio。
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.15.1.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.16.0.tgz
 ```
 
 仅使用 React 封装时才需要 React 19。用于挂载网页的 `react-dom` 也需由使用方准备相同版本。仅使用核心的项目不需要 React。
@@ -123,12 +123,12 @@ bot.setEmotion('neutral');
 
 ## 通过 CDN 免构建使用
 
-目前推荐的 CDN 版本为 **0.15.1**。下列 URL 由 jsDelivr 提供已提交到 GitHub 标签中的**预构建 JS**，无需构建源码、安装 npm 或拥有 npm 账号。请固定**精确标签**，不要使用 `main`、`latest` 或版本范围。旧版 `v0.2.7` 文件未作修改。0.2.7 仍可通过相同的 CDN 路径下载，但在不同来源的页面上会因 worker 创建受限而回退到主线程，因此新的 CDN 集成请使用上述固定的当前版本。
+目前推荐的 CDN 版本为 **0.16.0**。下列 URL 由 jsDelivr 提供已提交到 GitHub 标签中的**预构建 JS**，无需构建源码、安装 npm 或拥有 npm 账号。请固定**精确标签**，不要使用 `main`、`latest` 或版本范围。旧版 `v0.2.7` 文件未作修改。0.2.7 仍可通过相同的 CDN 路径下载，但在不同来源的页面上会因 worker 创建受限而回退到主线程，因此新的 CDN 集成请使用上述固定的当前版本。
 
 ### 普通 HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
@@ -140,7 +140,7 @@ bot.setEmotion('neutral');
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -156,15 +156,15 @@ ESM 和 classic 会自动注册同一个元素。一个页面中只使用其中�
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
@@ -180,7 +180,7 @@ ESM 和 classic 会自动注册同一个元素。一个页面中只使用其中�
 - CDN 的 JS 响应需要 JavaScript MIME 和 `Access-Control-Allow-Origin: *`；jsDelivr 会提供这些设置。请勿将 GitHub Release 下载 URL 填入 `script src`。
 - 从 0.2.8 起，当 CDN 与页面来源不同时，会在本地 Blob module worker 中静态导入 CDN 的 `sidekick.worker.js`。实际渲染仍在 OffscreenCanvas worker 中进行。Blob URL 会在启动完成、出错或结束时释放。
 - 使用 CSP 时，须允许 `worker-src 'self' blob:`，并在 `script-src` 中允许 `https://cdn.jsdelivr.net`。上述内联示例与 import map 还需要符合网站策略的 nonce/hash。无需无条件放宽整个 CSP，也不必添加 `unsafe-inline`。
-- 如果不支持 worker/WebGL2/OffscreenCanvas，或 CSP 阻止 worker，会回退到原有主线程渲染器。请通过 HTTPS 提供服务；HTTP 本地开发请使用 localhost。
+- 如果不支持 worker/OffscreenCanvas，或 CSP 阻止 worker，则在主线程渲染。如果 WebGL2 不可用，则切换到 Canvas2D。请通过 HTTPS 提供服务；HTTP 本地开发请使用 localhost。
 - 自托管时，请将浏览器 ZIP 中的**全部六个 JS 文件**保留在同一目录。React 会延迟加载相同版本的 `sidekick-element.js` 和 `sidekick-fallback.js`。不要仅将 worker 文件或某个 chunk 替换成不同版本。
 - 已发布版本标签中的分发文件不会修改。修复会通过新的 patch 版本发布。jsDelivr 会长期缓存首次请求的文件，请勿将删除文件视为回滚手段。
 
@@ -197,7 +197,7 @@ CDN 的官方行为与缓存策略：[jsDelivr GitHub 分发文档](https://gith
 <sidekick-avatar></sidekick-avatar>
 ```
 
-注册完成后，会显示一个 200 × 200px 的透明角色。默认外观为 `#FFCC37` 黄色 `square`、深色眼睛、无配饰，状态为 `idle`。尺寸通过普通 CSS 设置。外观由目录中的形状/装备选择及颜色控制；各部件的几何尺寸、深度与位置不作为公开参数提供。
+注册完成后，会显示一个 200 × 200px 的透明角色。默认外观为 `#FFCC37` 黄色 `square`、深色眼睛、无配饰，状态为 `idle`。通过 API 指定机器人尺寸，无需设置画布尺寸。外观由目录中的形状/装备选择及颜色控制；各部件的几何尺寸、深度与位置不作为公开参数提供。
 
 ### 完整 HTML 示例：ESM import
 
@@ -316,6 +316,28 @@ bot.lookAt({ space: 'view', x: 0.6, y: 0.2 });
 ```
 
 也可通过 `defineSidekick('my-companion')` 注册其他标签名。React 封装使用默认的 `sidekick-avatar`。`whenDefined()` 仅表示类注册完成，并不表示 GPU 已准备好渲染。`ready` 是只读 boolean，而非 Promise。如果需要 PNG，请确认 `bot.ready === true`，或等待 `sidekick-ready`。
+
+## 机器人尺寸
+
+通过 API 指定机器人尺寸，无需设置画布尺寸。
+
+```html
+<sidekick-avatar size="120"></sidekick-avatar>
+```
+```js
+bot.size = 120;
+bot.size = 160.5;
+bot.size = null;
+```
+```jsx
+<SidekickAvatar size={120} />
+```
+
+`size` 是以 CSS 像素为单位的正方形基准尺寸，包含固定的身体参考构图和配饰留白，并非不透明轮廓的精确直径。HTML、JavaScript 和 React 均接受包含小数的有限值 **1–2048**。未指定时默认为 200，仍支持现有 CSS 尺寸及矩形容器。
+
+显式 `size` 管理两个方向的尺寸及最小、最大约束，防止 CSS `width`/`height` 改变比例。移除属性、设置 `bot.size = null` 或移除 React prop 会解除管理，重新应用当前使用方 CSS，包括期间发生的 CSS 更新。`bot.size` 返回声明值，未指定时返回 200，而非实际 CSS 测量值。位置、margin 和 transform 仍可通过 CSS 控制，transform 可以改变屏幕上的视觉尺寸。
+
+容器、画布和设备像素分辨率由内部自动调整。渲染器质量上限可能限制内部像素数，但不会改变逻辑尺寸。调整尺寸保持纵横比及身体、配饰的固定参考构图。`zoom` 是区域内独立的 0.5–3 倍率，不改变布局，较大值可能被裁切。size 是容器布局设置，不属于设计或场景 JSON。不合法的 JavaScript 值在修改前抛出异常；不合法的 HTML、React 值触发 `sidekick-error` 并保留最后有效状态。
 
 ## 在 React 中使用
 
@@ -521,6 +543,7 @@ const design = createDesign({
 | `body-yaw` | `bodyYaw` | `number` | -360~360 度；沿用 bodyOrientation 预设的 yaw，否则为 0 |
 | `body-pitch` | `bodyPitch` | `number` | -90~90 度；沿用 bodyOrientation 预设的 pitch，否则为 0 |
 | `body-roll` | `bodyRoll` | `number` | -180~180 度；沿用 bodyOrientation 预设的 roll，否则为 0 |
+| `size` | `size` | `number` | 1–2048 CSS px; 默认 200 |
 | `zoom` | `zoom` | `number` | 0.5~3 倍，默认为 1；以中心为基准缩放；移除后恢复为 1 |
 | `gaze-x` | `gazeX` | `number` | -1~1，默认为 0；关闭鼠标跟踪时使用的显式视线 |
 | `gaze-y` | `gazeY` | `number` | -1~1，默认为 0 |
@@ -687,7 +710,7 @@ bot.entrance = null;
 
 声明机器人的可见状态、应用正在执行的任务以及休息位置。Sidekick 会协调入场 → 任务进行中的行为 → 结果反应 → 惯性归位 → 休息。异步工作由应用执行并明确报告状态；Sidekick 不会根据计时器或行为结束推断任务完成。无需手动串联归位命令或计算坐标。
 
-**发布版本：** 以下生命周期示例面向 `v0.15.1`。HTML 使用固定版本的 CDN 浏览器包，React 使用匹配的软件包构建。自行托管时，请一起提供相同版本的 `dist/browser/` 文件，并将 CDN import 替换为本地 `sidekick.js` URL。
+**发布版本：** 以下生命周期示例面向 `v0.16.0`。HTML 使用固定版本的 CDN 浏览器包，React 使用匹配的软件包构建。自行托管时，请一起提供相同版本的 `dist/browser/` 文件，并将 CDN import 替换为本地 `sidekick.js` URL。
 
 | HTML JSON / JavaScript 属性 | React prop | 声明 |
 | --- | --- | --- |
@@ -720,7 +743,7 @@ bot.entrance = null;
   home='{"positioning":{"target":"viewport","placement":"bottom-right","gap":20},"rest":{"behavior":{"type":"idle"},"emotion":"neutral","trackingMode":"eyes-and-body","bodyOrientation":"front"}}'>
 </sidekick-avatar>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#lifecycle-bot');
   let latestId = 0;
   document.querySelector('#lifecycle-save').addEventListener('click', async () => {
@@ -1126,6 +1149,7 @@ await bot.motion.to({
 | `lookAt({space:'view',x,y})` | -1~1 范围的显式视线 |
 | `bodyOrientation`, `setBodyOrientation(patch)` | 读取/部分设置 `BodyOrientation`；角度单位为度，getter 返回副本 |
 | `setBodyOrientationPreset(name)` | 正面、斜侧面、侧面方向预设，保留缩放 |
+| `size` | 读取/设置基准尺寸。1–2048 CSS px，未指定时 200；null 恢复 CSS |
 | `zoom` | 读取/设置独立缩放倍率；0.5~3，默认为 1 |
 | `motion.to(target,options)`, `motion.cancel()` | 姿态过渡/取消所有姿态通道 |
 | `seek(seconds)` | 指定循环动画时间，范围 0~86400 秒 |
@@ -1133,11 +1157,13 @@ await bot.motion.to({
 | `snapshot({crop,padding}?)` | 渲染就绪后返回透明 PNG 的 `Promise<Blob>`；默认按 alpha 边界裁切 |
 | `capturePixels()` | 同步读取最近已显示的完整画布；不会等待发往 worker 的最新命令 |
 | `capturePixelsAsync()` | 等待最新命令之后的新帧，返回 `Promise<{width,height,pixels}>`；RGBA 从底行开始 |
-| `ready`, `diagnostics` | 就绪状态、`worker`/`main` backend、世代与命令确认编号、动画时间、帧数、draw call 数和缓冲区数量 |
+| `ready`, `diagnostics` | 就绪状态、`worker`/`main` backend + `webgl2`/`canvas2d` graphics、世代与命令确认编号、动画时间、帧数、draw call 数和缓冲区数量 |
 
 ## OffscreenCanvas 与渲染
 
-在支持的浏览器中，元素会通过 `transferControlToOffscreen()` 将 canvas 交给专用 Web Worker。网格、动作/形状过渡、视线跟踪弹簧及 WebGL 渲染均由 worker 处理。主线程负责 DOM、无障碍、输入、尺寸观察及命令转发。可通过 `bot.diagnostics.backend` 确认实际采用 `worker` 还是 `main` 路径。
+在支持的浏览器中，元素会通过 `transferControlToOffscreen()` 将 canvas 交给专用 Web Worker。网格、动作/形状过渡、视线跟踪弹簧及 WebGL2/Canvas2D 渲染均由 worker 处理。主线程负责 DOM、无障碍、输入、尺寸观察及命令转发。可通过 `bot.diagnostics.backend` 确认实际采用 `worker` 还是 `main` 路径。
+
+`bot.diagnostics.backend` 表示执行位置（`worker`/`main`，初始化前为 `none`）；`bot.diagnostics.graphics` 表示绘制方式（`webgl2`/`canvas2d`，取得快照前为 `none`）。Canvas2D 使用全部 35 种形状和配饰的相同网格、眼睛曲线、动画、深度与遮挡、透明快照和生命周期控制。CPU 光栅化器的绘制缓冲区长轴上限为 384px，不改变 CSS 尺寸或比例。轮廓抗锯齿与 WebGL MSAA 不同，CPU 性能也不相同。
 
 自托管时，请以正确的 JavaScript MIME，从与页面相同的 origin 提供 worker 文件。浏览器安全策略不允许直接使用其他 origin 的 Worker URL。使用 CSP 的网站需要以 `worker-src 'self'` 等策略允许该 worker。同源自托管无需 Blob worker 或额外安全响应头；跨源 CDN 加载采用前文说明的 Blob module worker 方式，并需要相应 CSP 设置。若支持不足、CSP/文件加载失败或 worker 初始化失败，会替换为新的 canvas，并恢复到主线程渲染器。
 
@@ -1184,15 +1210,15 @@ events.abort(); // 애플리케이션이 붙인 리스너 제거
 bot.remove();   // RAF, 관찰자, 마우스 리스너, WebGL 자원 해제
 ```
 
-React 在卸载时会清理封装监听器和元素。自行创建的 PNG 下载 Object URL，请在使用后调用 `URL.revokeObjectURL()` 释放。重新连接元素时，会根据已保存设计创建渲染器，正在进行的过渡则取消。WebGL 上下文丢失时会发送错误，恢复后重新初始化渲染器。
+React 在卸载时会清理封装监听器和元素。自行创建的 PNG 下载 Object URL，请在使用后调用 `URL.revokeObjectURL()` 释放。重新连接元素时，会根据已保存设计创建渲染器，正在进行的过渡则取消。WebGL 上下文丢失或取得上下文后初始化失败时，会发送可恢复错误，并在新 canvas 上尝试一次 Canvas2D。保留最后确认的姿态、时间和当前配置，但正在进行的显式动作与形状过渡 Promise 会取消，其剩余时间线不会继续执行。如果 Canvas2D 也失败，则显示可读错误。
 
 ## SSR 与浏览器支持
 
-在服务端请通过 `/core` 创建并序列化设计。模块导入本身无需 DOM 全局对象，但实际的 Custom Element 注册、创建及 WebGL 渲染必须在浏览器进行。React 封装在 SSR 中生成仅包含普通 HTML/aria/style 的空宿主，在客户端应用 props 并注册元素。不要假设 SSR 已生成应用了 props 的角色像素或完整设计属性。`ref` 在升级后就绪，`onReady` 在 props 应用后触发。使用 React 封装的 Next.js 组件应设置 `'use client'` 边界。不提供服务端 PNG 生成 API。
+在服务端请通过 `/core` 创建并序列化设计。模块导入本身无需 DOM 全局对象，但实际的 Custom Element 注册、创建及 canvas 渲染必须在浏览器进行。React 封装在 SSR 中生成仅包含普通 HTML/aria/style 的空宿主，在客户端应用 props 并注册元素。不要假设 SSR 已生成应用了 props 的角色像素或完整设计属性。`ref` 在升级后就绪，`onReady` 在 props 应用后触发。使用 React 封装的 Next.js 组件应设置 `'use client'` 边界。不提供服务端 PNG 生成 API。
 
 服务端 HTML 中的默认标签会在浏览器注册后升级。保持同一 DOM 实例并设置固定 CSS 尺寸，可以减少加载时的布局偏移。直接 SSR HTML 时，初始属性使用字符串/JSON，这与 DOM 属性赋值不同。可参考 [React 的 Custom HTML Elements 说明](https://react.dev/reference/react-dom/components#custom-html-elements)。
 
-需要支持 WebGL2 与 Custom Elements 的现代浏览器。图形初始化失败时，会在元素内显示可读的 fallback，并发送 `sidekick-error`。默认元素具有图像角色；在 `interaction="box"` 中则具有可通过键盘激活的按钮角色。请指定说明其用途的 `aria-label`。库会处理屏幕外/不活跃标签页暂停、reduced-motion、尺寸变化，以及移除时的 GPU 资源释放。
+需要支持 Custom Elements 和 Canvas2D 的现代浏览器；优先使用 WebGL2，但并非必需。如果两种绘制方式都无法初始化，会在元素内显示可读错误，并发送 `sidekick-error`。默认元素具有图像角色；在 `interaction="box"` 中则具有可通过键盘激活的按钮角色。请指定说明其用途的 `aria-label`。库会处理屏幕外/不活跃标签页暂停、reduced-motion、尺寸变化，以及移除时的 GPU 资源释放。
 
 ## Studio 与开发
 
@@ -1283,7 +1309,7 @@ SIDEKICK_HEADED=1 xvfb-run -a npm run test:browser
 
 曲线到折线的容差为基于归一化 `[-1,1]` 的 `0.00005`。网格细分目标（表面距离 `0.010`、中央高度 `0.006`）基于采样，并非对所有位置或像素的误差保证。最多进行 8 次细分，正面预算为 12,000 个点，因此可能看到小的三角形近似误差。形状变形的对应点计算采用 Sidekick 自身方法，不保证与 Android Material `Morph` 像素一致。
 
-每个元素使用一个 WebGL 上下文及可复用缓冲区。默认身体+贝雷帽需要 3 次 draw call，眼睛不增加 draw call。DPR 最大为 2；长轴超过 2048px 时，两轴应用相同比例。宽或高的宿主中仍保持角色比例。CPU 几何基准测试不保证 GPU 帧时间/FPS。任意 SVG、自定义网格、部件插件、布料物理、像素命中测试、上下文池和 AI 服务集成均不在支持范围内。
+在 WebGL2 模式下，每个元素使用一个 WebGL 上下文及可复用缓冲区。默认身体+贝雷帽需要 3 次 draw call，眼睛不增加 draw call。DPR 最大为 2；绘制缓冲区的长轴上限在 WebGL2 下为 2048px，在 Canvas2D 下为 384px，两轴应用相同比例。宽或高的宿主中仍保持角色比例。CPU 几何基准测试不保证 GPU 帧时间/FPS。任意 SVG、自定义网格、部件插件、布料物理、像素命中测试、上下文池和 AI 服务集成均不在支持范围内。
 
 本仓库的软件包许可证为 `UNLICENSED`。这不意味着授予公开的开源许可；使用与分发权限请向仓库所有者确认。以下第三方声明须单独保留。
 
@@ -1319,7 +1345,7 @@ SIDEKICK_HEADED=1 xvfb-run -a npm run test:browser
 
 ## 渲染与移动标准 (v0.3)
 
-基本方式是**角色大小的透明画布 + DOM 元素移动**，不会创建覆盖整个屏幕的 WebGL 画布。OffscreenCanvas worker 渲染小尺寸表面，主线程通过 CSS `translate` 移动元素。DOM 移动不会改变 WebGL 分辨率、身体方向设置或已保存的身体设计。默认飞行动作作为小画布内的运行时姿态合成。屏幕尺寸和 DPR 变化继续使用现有 ResizeObserver 与分辨率限制。
+基本方式是**角色大小的透明画布 + DOM 元素移动**，不会创建覆盖整个屏幕的 WebGL 画布。OffscreenCanvas worker 渲染小尺寸表面，主线程通过 CSS `translate` 移动元素。DOM 移动不会改变 canvas 分辨率、身体方向设置或已保存的身体设计。默认飞行动作作为小画布内的运行时姿态合成。屏幕尺寸和 DPR 变化继续使用现有 ResizeObserver 与分辨率限制。
 
 可在[移动与动画 API 体验](https://sidekick.hananakick.cc/api-playground.html)中直接测试移动、中断、播放和资源切换。
 
@@ -1456,7 +1482,7 @@ API 体验默认开启“默认最高速度 · 1350 CSS px/s”，生成的调�
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { maxSpeed: 320, acceleration: 900, deceleration: 1200 });
@@ -1493,7 +1519,7 @@ API 体验默认开启“默认最高速度 · 1350 CSS px/s”，生成的调�
 <button id="flight-stop" type="button">활동 중단</button>
 <p id="flight-status" aria-live="off">idle</p>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.js';
   const stage = document.getElementById('flight-stage');
   const bot = document.getElementById('flight-avatar');
   const status = document.getElementById('flight-status');
@@ -1642,7 +1668,7 @@ export function Example() {
 - 默认 `anchor: false` 仅移动一次，目标位置以调用时为准；之后不跟随滚动或布局变化。
 - `anchor: true` 持续保持所选对齐点与偏移。首次移动中仅更新同一移动请求的目标，保留速度、加速度和 Promise。到达后仍以相同最高速度、加速和减速设置自然追随目标。即使目标突然移动，也不会瞬间对齐角色坐标。首次到达的 Promise 和移动完成事件只发生一次，后续追随不会重复触发完成事件。静止时忽略不超过 0.5 CSS px 的误差。会响应嵌套滚动、尺寸变化、布局变化及 CSS/WAAPI transform。目标持续移动可能延迟首次移动完成。若角色或目标因 `display: none` 退出布局，则保留绑定并暂停跟踪，重新显示时再对齐。
 - 若角色完全移出屏幕，且对齐后的目标也在屏幕外，物理移动和渲染进入空闲状态。当前位置或目标重新与屏幕相交时，保留惯性并恢复追随，不会一次性积分隐藏期间的全部时间。只有角色本身与屏幕相交时才恢复渲染。活跃状态下，锚点位置检查合并为每个文档一个 RAF；所有绑定均空闲时，降为每 250ms 一次。滚动和尺寸变化会在下一帧立即检查；仅由 CSS transform 返回视野的情况，也会在最多约 250ms 后被检测到。隐藏标签页中连位置检查也会停止。因此完全在屏幕外时 GPU 帧停止，但仍保留少量 DOM 测量以检测返回。
-- 在支持环境中，渲染由接收 OffscreenCanvas 的专用 worker 内的 WebGL2 完成。隐藏期间的尺寸变化会合并，在下一次实际渲染时应用。不支持或受 CSP 限制的环境使用主线程 WebGL2 fallback。DOM 位置测量和移动坐标更新仍由可访问 DOM 的主线程处理。
+- 支持的环境通过传输 OffscreenCanvas 在专用 worker 中渲染，优先使用 WebGL2，不可用时使用 Canvas2D。隐藏期间的尺寸变化合并到下一次实际渲染。不支持 worker 或受 CSP 限制的环境使用具有相同图形回退机制的主线程渲染器。DOM 位置测量和移动坐标更新仍在主线程进行。
 - 不改变角色的父 DOM 或 CSS positioning，保留 absolute/fixed/inline 布局，仅更新角色自身的移动偏移。`detachAnchor()` 解除绑定；正在进行的首次移动会继续到最后目标。首次到达后的追随会按当前惯性减速停止。如需连移动一起停止，请使用 `cancelMove()`。
 - 其他 `moveTo / moveBy / moveToElement`、`cancelMove / enter / exit` 或角色断开连接会解除现有锚定。目标移除、移到其他文档，或祖先 transform 变成不支持的状态时，会解除绑定；正在进行的首次移动继续前往最后有效目标。将角色自身或其后代作为持续锚定目标的循环布局会被拒绝。
 - 活跃锚点在每个文档的同一个 RAF 中先读取布局，再写入位置。静止位置不会重复写入，但为跟踪 observer 无法感知的纯 transform 动画，绑定期间存在逐帧测量开销。文档隐藏时停止，最后一个绑定解除后移除循环。请仅在需要时保持绑定。

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 // Execute production GLSL scalar expressions; only translate declaration syntax.
-const renderer = readFileSync(new URL('../src/renderer/webgl.ts', import.meta.url), 'utf8');
+const renderer = readFileSync(new URL('../src/renderer/webgl-shaders.ts', import.meta.url), 'utf8');
 const shader = renderer.slice(renderer.indexOf('float curveDistance('), renderer.indexOf('\nvoid main() {', renderer.indexOf('float curveDistance(')));
 const translated = shader.replace(/float\s+(\w+)\s*\(/g, 'function $1(').replace(/\b(?:float|vec2|vec4)\s+(\w+)(?=\s*[,\)])/g, '$1').replace(/\b(?:float|int|vec2|vec4)\s+/g, 'let ');
 const vec2 = (x, y) => ({ x, y });
@@ -116,6 +116,16 @@ test('complete reachable circular-arc envelope fits stable weight-independent bo
     for(const smile of [0,.1,.35,.5,.75,1])for(const open of [0,.1,.35,.5,.75,1])for(let i=0;i<=16;i++){
       const x=-halfWidth+2*halfWidth*i/16,y=bottom+(top-bottom)*i/16;
       for(const p of [vec2(-halfWidth,y),vec2(halfWidth,y),vec2(x,bottom),vec2(x,top)])assert.ok(eyeDistance(p,open,smile,targets)>=-1e-10,'ink stays in the fitted envelope');
+    }
+  }
+});
+
+test('Canvas2D eye distance agrees with the production GLSL scalar expressions', async () => {
+  const { softwareEyeDistance } = await import('../src/renderer/software-rasterizer.ts');
+  for (const [width,height] of dimensions) for (const targets of targetsList) {
+    const shader = functions(width,height), packed = [targets.x,targets.y,targets.z,targets.w];
+    for (const open of [0,.2,.5,1]) for (const happy of [0,.2,.5,1]) for (const x of [-.4,-.1,0,.08,.3]) for (const y of [-.4,-.02,0,.06,.3]) {
+      close(softwareEyeDistance(x,y,open,happy,[width,height],packed),shader.eyeDistance(vec2(x,y),open,happy,targets),1e-12,'software eye distance');
     }
   }
 });

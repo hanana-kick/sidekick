@@ -5,6 +5,7 @@ import type { RuntimeCommand, RuntimeEvent, RuntimeSnapshot, RuntimeState } from
 export interface RuntimeRenderer {
     readonly canvas: HTMLCanvasElement | OffscreenCanvas;
     readonly animating?: boolean;
+    readonly graphics?: 'webgl2' | 'canvas2d';
     readonly stats: {
         drawCalls: number;
         buffers: number;

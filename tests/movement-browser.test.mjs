@@ -16,6 +16,7 @@ async function pageFor(t, options = {}) {
   t.after(async () => { await page.close(); assert.deepEqual(errors, []); });
   await page.goto(`${base}/api-playground.html`); await page.waitForFunction(() => document.getElementById('bot')?.ready && document.getElementById('status').textContent.includes('준비'));
   if (process.env.SIDEKICK_SCREENSHOTS) { await mkdir(process.env.SIDEKICK_SCREENSHOTS, { recursive: true }); await page.screenshot({ path: `${process.env.SIDEKICK_SCREENSHOTS}/movement-playground.png` }); }
+  await page.locator('#bot-tools-launcher').click();
   return page;
 }
 for (const reducedMotion of ['no-preference', 'reduce']) test(`bounded canvas movement and interrupt semantics (${reducedMotion})`, async t => {

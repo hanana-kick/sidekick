@@ -30,7 +30,7 @@ scope.onmessage = ({ data }) => {
         }
     }
     catch (error) {
-        send({ kind: 'error', message: error instanceof Error ? error.message : String(error) });
+        send({ kind: 'error', message: error instanceof Error ? error.message : String(error), rendererFallback: error instanceof Error && error.name === 'RendererInitializationError' });
         engine?.dispose();
         engine = undefined;
     }

@@ -45,7 +45,7 @@ test('basis diagnostics retain yaw/pitch compression and roll, but do not gate c
   near(Math.hypot(...planePoint(pitch.basis,[0,pitch.size[1]])),pitch.size[1]*Math.cos(angle),'pitch basis height');
  }
  const r=.6,b=eyeBasis(transform([0,0,0],[0,0,r]));near(b[0],Math.cos(r),'roll');near(b[1],Math.sin(r),'roll');
- const shader=readFileSync(new URL('../src/renderer/webgl.ts',import.meta.url),'utf8');
+ const shader=readFileSync(new URL('../src/renderer/webgl-shaders.ts',import.meta.url),'utf8');
  assert.match(shader,/eyeDistance\(vFacePosition\s*-\s*eyeCenters\.xy/);
  assert.match(shader,/step\(0\.00001, vFrontCap\)/);
  assert.doesNotMatch(shader,/uniform vec4 eyeInverseBasis|clipOccludedEyes\(/);

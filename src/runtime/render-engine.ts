@@ -12,6 +12,7 @@ import { cropPixels } from '../core/pixels.js';
 import { automaticBlink } from '../core/expressions.js';
 import type { PixelBuffer, SnapshotOptions } from '../core/pixels.js';
 import { AvatarRenderer } from '../renderer/webgl.js';
+import { RendererInitializationError } from '../renderer/render-backend.js';
 import type { RenderState } from '../renderer/webgl.js';
 import type { AvatarDesign, Vec2 } from '../core/design.js';
 import { presentationSignature } from './presentation.js';
@@ -20,6 +21,7 @@ import type { RuntimeCommand, RuntimeEvent, RuntimeSnapshot, RuntimeState } from
 export interface RuntimeRenderer {
   readonly canvas: HTMLCanvasElement | OffscreenCanvas;
   readonly animating?: boolean;
+  readonly graphics?: 'webgl2' | 'canvas2d';
   readonly stats: { drawCalls: number; buffers: number };
   resize(width: number, height: number, dpr: number): void;
   render(design: AvatarDesign, state: RenderState): void;
@@ -76,7 +78,10 @@ export class RenderEngine {
   private renderedRotation: import('../core/design.js').Vec3 = [0, 0, 0];
   private readonly contextLost = (event: Event): void => {
     event.preventDefault();
-    this.stop(); this.notify({ kind: 'error', message: 'WebGL context lost' });
+    this.stop();
+    // Send the latest pose/phase before the owner replaces the locked WebGL canvas.
+    this.notify({ kind: 'frame', snapshot: this.snapshot });
+    this.notify({ kind: 'error', message: 'WebGL context lost', rendererFallback: true });
   };
   readonly renderer: RuntimeRenderer;
   constructor(canvas: HTMLCanvasElement | OffscreenCanvas, initial: RuntimeState, private readonly emit: (event: RuntimeEvent, revision?: number) => void, private readonly scheduler = frameScheduler(), renderer?: RuntimeRenderer) {
@@ -90,7 +95,7 @@ export class RenderEngine {
     if (initial.paused || initial.reduced) this.timeline.pose.gaze = [...initial.gaze];
     this.activityBlend = new ActivityBlend(initial.activity, initial.time, initial.reduced);
     this.shape = new ShapeTimeline(initial.design.body.shape);
-    this.renderer = renderer ?? new AvatarRenderer(canvas);
+    this.renderer = renderer ?? new AvatarRenderer(canvas, { renderer: initial.renderer });
     try {
       canvas.addEventListener('webglcontextlost', this.contextLost);
       this.renderer.resize(initial.width, initial.height, initial.dpr);
@@ -99,11 +104,13 @@ export class RenderEngine {
     } catch (error) {
       // The bridge cannot own this instance until construction succeeds. Release
       // the acquired renderer, listener and any frame before propagating failure.
-      this.dispose(); throw error;
+      this.dispose();
+      if (!renderer && this.renderer.graphics === 'webgl2') throw new RendererInitializationError(error);
+      throw error;
     }
   }
   get snapshot(): RuntimeSnapshot {
-    return { travel: this.state.travel ? structuredClone(this.state.travel) : undefined, renderCpu: { ...this.renderCpu }, pose: structuredClone(this.timeline.pose), time: this.state.time, renderedRotation: [...this.renderedRotation], frames: this.frames, running: this.scheduled !== 0, ...this.renderer.stats, width: this.renderer.canvas.width, height: this.renderer.canvas.height };
+    return { graphics: this.renderer.graphics, travel: this.state.travel ? structuredClone(this.state.travel) : undefined, renderCpu: { ...this.renderCpu }, pose: structuredClone(this.timeline.pose), time: this.state.time, renderedRotation: [...this.renderedRotation], frames: this.frames, running: this.scheduled !== 0, ...this.renderer.stats, width: this.renderer.canvas.width, height: this.renderer.canvas.height };
   }
   private notify(event: RuntimeEvent, revision = this.revision): void {
     if (this.batchDepth && event.kind === 'frame') return;

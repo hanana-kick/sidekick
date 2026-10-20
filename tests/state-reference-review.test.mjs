@@ -13,7 +13,7 @@ const resolved = edits => resolveSidekickAttributes(new Map(Object.entries(compi
 
 test('reference enumerates each public declarative attribute exactly once with its React alias', () => {
   assert.equal(STATE_IDS.length, 8);
-  assert.equal(ALL_STATE_FIELDS.length, 63);
+  assert.equal(ALL_STATE_FIELDS.length, 64);
   assert.deepEqual(ALL_STATE_FIELDS.map(f => f.attribute).sort(), [...SIDEKICK_ATTRIBUTES].sort());
   for (const f of ALL_STATE_FIELDS) assert.equal(f.prop, f.attribute.replace(/-([a-z])/g, (_, x) => x.toUpperCase()));
   for (const key of READ_ONLY_STATE) assert.equal(FIELD_BY_KEY.has(key), false);

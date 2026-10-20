@@ -223,7 +223,8 @@ test('renderer retains zero-gaze equipment, fixed resources and exact circular e
   const source=readFileSync(new URL('../src/renderer/webgl.ts',import.meta.url),'utf8');
   assert.match(source,/projectEyes\(design, root, pose\.face, \[0, 0\]/);assert.match(source,/glassesGeometry\(design, accessory, frameEyes/);
   assert.doesNotMatch(source,/Math\.sin\(design\.eyes\.spacing|this\.meshes\.ring|\[side \* spacing, 0, 0\.10\]/);
-  assert.match(source,/curveDistance\(p, halfSpan, happy \* open\) - radius/);assert.match(source,/deleteBuffer\(mesh\.buffer\).*deleteBuffer\(mesh\.index\)/);
+  const shader=readFileSync(new URL('../src/renderer/webgl-shaders.ts',import.meta.url),'utf8'), backend=readFileSync(new URL('../src/renderer/render-backend.ts',import.meta.url),'utf8');
+  assert.match(shader,/curveDistance\(p, halfSpan, happy \* open\) - radius/);assert.match(backend,/deleteBuffer\(gpu\.buffer\).*deleteBuffer\(gpu\.index\)/);
   assert.ok(GLASSES_CLEARANCE<.01);assert.equal(GLASSES_SHOULDER,0);
 });
 

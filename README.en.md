@@ -2,7 +2,7 @@
 
 [한국어](README.md) · [English](README.en.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-**A transparent, flat-style character library built from 35 Material shapes.** Start with a single `<sidekick-avatar>` and control it through HTML attributes, JavaScript APIs, or a React wrapper. It supports shape morphing, independent eye expressions, pointer tracking, body orientation, six accessory slots, and directional movement across the page. The framework-independent core uses TypeScript, Web Components, and WebGL2.
+**A transparent, flat-style character library built from 35 Material shapes.** Start with a single `<sidekick-avatar>` and control it through HTML attributes, JavaScript APIs, or a React wrapper. It supports shape morphing, independent eye expressions, pointer tracking, body orientation, six accessory slots, and directional movement across the page. The framework-independent core uses TypeScript, Web Components, and WebGL2/Canvas2D.
 
 - [Installation](#installation) · [HTML](#using-html-directly) · [React](#using-react)
 - [All attributes](#html-attributes-and-react-props) · [Design and accessories](#design-json-and-accessories) · [Animation/API](#animation-and-imperative-apis)
@@ -19,22 +19,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 To pin a version, specify a release tag:
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.15.1
+npm install https://github.com/hanana-kick/sidekick.git#v0.16.0
 ```
 
-The repository includes built ESM, type declarations, and browser bundles, so **consumers do not need to build Sidekick from source.** Commit your dependencies and lockfile so your team uses the same version. The package name is `@hanana-kick/sidekick`, and this version is `0.15.1`. **It has not been published to the npm registry: do not run `npm install @hanana-kick/sidekick` using the name alone.**
+The repository includes built ESM, type declarations, and browser bundles, so **consumers do not need to build Sidekick from source.** Commit your dependencies and lockfile so your team uses the same version. The package name is `@hanana-kick/sidekick`, and this version is `0.16.0`. **It has not been published to the npm registry: do not run `npm install @hanana-kick/sidekick` using the name alone.**
 
 For an HTML site without npm, download the prebuilt files from [GitHub Releases](https://github.com/hanana-kick/sidekick/releases). ESM, classic `<script>` JavaScript, and a dedicated rendering worker are provided. The browser core requires no React, bundler, Node.js, separate CSS, or fonts.
 
 ### Downloading from GitHub Releases
 
 1. Open [Releases](https://github.com/hanana-kick/sidekick/releases).
-2. Under the chosen tag's **Assets**, download `sidekick-browser-0.15.1.zip` or `hanana-kick-sidekick-0.15.1.tgz`. For another version, use the filename matching its tag. The automatically generated **Source code (zip/tar.gz)** archives contain source code, not the browser distribution ZIP.
+2. Under the chosen tag's **Assets**, download `sidekick-browser-0.16.0.zip` or `hanana-kick-sidekick-0.16.0.tgz`. For another version, use the filename matching its tag. The automatically generated **Source code (zip/tar.gz)** archives contain source code, not the browser distribution ZIP.
 3. For a plain HTML site, extract the browser ZIP and copy the following files into your site's static directory. Read the included `START-HERE.txt` and open your preferred `esm.html`, `classic.html`, or `react.html` example. `/vendor/sidekick/` in the examples is **a path on your site**; adjust it to your deployment.
 
 | Built file | Purpose | Required files/dependencies |
 | --- | --- | --- |
-| `sidekick-browser-0.15.1.zip` | Plain HTML/React browser distribution | Includes `esm.html`, `classic.html`, `react.html`, the six JS files below, optional `vendor/`, README, and notices |
+| `sidekick-browser-0.16.0.zip` | Plain HTML/React browser distribution | Includes `esm.html`, `classic.html`, `react.html`, the six JS files below, optional `vendor/`, README, and notices |
 | `sidekick.js` | Browser ESM for `import` and `<script type="module">` | Keep `sidekick.worker.js` in the same directory |
 | `sidekick.iife.js` | Classic `<script>` exposing `window.Sidekick` | Keep `sidekick.worker.js` alongside it; do not use `type="module"` |
 | `sidekick-react.js` | ESM component for React 19 | Keep `sidekick-element.js`, `sidekick-fallback.js`, and `sidekick.worker.js` alongside it, and provide the `react` peer |
@@ -42,7 +42,7 @@ For an HTML site without npm, download the prebuilt files from [GitHub Releases]
 | `sidekick-fallback.js` | Renderer loaded by the React element when workers are unavailable | Do not import directly; keep all files on the same version |
 | `sidekick.worker.js` | Dedicated OffscreenCanvas worker | Place beside the browser entry files; do not load with a separate script tag |
 | `vendor/react.js`, `vendor/react-dom-client.js` | Optional React 19/ReactDOM ESM in the browser ZIP | For the no-build React example below, connected via an import map; unnecessary when your app already provides React |
-| `hanana-kick-sidekick-0.15.1.tgz` | Package for an existing npm-based project | Built ESM, type declarations, browser bundles, and notices |
+| `hanana-kick-sidekick-0.16.0.tgz` | Package for an existing npm-based project | Built ESM, type declarations, browser bundles, and notices |
 | `SHA256SUMS` | Verify ZIP and tarball download integrity | Checksum file in the same release |
 
 Keep the README and third-party license/attribution notices included in the ZIP. **Download GitHub Release assets and serve them from your own site.** Their download URLs are not browser JavaScript hosting URLs; asset MIME/CORS behavior differs from static hosting. The `src`/`import` paths below refer to your site's copies of the downloaded files.
@@ -54,7 +54,7 @@ Both `sidekick.js` and `sidekick.iife.js` export the complete public core/elemen
 Install the downloaded release tarball in your project. This command neither compiles Sidekick source nor builds Studio.
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.15.1.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.16.0.tgz
 ```
 
 React 19 is required only for the React wrapper. Supply the matching version of `react-dom` yourself to mount the page. Core-only projects do not require React.
@@ -123,12 +123,12 @@ Paused or reduced-motion mode settles immediately at the target. Reading setting
 
 ## Using the CDN without a build
 
-The currently recommended CDN version is **0.15.1**. These URLs serve **already built JavaScript** committed to a GitHub tag through jsDelivr: no source build, npm installation, or npm account is needed. Pin an **exact tag**, not `main`, `latest`, or a version range. Earlier `v0.2.7` files have not been changed. Version 0.2.7 is also downloadable through the same CDN path, but cross-origin pages cannot create its worker and fall back to the main thread; use the current pinned version for new CDN integrations.
+The currently recommended CDN version is **0.16.0**. These URLs serve **already built JavaScript** committed to a GitHub tag through jsDelivr: no source build, npm installation, or npm account is needed. Pin an **exact tag**, not `main`, `latest`, or a version range. Earlier `v0.2.7` files have not been changed. Version 0.2.7 is also downloadable through the same CDN path, but cross-origin pages cannot create its worker and fall back to the main thread; use the current pinned version for new CDN integrations.
 
 ### Plain HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
@@ -140,7 +140,7 @@ The currently recommended CDN version is **0.15.1**. These URLs serve **already 
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -156,15 +156,15 @@ Prebuilt ESM for matching React and ReactDOM 19.3.1 is provided. Declare the imp
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
@@ -180,7 +180,7 @@ In an existing React app, reuse the app's React instance. Do not load a second R
 - CDN JS responses require a JavaScript MIME type and `Access-Control-Allow-Origin: *`; jsDelivr provides these. Do not put GitHub Release download URLs into `script src`.
 - Since 0.2.8, when the page and CDN origins differ, a local Blob module worker statically imports the CDN's `sidekick.worker.js`. Rendering still runs in an OffscreenCanvas worker. Blob URLs are revoked after startup, on errors, and on teardown.
 - With CSP, permit `worker-src 'self' blob:` and `https://cdn.jsdelivr.net` in `script-src`. The inline examples and import map also require a nonce/hash appropriate for your policy. There is no need to weaken the entire CSP or add `unsafe-inline`.
-- If workers/WebGL2/OffscreenCanvas are unsupported or CSP blocks workers, the existing main-thread renderer is used as a fallback. Serve over HTTPS; use localhost for local HTTP development.
+- If worker/OffscreenCanvas is unsupported or CSP blocks workers, rendering moves to the main thread. If WebGL2 is unavailable, the renderer uses Canvas2D instead. Serve over HTTPS; use localhost for HTTP development.
 - For self-hosting, keep **all six JS files** from the browser ZIP in the same directory. React lazily loads matching `sidekick-element.js` and `sidekick-fallback.js` files. Do not replace just the worker or a chunk with a different version.
 - Tagged distributions are immutable. Fixes are released under a new patch version. jsDelivr retains first-requested files for a long time; do not treat deletion as a rollback mechanism.
 
@@ -197,7 +197,7 @@ Place the downloaded `sidekick.js` and `sidekick.worker.js` in your site's `/ven
 <sidekick-avatar></sidekick-avatar>
 ```
 
-After registration, a transparent 200 × 200px character appears. Defaults are a yellow `#FFCC37` `square`, dark eyes, no accessories, and the `idle` activity. Set its size with ordinary CSS. Configure appearance through catalog/equipment choices and colors; individual part geometry dimensions, depth, and positions are not public settings.
+After registration, a transparent 200 × 200px character appears. Defaults are a yellow `#FFCC37` `square`, dark eyes, no accessories, and the `idle` activity. Set the companion size through the API, not canvas dimensions. Configure appearance through catalog/equipment choices and colors; individual part geometry dimensions, depth, and positions are not public settings.
 
 ### Complete HTML example: ESM import
 
@@ -316,6 +316,28 @@ bot.lookAt({ space: 'view', x: 0.6, y: 0.2 });
 ```
 
 You can register another tag using `defineSidekick('my-companion')`. The React wrapper uses the default `sidekick-avatar`. `whenDefined()` indicates class registration, not GPU rendering readiness. `ready` is a read-only boolean, not a Promise. Before exporting PNG, check `bot.ready === true` or wait for `sidekick-ready`.
+
+## Companion size
+
+Set the companion size through the API, not canvas dimensions.
+
+```html
+<sidekick-avatar size="120"></sidekick-avatar>
+```
+```js
+bot.size = 120;
+bot.size = 160.5;
+bot.size = null;
+```
+```jsx
+<SidekickAvatar size={120} />
+```
+
+`size` is the nominal square companion footprint in CSS pixels, with fixed body-referenced framing and accessory padding, not the exact opaque silhouette diameter. HTML, JavaScript and React share the finite range **1–2048**, including fractional values. Without an explicit size the default is 200; existing CSS sizing, including rectangular hosts, remains supported.
+
+Explicit `size` owns both dimensions and their min/max constraints, so consumer CSS `width`/`height` cannot distort it. Removing the attribute, assigning `bot.size = null`, or removing the React prop releases that ownership, revealing current consumer CSS unchanged. `bot.size` reads the declared value, or 200 when unset, not the measured CSS bounds. Position, margin and transforms remain CSS controls; transforms can change the apparent screen size.
+
+The host, canvas and device-pixel backing resolution are managed internally. Renderer quality limits may cap backing pixels without changing the logical footprint. Changing size preserves aspect ratio and the fixed body/accessory reference framing. `zoom` remains a separate 0.5–3 magnification inside the footprint; it does not change layout and large zoom may clip. Size is a host/layout setting, not a design or scene JSON field. Invalid JavaScript assignments throw before mutation; invalid HTML/React values emit `sidekick-error` and preserve the last accepted state.
 
 ## Using React
 
@@ -521,6 +543,7 @@ Preset default colors: beret/bow tie/scarf `#b84742`; halo/ring earring `#f7cc5b
 | `body-yaw` | `bodyYaw` | `number` | -360–360 degrees; bodyOrientation preset yaw, otherwise 0 |
 | `body-pitch` | `bodyPitch` | `number` | -90–90 degrees; bodyOrientation preset pitch, otherwise 0 |
 | `body-roll` | `bodyRoll` | `number` | -180–180 degrees; bodyOrientation preset roll, otherwise 0 |
+| `size` | `size` | `number` | 1–2048 CSS px; default 200 |
 | `zoom` | `zoom` | `number` | 0.5–3×, default 1; centered zoom; removal restores 1 |
 | `gaze-x` | `gazeX` | `number` | -1–1, default 0; explicit gaze used when pointer tracking is off |
 | `gaze-y` | `gazeY` | `number` | -1–1, default 0 |
@@ -687,7 +710,7 @@ Malformed or out-of-range objects are rejected. A missing or undersized target, 
 
 Declare whether the bot is visible, the application task it is presenting, and where it rests. Sidekick coordinates entrance → pending behavior → result reaction → inertial return home → rest. The application owns the asynchronous work and explicitly reports its status; Sidekick never infers completion from a timer or from a behavior ending. No manual move-back sequence or coordinate calculation is needed.
 
-**Release version:** The lifecycle examples below target `v0.15.1`. HTML uses the pinned CDN browser bundle; React uses the matching package build. For self-hosting, serve the matching `dist/browser/` files together and replace the CDN import with your local `sidekick.js` URL.
+**Release version:** The lifecycle examples below target `v0.16.0`. HTML uses the pinned CDN browser bundle; React uses the matching package build. For self-hosting, serve the matching `dist/browser/` files together and replace the CDN import with your local `sidekick.js` URL.
 
 | HTML JSON / JavaScript property | React prop | Declaration |
 | --- | --- | --- |
@@ -720,7 +743,7 @@ Save this snippet in a page served over HTTP(S); it imports the pinned browser b
   home='{"positioning":{"target":"viewport","placement":"bottom-right","gap":20},"rest":{"behavior":{"type":"idle"},"emotion":"neutral","trackingMode":"eyes-and-body","bodyOrientation":"front"}}'>
 </sidekick-avatar>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#lifecycle-bot');
   let latestId = 0;
   document.querySelector('#lifecycle-save').addEventListener('click', async () => {
@@ -1126,6 +1149,7 @@ Body, face, left/right eyes, shared openness, and each accessory have independen
 | `lookAt({space:'view',x,y})` | Explicit gaze in the -1–1 range |
 | `bodyOrientation`, `setBodyOrientation(patch)` | Read/partially set `BodyOrientation` in degrees; getter returns a copy |
 | `setBodyOrientationPreset(name)` | Front/three-quarter/side preset, preserving zoom |
+| `size` | Read/set nominal footprint. 1–2048 CSS px, 200 when unset; null releases to CSS |
 | `zoom` | Read/set independent zoom, 0.5–3, default 1 |
 | `motion.to(target,options)`, `motion.cancel()` | Transition pose/cancel all pose channels |
 | `seek(seconds)` | Set looping animation time, 0–86400 seconds |
@@ -1133,11 +1157,13 @@ Body, face, left/right eyes, shared openness, and each accessory have independen
 | `snapshot({crop,padding}?)` | Transparent PNG `Promise<Blob>` after render readiness; alpha-bounds cropping by default |
 | `capturePixels()` | Synchronously read the last displayed full canvas; does not wait for the latest worker commands |
 | `capturePixelsAsync()` | `Promise<{width,height,pixels}>` waiting for a fresh frame after the latest commands; bottom-up RGBA |
-| `ready`, `diagnostics` | Readiness, `worker`/`main` backend, generation/command acknowledgments, animation time, frames/draw calls/buffers |
+| `ready`, `diagnostics` | Readiness, `worker`/`main` backend + `webgl2`/`canvas2d` graphics, generation/command acknowledgments, animation time, frames/draw calls/buffers |
 
 ## OffscreenCanvas and rendering
 
-Supported browsers transfer the element's canvas to a dedicated Web Worker through `transferControlToOffscreen()`. Meshes, motion/shape transitions, gaze springs, and WebGL rendering run in the worker. The main thread handles DOM, accessibility, input, size observation, and command delivery. Check `bot.diagnostics.backend` for the actual `worker` or `main` execution path.
+Supported browsers transfer the element's canvas to a dedicated Web Worker through `transferControlToOffscreen()`. Meshes, motion/shape transitions, gaze springs, and WebGL2/Canvas2D rendering run in the worker. The main thread handles DOM, accessibility, input, size observation, and command delivery. Check `bot.diagnostics.backend` for the actual `worker` or `main` execution path.
+
+`bot.diagnostics.backend` identifies execution (`worker`/`main`, or `none` before initialization); `bot.diagnostics.graphics` identifies drawing (`webgl2`/`canvas2d`, or `none` before a snapshot is available). Canvas2D uses the same meshes for all 35 shapes and accessories, eye curves, animation, depth/occlusion, transparent snapshots, and lifecycle controls. Its CPU rasterizer caps the longer backing axis at 384px without changing CSS size or proportions. Silhouette antialiasing differs from WebGL MSAA, and CPU performance is not identical.
 
 For same-origin self-hosting, serve the worker file with a correct JavaScript MIME type. Browser security does not permit a direct cross-origin Worker URL. CSP must allow that worker, for example through `worker-src 'self'`; this same-origin setup needs no Blob worker or special security headers. Cross-origin CDN usage instead uses the Blob module-worker bootstrap described above. Unsupported features, CSP/file-loading failures, or worker initialization failures replace the internal canvas and recover through the main-thread renderer.
 
@@ -1184,15 +1210,15 @@ events.abort(); // 애플리케이션이 붙인 리스너 제거
 bot.remove();   // RAF, 관찰자, 마우스 리스너, WebGL 자원 해제
 ```
 
-On unmount, React cleans up wrapper listeners and the element. Revoke manually created PNG download Object URLs with `URL.revokeObjectURL()` after use. Reconnecting recreates the renderer with the saved design; ongoing transitions are cancelled. WebGL context loss emits an error, and restoration reinitializes the renderer.
+On unmount, React cleans up wrapper listeners and the element. Revoke manually created PNG download Object URLs with `URL.revokeObjectURL()` after use. Reconnecting recreates the renderer with the saved design; ongoing transitions are cancelled. WebGL context loss or initialization failure after acquiring a WebGL context emits a recoverable error and attempts Canvas2D once on a fresh canvas. Recovery retains the last acknowledged pose/time and current configuration; outstanding explicit motion/shape promises are cancelled and their pending timelines are not resumed. If Canvas2D also fails, the readable error remains.
 
 ## SSR and browser support
 
-On the server, create and serialize designs with `/core`. Module imports themselves do not require DOM globals, but actual Custom Element registration, construction, and WebGL rendering must happen in the browser. During SSR the React wrapper creates an empty host with ordinary HTML/aria/style only, then registers and applies props on the client. Do not assume SSR produces configured character pixels or design attributes. The ref becomes available after upgrade; `onReady` follows prop application. Put a `'use client'` boundary on Next.js components using the React wrapper. There is no server PNG-generation API.
+On the server, create and serialize designs with `/core`. Module imports themselves do not require DOM globals, but actual Custom Element registration, construction, and canvas rendering must happen in the browser. During SSR the React wrapper creates an empty host with ordinary HTML/aria/style only, then registers and applies props on the client. Do not assume SSR produces configured character pixels or design attributes. The ref becomes available after upgrade; `onReady` follows prop application. Put a `'use client'` boundary on Next.js components using the React wrapper. There is no server PNG-generation API.
 
 Default tags in server HTML upgrade after browser registration. Keep the same DOM instance and a fixed CSS size to reduce layout shift while loading. When server-rendering HTML directly, initial attributes are strings/JSON, not DOM-property assignments. See [React Custom HTML Elements guidance](https://react.dev/reference/react-dom/components#custom-html-elements).
 
-A modern browser supporting WebGL2 and Custom Elements is required. Graphics initialization failure displays a readable fallback inside the element and emits `sidekick-error`. The element has an image role by default, or a keyboard-activatable button role with `interaction="box"`. Supply an `aria-label` describing its purpose. Offscreen/inactive-tab suspension, reduced motion, resizing, and GPU cleanup on removal are handled.
+A modern browser supporting Custom Elements and Canvas2D is required; WebGL2 is preferred but optional. If neither drawing path initializes, the element displays a readable error and emits `sidekick-error`. The element has an image role by default, or a keyboard-activatable button role with `interaction="box"`. Supply an `aria-label` describing its purpose. Offscreen/inactive-tab suspension, reduced motion, resizing, and GPU cleanup on removal are handled.
 
 ## Studio and development
 
@@ -1283,7 +1309,7 @@ Accessories use internal shape-specific mounting rules. Glasses have a single pl
 
 Curve-to-polyline tolerance is `0.00005` in normalized `[-1,1]` coordinates. Mesh subdivision targets (surface distance `0.010`, midpoint height `0.006`) are sampled criteria, not error guarantees for every point/pixel. With up to eight subdivision passes and 12,000 front-face vertices, small triangle-approximation errors may remain visible. Morph correspondences use Sidekick's algorithm, not guaranteed pixel parity with Android Material `Morph`.
 
-Each element uses one WebGL context and reusable buffers. Default body plus beret uses three draw calls; eyes add none. DPR is capped at 2; if the longer axis exceeds 2048px, both axes are scaled equally. Character proportions remain stable in wide/tall hosts. CPU geometry benchmarks do not guarantee GPU frame times/FPS. Arbitrary SVG, custom meshes, part plugins, cloth physics, pixel hit-testing, context pooling, and AI-service integration are outside scope.
+In WebGL2 mode, each element uses one WebGL context and reusable buffers. Default body plus beret uses three draw calls; eyes add none. DPR is capped at 2; the longer backing axis is capped at 2048px for WebGL2 or 384px for Canvas2D, scaling both axes equally. Character proportions remain stable in wide/tall hosts. CPU geometry benchmarks do not guarantee GPU frame times/FPS. Arbitrary SVG, custom meshes, part plugins, cloth physics, pixel hit-testing, context pooling, and AI-service integration are outside scope.
 
 The repository package license is `UNLICENSED`. This does not grant a public open-source license; confirm usage/distribution rights with the repository owner. Preserve the following third-party notices separately:
 
@@ -1319,7 +1345,7 @@ HTML entry pages include static Open Graph and Twitter card tags with the canoni
 
 ## Rendering and movement standard (v0.3)
 
-The standard is **a character-sized transparent canvas plus DOM-element movement**. No fullscreen WebGL canvas is created. An OffscreenCanvas worker renders the small surface while the main thread moves the element using CSS `translate`. DOM movement does not change WebGL resolution, body-orientation settings, or saved body design. Default flight is composed as a runtime pose inside the small canvas. Screen-size/DPR changes retain the existing ResizeObserver and resolution limits.
+The standard is **a character-sized transparent canvas plus DOM-element movement**. No fullscreen WebGL canvas is created. An OffscreenCanvas worker renders the small surface while the main thread moves the element using CSS `translate`. DOM movement does not change canvas resolution, body-orientation settings, or saved body design. Default flight is composed as a runtime pose inside the small canvas. Screen-size/DPR changes retain the existing ResizeObserver and resolution limits.
 
 Try movement, cancellation, playback, and asset transitions in the [movement/animation API playground](https://sidekick.hananakick.cc/api-playground.html).
 
@@ -1456,7 +1482,7 @@ The API playground enables “Default maximum speed · 1350 CSS px/s” by defau
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { maxSpeed: 320, acceleration: 900, deceleration: 1200 });
@@ -1493,7 +1519,7 @@ This stage absolutely positions a small 144px canvas in `inline` mode; there is 
 <button id="flight-stop" type="button">활동 중단</button>
 <p id="flight-status" aria-live="off">idle</p>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.15.1/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.16.0/dist/browser/sidekick.js';
   const stage = document.getElementById('flight-stage');
   const bot = document.getElementById('flight-avatar');
   const status = document.getElementById('flight-status');
@@ -1642,7 +1668,7 @@ export function Example() {
 - `anchor: false` (default) moves once to the position sampled at call time; subsequent scrolling/layout changes are not followed.
 - `anchor: true` continually maintains the chosen alignment/offset. During initial movement, only that request's destination updates, preserving velocity, acceleration, and Promise. After arrival, the same speed/acceleration/braking settings naturally pursue the target. Sudden target movement never snaps bot coordinates. The first-arrival Promise and completion event occur only once; later pursuit does not repeat them. At rest, errors up to 0.5 CSS px are ignored. Nested scrolling, resizing, layout changes, and CSS/WAAPI transforms are tracked. A continually moving target can delay initial completion. If bot or target leaves layout through `display: none`, tracking suspends without detaching and realigns when visible again.
 - When the bot is completely offscreen and its aligned destination is also offscreen, physics/rendering become idle. If either position or destination intersects the viewport again, pursuit resumes with inertia, without integrating the entire hidden interval. Rendering resumes only when the bot itself intersects the screen. Active anchor checks share one RAF per document; when all connections are idle, polling drops to 250ms. Scroll/resize triggers the next frame; transform-only returns are detected within approximately 250ms. Hidden tabs stop position checks too. Thus fully offscreen GPU frames stop, while a small amount of DOM measurement remains to detect return.
-- Supported environments render WebGL2 in a dedicated worker using transferred OffscreenCanvas. Hidden resizes are coalesced until the next actual render. Unsupported/CSP-limited environments use main-thread WebGL2 fallback. DOM measurement and position updates remain on the DOM-capable main thread.
+- Supported environments render in a dedicated worker using transferred OffscreenCanvas, with WebGL2 when available and Canvas2D otherwise. Hidden resizes are coalesced until the next actual render. Worker-unsupported/CSP-limited environments use the main-thread renderer with the same graphics fallback. DOM measurement and position updates remain on the DOM-capable main thread.
 - Parent DOM and CSS positioning stay unchanged. Absolute/fixed/inline placement remains; only the bot's movement offset updates. `detachAnchor()` detaches; an initial movement already in progress continues to its last target. Pursuit after first arrival brakes to rest from current inertia. Use `cancelMove()` to stop movement too.
 - Other `moveTo / moveBy / moveToElement`, `cancelMove / enter / exit`, or bot disconnection release the old anchor. Target removal, adoption into another document, or unsupported ancestor-transform changes also detach; initial movement continues to the last valid target. Persistent circular anchoring to the bot itself or its descendants is rejected.
 - Active anchors read layout in one document-wide RAF before writing positions. Unchanged positions are not rewritten, but frame-by-frame measurement remains necessary to track transform-only animations observers cannot detect. Hidden documents suspend the loop; the last detachment removes it. Anchor only while needed.

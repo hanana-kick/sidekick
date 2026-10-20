@@ -9,6 +9,7 @@ import { TrackingBodyLayer } from '../core/tracking.js';
 import { cropPixels } from '../core/pixels.js';
 import { automaticBlink } from '../core/expressions.js';
 import { AvatarRenderer } from '../renderer/webgl.js';
+import { RendererInitializationError } from '../renderer/render-backend.js';
 import { presentationSignature } from './presentation.js';
 const IDLE_DRAW_INTERVAL = 1 / 30;
 export function frameScheduler(scope = globalThis) {
@@ -73,7 +74,9 @@ export class RenderEngine {
     contextLost = (event) => {
         event.preventDefault();
         this.stop();
-        this.notify({ kind: 'error', message: 'WebGL context lost' });
+        // Send the latest pose/phase before the owner replaces the locked WebGL canvas.
+        this.notify({ kind: 'frame', snapshot: this.snapshot });
+        this.notify({ kind: 'error', message: 'WebGL context lost', rendererFallback: true });
     };
     renderer;
     constructor(canvas, initial, emit, scheduler = frameScheduler(), renderer) {
@@ -90,7 +93,7 @@ export class RenderEngine {
             this.timeline.pose.gaze = [...initial.gaze];
         this.activityBlend = new ActivityBlend(initial.activity, initial.time, initial.reduced);
         this.shape = new ShapeTimeline(initial.design.body.shape);
-        this.renderer = renderer ?? new AvatarRenderer(canvas);
+        this.renderer = renderer ?? new AvatarRenderer(canvas, { renderer: initial.renderer });
         try {
             canvas.addEventListener('webglcontextlost', this.contextLost);
             this.renderer.resize(initial.width, initial.height, initial.dpr);
@@ -102,11 +105,13 @@ export class RenderEngine {
             // The bridge cannot own this instance until construction succeeds. Release
             // the acquired renderer, listener and any frame before propagating failure.
             this.dispose();
+            if (!renderer && this.renderer.graphics === 'webgl2')
+                throw new RendererInitializationError(error);
             throw error;
         }
     }
     get snapshot() {
-        return { travel: this.state.travel ? structuredClone(this.state.travel) : undefined, renderCpu: { ...this.renderCpu }, pose: structuredClone(this.timeline.pose), time: this.state.time, renderedRotation: [...this.renderedRotation], frames: this.frames, running: this.scheduled !== 0, ...this.renderer.stats, width: this.renderer.canvas.width, height: this.renderer.canvas.height };
+        return { graphics: this.renderer.graphics, travel: this.state.travel ? structuredClone(this.state.travel) : undefined, renderCpu: { ...this.renderCpu }, pose: structuredClone(this.timeline.pose), time: this.state.time, renderedRotation: [...this.renderedRotation], frames: this.frames, running: this.scheduled !== 0, ...this.renderer.stats, width: this.renderer.canvas.width, height: this.renderer.canvas.height };
     }
     notify(event, revision = this.revision) {
         if (this.batchDepth && event.kind === 'frame')

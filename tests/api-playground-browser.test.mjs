@@ -27,6 +27,8 @@ async function pageFor(t, options = {}) {
       bot[method] = (...args) => { window.apiCalls.push({ method, args: structuredClone(args) }); return original(...args); };
     }
   });
+  assert.equal(await page.locator('#bot-tools').isVisible(), false);
+  await page.locator('#bot-tools-launcher').click();
   return page;
 }
 async function reveal(page, id) { await page.locator(`#${id}`).evaluate(element => { for (let parent = element.parentElement; parent; parent = parent.parentElement) if (parent.tagName === 'DETAILS') parent.open = true; }); }
@@ -366,4 +368,46 @@ test('playground eye action visibly overrides an active emotion without resettin
   const closed=await pixels();assert.notDeepEqual(closed,happy,'GPU eye bitmap must change, not only authored pose');
   assert.equal(await page.locator('#action-kind').inputValue(),'expression');assert.equal(await page.locator('#bot').evaluate(bot=>bot.emotion),'happy');
   await select(page,'expression','neutral');await page.locator('#execute').click();const neutral=await pixels();assert.notDeepEqual(neutral,closed);assert.notDeepEqual(neutral,happy);
+});
+
+for (const width of [320, 1280]) test(`preview shell ${width}px: closed panel, keyboard focus, pointer passthrough and preserved draft`, async t => {
+  const page = await pageFor(t, { viewport: { width, height: 800 } });
+  await fill(page, 'target-x', 123);
+  const draft = await page.locator('#invocation').textContent();
+  await page.locator('#bot-tools-close').click();
+  assert.equal(await page.locator('#bot-tools').isVisible(), false);
+  assert.equal(await page.locator('#bot-tools-launcher').getAttribute('aria-expanded'), 'false');
+  assert.equal(await page.locator('#site-preview-frame').count(), 0);
+  assert.equal(await page.locator('#bot-tools-launcher').evaluate(el => el === document.activeElement), true);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
+  await page.locator('#free-space').click();
+  assert.equal((await lastCall(page)).method, 'moveTo');
+  await page.locator('#bot-tools-launcher').focus(); await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#bot-tools-close').evaluate(el => el === document.activeElement), true);
+  assert.equal(await page.locator('#invocation').textContent(), draft);
+  const rect = await page.locator('#bot-tools').boundingBox();
+  assert.ok(rect.x >= 0 && rect.x + rect.width <= width && rect.y >= 0);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#bot-tools').isVisible(), false);
+});
+
+test('iframe previews are explicit, sandboxed and leave a usable local demo after blocked embedding', async t => {
+  const page = await pageFor(t);
+  await page.locator('#bot-tools-close').click();
+  await page.route('https://preview.example/**', route => route.fulfill({
+    status: 200, contentType: 'text/html', headers: { 'Content-Security-Policy': "frame-ancestors 'none'", 'X-Frame-Options': 'DENY' }, body: '<h1>Not embeddable</h1>',
+  }));
+  await page.locator('#preview-url').fill('https://preview.example/private?token=NEVER_ANALYTICS');
+  await page.locator('#preview-form button[type=submit]').click();
+  assert.equal(await page.locator('#site-preview-frame').getAttribute('sandbox'), 'allow-scripts');
+  assert.equal(await page.locator('#site-preview-frame').getAttribute('referrerpolicy'), 'no-referrer');
+  assert.match(await page.locator('#preview-status').textContent(), /요청됨/);
+  assert.equal(await page.locator('#preview-click-layer').isVisible(), false);
+  await page.locator('#preview-capture').check();
+  assert.equal(await page.locator('#preview-click-layer').isVisible(), true);
+  await page.locator('#preview-click-layer').click({ position: { x: 100, y: 100 } });
+  assert.equal((await lastCall(page)).method, 'moveTo');
+  await page.locator('#preview-demo-button').click();
+  assert.equal(await page.locator('#site-preview-frame').count(), 0);
+  assert.equal(await page.locator('#preview-target').isVisible(), true);
 });

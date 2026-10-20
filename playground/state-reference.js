@@ -1,3 +1,4 @@
+import { recordGuideSetting } from './guide-setting-analytics.js';
 import { lifecycleDefaults } from './lifecycle-example.js';
 import './state-reference.css';
 import { getFramework, subscribeFramework } from './site-framework.js';
@@ -14,7 +15,7 @@ export function readStateReferenceContext(url, scene, document) {
   const raw=new URL(url).searchParams.get('state');if(!raw||raw.length>MAX_CONTEXT)return null;
   const data=JSON.parse(raw);if(!data||!STATE_IDS.includes(data.id)||!data.values||typeof data.values!=='object'||Array.isArray(data.values)||Object.keys(data).some(key=>!['id','values'].includes(key)))return null;
   const values={};for(const [key,value]of Object.entries(data.values)){const item=STATE_FIELDS[data.id].find(f=>f.attribute===key);if(!item)return null;values[key]=validateStateValue(item,value,scene,document);}
-  compileReferenceAttributes(scene,values);return {id:data.id,values};
+  compileReferenceAttributes(scene,values,data.id);return {id:data.id,values};
  }catch{return null;}
 }
 export function mountStateReference(host,id,{session}){
@@ -36,6 +37,7 @@ export function mountStateReference(host,id,{session}){
  const frame=make('iframe','',preview);frame.title=copy('preview');frame.src='./state-preview.html';frame.setAttribute('sandbox','allow-scripts allow-same-origin');
  bindText(make('p','',preview),'scope');const status=make('p','state-lab-status',preview);status.setAttribute('role','status');status.textContent=copy('waiting');
  if(id==='state-position'||id==='state-behavior')bindText(make('p'),'targetNote');
+ if(id==='state-behavior')bindText(make('p'),'behaviorBoundsNote');
  if(id==='state-entrance')bindText(make('p'),'entranceNote');
  const details=make('details','state-lab-details');bindText(make('summary','',details),'controls');
  const tableWrap=make('div','state-table-wrap',details);tableWrap.tabIndex=0;const table=make('table','state-reference',tableWrap);bindText(make('caption','',table),'controls');const head=table.createTHead().insertRow();
@@ -57,7 +59,7 @@ export function mountStateReference(host,id,{session}){
   else {tryLink.removeAttribute('href');tryLink.setAttribute('aria-disabled','true');tryLink.title=copy('truncated');}
  }
  function send(restart=false){updateSource();if(!mounted)return;revision++;delete section.dataset.configured;status.setAttribute('role','status');status.textContent=copy('waiting');frame.contentWindow.postMessage({type:'state-reference-config',id,scene,locale:getSiteLocale(),values:edits,framework:getFramework(),revision,restart},location.origin);}
- function set(item,value){try{const valid=validateStateValue(item,value,scene,document);const next={...edits,[item.attribute]:valid};if(item.attribute==='positioning'){delete next['position-x'];delete next['position-y'];for(const key of ['position-x','position-y']){const checkbox=controls.querySelector(`[data-state-enable="${key}"]`),input=controls.querySelector(`[data-state-control="${key}"]`);if(checkbox)checkbox.checked=false;if(input)input.disabled=true;}}else if(['position-x','position-y'].includes(item.attribute)){delete next.positioning;const checkbox=controls.querySelector('[data-state-enable="positioning"]'),input=controls.querySelector('[data-state-control="positioning"]');if(checkbox)checkbox.checked=false;if(input)input.disabled=true;for(const control of controls.querySelectorAll('[data-positioning-control]'))control.disabled=true;}compileReferenceAttributes(scene,next);edits=next;send();return true;}catch(err){error(err.message);return false;}}
+ function set(item,value,changeSource='control'){try{const valid=validateStateValue(item,value,scene,document);const next={...edits,[item.attribute]:valid};if(item.attribute==='positioning'){delete next['position-x'];delete next['position-y'];for(const key of ['position-x','position-y']){const checkbox=controls.querySelector(`[data-state-enable="${key}"]`),input=controls.querySelector(`[data-state-control="${key}"]`);if(checkbox)checkbox.checked=false;if(input)input.disabled=true;}}else if(['position-x','position-y'].includes(item.attribute)){delete next.positioning;const checkbox=controls.querySelector('[data-state-enable="positioning"]'),input=controls.querySelector('[data-state-control="positioning"]');if(checkbox)checkbox.checked=false;if(input)input.disabled=true;for(const control of controls.querySelectorAll('[data-positioning-control]'))control.disabled=true;}compileReferenceAttributes(scene,next,id);edits=next;send();recordGuideSetting(window,id,item.attribute,valid,changeSource);return true;}catch(err){error(err.message);return false;}}
  for(const item of fields){
   const row=make('div','state-field',controls);row.dataset.stateField=item.attribute;
   const label=make('label','state-field-title',row),toggle=make('input','',label);toggle.type='checkbox';toggle.checked=Object.hasOwn(edits,item.attribute);toggle.dataset.stateEnable=item.attribute;toggle.setAttribute('aria-label',copy('enabled')+' '+item.attribute);
@@ -72,7 +74,7 @@ export function mountStateReference(host,id,{session}){
    if(item.attribute==='behavior'){
     const preset=make('select','state-json-preset',row);preset.dataset.behaviorPreset='';preset.setAttribute('aria-label',copy('preset'));
     for(const type of ['wait','follow','guide','review','idle','celebrate','error']){const option=make('option','',preset);option.value=type;option.textContent=type;}
-    preset.addEventListener('change',()=>{const type=preset.value,value=type==='review'?{type,targets:'.reference-item',dwell:1000}:['wait','follow','guide'].includes(type)?{type,target:'#reference-target',side:'right',gap:16}:{type};input.value=JSON.stringify(value,null,2);toggle.checked=true;input.disabled=false;set(item,value);},{signal});
+    preset.addEventListener('change',()=>{const type=preset.value,value=type==='review'?{type,targets:'.reference-item',dwell:1000}:['wait','follow','guide'].includes(type)?{type,target:'#reference-target',side:'right',gap:16}:{type};input.value=JSON.stringify(value,null,2);toggle.checked=true;input.disabled=false;set(item,value,'preset');},{signal});
    }
    input=make('textarea','',row);input.spellcheck=false;
    if(item.attribute==='positioning'){
@@ -106,7 +108,7 @@ export function mountStateReference(host,id,{session}){
   const apply=()=>{if(input.checkValidity&&!input.checkValidity()){input.reportValidity();return;}try{const value=read();if(set(item,value))syncEntrance(value);}catch(err){error(err.message);}};
   if(item.kind==='json'){const applyButton=bindText(make('button','',row),'jsonApply');applyButton.type='button';applyButton.addEventListener('click',()=>{if(toggle.checked)apply();},{signal});bindText(make('small','',row),'help');const schemaDetails=make('details','',row);bindText(make('summary','',schemaDetails),'structure');const definitions=make('dl','state-json-fields',schemaDetails);for(const [name,type]of JSON_FIELDS[item.attribute]??[]){make('dt','',definitions).textContent=name;make('dd','',definitions).textContent=type;}}
   else input.addEventListener('change',apply,{signal});
-  toggle.addEventListener('change',()=>{input.disabled=!toggle.checked;syncSpecialEnabled();if(toggle.checked)apply();else{const next={...edits};delete next[item.attribute];try{compileReferenceAttributes(scene,next);edits=next;send();}catch(err){toggle.checked=true;input.disabled=false;error(err.message);}}},{signal});
+  toggle.addEventListener('change',()=>{input.disabled=!toggle.checked;syncSpecialEnabled();if(toggle.checked)apply();else{const next={...edits};delete next[item.attribute];try{compileReferenceAttributes(scene,next,id);edits=next;send();}catch(err){toggle.checked=true;input.disabled=false;error(err.message);}}},{signal});
   const tr=body.insertRow();make('th','',tr).scope='row';const typeCell=make('td','',tr);typeCell.dataset.stateColumn='type';typeCell.dataset.label=copy('type');typeCell.textContent=fieldType(item);const initialCell=make('td','',tr);initialCell.dataset.stateColumn='initial';initialCell.dataset.label=copy('initial');initialCell.textContent=id==='state-appearance'?copy('inherited'):['behavior','entrance','positioning'].includes(item.attribute)?'null':JSON.stringify(item.initial);const effect=make('td','',tr);effect.dataset.stateColumn='effect';effect.dataset.label=copy('effect');if(semantic){effect.dataset.stateDescription=semantic[3];effect.textContent=translate(semantic[3]);}else effect.textContent=item.legacy?copy('legacy'):'—';
  }
  reset.addEventListener('click',()=>{edits={};for(const item of fields){const input=controls.querySelector(`[data-state-control="${item.attribute}"]`);controls.querySelector(`[data-state-enable="${item.attribute}"]`).checked=false;input.disabled=true;input.value=item.kind==='json'?JSON.stringify(fieldDefault(item,scene),null,2):String(fieldDefault(item,scene));if(item.attribute==='positioning'){const value=fieldDefault(item,scene);for(const key of ['target','placement','gap','follow']){const control=controls.querySelector(`[data-positioning-control="${key}"]`);if(control){control.value=String(value[key]??(key==='follow'?true:''));control.disabled=true;}}}if(item.attribute==='entrance'){const source=controls.querySelector('[data-entrance-control=source]');source.value='null';for(const control of controls.querySelectorAll('[data-entrance-control]:not([data-entrance-control=source])'))control.disabled=true;}}send(true);},{signal});

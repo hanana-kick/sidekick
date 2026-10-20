@@ -296,7 +296,7 @@ test('API playground lifecycle visibility toggle stays in place', { timeout: 600
   const page = await newPage(t, { viewport: { width: 1280, height: 1000 } });
   await page.goto(`${base}/api-playground.html?lang=en&lesson=declarative-lifecycle`);
   await page.waitForFunction(() => !document.querySelector('#execute')?.disabled);
-  await page.locator('#execute').click();
+  await page.locator('#execute').click(); await page.locator('#bot-tools-close').click();
   await page.waitForFunction(() => document.querySelector('#bot')?.lifecycleState.phase === 'resting');
   // Playwright's click scrolls the controls into view. Do that BEFORE measuring
   // home: a viewport companion legitimately follows a home moved by page scroll.

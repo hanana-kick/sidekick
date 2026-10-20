@@ -4,6 +4,7 @@ import './use-cases.css';
 import { readGuideContext, readGuideSource, isScenario, guideHref, navigationText } from './guide-navigation.js';
 import { getSiteLocale, subscribeSiteLocale } from './site-i18n.js';
 import { mountSiteHeader } from './shared-header.js';
+import { setSiteSection } from './site-analytics.js';
 import { scenarioById } from './scenario-catalog.js';
 import { guideTranslations } from './guide-translations.js';
 /** Reuses the actual example component, without a second header, sidebar or recursive CTA. */
@@ -33,5 +34,6 @@ export async function mountGuideExercise() {
  function translate(){const lang=getSiteLocale(),text=navigationText[lang],item=lessonById(context.id)??scenarioById(context.id);heading.textContent=text.exercise;origin.textContent=text.source+': '+(guideTranslations[lang]?.[item.title]??item.title);back.textContent=text.back;back.href=guideHref(readGuideSource(location.href)??context,lang);direct.textContent=text.direct;direct.href=frameworkHref('./api-playground.html?lang='+lang);}
  translate();subscribeSiteLocale(translate);subscribeFramework(translate);
  await import('./use-cases.js');
+ setSiteSection(window, 'api', context.id);
  return true;
 }

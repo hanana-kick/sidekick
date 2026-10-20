@@ -46,7 +46,7 @@ test('API playground lifecycle preset runs application-owned outcomes and emits 
  try{
   await page.goto(`${base}/api-playground.html?lang=en&lesson=declarative-lifecycle`);
   await page.waitForFunction(()=>!document.querySelector('#execute')?.disabled);
-  await page.locator('#execute').click();await page.locator('[data-lifecycle-action="wait"]').click();
+  await page.locator('#execute').click(); await page.locator('#bot-tools-close').click();await page.locator('[data-lifecycle-action="wait"]').click();
   assert.equal(await page.locator('#bot').evaluate(bot=>bot.task.status),'pending');
   assert.match(await page.locator('#invocation').textContent(),/<!doctype html>/i);
   if(process.env.SIDEKICK_SCREENSHOTS){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/lifecycle-api-desktop.png`,fullPage:true});}

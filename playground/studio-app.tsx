@@ -2,6 +2,12 @@ import { seedStudioSession } from './studio-session.js';
 import { getSiteLocale, subscribeSiteLocale, localizedSiteHref } from './site-i18n.js';
 import { studioText, studioLabel, studioFormat, studioShapeLabel, studioAccessoryLabel, studioMessage } from './studio-locales.js';
 import { mountSiteHeader } from './shared-header.js';
+import { recordSiteEvent, setSiteSection, siteAnalyticsConsent, siteAnalyticsConsentVersion } from './site-analytics.js';
+import { recordSettingChange } from './site-setting-analytics.js';
+import { settingValueCategory, eyeSemanticState } from './product-analytics-schema.js';
+import { createBotPreviewTracker } from './bot-preview-analytics.js';
+import { prepareBotUsage } from './site-product-usage.js';
+import { migrateScene } from '../src/core/scene.js';
 import { createElement, memo, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ArrowDownToLine, CircleHelp, Copy, FileJson, FileUp, ImageDown, Move, Pause, Play, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,6 +37,10 @@ import { defaultComposition } from './composition';
 const ASSET_BASE = studioBaseURL(import.meta.env?.BASE_URL ?? '/', import.meta.url);
 const ACTIVITY_LABELS: Record<Activity, string> = { idle: '대기', thinking: '생각 중', listening: '듣는 중', speaking: '말하는 중', celebrating: '축하', still: '정적' };
 const BODY_ORIENTATION_LABELS: Record<BodyOrientationPreset, string> = { front: '정면', 'three-quarter': '사선 45°', side: '측면 90°' };
+function recordStudioSetting(setting_key: string, value: unknown, site_section: string, debounce = false, change_source: 'control' | 'preset' = 'control'): void {
+  const value_category = settingValueCategory(setting_key, value);
+  if (value_category !== null) recordSettingChange(window, { site_page: 'studio', site_section, setting_key, value_category, change_source }, { debounce });
+}
 function download(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob), link = document.createElement('a');
   link.href = url; link.download = filename; document.body.append(link); link.click(); link.remove();
@@ -48,11 +58,11 @@ const AvatarPreview = memo(function AvatarPreview({ controller }: { controller: 
 
 function AppearancePanel({ state, controller, resetKey }: { state: StudioState; controller: StudioController; resetKey: number }) {
   return <FieldGroup>
-    <ShapeCatalog selected={state.design.body.shape} onSelect={controller.selectShape} resetKey={resetKey} />
-    <ColorField id="body-color" label={studioText("몸체 색상")} value={state.design.body.color} onChange={color => controller.patch({ body: { color } })} />
+    <ShapeCatalog selected={state.design.body.shape} onSelect={shape => { controller.selectShape(shape); recordStudioSetting('body_shape', shape, 'appearance'); }} resetKey={resetKey} />
+    <ColorField id="body-color" label={studioText("몸체 색상")} value={state.design.body.color} onChange={color => { controller.patch({ body: { color } }); recordStudioSetting('body_color_family', color, 'appearance', true); }} />
     <Separator />
     <section id="eyes-panel" aria-labelledby="eyes-heading"><h2 id="eyes-heading" className="section-title">{studioText("눈")}</h2><FieldGroup>
-      <ColorField id="eye-color" label={studioText("눈 색상")} value={state.design.eyes.color} onChange={color => controller.patch({ eyes: { color } })} />
+      <ColorField id="eye-color" label={studioText("눈 색상")} value={state.design.eyes.color} onChange={color => { controller.patch({ eyes: { color } }); recordStudioSetting('eye_color_family', color, 'appearance', true); }} />
       <FieldDescription>{studioText("눈의 비율과 간격은 도형에 자연스럽게 맞춰집니다. 표정은 애니메이션 탭에서 조절하세요.")}</FieldDescription>
     </FieldGroup></section>
     <Separator />
@@ -62,10 +72,10 @@ function AppearancePanel({ state, controller, resetKey }: { state: StudioState; 
         const equipped = state.design.accessories.find(item => item.slot === slot);
         return <FieldSet key={slot} className="equipment-slot" data-equipment-slot={slot}>
           <FieldLegend variant="label">{studioLabel(SLOT_NAMES[slot])}<span className="slot-status" id={`${slot}-slot-status`}>{equipped ? studioAccessoryLabel(equipped.preset) : studioText("비어 있음")}</span></FieldLegend>
-          <ToggleGroup type="single" variant="outline" value={equipped?.preset ?? ''} onValueChange={preset => controller.setEquipment(slot, preset as AccessoryPreset | '')} aria-label={studioFormat('{slot} 액세서리', { slot: studioLabel(SLOT_NAMES[slot]) })} className="equipment-choices equipment-palette">
+          <ToggleGroup type="single" variant="outline" value={equipped?.preset ?? ''} onValueChange={preset => { controller.setEquipment(slot, preset as AccessoryPreset | ''); recordStudioSetting(`accessory_${slot === 'leftEar' ? 'left_ear' : slot === 'rightEar' ? 'right_ear' : slot}`, preset || 'none', 'appearance'); }} aria-label={studioFormat('{slot} 액세서리', { slot: studioLabel(SLOT_NAMES[slot]) })} className="equipment-choices equipment-palette">
             {presets.map(preset => <ToggleGroupItem key={preset} value={preset} data-accessory={preset} data-equipment={slot} aria-label={`${studioLabel(SLOT_NAMES[slot])} ${studioAccessoryLabel(preset)}`}><img src={`${ASSET_BASE}accessory-previews/${preset}.png`} alt="" width={72} height={72} loading="lazy" /><span>{studioAccessoryLabel(preset)}</span></ToggleGroupItem>)}
           </ToggleGroup>
-          {equipped && <ColorField id={`accessory-color-${slot}`} label={studioFormat('{slot} {accessory} 색상', { slot: studioLabel(SLOT_NAMES[slot]), accessory: studioAccessoryLabel(equipped.preset) })} value={equipped.color} onChange={color => controller.colorAccessory(equipped.id, color)} />}
+          {equipped && <ColorField id={`accessory-color-${slot}`} label={studioFormat('{slot} {accessory} 색상', { slot: studioLabel(SLOT_NAMES[slot]), accessory: studioAccessoryLabel(equipped.preset) })} value={equipped.color} onChange={color => { controller.colorAccessory(equipped.id, color); recordStudioSetting(`accessory_${slot === 'leftEar' ? 'left_ear' : slot === 'rightEar' ? 'right_ear' : slot}_color_family`, color, 'appearance', true); }} />}
         </FieldSet>;
       })}</FieldGroup>
       <FieldDescription className="equipment-note">{studioText("보타이와 스카프는 목 슬롯을 공유합니다. 왼쪽과 오른쪽 귀걸이는 각각 선택할 수 있습니다.")}</FieldDescription>
@@ -76,12 +86,12 @@ function AppearancePanel({ state, controller, resetKey }: { state: StudioState; 
 function AnimationPanel({ state, controller }: { state: StudioState; controller: StudioController }) {
   return <FieldGroup>
     <section aria-labelledby="activity-heading"><div className="section-heading"><h2 id="activity-heading">{studioText("움직임")}</h2>
-      <Button id="pause" variant="outline" size="sm" aria-pressed={state.paused} onClick={controller.togglePause}>{state.paused ? <Play data-icon="inline-start" /> : <Pause data-icon="inline-start" />}{state.paused ? studioText("재생") : studioText("일시 정지")}</Button></div>
-      <ToggleGroup type="single" variant="outline" value={state.activity} onValueChange={activity => { if (activity) controller.setActivity(activity as Activity); }} aria-label={studioText("봇 상태")} className="activity-options">
+      <Button id="pause" variant="outline" size="sm" aria-pressed={state.paused} onClick={() => { controller.togglePause(); recordStudioSetting('paused', controller.getSnapshot().paused, 'animation'); }}>{state.paused ? <Play data-icon="inline-start" /> : <Pause data-icon="inline-start" />}{state.paused ? studioText("재생") : studioText("일시 정지")}</Button></div>
+      <ToggleGroup type="single" variant="outline" value={state.activity} onValueChange={activity => { if (activity) { controller.setActivity(activity as Activity); recordStudioSetting('activity', activity, 'animation'); } }} aria-label={studioText("봇 상태")} className="activity-options">
         {Object.entries(ACTIVITY_LABELS).map(([activity, label]) => <ToggleGroupItem key={activity} value={activity} data-activity={activity}>{studioLabel(label)}</ToggleGroupItem>)}
       </ToggleGroup>
       <FieldSet className="tracking-control"><FieldLegend variant="label">{studioText("마우스 시선 추적")}</FieldLegend>
-        <ToggleGroup type="single" variant="outline" value={state.trackingMode} onValueChange={mode => { if (mode) controller.setTrackingMode(mode as TrackingMode); }} aria-label={studioText("마우스 시선 추적 모드")} aria-describedby="mouse-tracking-help">
+        <ToggleGroup type="single" variant="outline" value={state.trackingMode} onValueChange={mode => { if (mode) { controller.setTrackingMode(mode as TrackingMode); recordStudioSetting('tracking_mode', mode, 'animation'); } }} aria-label={studioText("마우스 시선 추적 모드")} aria-describedby="mouse-tracking-help">
           <ToggleGroupItem id="tracking-off" value="off">{studioText("꺼짐")}</ToggleGroupItem>
           <ToggleGroupItem id="mouse-tracking" value="eyes">{studioText("눈만")}</ToggleGroupItem>
           <ToggleGroupItem id="tracking-eyes-and-body" value="eyes-and-body">{studioText("눈과 몸")}</ToggleGroupItem>
@@ -92,8 +102,8 @@ function AnimationPanel({ state, controller }: { state: StudioState; controller:
     </section>
     <Separator />
     <FieldSet><FieldLegend>{studioText("도형 전환")}</FieldLegend>
-      <RangeField id="shape-duration" label={studioText("전환 시간")} value={state.duration} min={0} max={1500} step={50} suffix="ms" onChange={controller.setDuration} />
-      <ChoiceField id="shape-easing" label={studioText("전환 느낌")} value={state.easing} onChange={value => controller.setEasing(value as 'smooth' | 'linear')} options={[{ value: 'smooth', label: studioText("부드럽게") }, { value: 'linear', label: studioText("일정하게") }]} />
+      <RangeField id="shape-duration" label={studioText("전환 시간")} value={state.duration} min={0} max={1500} step={50} suffix="ms" onChange={value => { controller.setDuration(value); recordStudioSetting('shape_duration', value, 'animation', true); }} />
+      <ChoiceField id="shape-easing" label={studioText("전환 느낌")} value={state.easing} onChange={value => { controller.setEasing(value as 'smooth' | 'linear'); recordStudioSetting('shape_easing', value, 'animation'); }} options={[{ value: 'smooth', label: studioText("부드럽게") }, { value: 'linear', label: studioText("일정하게") }]} />
       <FieldDescription>{studioText("빠르게 다시 골라도 현재 윤곽에서 이어집니다. 모션 줄이기 설정에서는 즉시 적용합니다.")}</FieldDescription>
     </FieldSet>
     <Separator />
@@ -103,8 +113,8 @@ function AnimationPanel({ state, controller }: { state: StudioState; controller:
         const weights = state.design.eyes[side].weights;
         const preset = weights.smile === 0 && weights.blink === 0 ? 'neutral' : weights.smile === 1 && weights.blink === 0 ? 'smile' : weights.smile === 0 && weights.blink === 1 ? 'blink' : 'custom';
         return <FieldSet key={side} className="eye-controls"><FieldLegend variant="label">{side === 'left' ? studioText("왼쪽 눈") : studioText("오른쪽 눈")}</FieldLegend>
-          <ChoiceField id={`${side}-expression`} label={studioText("가중치 프리셋")} value={preset} onChange={value => controller.setExpression(side, value as EyeExpression)} options={[{ value: 'neutral', label: studioText("기본") }, { value: 'smile', label: studioText("웃음") }, { value: 'blink', label: studioText("감기") }, { value: 'custom', label: studioText("직접 혼합"), disabled: true }]} />
-          {(['smile', 'blink'] as const).map(key => <RangeField key={key} id={`${side}-${key}-weight`} label={studioText(key === 'smile' ? "웃음 가중치" : "감기 가중치")} value={weights[key]} min={0} max={1} step={.01} format={value => `${Math.round(value * 100)}%`} onChange={value => controller.setWeight(side, key, value)} />)}
+          <ChoiceField id={`${side}-expression`} label={studioText("가중치 프리셋")} value={preset} onChange={value => { controller.setExpression(side, value as EyeExpression); recordStudioSetting(`${side}_expression`, value, 'animation'); }} options={[{ value: 'neutral', label: studioText("기본") }, { value: 'smile', label: studioText("웃음") }, { value: 'blink', label: studioText("감기") }, { value: 'custom', label: studioText("직접 혼합"), disabled: true }]} />
+          {(['smile', 'blink'] as const).map(key => <RangeField key={key} id={`${side}-${key}-weight`} label={studioText(key === 'smile' ? "웃음 가중치" : "감기 가중치")} value={weights[key]} min={0} max={1} step={.01} format={value => `${Math.round(value * 100)}%`} onChange={value => { controller.setWeight(side, key, value); recordStudioSetting(`${side}_expression`, eyeSemanticState(controller.getSnapshot().design.eyes[side]), 'animation', true); }} />)}
         </FieldSet>;
       })}</FieldGroup>
     </section>
@@ -113,24 +123,34 @@ function AnimationPanel({ state, controller }: { state: StudioState; controller:
 
 function BodyOrientationPanel({ state, controller }: { state: StudioState; controller: StudioController }) {
   const preset = (Object.keys(BODY_ORIENTATION_PRESETS) as BodyOrientationPreset[]).find(name => (['yaw', 'pitch', 'roll'] as const).every(axis => Math.abs(state.bodyOrientation[axis] - BODY_ORIENTATION_PRESETS[name][axis]) < .0001)) ?? '';
-  return <FieldGroup><div className="section-heading"><h2>{studioText("몸체 방향")}</h2><Button id="reset-body-orientation" variant="ghost" size="sm" onClick={controller.resetBodyOrientation}><RotateCcw data-icon="inline-start" />{studioText("방향 초기화")}</Button></div>
-    <ToggleGroup type="single" variant="outline" value={preset} onValueChange={value => { if (value) controller.setBodyOrientationPreset(value as BodyOrientationPreset); }} aria-label={studioText("몸체 방향 프리셋")} className="body-orientation-presets">
+  return <FieldGroup><div className="section-heading"><h2>{studioText("몸체 방향")}</h2><Button id="reset-body-orientation" variant="ghost" size="sm" onClick={() => { controller.resetBodyOrientation(); recordStudioSetting('body_orientation', 'front', 'orientation', false, 'preset'); }}><RotateCcw data-icon="inline-start" />{studioText("방향 초기화")}</Button></div>
+    <ToggleGroup type="single" variant="outline" value={preset} onValueChange={value => { if (value) { controller.setBodyOrientationPreset(value as BodyOrientationPreset); recordStudioSetting('body_orientation', value, 'orientation', false, 'preset'); } }} aria-label={studioText("몸체 방향 프리셋")} className="body-orientation-presets">
       {(Object.keys(BODY_ORIENTATION_LABELS) as BodyOrientationPreset[]).map(name => <ToggleGroupItem key={name} value={name} data-body-orientation-preset={name}>{studioLabel(BODY_ORIENTATION_LABELS[name])}</ToggleGroupItem>)}
     </ToggleGroup>
-    <RangeField id="body-yaw" label={studioText("좌우 각도 · Yaw")} value={state.bodyOrientation.yaw} min={-360} max={360} suffix="°" onChange={yaw => controller.setBodyOrientation({ yaw })} />
-    <RangeField id="body-pitch" label={studioText("상하 각도 · Pitch")} value={state.bodyOrientation.pitch} min={-90} max={90} suffix="°" onChange={pitch => controller.setBodyOrientation({ pitch })} />
-    <RangeField id="body-roll" label={studioText("몸체 기울기 · Roll")} value={state.bodyOrientation.roll} min={-180} max={180} suffix="°" onChange={roll => controller.setBodyOrientation({ roll })} />
-    <div className="section-heading"><h2>{studioText("확대")}</h2><Button id="reset-zoom" variant="ghost" size="sm" onClick={controller.resetZoom}>{studioText("확대 초기화")}</Button></div>
-    <RangeField id="zoom" label={studioText("확대 · Zoom")} value={state.zoom} min={.5} max={3} step={.01} format={value => `${Math.round(value * 100)}%`} onChange={zoom => controller.setZoom(zoom)} />
+    <RangeField id="body-yaw" label={studioText("좌우 각도 · Yaw")} value={state.bodyOrientation.yaw} min={-360} max={360} suffix="°" onChange={value => { controller.setBodyOrientation({ yaw: value }); recordStudioSetting('body_yaw', value, 'orientation', true); }} />
+    <RangeField id="body-pitch" label={studioText("상하 각도 · Pitch")} value={state.bodyOrientation.pitch} min={-90} max={90} suffix="°" onChange={value => { controller.setBodyOrientation({ pitch: value }); recordStudioSetting('body_pitch', value, 'orientation', true); }} />
+    <RangeField id="body-roll" label={studioText("몸체 기울기 · Roll")} value={state.bodyOrientation.roll} min={-180} max={180} suffix="°" onChange={value => { controller.setBodyOrientation({ roll: value }); recordStudioSetting('body_roll', value, 'orientation', true); }} />
+    <div className="section-heading"><h2>{studioText("확대")}</h2><Button id="reset-zoom" variant="ghost" size="sm" onClick={() => { controller.resetZoom(); recordStudioSetting('zoom', 1, 'orientation', false, 'preset'); }}>{studioText("확대 초기화")}</Button></div>
+    <RangeField id="zoom" label={studioText("확대 · Zoom")} value={state.zoom} min={.5} max={3} step={.01} format={value => `${Math.round(value * 100)}%`} onChange={zoom => { controller.setZoom(zoom); recordStudioSetting('zoom', zoom, 'orientation', true); }} />
     <FieldDescription>{studioText("드래그로 회전하고 휠·트랙패드 또는 두 손가락으로 확대하세요. 확대는 중앙 기준이며 높은 배율에서는 화면 밖이 잘릴 수 있습니다. PNG도 현재 보이는 부분을 저장합니다.")}</FieldDescription>
   </FieldGroup>;
 }
 
 function JSONPanel({ state, controller }: { state: StudioState; controller: StudioController }) {
   const textarea = useRef<HTMLTextAreaElement>(null), fileInput = useRef<HTMLInputElement>(null);
-  const snippets = sceneSnippets(controller.exportScene());
+  const snippetScene = controller.exportScene(), snippets = sceneSnippets(snippetScene);
+  async function importFile(file: File): Promise<void> {
+    const consent = siteAnalyticsConsent(window), version = siteAnalyticsConsentVersion(window);
+    if (await controller.importFile(file) && consent && siteAnalyticsConsentVersion(window) === version) {
+      prepareBotUsage(window, 'bot_apply', controller.getSnapshot().design, { site_page: 'studio', site_section: 'json', apply_kind: 'file' }, controller.getSnapshot())();
+    }
+  }
+  function applyJSON(): void {
+    if (controller.importJSON()) prepareBotUsage(window, 'bot_apply', controller.getSnapshot().design, { site_page: 'studio', site_section: 'json', apply_kind: 'json' }, controller.getSnapshot())();
+  }
   async function copySnippet(kind: 'html' | 'react'): Promise<void> {
-    try { await navigator.clipboard.writeText(snippets[kind]); controller.report(studioFormat('{kind} 코드를 복사했습니다.', { kind: kind === 'html' ? 'HTML' : 'React' })); }
+    const completed = prepareBotUsage(window, 'bot_copy', snippetScene.design, { site_page: 'studio', site_section: 'json', format: kind }, snippetScene);
+    try { await navigator.clipboard.writeText(snippets[kind]); completed(); controller.report(studioFormat('{kind} 코드를 복사했습니다.', { kind: kind === 'html' ? 'HTML' : 'React' })); }
     catch {
       const range = document.createRange(), element = document.getElementById(kind === 'html' ? 'api-example' : 'react-example');
       if (element) { range.selectNodeContents(element); const selection = window.getSelection(); selection?.removeAllRanges(); selection?.addRange(range); }
@@ -138,7 +158,10 @@ function JSONPanel({ state, controller }: { state: StudioState; controller: Stud
     }
   }
   async function copyJSON(): Promise<void> {
-    try { await navigator.clipboard.writeText(state.jsonDraft); controller.report(studioText("JSON을 복사했습니다.")); }
+    // The draft may not be applied, or may be invalid. Never attribute it to the live bot.
+    let copiedDesign: unknown, copiedScene: unknown; try { const scene = migrateScene(state.jsonDraft).scene; copiedDesign = scene.design; copiedScene = scene; } catch { /* Invalid drafts have no bot combination. */ }
+    const completed = prepareBotUsage(window, 'bot_copy', copiedDesign, { site_page: 'studio', site_section: 'json', format: 'json' }, copiedScene);
+    try { await navigator.clipboard.writeText(state.jsonDraft); completed(); controller.report(studioText("JSON을 복사했습니다.")); }
     catch { textarea.current?.select(); controller.report(studioText("선택된 JSON을 직접 복사하세요."), true); }
   }
   return <FieldGroup>
@@ -148,9 +171,9 @@ function JSONPanel({ state, controller }: { state: StudioState; controller: Stud
     <Field data-invalid={!!state.jsonError}><FieldLabel htmlFor="design-json">{studioText("장면 데이터")}</FieldLabel><Textarea ref={textarea} id="design-json" spellCheck={false} value={state.jsonDraft} onChange={event => controller.editJSON(event.target.value)} aria-invalid={!!state.jsonError} aria-describedby="json-error" className="json-editor" /><div id="json-error"><FieldError>{studioMessage(state.jsonError)}</FieldError></div></Field>
     <input ref={fileInput} id="import-scene-file" type="file" accept=".json,application/json" hidden onChange={event => {
       const file = event.target.files?.[0]; event.target.value = '';
-      if (file) void controller.importFile(file);
+      if (file) void importFile(file);
     }} />
-    <div className="code-actions"><Button id="choose-scene-file" variant="outline" onClick={() => fileInput.current?.click()}><FileUp data-icon="inline-start" />{studioText("JSON 파일 열기")}</Button><Button id="import-json" onClick={() => controller.importJSON()}>{studioText("JSON 적용")}</Button><Button id="copy-json" variant="outline" onClick={() => void copyJSON()}><Copy data-icon="inline-start" />{studioText("복사")}</Button>
+    <div className="code-actions"><Button id="choose-scene-file" variant="outline" onClick={() => fileInput.current?.click()}><FileUp data-icon="inline-start" />{studioText("JSON 파일 열기")}</Button><Button id="import-json" onClick={applyJSON}>{studioText("JSON 적용")}</Button><Button id="copy-json" variant="outline" onClick={() => void copyJSON()}><Copy data-icon="inline-start" />{studioText("복사")}</Button>
       {state.recovery && <Button id="export-recovery-json" variant="outline" onClick={() => { download(new Blob([state.recovery!.raw], { type: 'application/json' }), 'sidekick.saved-original.design.json'); controller.report(studioText("저장 원본 JSON을 내보냈습니다.")); }}><ArrowDownToLine data-icon="inline-start" />{studioText("저장 원본")}</Button>}
     </div>
     <Separator />
@@ -175,13 +198,26 @@ export function StudioApp({ controller }: { controller: StudioController }) {
   const settingsScroll = useRef<HTMLDivElement>(null);
   const [composition, setComposition] = useState(defaultComposition), [sceneMode, setSceneMode] = useState(false), [sceneRefresh, setSceneRefresh] = useState(0);
   const compositionCanvas = useRef<HTMLCanvasElement>(null);
+  const section = tab === 'bodyOrientation' ? 'orientation' : tab;
+  const analyticsSection = useRef(section); analyticsSection.current = section;
+  useLayoutEffect(() => { setSiteSection(window, 'studio', section); }, [section]);
+  useLayoutEffect(() => {
+    const tracker = createBotPreviewTracker({
+      hasConsent: () => siteAnalyticsConsent(window), consentVersion: () => siteAnalyticsConsentVersion(window),
+      record: (name, properties) => recordSiteEvent(window, name, properties),
+    }, controller.getSnapshot().design);
+    const unsubscribe = controller.subscribe(() => tracker.observe(controller.getSnapshot().design, analyticsSection.current));
+    return () => { unsubscribe(); tracker.dispose(); };
+  }, [controller]);
   function changeTab(value: string): void { setTab(value); if (value === 'scene') setSceneMode(true); if (settingsScroll.current) settingsScroll.current.scrollTop = 0; }
-  function reset(): void { controller.reset(); setResetKey(key => key + 1); }
-  async function exportPNG(): Promise<void> { try { download(await controller.snapshot(), 'sidekick.png'); controller.report(studioText("투명 PNG를 내보냈습니다.")); } catch (error) { controller.report(String(error), true); } }
+  function reset(): void { controller.reset(); setResetKey(key => key + 1); prepareBotUsage(window, 'preset_apply', controller.getSnapshot().design, { site_page: 'studio', site_section: section, preset: 'default' }, controller.getSnapshot())(); }
+  async function exportPNG(): Promise<void> {
+    const completed = prepareBotUsage(window, 'bot_export', controller.getSnapshot().design, { site_page: 'studio', site_section: section, format: 'png' }, controller.getSnapshot());
+    try { download(await controller.snapshot(), 'sidekick.png'); completed(); controller.report(studioText("투명 PNG를 내보냈습니다.")); } catch (error) { controller.report(String(error), true); } }
   return <div className="studio-shell">
     <header className="app-header"><SiteHeaderBrand /></header>
     <div className="studio-toolbar" aria-label={studioText("Studio 파일 작업")}>
-      <div className="header-actions"><Button id="reset" variant="ghost" onClick={reset} aria-label={studioText("디자인 초기화")}><RotateCcw data-icon="inline-start" /><span className="action-label">{studioText("초기화")}</span></Button><Button id="export-png" variant="outline" onClick={() => void exportPNG()} aria-label={studioText("PNG 저장")}><ImageDown data-icon="inline-start" /><span className="action-label">{studioText("PNG 저장")}</span></Button><Button id="export-json" onClick={() => { download(new Blob([controller.exportJSON()], { type: 'application/json' }), 'sidekick.scene.json'); controller.report(studioText("장면 JSON을 내보냈습니다.")); }}><FileJson data-icon="inline-start" /><span>{studioText("JSON 내보내기")}</span></Button></div>
+      <div className="header-actions"><Button id="reset" variant="ghost" onClick={reset} aria-label={studioText("디자인 초기화")}><RotateCcw data-icon="inline-start" /><span className="action-label">{studioText("초기화")}</span></Button><Button id="export-png" variant="outline" onClick={() => void exportPNG()} aria-label={studioText("PNG 저장")}><ImageDown data-icon="inline-start" /><span className="action-label">{studioText("PNG 저장")}</span></Button><Button id="export-json" onClick={() => { download(new Blob([controller.exportJSON()], { type: 'application/json' }), 'sidekick.scene.json'); prepareBotUsage(window, 'bot_export', controller.getSnapshot().design, { site_page: 'studio', site_section: section, format: 'json' }, controller.getSnapshot())(); controller.report(studioText("장면 JSON을 내보냈습니다.")); }}><FileJson data-icon="inline-start" /><span>{studioText("JSON 내보내기")}</span></Button></div>
     </div>
     <main className="workspace">
       <section className="stage" aria-label={studioText("고정 캐릭터 미리보기")}>

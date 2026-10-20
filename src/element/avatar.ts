@@ -32,6 +32,7 @@ import type { MaterialShapeName } from '../core/shapes.js';
 import type { EyeExpression, EyeShapeWeights } from '../core/expressions.js';
 import { expressionDuration, eyeExpressionWeights, patchEyeState } from '../core/expressions.js';
 import { bodyOrientationPreset, createBodyOrientation, patchBodyOrientation } from '../core/body-orientation.js';
+import { SIZE_RANGE, validateSize } from '../core/size.js';
 import { createZoom, pinchZoom, wheelZoom } from '../core/zoom.js';
 import type { BodyOrientation, BodyOrientationPreset } from '../core/body-orientation.js';
 import type { MotionOptions, MotionResult, MotionTarget, Pose } from '../core/motion.js';
@@ -631,12 +632,13 @@ export class SidekickAvatar extends HTMLElementBase {
     this.style.setProperty('--sidekick-inset', this.placementState === 'viewport' ? '0px' : 'auto');
     this.measureMovementBox(); if (this.presenceController?.bypassBounds) this.presenceController.resize(); else this.movement.resize();
   }
-  private onViewportResize = (): void => { this.measureMovementBox(); if (this.presenceController?.bypassBounds) this.presenceController.resize(); else this.movement.resize(); };
+  private onViewportResize = (): void => { this.resize(); };
   private configuration = createDesign();
   // This zero-duration reducer validates commands synchronously. It never runs animation.
   private validator = new MotionTimeline({ left: this.configuration.eyes.left, right: this.configuration.eyes.right });
   private currentPose = structuredClone(this.validator.pose);
   private bridge?: RenderBridge;
+  private rendererPreference: 'auto' | 'canvas2d' = 'auto';
   private generation = 0;
   private acknowledgedRevision = 0;
   private poseRevision = 0;
@@ -662,6 +664,14 @@ export class SidekickAvatar extends HTMLElementBase {
   private canvas?: HTMLCanvasElement;
   private fallback?: HTMLSpanElement;
   private sizeObserver?: ResizeObserver;
+  private dprMedia?: MediaQueryList;
+  private onDprChange = (): void => { if (this.connected) { this.watchDpr(); this.resize(); } };
+  private watchDpr(): void {
+    this.dprMedia?.removeEventListener('change', this.onDprChange);
+    const view = this.ownerDocument.defaultView;
+    this.dprMedia = view?.matchMedia?.(`(resolution: ${view.devicePixelRatio || 1}dppx)`);
+    this.dprMedia?.addEventListener('change', this.onDprChange);
+  }
   private visibilityObserver?: IntersectionObserver;
   private media?: MediaQueryList;
   private visible = true;
@@ -814,8 +824,8 @@ export class SidekickAvatar extends HTMLElementBase {
   get ready(): boolean { return this.readyState; }
   /** Last acknowledged worker pose; configuration and body orientation getters are immediate. */
   get pose(): Pose { return structuredClone(this.currentPose); }
-  get diagnostics(): { travel?: TravelPresentation; ready: boolean; running: boolean; frames: number; drawCalls: number; buffers: number; backend: 'worker' | 'main' | 'none'; generation: number; revision: number; acknowledgedRevision: number; time: number; renderCpu: { lastMs: number; totalMs: number; maxMs: number }; renderedRotation: Pose['rotation'] } {
-    return { travel: this.snapshotState?.travel ? structuredClone(this.snapshotState.travel) : undefined, ready: this.ready, running: this.ready && (this.snapshotState?.running ?? false), frames: this.snapshotState?.frames ?? 0, drawCalls: this.snapshotState?.drawCalls ?? 0, buffers: this.ready ? this.snapshotState?.buffers ?? 0 : 0, backend: this.bridge?.backend ?? 'none', generation: this.generation, revision: this.bridge?.revision ?? 0, acknowledgedRevision: this.acknowledgedRevision, time: this.snapshotState?.time ?? this.elapsed, renderCpu: { ...(this.snapshotState?.renderCpu ?? { lastMs: 0, totalMs: 0, maxMs: 0 }) }, renderedRotation: [...(this.snapshotState?.renderedRotation ?? [0, 0, 0])] };
+  get diagnostics(): { graphics: 'webgl2' | 'canvas2d' | 'none'; travel?: TravelPresentation; ready: boolean; running: boolean; frames: number; drawCalls: number; buffers: number; backend: 'worker' | 'main' | 'none'; generation: number; revision: number; acknowledgedRevision: number; time: number; renderCpu: { lastMs: number; totalMs: number; maxMs: number }; renderedRotation: Pose['rotation'] } {
+    return { graphics: this.snapshotState?.graphics ?? 'none', travel: this.snapshotState?.travel ? structuredClone(this.snapshotState.travel) : undefined, ready: this.ready, running: this.ready && (this.snapshotState?.running ?? false), frames: this.snapshotState?.frames ?? 0, drawCalls: this.snapshotState?.drawCalls ?? 0, buffers: this.ready ? this.snapshotState?.buffers ?? 0 : 0, backend: this.bridge?.backend ?? 'none', generation: this.generation, revision: this.bridge?.revision ?? 0, acknowledgedRevision: this.acknowledgedRevision, time: this.snapshotState?.time ?? this.elapsed, renderCpu: { ...(this.snapshotState?.renderCpu ?? { lastMs: 0, totalMs: 0, maxMs: 0 }) }, renderedRotation: [...(this.snapshotState?.renderedRotation ?? [0, 0, 0])] };
   }
   /** Body-facing angles in degrees. Reads return an independent snapshot. */
   get bodyOrientation(): BodyOrientation { return { ...this.orientationState }; }
@@ -831,6 +841,28 @@ export class SidekickAvatar extends HTMLElementBase {
   }
   setBodyOrientationPreset(preset: BodyOrientationPreset): void { this.setBodyOrientation(bodyOrientationPreset(preset)); }
   resetBodyOrientation(): void { this.clearDrag(); this.setBodyOrientation(createBodyOrientation()); }
+  private explicitSize: number | null = null;
+  private sizeStyle?: HTMLStyleElement;
+  /** Nominal square footprint in CSS pixels; null releases sizing to consumer CSS. */
+  get size(): number { return this.explicitSize ?? SIZE_RANGE.default; }
+  set size(value: number | null) {
+    if (value !== null) validateSize(value);
+    this.reflectAttribute('size', value === null ? null : String(value));
+  }
+  private applySize(): void {
+    if (!this.shadowRoot) return;
+    if (!this.sizeStyle) {
+      this.sizeStyle = this.ownerDocument.createElement('style');
+      this.shadowRoot.append(this.sizeStyle);
+    }
+    // Scoped important host rules own dimensions without touching consumer inline
+    // styles. Removing size reveals even CSS changes made while size was active.
+    const px = `${this.explicitSize}px`;
+    const rule = this.explicitSize === null ? '' : `:host{width:${px}!important;height:${px}!important;min-width:${px}!important;max-width:${px}!important;min-height:${px}!important;max-height:${px}!important;box-sizing:border-box!important;flex-shrink:0!important}`;
+    if (this.sizeStyle.textContent === rule) return;
+    this.sizeStyle.textContent = rule;
+    if (this.connected) this.resize();
+  }
   get zoom(): number { return this.zoomState; }
   set zoom(value: number) {
     if (typeof value !== 'number') throw new TypeError('zoom must be a number between 0.5 and 3');
@@ -898,9 +930,11 @@ export class SidekickAvatar extends HTMLElementBase {
       this.canvas = shadow.querySelector('canvas')!;
       this.fallback = shadow.querySelector('span')!;
     }
+    this.applySize();
     if (this.transferred) this.replaceCanvas();
     this.updateInteraction(); this.updatePlacement();
     this.ownerDocument.defaultView?.addEventListener('resize', this.onViewportResize);
+    this.watchDpr();
     if (!this.hasAttribute('aria-label')) this.setAttribute('aria-label', 'Sidekick 아바타');
     this.media = matchMedia('(prefers-reduced-motion: reduce)'); this.reduced = this.media.matches;
     this.media.addEventListener('change', this.onMotionPreference);
@@ -924,6 +958,7 @@ export class SidekickAvatar extends HTMLElementBase {
     this.connected = false; this.releaseAnchor(false);
     this.entranceRevision++; this.clearEntrance(); this.entranceApplied = false; this.presenceController.cancel(); this.playback.disconnect(); this.movement.disconnect();
     this.ownerDocument.defaultView?.removeEventListener('resize', this.onViewportResize);
+    this.dprMedia?.removeEventListener('change', this.onDprChange); this.dprMedia = undefined;
     this.connected = false; this.readyState = false; this.cancelInput(); this.detachMouseTracking(); this.clearDrag();
     this.disposeBridge(new Error('Avatar disconnected')); this.resetEyes(); this.snapshotState = undefined;
     this.sizeObserver?.disconnect(); this.visibilityObserver?.disconnect(); this.sizeObserver = undefined; this.visibilityObserver = undefined;
@@ -1030,6 +1065,7 @@ export class SidekickAvatar extends HTMLElementBase {
         for (const axis of ['yaw', 'pitch', 'roll'] as const) if (touched(`body-${axis}`)) orientation[axis] = resolved.bodyOrientation[axis];
         if (Object.keys(orientation).length) this.setBodyOrientation(orientation);
       }
+      if (touched('size')) { this.explicitSize = resolved.size; this.applySize(); }
       if (touched('zoom')) this.zoom = resolved.zoom;
       if (touched('gaze-x', 'gaze-y')) this.lookAt({ space: 'view', x: touched('gaze-x') ? resolved.gaze[0] : this.manualGaze[0], y: touched('gaze-y') ? resolved.gaze[1] : this.manualGaze[1] });
       if (touched('mouse-tracking', 'tracking-mode')) { this.trackingModeState = resolved.trackingMode; this.updateTrackingBody(); this.updateMouseTracking(); }
@@ -1054,7 +1090,7 @@ export class SidekickAvatar extends HTMLElementBase {
   private upgradeProperties(): void {
     if (this.propertiesUpgraded) return;
     this.propertiesUpgraded = true;
-    for (const name of ['presence', 'task', 'home', 'positioning', 'entrance', 'behavior', 'placement', 'movementBounds', 'design', 'emotion', 'emotionIntensity', 'bodyOrientation', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode'] as const) {
+    for (const name of ['presence', 'task', 'home', 'positioning', 'entrance', 'behavior', 'placement', 'movementBounds', 'design', 'emotion', 'emotionIntensity', 'bodyOrientation', 'size', 'zoom', 'renderStyle', 'paused', 'interaction', 'mouseTracking', 'trackingMode'] as const) {
       if (!Object.prototype.hasOwnProperty.call(this, name)) continue;
       const value: unknown = this[name];
       Reflect.deleteProperty(this, name);
@@ -1081,11 +1117,11 @@ export class SidekickAvatar extends HTMLElementBase {
         else if (event.kind === 'pixels') this.resolveRequest(event.request, event.image);
         else if (event.kind === 'snapshot') this.resolveRequest(event.request, event.blob);
         else if (event.kind === 'request-error') { const pending = this.requests.get(event.request); this.requests.delete(event.request); pending?.reject(new Error(event.message)); }
-        else if (event.kind === 'error') this.runtimeFailure(new Error(event.message), generation);
+        else if (event.kind === 'error') this.runtimeFailure(new Error(event.message), generation, undefined, event.rendererFallback);
       },
-      failed: (error: Error): void => this.runtimeFailure(error, generation),
+      failed: (error: Error, rendererFallback = false): void => this.runtimeFailure(error, generation, undefined, rendererFallback),
     };
-    const attemptWorker = !forceMain && supportsRenderWorker(this.canvas);
+    const attemptWorker = !forceMain && this.rendererPreference !== 'canvas2d' && supportsRenderWorker(this.canvas);
     try {
       this.bridge = attemptWorker ? new WorkerRenderBridge(this.canvas, generation, callbacks) : new LocalRenderBridge(this.canvas, generation, callbacks);
       this.bridge.start(this.runtimeState()); this.transferred ||= this.bridge?.transferred ?? false;
@@ -1149,13 +1185,20 @@ export class SidekickAvatar extends HTMLElementBase {
       reveal();
     }).catch(() => { /* Disconnect/fallback owns cancellation and error reporting. */ });
   }
-  private runtimeFailure(error: Error, generation: number, wasWorker = this.bridge?.backend === 'worker'): void {
+  private runtimeFailure(error: Error, generation: number, wasWorker = this.bridge?.backend === 'worker', rendererFallback = false): void {
     if (!this.connected || generation !== this.generation) return;
-    this.readyState = false; this.cancelInput(); this.detachMouseTracking(); this.clearDrag(); this.disposeBridge(error); this.resetEyes();
-    this.emit('sidekick-error', { message: error.message, recoverable: wasWorker });
+    this.readyState = false; this.cancelInput(); this.detachMouseTracking(); this.clearDrag(); this.disposeBridge(error);
+    // Graphics recovery retains the most recently acknowledged presentation pose.
+    // Pending motion promises are cancelled, but resetting eye weights here would flash.
+    if (!rendererFallback) this.resetEyes();
+    const retryCanvas = rendererFallback && this.rendererPreference !== 'canvas2d';
+    this.emit('sidekick-error', { message: error.message, recoverable: wasWorker || retryCanvas });
     // An error listener may synchronously disconnect or reconnect this element.
     if (!this.connected || generation !== this.generation) return;
-    if (wasWorker) { this.replaceCanvas(); this.attachCanvasListeners(); this.initializeRenderer(true); }
+    if (wasWorker || retryCanvas) {
+      if (retryCanvas) this.rendererPreference = 'canvas2d';
+      this.replaceCanvas(); this.attachCanvasListeners(); this.initializeRenderer(true);
+    }
     else { this.canvas!.hidden = true; this.fallback!.hidden = false; this.fallback!.textContent = error.message; }
   }
   private acceptSnapshot(snapshot: RuntimeSnapshot, revision: number): void {
@@ -1191,7 +1234,7 @@ export class SidekickAvatar extends HTMLElementBase {
   }
   private runtimeState(): RuntimeState {
     const rect = this.getBoundingClientRect();
-    return { emotionEyeOverrides: { ...this.emotionEyeOverrides }, emotion: { emotion: this.emotionState.emotion, intensity: this.emotionState.intensity }, attention: this.behaviorAttention, travel: this.travelPresentation, design: this.design, bodyOrientation: this.bodyOrientation, zoom: this.zoom, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
+    return { renderer: this.rendererPreference, emotionEyeOverrides: { ...this.emotionEyeOverrides }, emotion: { emotion: this.emotionState.emotion, intensity: this.emotionState.intensity }, attention: this.behaviorAttention, travel: this.travelPresentation, design: this.design, bodyOrientation: this.bodyOrientation, zoom: this.zoom, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
   }
   private syncState(): void {
     this.send({ kind: 'state', state: { attention: this.behaviorAttention, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze } });

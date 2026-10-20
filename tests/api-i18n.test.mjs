@@ -1,3 +1,7 @@
+import { mountAPIPreview } from '../playground/api-preview.js';
+import { recordSettingChange, cancelSettingChange } from '../playground/site-setting-analytics.js';
+import { recordSiteEvent, setSiteSection, siteAnalyticsConsent, siteAnalyticsConsentVersion } from '../playground/site-analytics.js';
+import { botCombination, settingValueCategory } from '../playground/product-analytics-schema.js';
 import { installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels } from '../playground/lifecycle-example.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -58,7 +62,7 @@ async function fixture(t, initialLocale = 'ko') {
   t.after(() => dom.window.close());
   const w = dom.window, $ = id => w.document.getElementById(id);
   const changeLocale = value => { locale = value; for (const callback of listeners) callback(); };
-  Object.assign(w, { mountGuideExercise:async()=>false,
+  Object.assign(w, { mountAPIPreview, recordSettingChange, cancelSettingChange, settingValueCategory, recordSiteEvent, setSiteSection, siteAnalyticsConsent, siteAnalyticsConsentVersion, botCombination, mountGuideExercise:async()=>false,
     installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels, structuredClone, getFramework:()=>framework, subscribeFramework:fn=>{frameworkListeners.add(fn);return()=>frameworkListeners.delete(fn);}, navigationText, guideHref, readGuideSource, codeForAction, executeAction, apiError, apiText,
     getSiteLocale: () => locale, subscribeSiteLocale: callback => { listeners.add(callback); return () => listeners.delete(callback); },
     applyApiLocale: root => applyApiLocale(root, locale),
@@ -74,7 +78,7 @@ async function fixture(t, initialLocale = 'ko') {
   }
   for (const method of ['moveBy', 'setExpression', 'setActivity', 'play', 'stop', 'setBodyOrientation', 'transitionTo', 'cancelMove', 'cancelTransition', 'enter', 'exit', 'detachAnchor', 'moveToElement']) Avatar.prototype[method] = function (...args) { this.calls.push({ method, args }); return Promise.resolve({ finished: true }); };
   w.customElements.define('sidekick-avatar', Avatar); w.eval(source); await new Promise(resolve => setImmediate(resolve));
-  const bot = $('bot'); bot.calls.length = 0;
+  const bot = $('bot'); bot.calls.length = 0; $('bot-tools-launcher').click();
   const input = (id, value) => { $(id).value = String(value); $(id).dispatchEvent(new w.Event('input', { bubbles: true })); };
   return { w, $, bot, input, changeLocale, preference, changeFramework:value=>{framework=value;for(const fn of frameworkListeners)fn();} };
 }

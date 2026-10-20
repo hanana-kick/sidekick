@@ -92,5 +92,35 @@ test('lifecycle reference validates public JSON and preserves matching typed Rea
  const props=referenceReactProps(attributes);for(const key of ['presence','task','home'])assert.deepEqual(props[key],valid[key]);
  const html=referenceSource(scene,valid,'element','state-lifecycle'),dom=new JSDOM(html);
  for(const key of ['presence','task','home'])assert.deepEqual(JSON.parse(dom.window.document.querySelector('sidekick-avatar').getAttribute(key)),valid[key]);
- assert.match(html,/sidekick@v0\.15\.1/);dom.window.close();
+ assert.match(html,/sidekick@v0\.16\.0/);dom.window.close();
+});
+
+test('behavior demo bounds are explicit, scoped and identical in copied framework source',()=>{
+ const declaration={type:'review',targets:'.reference-item',side:'below',gap:10000};
+ for(const behavior of [undefined,null,declaration]){
+  const edits=behavior===undefined?{}:{behavior};
+  const attrs=compileReferenceAttributes(scene,edits,'state-behavior');
+  assert.equal(attrs.placement,'viewport');assert.equal(attrs['movement-bounds'],'viewport');
+  assert.deepEqual(attrs.behavior,behavior);
+  for(const framework of ['element','react']){
+   const source=referenceSource(scene,edits,framework,'state-behavior');
+   assert.match(source,/#reference-bot\{width:min\(72px,18vw\);height:min\(72px,18vw\);margin:0\}/);
+   assert.doesNotMatch(source,/overflow:hidden/,'clamping, not clipping, keeps the bot visible');
+   if(framework==='react')assert.deepEqual(JSON.parse(source.split('const avatarProps = ')[1].split(';\n\nexport')[0]),referenceReactProps(attrs));
+   else {const dom=new JSDOM(source),bot=dom.window.document.querySelector('sidekick-avatar');assert.equal(bot.getAttribute('placement'),'viewport');assert.equal(bot.getAttribute('movement-bounds'),'viewport');dom.window.close();}
+  }
+ }
+ assert.equal(compileReferenceAttributes(scene,{behavior:declaration}).placement,undefined,'no global change to API or other examples');
+ const override=compileReferenceAttributes(scene,{behavior:declaration,placement:'inline','movement-bounds':'none'},'state-behavior');
+ assert.equal(override.placement,'inline');assert.equal(override['movement-bounds'],'none');
+});
+
+test('Guide size control emits the same first-class HTML and React declaration', () => {
+ const field = FIELD_BY_KEY.get('size');
+ assert.equal(field.prop, 'size'); assert.equal(field.min, 1); assert.equal(field.max, 2048); assert.equal(field.initial, 200);
+ assert.equal(validateStateValue(field, 120.5, scene), 120.5);
+ for (const value of [0, Infinity, 2049]) assert.throws(() => validateStateValue(field, value, scene));
+ assert.match(referenceSource(scene, { size: 120.5 }, 'element', 'state-facing'), /size="120.5"/);
+ assert.match(referenceSource(scene, { size: 120.5 }, 'react', 'state-facing'), /"size": 120.5/);
+ assert.equal(compileReferenceAttributes(scene, {}).size, undefined, 'legacy examples do not silently acquire size ownership');
 });

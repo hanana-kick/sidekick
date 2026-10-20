@@ -301,3 +301,22 @@ test('declarative positioning native and React public types compile', () => {
  export default function Example() { return <SidekickAvatar placement="viewport" positioning={positioning} />; }
  `, 'positioning-react', 'tsx');
 });
+
+test('explicit companion size has numeric native/React types and a numeric HTML attribute', () => {
+ typecheckExample(`import { SIZE_RANGE, validateSize } from '../src/core.js';
+ import type { SidekickAvatar, SidekickAttributes } from '../src/index.js';
+ declare const bot: SidekickAvatar;
+ const attrs: SidekickAttributes = { size: '120' };
+ bot.size = 120;
+ const current: number = bot.size;
+ bot.size = null;
+ // @ts-expect-error JavaScript property is numeric, not a CSS string
+ bot.size = '120px';
+ void [attrs, current, SIZE_RANGE, validateSize(120)];
+ `, 'size-native', 'ts');
+ typecheckExample(`import { SidekickAvatar } from '../src/react.js';
+ export const valid = <SidekickAvatar size={120} zoom={1.5} />;
+ // @ts-expect-error React size is numeric, not a CSS string
+ export const invalid = <SidekickAvatar size="120px" />;
+ `, 'size-react', 'tsx');
+});

@@ -21,7 +21,7 @@ function apply(message){
  const scene=parseScene(message.scene), edits={};
  if(!message.values||typeof message.values!=='object'||Array.isArray(message.values))throw new TypeError('Invalid fields');
  for(const [key,value] of Object.entries(message.values)){const field=FIELD_BY_KEY.get(key);if(!field)throw new TypeError('Unknown field');edits[key]=validateStateValue(field,value,scene,document);}
- const attributes=compileReferenceAttributes(scene,edits),nextMode=message.framework==='react'?'react':'element';
+ const attributes=compileReferenceAttributes(scene,edits,message.id),nextMode=message.framework==='react'?'react':'element';
  intendedPaused=attributes.paused===true;
  if(framework!==nextMode||message.restart||Object.keys(last).some(key=>!Object.hasOwn(attributes,key))){remove();framework=nextMode;}
  const token=++generation;

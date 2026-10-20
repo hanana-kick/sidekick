@@ -1,0 +1,310 @@
+{
+  "node": "v24.19.0",
+  "platform": "linux",
+  "cpu": "AMD EPYC 9V74 80-Core Processor",
+  "framesPerRound": 360,
+  "warmupPerRound": 120,
+  "rounds": 3,
+  "shape": "puffy",
+  "activity": "speaking",
+  "excludesDriverGPUAndBrowser": true,
+  "measurements": [
+    {
+      "round": 0,
+      "implementation": "current",
+      "preset": "none",
+      "wallMs": 0.07021449722222207,
+      "processCpuMs": 0.09145277777777779,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 0,
+      "implementation": "reference",
+      "preset": "none",
+      "wallMs": 0.043888236111111055,
+      "processCpuMs": 0.06835555555555556,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 0,
+      "implementation": "current",
+      "preset": "beret",
+      "wallMs": 0.04785441944444434,
+      "processCpuMs": 0.0686888888888889,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 0,
+      "implementation": "reference",
+      "preset": "beret",
+      "wallMs": 0.16853730555555538,
+      "processCpuMs": 0.21100833333333333,
+      "uploadedBytesPerFrame": 49200
+    },
+    {
+      "round": 0,
+      "implementation": "current",
+      "preset": "glasses",
+      "wallMs": 1.6085620555555553,
+      "processCpuMs": 1.6542722222222221,
+      "uploadedBytesPerFrame": 33480
+    },
+    {
+      "round": 0,
+      "implementation": "reference",
+      "preset": "glasses",
+      "wallMs": 1.8691305611111109,
+      "processCpuMs": 1.9924444444444445,
+      "uploadedBytesPerFrame": 33480
+    },
+    {
+      "round": 0,
+      "implementation": "current",
+      "preset": "scarf",
+      "wallMs": 2.2365181499999998,
+      "processCpuMs": 2.567225,
+      "uploadedBytesPerFrame": 14160
+    },
+    {
+      "round": 0,
+      "implementation": "reference",
+      "preset": "scarf",
+      "wallMs": 2.357350763888889,
+      "processCpuMs": 2.667025,
+      "uploadedBytesPerFrame": 14160
+    },
+    {
+      "round": 0,
+      "implementation": "current",
+      "preset": "earring",
+      "wallMs": 0.49753466388888984,
+      "processCpuMs": 0.5872694444444444,
+      "uploadedBytesPerFrame": 8688
+    },
+    {
+      "round": 0,
+      "implementation": "reference",
+      "preset": "earring",
+      "wallMs": 0.5007232722222221,
+      "processCpuMs": 0.5404583333333334,
+      "uploadedBytesPerFrame": 8688
+    },
+    {
+      "round": 0,
+      "implementation": "current",
+      "preset": "all",
+      "wallMs": 4.703912647222223,
+      "processCpuMs": 5.089252777777778,
+      "uploadedBytesPerFrame": 58632
+    },
+    {
+      "round": 0,
+      "implementation": "reference",
+      "preset": "all",
+      "wallMs": 4.598361494444448,
+      "processCpuMs": 4.893380555555556,
+      "uploadedBytesPerFrame": 107832
+    },
+    {
+      "round": 1,
+      "implementation": "reference",
+      "preset": "none",
+      "wallMs": 0.033400944444444275,
+      "processCpuMs": 0.033397222222222224,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 1,
+      "implementation": "current",
+      "preset": "none",
+      "wallMs": 0.02936277499999657,
+      "processCpuMs": 0.029375,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 1,
+      "implementation": "reference",
+      "preset": "beret",
+      "wallMs": 0.15472980833333166,
+      "processCpuMs": 0.2600111111111111,
+      "uploadedBytesPerFrame": 49200
+    },
+    {
+      "round": 1,
+      "implementation": "current",
+      "preset": "beret",
+      "wallMs": 0.044472311111111495,
+      "processCpuMs": 0.05736388888888889,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 1,
+      "implementation": "reference",
+      "preset": "glasses",
+      "wallMs": 1.3635412305555545,
+      "processCpuMs": 1.4798305555555555,
+      "uploadedBytesPerFrame": 33480
+    },
+    {
+      "round": 1,
+      "implementation": "current",
+      "preset": "glasses",
+      "wallMs": 1.2903443694444479,
+      "processCpuMs": 1.3714694444444444,
+      "uploadedBytesPerFrame": 33480
+    },
+    {
+      "round": 1,
+      "implementation": "reference",
+      "preset": "scarf",
+      "wallMs": 2.1839676027777792,
+      "processCpuMs": 2.237913888888889,
+      "uploadedBytesPerFrame": 14160
+    },
+    {
+      "round": 1,
+      "implementation": "current",
+      "preset": "scarf",
+      "wallMs": 2.0032477888888884,
+      "processCpuMs": 2.0362833333333334,
+      "uploadedBytesPerFrame": 14160
+    },
+    {
+      "round": 1,
+      "implementation": "reference",
+      "preset": "earring",
+      "wallMs": 0.44212128611110935,
+      "processCpuMs": 0.4674166666666667,
+      "uploadedBytesPerFrame": 8688
+    },
+    {
+      "round": 1,
+      "implementation": "current",
+      "preset": "earring",
+      "wallMs": 0.44253609166667046,
+      "processCpuMs": 0.48808611111111116,
+      "uploadedBytesPerFrame": 8688
+    },
+    {
+      "round": 1,
+      "implementation": "reference",
+      "preset": "all",
+      "wallMs": 4.722797199999999,
+      "processCpuMs": 4.813888888888889,
+      "uploadedBytesPerFrame": 107832
+    },
+    {
+      "round": 1,
+      "implementation": "current",
+      "preset": "all",
+      "wallMs": 4.232274977777777,
+      "processCpuMs": 4.272844444444444,
+      "uploadedBytesPerFrame": 58632
+    },
+    {
+      "round": 2,
+      "implementation": "current",
+      "preset": "none",
+      "wallMs": 0.03162900277778438,
+      "processCpuMs": 0.03163888888888889,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 2,
+      "implementation": "reference",
+      "preset": "none",
+      "wallMs": 0.024968141666664046,
+      "processCpuMs": 0.024975,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 2,
+      "implementation": "current",
+      "preset": "beret",
+      "wallMs": 0.037866811111113445,
+      "processCpuMs": 0.040872222222222226,
+      "uploadedBytesPerFrame": 0
+    },
+    {
+      "round": 2,
+      "implementation": "reference",
+      "preset": "beret",
+      "wallMs": 0.12288239166667457,
+      "processCpuMs": 0.12626944444444443,
+      "uploadedBytesPerFrame": 49200
+    },
+    {
+      "round": 2,
+      "implementation": "current",
+      "preset": "glasses",
+      "wallMs": 1.2687790472222231,
+      "processCpuMs": 1.2792166666666667,
+      "uploadedBytesPerFrame": 33480
+    },
+    {
+      "round": 2,
+      "implementation": "reference",
+      "preset": "glasses",
+      "wallMs": 1.3697603222222219,
+      "processCpuMs": 1.3815305555555555,
+      "uploadedBytesPerFrame": 33480
+    },
+    {
+      "round": 2,
+      "implementation": "current",
+      "preset": "scarf",
+      "wallMs": 2.383177905555547,
+      "processCpuMs": 2.4121305555555557,
+      "uploadedBytesPerFrame": 14160
+    },
+    {
+      "round": 2,
+      "implementation": "reference",
+      "preset": "scarf",
+      "wallMs": 1.9886819861111082,
+      "processCpuMs": 1.9939444444444445,
+      "uploadedBytesPerFrame": 14160
+    },
+    {
+      "round": 2,
+      "implementation": "current",
+      "preset": "earring",
+      "wallMs": 0.38531045555555465,
+      "processCpuMs": 0.40012499999999995,
+      "uploadedBytesPerFrame": 8688
+    },
+    {
+      "round": 2,
+      "implementation": "reference",
+      "preset": "earring",
+      "wallMs": 0.3886397444444507,
+      "processCpuMs": 0.42564166666666664,
+      "uploadedBytesPerFrame": 8688
+    },
+    {
+      "round": 2,
+      "implementation": "current",
+      "preset": "all",
+      "wallMs": 4.443623455555553,
+      "processCpuMs": 4.587702777777778,
+      "uploadedBytesPerFrame": 58632
+    },
+    {
+      "round": 2,
+      "implementation": "reference",
+      "preset": "all",
+      "wallMs": 5.224532697222225,
+      "processCpuMs": 5.374391666666667,
+      "uploadedBytesPerFrame": 107832
+    }
+  ],
+  "referenceCommit": "003691ede7f1f4db2cc2521632d111efd14d9f9e",
+  "currentSourceCommit": "f47c4a3",
+  "allEquipment": [
+    "beret",
+    "glasses",
+    "moustache",
+    "scarf",
+    "left-earring"
+  ]
+}

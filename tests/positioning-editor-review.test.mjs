@@ -1,3 +1,4 @@
+import { recordGuideSetting } from '../playground/guide-setting-analytics.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -11,7 +12,7 @@ import {guideTranslations} from '../playground/guide-translations.js';
 import {createScene} from '../src/core/scene.ts';
 function mount(){
  const dom=new JSDOM('<main></main><div id="reference-target"></div><div class="reference-item"></div>',{url:'https://example.test/guide.html#state-position',runScripts:'outside-only'}),w=dom.window;
- Object.assign(w,schema,framework,{guideHref,stateLessons,stateCopy,guideTranslations,structuredClone,getSiteLocale:()=> 'en',subscribeSiteLocale:()=>()=>{}});
+ Object.assign(w,{recordGuideSetting},schema,framework,{guideHref,stateLessons,stateCopy,guideTranslations,structuredClone,getSiteLocale:()=> 'en',subscribeSiteLocale:()=>()=>{}});
  w.IntersectionObserver=class{observe(){}disconnect(){}};
  const script=readFileSync(new URL('../playground/state-reference.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/export /g,'');
  const fn=w.eval('(function(){'+script+';return mountStateReference;})()');const dispose=fn(w.document.querySelector('main'),'state-position',{session:{scene:createScene()}});

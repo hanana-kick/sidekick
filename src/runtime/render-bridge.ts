@@ -7,7 +7,7 @@ import type { PixelBuffer } from '../core/pixels.js';
 export interface BridgeCallbacks {
   ready(snapshot: RuntimeSnapshot, revision: number): void;
   event(event: RuntimeEvent, revision: number): void;
-  failed(error: Error): void;
+  failed(error: Error, rendererFallback?: boolean): void;
 }
 export interface RenderBridge {
   readonly backend: 'worker' | 'main';
@@ -35,12 +35,12 @@ export class LocalRenderBridge implements RenderBridge {
       for (const queued of this.queued) this.engine.command(queued.command, queued.revision);
       this.queued = [];
       if (!this.disposed) this.callbacks.ready(this.engine.snapshot, this.revision);
-    }).catch(error => { if (!this.disposed) this.callbacks.failed(error instanceof Error ? error : new Error(String(error))); });
+    }).catch(error => { if (!this.disposed) this.callbacks.failed(error instanceof Error ? error : new Error(String(error)), error instanceof Error && error.name === 'RendererInitializationError'); });
   }
   send(command: RuntimeCommand): void {
     if (this.disposed) return;
     const revision = ++this.revision;
-    if (this.engine) { try { this.engine.command(command, revision); } catch (error) { this.callbacks.failed(error instanceof Error ? error : new Error(String(error))); } } else this.queued.push({ command, revision });
+    if (this.engine) { try { this.engine.command(command, revision); } catch (error) { this.callbacks.failed(error instanceof Error ? error : new Error(String(error)), error instanceof Error && error.name === 'RendererInitializationError'); } } else this.queued.push({ command, revision });
   }
   capture(): PixelBuffer {
     if (!this.engine || this.disposed) throw new Error('Renderer is not ready');
@@ -76,12 +76,12 @@ export class WorkerRenderBridge implements RenderBridge {
   private message = ({ data }: MessageEvent<WorkerResponse>): void => {
     if (this.disposed || !data || data.version !== PROTOCOL_VERSION || data.generation !== this.generation || data.sequence > this.revision) return;
     if (data.kind === 'ready') { clearTimeout(this.timeout); this.timeout = undefined; this.callbacks.ready(data.snapshot, data.sequence); }
-    else if (data.kind === 'error') this.fail(new Error(data.message));
+    else if (data.kind === 'error') this.fail(new Error(data.message), data.rendererFallback);
     else this.callbacks.event(data, data.sequence);
   };
   private error = (event: ErrorEvent): void => { event.preventDefault(); this.fail(new Error(event.message || 'Render worker failed to load')); };
   private messageError = (): void => this.fail(new Error('Render worker message could not be decoded'));
-  private fail(error: Error): void { if (this.disposed) return; this.dispose(); this.callbacks.failed(error); }
+  private fail(error: Error, rendererFallback = false): void { if (this.disposed) return; this.dispose(); this.callbacks.failed(error, rendererFallback); }
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true; clearTimeout(this.timeout); this.timeout = undefined;
