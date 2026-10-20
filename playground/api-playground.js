@@ -1,5 +1,5 @@
 import { mountAPIPreview } from './api-preview.js';
-import { installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels } from './lifecycle-example.js';
+import { lifecycleMarkup, refreshLifecycleLabels } from './lifecycle-example.js';
 import { getFramework, subscribeFramework } from './site-framework.js';
 import { getSiteLocale, subscribeSiteLocale } from './site-i18n.js';
 import { apiText, applyApiLocale, apiError } from './api-locales.js';
@@ -7,9 +7,9 @@ import { mountSiteHeader } from './shared-header.js';
 import { recordSiteEvent, setSiteSection, siteAnalyticsConsent, siteAnalyticsConsentVersion } from './site-analytics.js';
 import { botCombination, settingValueCategory } from './product-analytics-schema.js';
 import { recordSettingChange, cancelSettingChange } from './site-setting-analytics.js';
-import { createAccessory, MATERIAL_SHAPE_LABELS } from '../src/index.ts';
-import { codeForAction, executeAction } from './playground-actions.js';
-import { loadStudioSession, applyStudioSession, seedStudioSession } from './studio-session.ts';
+import { MATERIAL_SHAPE_LABELS } from '../src/core/shapes.ts';
+import { codeForAction } from './playground-actions.js';
+import { loadStudioSession, seedStudioSession } from './studio-session.ts';
 
 import { mountGuideExercise } from './guide-exercise.js';
 import { navigationText, guideHref, readGuideSource } from './guide-navigation.js';
@@ -17,16 +17,16 @@ import { navigationText, guideHref, readGuideSource } from './guide-navigation.j
 mountGuideExercise().then(exercise => {
 if (!exercise) {
 const $ = id => document.getElementById(id);
-mountSiteHeader($('site-header-brand'), 'api');
-const bot = $('bot');
+mountSiteHeader($('site-header-brand'), 'api', './', { staticBrand: true });
+let demoRuntime = null, bot = null, demoDocument = null, demoWindow = null, demoEvents = null, demoGeneration = 0;
 let storage; try { storage = localStorage; } catch {}
 const studioSession = loadStudioSession(storage);
-seedStudioSession(bot, studioSession.scene);
+
 $('studio-session-status').textContent = studioSession.message;
-let initialized = false, initializing = false, gesture = null, selectedAction = null, code = '', lastAction = null, lastCode = '', execution = 0;
+let initialized = false, initializedOnce = false, initializing = false, gesture = null, selectedAction = null, code = '', lastAction = null, lastCode = '', execution = 0;
 const samples = [];
 const t = (key, values) => apiText(key, values, getSiteLocale());
-const preview = mountAPIPreview(document, t, () => refresh());
+const preview = mountAPIPreview(document, t, { locale: getSiteLocale, onReset: resetDemo, onReady: connectDemo, onError: errorNotice });
 const notices = new Map([['status', { key: 'initializing' }]]);
 const logErrors = new WeakMap();
 let validationError = null;
@@ -56,7 +56,7 @@ function refreshLabels() {
 function refreshLocale() {
   applyApiLocale(document);
   preview.refreshLabels();
-  if($('lifecycle-live')?.querySelector('#reference-home'))refreshLifecycleLabels($('lifecycle-live'),getSiteLocale());
+  if(demoDocument?.getElementById('lifecycle-live')?.querySelector('#reference-home'))refreshLifecycleLabels(demoDocument.getElementById('lifecycle-live'),getSiteLocale());
   const lifecycleLink=document.querySelector('[data-api-i18n="lifecycleGuide"]');if(lifecycleLink)lifecycleLink.href=`./guide.html?lang=${getSiteLocale()}&framework=${getFramework()}#state-lifecycle`;
   refreshLabels();
   $('studio-session-status').textContent = studioSession.message;
@@ -77,8 +77,8 @@ const numeric = id => {
   if (input.value === '' || !input.checkValidity()) throw apiError('invalidNumber', { fieldId: id, field: input.closest('label')?.querySelector('span')?.textContent ?? id }, RangeError);
   return Number(input.value);
 };
-const viewportPoint = point => ({ x: number(Math.max(0, Math.min(Math.max(0, innerWidth - bot.offsetWidth), point.x))), y: number(Math.max(0, Math.min(Math.max(0, innerHeight - bot.offsetHeight), point.y))) });
-const center = () => viewportPoint({ x: (innerWidth - bot.offsetWidth) / 2, y: (innerHeight - bot.offsetHeight) / 2 });
+const viewportPoint = point => ({ x: number(Math.max(0, Math.min(Math.max(0, (demoWindow?.innerWidth ?? 0) - (bot?.offsetWidth ?? 0)), point.x))), y: number(Math.max(0, Math.min(Math.max(0, (demoWindow?.innerHeight ?? 0) - (bot?.offsetHeight ?? 0)), point.y))) });
+const center = () => viewportPoint({ x: ((demoWindow?.innerWidth ?? 0) - (bot?.offsetWidth ?? 0)) / 2, y: ((demoWindow?.innerHeight ?? 0) - (bot?.offsetHeight ?? 0)) / 2 });
 for (const value of Object.keys(MATERIAL_SHAPE_LABELS)) {
   const option = document.createElement('option'); option.value = value; option.dataset.apiI18n = `shape.${value}`; option.textContent = t(`shape.${value}`); $('shape').append(option);
 }
@@ -91,7 +91,7 @@ if(technicalKinds[technicalLesson]){
  if(['manual-motion','performance'].includes(technicalLesson)){
   const option=document.createElement('option');option.value=technicalLesson;option.textContent=labels[technicalLesson==='performance'?'performance':'manual'];$('action-kind').append(option);
   const panel=document.createElement('div');panel.dataset.action=technicalLesson;
-  if(technicalLesson==='performance'){const label=document.createElement('label');label.className='check';const input=document.createElement('input');input.type='checkbox';input.id='render-paused';input.checked=true;label.append(input,document.createTextNode('paused'));const output=document.createElement('pre');output.id='renderer-diagnostics';const refresh=document.createElement('button');refresh.type='button';refresh.textContent='diagnostics';refresh.onclick=()=>{output.textContent=JSON.stringify(bot.diagnostics,null,2);};panel.append(label,refresh,output);}
+  if(technicalLesson==='performance'){const label=document.createElement('label');label.className='check';const input=document.createElement('input');input.type='checkbox';input.id='render-paused';input.checked=true;label.append(input,document.createTextNode('paused'));const output=document.createElement('pre');output.id='renderer-diagnostics';const refresh=document.createElement('button');refresh.type='button';refresh.textContent='diagnostics';refresh.onclick=()=>{output.textContent=JSON.stringify(bot?.diagnostics ?? {},null,2);};panel.append(label,refresh,output);}
   $('action-panel').append(panel);
  }
  const link=document.createElement('a');link.id='guide-source-return';link.href=guideHref(readGuideSource(location.href)??{id:technicalLesson==='declarative-lifecycle'?'state-lifecycle':technicalLesson,level:1},getSiteLocale());link.textContent=labels.back;document.querySelector('.intro').append(link);
@@ -108,10 +108,9 @@ function readAction() {
     case 'movement': if ($('move-method').value === 'moveToElement') {
       const selector = $('target-selector').value.trim();
       let target;
-      try { target = selector ? document.querySelector(selector) : null; }
+      try { target = selector ? demoDocument?.querySelector(selector) : null; }
       catch { throw apiError('selectorInvalid'); }
       if (!target) throw apiError('targetMissing');
-      if (target.closest('#preview-demo')?.hidden) throw apiError('previewDemoRequired');
       return { method: 'moveToElement', args: [selector, { x: numeric('target-x'), y: numeric('target-y'), alignX: $('align-x').value, alignY: $('align-y').value, anchor: $('element-anchor').checked, ...movementOptions() }] };
     } return { method: $('move-method').value, args: [{ x: numeric('target-x'), y: numeric('target-y') }, movementOptions()] };
     case 'performance': return {property:'paused',value:$('render-paused').checked};
@@ -142,7 +141,7 @@ function readAction() {
 function renderCode(action) {
   selectedAction = action; validationError = null;
   code = codeForAction(action, getFramework()==='react'?'react':'javascript', studioSession.scene);
-  $('invocation').textContent = code; clearNotice('copy-status');
+  if ($('invocation').textContent !== code) { $('invocation').textContent = code; clearNotice('copy-status'); }
 }
 function renderLastCode(action) {
   lastAction = action;
@@ -179,7 +178,8 @@ function graph(movement, speed, acceleration) {
   }
   $('motion-graph').dataset.phase = movement.phase;
 }
-function telemetry(detail = bot.movementState) {
+function telemetry(detail = bot?.movementState) {
+  if (!bot) return;
   if($('renderer-diagnostics'))$('renderer-diagnostics').textContent=JSON.stringify(bot.diagnostics,null,2);
   const movement = detail ?? { phase: 'idle', progress: 0 }, position = bot.position;
   const velocity = movement.velocity ?? { x: 0, y: 0 }, acceleration = movement.acceleration ?? { x: 0, y: 0 };
@@ -204,18 +204,29 @@ function report(kind, result) {
 }
 async function run(action, explicit = false) {
   const usageSection = $('action-kind').value, consent = siteAnalyticsConsent(window), version = siteAnalyticsConsentVersion(window);
+  if (!initialized || !bot) return;
+  const activeBot = bot, activeRuntime = demoRuntime, generation = demoGeneration;
   const id = ++execution; renderLastCode(action);
   notice('status', 'running');
   try {
-    if (action.lifecycle) preview.showDemo();
-    if (action.lifecycle && !$('lifecycle-live').querySelector('#reference-home')) $('lifecycle-live').innerHTML = lifecycleMarkup(getSiteLocale());
-    const promise = executeAction(bot, action, createAccessory);
+    const lifecycleRoot = demoDocument.getElementById('lifecycle-live');
+    if (action.lifecycle && !lifecycleRoot.querySelector('#reference-home')) lifecycleRoot.innerHTML = lifecycleMarkup(getSiteLocale());
+    if (action.lifecycle) { lifecycleRoot.hidden = false; lifecycleRoot.scrollIntoView({ block: 'nearest' }); }
+    const promise = action.sequential ? (async () => {
+      let result;
+      for (const step of action.steps) {
+        if (generation !== demoGeneration) return { finished: false };
+        result = await activeRuntime.execute(step);
+      }
+      return result;
+    })() : activeRuntime.execute(action);
     if (action.lifecycle) {
       disposeLifecycleExample?.();
-      disposeLifecycleExample = installLifecycleExample(bot, $('lifecycle-live'), lifecycleLabels[getSiteLocale()] ?? lifecycleLabels.en);
+      disposeLifecycleExample = activeRuntime.installLifecycle(getSiteLocale());
     }
     telemetry();
     const result = await promise;
+    if (generation !== demoGeneration) return;
     // Only successful explicit Run actions count, never progress frames, cancellation or superseded runs.
     if (explicit && id === execution && result?.finished !== false && consent && siteAnalyticsConsentVersion(window) === version) {
       const combination = botCombination(bot.design);
@@ -224,7 +235,7 @@ async function run(action, explicit = false) {
     report(action.method ?? action.property ?? 'bodyOrientation / zoom', result ?? { applied: true });
     if (id === execution) notice('status', result?.finished === false ? 'interrupted' : 'applied');
     telemetry();
-  } catch (error) { report('error', error); if (id === execution) errorNotice(error); }
+  } catch (error) { if (generation !== demoGeneration) return; report('error', error); if (id === execution) errorNotice(error); }
 }
 $('execute').onclick = () => { try { void run(readAction(), true); } catch (error) { errorNotice(error); } };
 const cancelMove = () => void run({ method: 'cancelMove', args: [] });
@@ -253,7 +264,6 @@ for (const input of document.querySelectorAll('#action-panel input, #action-pane
 subscribeFramework(() => { if (selectedAction) renderCode(selectedAction); if (lastAction) renderLastCode(lastAction); renderInstallCode(); });
 $('bot-tools-launcher').addEventListener('click', () => telemetry());
 $('diagnostics').addEventListener('toggle', () => { if ($('diagnostics').open) telemetry(); });
-window.addEventListener('pagehide', () => disposeLifecycleExample?.(), { once: true });
 $('clear-log').onclick = () => $('result-log').replaceChildren();
 function copyCode(sourceId, statusId, getCode) { return async () => {
   const copied = getCode();
@@ -262,47 +272,78 @@ function copyCode(sourceId, statusId, getCode) { return async () => {
 }; }
 $('copy').onclick = copyCode('invocation', 'copy-status', () => code);
 $('copy-last').onclick = copyCode('last-invocation', 'last-copy-status', () => lastCode);
-// Controls, links, selectable code and the header never become destination clicks.
-const excluded = event => event.composedPath().some(target => target instanceof Element && Boolean(target.closest('button,input,select,textarea,label,a,summary,pre,[contenteditable],[role=button],[role=combobox],.card,.app-header,.flight-toolbar,#bot-tools,.preview-url-bar,details')));
-document.addEventListener('pointerdown', event => {
-  if (!initialized || !event.isPrimary || event.button !== 0 || excluded(event) || getSelection()?.toString()) { gesture = null; return; }
-  gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, scrollX, scrollY, time: performance.now() };
-});
-window.addEventListener('pointermove', event => { if (gesture?.id === event.pointerId && Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 8) gesture = null; }, { passive: true });
-window.addEventListener('pointercancel', () => { gesture = null; }, { passive: true });
-window.addEventListener('scroll', () => { gesture = null; }, { passive: true });
-window.addEventListener('pointerup', event => {
-  const tap = gesture; gesture = null;
-  if (!tap || tap.id !== event.pointerId || excluded(event) || getSelection()?.toString() || performance.now() - tap.time > 600 || scrollX !== tap.scrollX || scrollY !== tap.scrollY || Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 8) return;
-  const point = viewportPoint({ x: event.clientX - bot.offsetWidth / 2, y: event.clientY - bot.offsetHeight / 2 });
-  // Page navigation is a separate invocation, never an edit to the user's draft.
-  try { void run({ method: 'moveTo', args: [point, movementOptions()] }); }
-  catch (error) { errorNotice(error); }
-}, { passive: true });
-bot.addEventListener('sidekick-move-progress', event => telemetry(event.detail));
-for (const name of ['move-end', 'play-end', 'transition-end', 'enter-end', 'exit-end', 'lifecycle-change']) bot.addEventListener(`sidekick-${name}`, event => { report(`sidekick-${name}`, event.detail); telemetry(); });
-async function initialize() {
-  if (initialized || initializing) return; initializing = true;
-  await applyStudioSession(bot, studioSession.scene);
-  bot.interaction = 'none';
-  $('tracking-mode').value = studioSession.scene.trackingMode;
-  for (const axis of ['yaw', 'pitch', 'roll']) $(`body-${axis}`).value = String(studioSession.scene.bodyOrientation[axis]);
-  $('zoom').value = String(studioSession.scene.zoom);
-  const point = center(); void bot.moveTo(point, { duration: 0, travel: 'none' });
-  $('target-x').value = String(point.x); $('target-y').value = String(point.y); $('entrance-x').value = String(point.x); $('entrance-y').value = String(point.y);
-  bot.setAttribute('data-configured', '');
-  initialized = true; initializing = false;
-  if(technicalKinds[technicalLesson]){
-   preview.setOpen(true, false);
-   $('action-kind').value=technicalKinds[technicalLesson];
-   if(technicalLesson==='element-anchor'){$('move-method').value='moveToElement';$('target-selector').value='#preview-target';$('align-x').value='right';$('align-y').value='center';$('element-anchor').checked=true;$('target-x').value='16';$('target-y').value='0';}
-   if(technicalLesson==='placement'){$('target-x').value='120';$('target-y').value='80';}
-   if(technicalLesson==='performance')$('diagnostics').open=true;
+// Each listener belongs to the current child document and is aborted on replacement.
+function resetDemo() {
+  ++demoGeneration; ++execution;
+  initialized = false; initializing = false; gesture = null;
+  disposeLifecycleExample?.(); disposeLifecycleExample = null;
+  demoEvents?.abort(); demoEvents = null;
+  if (bot) { bot.paused = true; bot.trackingMode = 'off'; bot.stopBehavior(); bot.cancelMove(); bot.cancelTransition(); bot.motion.cancel(); }
+  demoRuntime = null; bot = null; demoDocument = null; demoWindow = null; samples.length = 0;
+  $('execute').disabled = true;
+  for (const id of ['cancel', 'cancel-preview', 'detach-anchor', 'cancel-transition']) $(id).disabled = true;
+  notice('status', 'initializing');
+}
+async function connectDemo(runtime) {
+  const generation = demoGeneration;
+  demoRuntime = runtime; bot = runtime.bot; demoDocument = runtime.document; demoWindow = runtime.window;
+  const activeBot = bot, childDocument = demoDocument, childWindow = demoWindow;
+  demoEvents = new childWindow.AbortController();
+  const signal = demoEvents.signal;
+  const listen = (target, name, callback, options = {}) => target.addEventListener(name, callback, { ...options, signal });
+  const excluded = event => event.composedPath().some(target => target instanceof childWindow.Element && Boolean(target.closest('button,input,select,textarea,label,a,summary,pre,[contenteditable],[role=button],[role=combobox],details')));
+  listen(childDocument, 'pointerdown', event => {
+    if (!initialized || !event.isPrimary || event.button !== 0 || excluded(event) || childWindow.getSelection()?.toString()) { gesture = null; return; }
+    gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, scrollX: childWindow.scrollX, scrollY: childWindow.scrollY, time: performance.now() };
+  });
+  listen(childWindow, 'pointermove', event => { if (gesture?.id === event.pointerId && Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 8) gesture = null; }, { passive: true });
+  listen(childWindow, 'pointercancel', () => { gesture = null; }, { passive: true });
+  listen(childWindow, 'scroll', () => { gesture = null; }, { passive: true });
+  listen(childWindow, 'resize', () => { gesture = null; telemetry(); });
+  listen(childWindow, 'pointerup', event => {
+    const tap = gesture; gesture = null;
+    if (!tap || tap.id !== event.pointerId || excluded(event) || childWindow.getSelection()?.toString() || performance.now() - tap.time > 600 || childWindow.scrollX !== tap.scrollX || childWindow.scrollY !== tap.scrollY || Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 8) return;
+    const point = viewportPoint({ x: event.clientX - activeBot.offsetWidth / 2, y: event.clientY - activeBot.offsetHeight / 2 });
+    try { void run({ method: 'moveTo', args: [point, movementOptions()] }); }
+    catch (error) { errorNotice(error); }
+  }, { passive: true });
+  listen(activeBot, 'sidekick-move-progress', event => telemetry(event.detail));
+  for (const name of ['move-end', 'play-end', 'transition-end', 'enter-end', 'exit-end', 'lifecycle-change']) listen(activeBot, 'sidekick-' + name, event => { report('sidekick-' + name, event.detail); telemetry(); });
+  seedStudioSession(activeBot, studioSession.scene);
+  const ready = new Promise((resolve, reject) => {
+    if (activeBot.ready) { resolve(); return; }
+    listen(activeBot, 'sidekick-ready', resolve, { once: true });
+    listen(activeBot, 'sidekick-error', event => { if (!event.detail?.recoverable) reject(new Error(event.detail?.message ?? 'Demo renderer failed')); });
+    signal.addEventListener('abort', () => resolve(), { once: true });
+  });
+  childDocument.body.append(activeBot);
+  await ready;
+  if (generation !== demoGeneration) return;
+  initializing = true;
+  await runtime.applySession(studioSession.scene);
+  if (generation !== demoGeneration) return;
+  activeBot.interaction = 'none';
+  if (!initializedOnce) {
+    $('tracking-mode').value = studioSession.scene.trackingMode;
+    for (const axis of ['yaw', 'pitch', 'roll']) $('body-' + axis).value = String(studioSession.scene.bodyOrientation[axis]);
+    $('zoom').value = String(studioSession.scene.zoom);
   }
+  const point = center(); void runtime.moveTo(point, { duration: 0, travel: 'none' });
+  if (!initializedOnce) {
+    $('target-x').value = String(point.x); $('target-y').value = String(point.y); $('entrance-x').value = String(point.x); $('entrance-y').value = String(point.y);
+  }
+  activeBot.setAttribute('data-configured', '');
+  initialized = true; initializing = false;
+  for (const id of ['cancel', 'cancel-preview', 'detach-anchor', 'cancel-transition']) $(id).disabled = false;
+  if (!initializedOnce && technicalKinds[technicalLesson]) {
+    preview.setOpen(true, false); $('action-kind').value = technicalKinds[technicalLesson];
+    if (technicalLesson === 'element-anchor') { $('move-method').value = 'moveToElement'; $('target-selector').value = '#preview-target'; $('align-x').value = 'right'; $('align-y').value = 'center'; $('element-anchor').checked = true; $('target-x').value = '16'; $('target-y').value = '0'; }
+    if (technicalLesson === 'placement') { $('target-x').value = '120'; $('target-y').value = '80'; }
+    if (technicalLesson === 'performance') $('diagnostics').open = true;
+  }
+  initializedOnce = true;
   refresh(); telemetry(); notice('status', 'ready');
 }
-bot.addEventListener('sidekick-ready', initialize); if (bot.ready) initialize();
-window.addEventListener('resize', () => { gesture = null; /* The avatar viewport bounds handle resize, without replacing the selected command. */ telemetry(); });
 const preference = matchMedia('(prefers-reduced-motion: reduce)');
 function showPreference() { $('motion-preference').textContent = t(preference.matches ? 'reducedMotion' : 'motionPreference'); }
 preference.addEventListener('change', showPreference);
@@ -311,6 +352,7 @@ const elementInstallCode = `npm install github:hanana-kick/sidekick#v0.16.0\n\n<
 
 function renderInstallCode(){ $('install-code').textContent=getFramework()==='react'?'npm install github:hanana-kick/sidekick#v0.16.0\n\n'+codeForAction({property:'paused',value:false},'react',studioSession.scene):elementInstallCode; }
 renderInstallCode();
+preview.start();
 
 }
 }).catch(()=>{

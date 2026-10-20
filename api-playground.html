@@ -15,12 +15,11 @@
 <div class="intro"><div class="eyebrow" data-api-i18n="eyebrow">API 플레이그라운드</div><h1 data-api-i18n="title">무엇을 하게 할까요?</h1><p class="muted" data-api-i18n="intro">할 일과 값을 정하면, 그대로 실행할 수 있는 코드가 만들어집니다. 봇은 이 페이지 전체를 돌아다닙니다. 빈 곳을 클릭하거나 탭해서 목적지를 정해 보세요.</p></div>
 <p id="studio-session-status" class="help" role="status"></p>
 <section class="site-preview" aria-labelledby="preview-heading">
-<div class="preview-heading"><h2 id="preview-heading" data-api-i18n="previewHeading">사이트 미리보기</h2><span class="help" data-api-i18n="previewLocal">URL은 저장하거나 분석에 전송하지 않습니다.</span></div>
-<form id="preview-form" class="preview-url-bar"><label for="preview-url" class="sr-only" data-api-i18n="previewURL">미리볼 사이트 URL</label><input id="preview-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://example.com" required aria-describedby="preview-status preview-help"><button type="submit" class="primary" data-api-i18n="previewLoad">불러오기</button><button type="button" id="preview-refresh" disabled data-api-i18n="previewRefresh">새로고침</button><button type="button" id="preview-demo-button" data-api-i18n="previewDemo">기본 데모</button></form>
+<div class="preview-heading"><h2 id="preview-heading" data-api-i18n="previewHeading">Website preview</h2><span class="help" data-api-i18n="previewLocal">Fictional demo sites</span></div>
+<div class="preview-url-bar"><label for="preview-site" data-api-i18n="previewChoose">Example site</label><select id="preview-site" aria-describedby="preview-help"><option value="company" data-api-i18n="preview.company">Company landing</option><option value="shop" data-api-i18n="preview.shop">Shop</option><option value="community" data-api-i18n="preview.community">Community</option></select><button type="button" id="preview-refresh" data-api-i18n="previewRefresh">Reset demo</button></div>
 <p id="preview-status" class="help" role="status"></p>
-<div id="preview-surface"><div id="preview-demo"><div class="demo-topline"><strong>Sidekick</strong><span data-api-i18n="previewDemo">기본 데모</span></div><div class="demo-content"><span class="eyebrow">YOUR COMPANION, YOUR WEBSITE</span><h2 data-api-i18n="previewDemoTitle">페이지 위에서 직접 움직여 보세요.</h2><p data-api-i18n="previewDemoHelp">빈 곳을 눌러 이동하거나 봇 제어 버튼으로 API를 실행하세요.</p><div id="preview-target" tabindex="0"><strong data-api-i18n="previewTarget">엘리먼트 이동 대상</strong><code>#preview-target</code></div><div id="lifecycle-live"></div></div><div id="free-space" data-api-i18n-aria-label="freeSpaceLabel"><p data-api-i18n="freeSpaceSecond">클릭하거나 탭해 보세요.</p></div></div><div id="preview-click-layer" hidden></div></div>
-<label id="preview-overlay-control" class="check" hidden><input type="checkbox" id="preview-capture"><span data-api-i18n="previewCapture">사이트 대신 클릭을 받아 봇 이동 (사이트 조작 중지)</span></label>
-<p id="preview-help" class="help" data-api-i18n="previewLimits">외부 사이트는 iframe을 차단할 수 있습니다. 빈 화면이면 기본 데모를 사용하세요. 봇은 부모 페이지 위에 표시되며 외부 사이트의 요소나 포인터에는 접근하지 못합니다. 선택자는 기본 데모의 요소에만 사용하세요.</p>
+<div id="preview-surface"></div>
+<p id="preview-help" class="help" data-api-i18n="previewLimits">The bot lives inside the selected example. Switching resets the demo and restores your Studio scene.</p>
 </section>
 <aside id="bot-tools" role="dialog" aria-modal="false" aria-labelledby="bot-tools-heading" hidden><div class="tools-heading"><h2 id="bot-tools-heading" data-api-i18n="toolsTitle">Sidekick 봇 제어</h2><button id="bot-tools-close" type="button" data-api-i18n="toolsClose">닫기</button></div>
 <div class="workspace-grid">
@@ -67,7 +66,6 @@
 </main>
 <button id="bot-tools-launcher" type="button" aria-controls="bot-tools" aria-expanded="false"><span aria-hidden="true">◈</span> <span data-api-i18n="toolsOpen">봇 제어</span></button>
 <div class="flight-toolbar"><span class="toolbar-caption" data-api-i18n="pageCompanion">페이지 동반자</span><output id="phase" aria-label="이동 단계" data-api-i18n-aria-label="phaseLabel">idle</output><button id="cancel-preview" data-api-i18n="cancelMove">이동 멈추기</button></div>
-<sidekick-avatar id="bot" placement="viewport" interaction="none" aria-label="Sidekick 페이지 캐릭터" data-api-i18n-aria-label="botLabel"></sidekick-avatar>
 <script type="module" src="./playground/api-playground.js"></script>
 
 </body></html>

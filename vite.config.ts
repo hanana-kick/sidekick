@@ -12,6 +12,6 @@ export default defineConfig({
   server: { host: process.env.HOST ?? '127.0.0.1', port: Number(process.env.PORT ?? 5173) },
   build: {
     outDir: 'dist', emptyOutDir: false,
-    rolldownOptions: { output: { manualChunks: id => id.includes('/node_modules/') ? 'vendor' : undefined }, input: { main: 'index.html', playground: 'playground/index.html', api: 'api-playground.html', guide: 'guide.html', usecases: 'use-cases.html', statePreview: 'state-preview.html' } },
+    rolldownOptions: { output: { manualChunks: id => id.includes('/node_modules/') ? 'vendor' : undefined }, input: { main: 'index.html', playground: 'playground/index.html', api: 'api-playground.html', apiDemo: 'api-demo.html', guide: 'guide.html', usecases: 'use-cases.html', statePreview: 'state-preview.html' } },
   },
 });

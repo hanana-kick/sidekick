@@ -60,8 +60,9 @@ async function fixture(t, initialLocale = 'ko') {
   const listeners = new Set(); let framework = "element"; const frameworkListeners = new Set();
   const dom = new JSDOM(html, { url: `https://sidekick.test/api-playground.html?lang=${locale}`, runScripts: 'outside-only', pretendToBeVisual: true });
   t.after(() => dom.window.close());
-  const w = dom.window, $ = id => w.document.getElementById(id);
-  const changeLocale = value => { locale = value; for (const callback of listeners) callback(); };
+  const w = dom.window; let child;
+  const $ = id => w.document.getElementById(id) ?? child?.document.getElementById(id);
+  const changeLocale = async value => { locale = value; for (const callback of listeners) callback(); await new Promise(resolve => setImmediate(resolve)); };
   Object.assign(w, { mountAPIPreview, recordSettingChange, cancelSettingChange, settingValueCategory, recordSiteEvent, setSiteSection, siteAnalyticsConsent, siteAnalyticsConsentVersion, botCombination, mountGuideExercise:async()=>false,
     installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels, structuredClone, getFramework:()=>framework, subscribeFramework:fn=>{frameworkListeners.add(fn);return()=>frameworkListeners.delete(fn);}, navigationText, guideHref, readGuideSource, codeForAction, executeAction, apiError, apiText,
     getSiteLocale: () => locale, subscribeSiteLocale: callback => { listeners.add(callback); return () => listeners.delete(callback); },
@@ -70,22 +71,36 @@ async function fixture(t, initialLocale = 'ko') {
     mountSiteHeader() {}, loadStudioSession: () => ({ get message() { return apiText('ready', {}, locale); }, scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), seedStudioSession:()=>{}, applyStudioSession: async () => {},
   });
   const preference = { matches: false, addEventListener() {} }; w.matchMedia = () => preference;
-  class Avatar extends w.HTMLElement {
-    ready = true; calls = []; activity = 'thinking'; trackingMode = 'eyes-and-body'; zoom = 1; point = { x: 0, y: 0 };
+  const observer = new w.MutationObserver(records => {
+    for (const record of records) for (const frame of record.addedNodes) {
+      if (frame.id !== 'site-preview-frame') continue;
+      child = frame.contentWindow;
+      child.document.open(); child.document.write('<!doctype html><body><div id="preview-target">Target</div><div id="free-space">Empty area</div><div id="lifecycle-live"></div></body>'); child.document.close();
+      child.HTMLElement.prototype.scrollIntoView = () => {};
+  class Avatar extends child.HTMLElement {
+    ready = true; calls = []; motion = { cancel() {} }; activity = 'thinking'; trackingMode = 'eyes-and-body'; zoom = 1; point = { x: 0, y: 0 };
     get position() { return this.point; } get offsetWidth() { return 180; } get offsetHeight() { return 180; }
     movementState = { phase: 'flight', progress: 0.5, velocity: { x: 30, y: 40 }, acceleration: { x: 0, y: 0 }, speed: 50 };
     moveTo(...args) { this.calls.push({ method: 'moveTo', args }); this.point = args[0]; return Promise.resolve({ finished: true }); }
   }
-  for (const method of ['moveBy', 'setExpression', 'setActivity', 'play', 'stop', 'setBodyOrientation', 'transitionTo', 'cancelMove', 'cancelTransition', 'enter', 'exit', 'detachAnchor', 'moveToElement']) Avatar.prototype[method] = function (...args) { this.calls.push({ method, args }); return Promise.resolve({ finished: true }); };
-  w.customElements.define('sidekick-avatar', Avatar); w.eval(source); await new Promise(resolve => setImmediate(resolve));
-  const bot = $('bot'); bot.calls.length = 0; $('bot-tools-launcher').click();
+  for (const method of ['stopBehavior', 'moveBy', 'setExpression', 'setActivity', 'play', 'stop', 'setBodyOrientation', 'transitionTo', 'cancelMove', 'cancelTransition', 'enter', 'exit', 'detachAnchor', 'moveToElement']) Avatar.prototype[method] = function (...args) { this.calls.push({ method, args }); return Promise.resolve({ finished: true }); };
+
+      child.customElements.define('sidekick-avatar', Avatar);
+      const bot = child.document.createElement('sidekick-avatar'); bot.id = 'bot';
+      child.sidekickDemoReady = Promise.resolve({ bot, document: child.document, window: child, applySession: scene => w.applyStudioSession(bot, scene), execute: action => executeAction(bot, action, w.createAccessory), moveTo: (point, options) => bot.moveTo(point, options), installLifecycle: locale => installLifecycleExample(bot, bot.ownerDocument.getElementById('lifecycle-live'), lifecycleLabels[locale]), dispose: () => bot.remove() });
+      frame.dispatchEvent(new w.Event('load'));
+    }
+  });
+  observer.observe($('preview-surface'), { childList: true }); t.after(() => observer.disconnect());
+  w.eval(source); await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve));
+  $('bot').calls.length = 0; $('bot-tools-launcher').click();
   const input = (id, value) => { $(id).value = String(value); $(id).dispatchEvent(new w.Event('input', { bubbles: true })); };
-  return { w, $, bot, input, changeLocale, preference, changeFramework:value=>{framework=value;for(const fn of frameworkListeners)fn();} };
+  return { w, $, get bot() { return $('bot'); }, get child() { return child; }, input, changeLocale, preference, changeFramework:value=>{framework=value;for(const fn of frameworkListeners)fn();} };
 }
 
 const controlsSnapshot = d => [...d.querySelectorAll('input,select')].map(node => [node.id, node.value, node.checked, node.disabled]);
 
-test('locale switching preserves draft, all controls, code, selected text, focus, expanded panels, and the live bot', async t => {
+test('locale switching preserves parent draft and focus while resetting the child runtime', async t => {
   const f = await fixture(t);
   f.input('move-method', 'moveToElement'); f.input('target-x', -37); f.input('target-y', 81);
   f.$('element-anchor').checked = true;
@@ -100,14 +115,18 @@ test('locale switching preserves draft, all controls, code, selected text, focus
   const focusedElement = f.w.document.activeElement;
   const selected = f.w.getSelection().toString(), controls = controlsSnapshot(f.w.document), callCount = f.bot.calls.length, point = f.bot.position;
   for (const locale of ['en', 'zh-CN', 'ja', 'ko', 'en']) {
-    f.changeLocale(locale);
+    const oldBot = f.bot;
+    await f.changeLocale(locale);
+    assert.equal(oldBot.isConnected, false);
+    assert.notEqual(f.bot, oldBot);
     assert.deepEqual(controlsSnapshot(f.w.document), controls);
     assert.equal(f.$('invocation').textContent, code); assert.equal(f.$('last-invocation').textContent, lastCode); assert.equal(f.$('install-code').textContent, installCode);
     assert.equal(f.$('invocation').firstChild, node); assert.equal(f.w.getSelection().toString(), selected);
     assert.equal(f.w.document.activeElement, focusedElement); assert.equal(f.$('target-selector').selectionStart, 1); assert.equal(f.$('target-selector').selectionEnd, 5);
     assert.equal(f.$('install-guide').open, true); assert.equal(f.$('diagnostics').open, true);
-    assert.equal(f.$('bot'), f.bot); assert.equal(f.bot.calls.length, callCount); assert.equal(f.bot.position, point);
-    assert.equal(f.$('status').textContent, API_MESSAGES[locale].applied);
+    assert.equal(f.$('bot'), f.bot); assert.equal(f.bot.ownerDocument, f.child.document);
+    assert.equal(f.bot.calls.filter(call => call.method === 'moveTo').length, 1, 'Only initialization centers the new bot');
+    assert.equal(f.$('status').textContent, API_MESSAGES[locale].ready);
     assert.equal(f.$('phase').textContent, API_MESSAGES[locale]['phase.flight']);
     assert.equal(f.$('activity-state').textContent, API_MESSAGES[locale]['activity.thinking']);
     assert.equal(f.$('shape').selectedOptions[0].textContent, API_MESSAGES[locale]['shape.pixelTriangle']);
@@ -119,7 +138,7 @@ test('locale switching preserves draft, all controls, code, selected text, focus
 test('localized selects continue to emit exact API enum values in every language', async t => {
   const f = await fixture(t);
   for (const locale of API_LOCALES) {
-    f.changeLocale(locale);
+    await f.changeLocale(locale);
     f.input('action-kind', 'activity'); f.input('activity', 'celebrating'); f.input('activity-operation', 'play'); f.$('execute').click();
     assert.equal(f.bot.calls.at(-1).args[0], 'celebrating');
     f.input('action-kind', 'assets'); f.input('shape', 'heart'); f.input('head-accessory', 'halo'); f.input('eyes-accessory', 'sunglasses'); f.input('neck-accessory', 'bowTie'); f.$('execute').click();
@@ -134,43 +153,47 @@ test('validation, missing and invalid selectors, copy notices, and motion settin
   const f = await fixture(t);
   f.input('duration', -1);
   for (const locale of API_LOCALES) {
-    f.changeLocale(locale);
+    await f.changeLocale(locale);
     assert.equal(f.$('execute').disabled, true);
     assert.equal(f.$('invocation').textContent, `// ${apiText('invalidNumber', { field: API_MESSAGES[locale].durationNatural }, locale)}`);
   }
   f.input('duration', 1200); f.input('move-method', 'moveToElement'); f.input('target-selector', '#missing');
-  for (const locale of API_LOCALES) { f.changeLocale(locale); assert.equal(f.$('invocation').textContent, `// ${API_MESSAGES[locale].targetMissing}`); }
+  for (const locale of API_LOCALES) { await f.changeLocale(locale); assert.equal(f.$('invocation').textContent, `// ${API_MESSAGES[locale].targetMissing}`); }
   f.input('target-selector', '[');
-  for (const locale of API_LOCALES) { f.changeLocale(locale); assert.equal(f.$('invocation').textContent, `// ${API_MESSAGES[locale].selectorInvalid}`); }
-  f.input('target-selector', '#action-panel');
+  for (const locale of API_LOCALES) { await f.changeLocale(locale); assert.equal(f.$('invocation').textContent, `// ${API_MESSAGES[locale].selectorInvalid}`); }
+  f.input('target-selector', '#preview-target');
   Object.defineProperty(f.w.navigator, 'clipboard', { configurable: true, value: { writeText: async () => {} } });
   f.$('copy').click(); await new Promise(resolve => setImmediate(resolve));
   for (const locale of API_LOCALES) {
-    f.changeLocale(locale); assert.equal(f.$('copy-status').textContent, API_MESSAGES[locale].copied);
+    await f.changeLocale(locale); assert.equal(f.$('copy-status').textContent, API_MESSAGES[locale].copied);
     assert.equal(f.$('motion-preference').textContent, API_MESSAGES[locale].motionPreference);
   }
   f.preference.matches = true;
   Object.defineProperty(f.w.navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new Error('clipboard unavailable'); } } });
   f.$('copy').click(); await new Promise(resolve => setImmediate(resolve));
   for (const locale of API_LOCALES) {
-    f.changeLocale(locale); assert.equal(f.$('copy-status').textContent, API_MESSAGES[locale].copyManually);
+    await f.changeLocale(locale); assert.equal(f.$('copy-status').textContent, API_MESSAGES[locale].copyManually);
     assert.equal(f.$('motion-preference').textContent, API_MESSAGES[locale].reducedMotion);
   }
 });
 
-test('in-flight completion, stale-copy notices, runtime errors and logs use the current language', async t => {
+test('locale reset ignores stale actions while copy notices and retained error logs translate', async t => {
   const f = await fixture(t);
   let finish; f.bot.moveTo = () => new Promise(resolve => { finish = resolve; });
-  f.$('execute').click(); f.changeLocale('ja'); assert.equal(f.$('status').textContent, API_MESSAGES.ja.running);
-  finish({ finished: false }); await new Promise(resolve => setImmediate(resolve)); assert.equal(f.$('status').textContent, API_MESSAGES.ja.interrupted);
+  f.$('execute').click(); await f.changeLocale('ja');
+  assert.equal(f.$('status').textContent, API_MESSAGES.ja.ready);
+  const logs = f.$('result-log').textContent;
+  finish({ finished: false }); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.$('status').textContent, API_MESSAGES.ja.ready);
+  assert.equal(f.$('result-log').textContent, logs);
   let copied; Object.defineProperty(f.w.navigator, 'clipboard', { value: { writeText: () => new Promise(resolve => { copied = resolve; }) } });
-  f.$('copy').click(); f.input('target-x', 77); f.changeLocale('zh-CN'); copied(); await new Promise(resolve => setImmediate(resolve));
+  f.$('copy').click(); f.input('target-x', 77); await f.changeLocale('zh-CN'); copied(); await new Promise(resolve => setImmediate(resolve));
   assert.equal(f.$('copy-status').textContent, API_MESSAGES['zh-CN'].copiedPrevious);
   f.bot.moveTo = () => { throw apiError('targetNotFound', { selector: '#missing' }); };
   f.$('execute').click();
   for (const locale of API_LOCALES) {
-    f.changeLocale(locale);
-    assert.equal(f.$('status').textContent, apiText('targetNotFound', { selector: '#missing' }, locale));
+    await f.changeLocale(locale);
+    assert.equal(f.$('status').textContent, API_MESSAGES[locale].ready);
     assert.equal(f.$('result-log').firstChild.querySelector('strong').textContent, API_MESSAGES[locale].error);
     assert.equal(f.$('result-log').firstChild.querySelector('pre').textContent, JSON.stringify(apiText('targetNotFound', { selector: '#missing' }, locale)));
   }
@@ -187,13 +210,14 @@ test('action-layer missing-target errors use stable localized keys without modif
 });
 
 
-test('live lifecycle labels switch language without replacing a pending request or copied code', async t => {
- const f=await fixture(t);f.input('action-kind','lifecycle');f.$('execute').click();await new Promise(resolve=>setImmediate(resolve));
- f.w.document.querySelector('[data-lifecycle-action="wait"]').click();
- const task=f.bot.task,code=f.$('invocation').textContent;
- f.changeLocale('ja');assert.equal(f.bot.task,task);assert.equal(f.$('invocation').textContent,code);
- assert.equal(f.w.document.querySelector('[data-lifecycle-action="wait"]').textContent,lifecycleLabels.ja[2]);
- assert.equal(f.$('lifecycle-app-status').textContent,lifecycleLabels.ja[11]);
- f.w.document.querySelector('[data-lifecycle-action="success"]').click();await new Promise(resolve=>setImmediate(resolve));
- assert.equal(f.bot.task.status,'success');assert.equal(f.$('lifecycle-app-status').textContent,lifecycleLabels.ja[12]);
+test('locale changes cancel a pending lifecycle and start fresh localized child controls', async t => {
+ const f=await fixture(t); f.input('action-kind','lifecycle'); f.$('execute').click(); await new Promise(resolve=>setImmediate(resolve));
+ f.child.document.querySelector('[data-lifecycle-action="wait"]').click();
+ const oldBot=f.bot; assert.equal(oldBot.task.status,'pending');
+ await f.changeLocale('ja'); assert.equal(oldBot.isConnected,false); assert.notEqual(f.bot,oldBot);
+ f.$('execute').click(); await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(f.child.document.querySelector('[data-lifecycle-action="wait"]').textContent,lifecycleLabels.ja[2]);
+ f.child.document.querySelector('[data-lifecycle-action="wait"]').click();
+ f.child.document.querySelector('[data-lifecycle-action="success"]').click(); await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(f.bot.task.status,'success'); assert.equal(f.$('lifecycle-app-status').textContent,lifecycleLabels.ja[12]);
 });

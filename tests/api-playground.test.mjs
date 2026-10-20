@@ -1,4 +1,4 @@
-import { mountAPIPreview, validatePreviewURL } from '../playground/api-preview.js';
+import { mountAPIPreview } from '../playground/api-preview.js';
 import { recordSettingChange, cancelSettingChange } from '../playground/site-setting-analytics.js';
 import { recordSiteEvent, setSiteSection, siteAnalyticsConsent, siteAnalyticsConsentVersion } from '../playground/site-analytics.js';
 import { botCombination, settingValueCategory, sanitizeProductEvent } from '../playground/product-analytics-schema.js';
@@ -97,12 +97,12 @@ test('React examples compile as TSX and include the selected real API', () => {
   }
 });
 
-test('the playground is a free-page companion without a framed movement stage', async () => {
+test('the playground parent has controls and a demo surface, with no overlay avatar', async () => {
   const html = await readFile(new URL('../api-playground.html', import.meta.url), 'utf8');
   const dom = new JSDOM(html);
   try {
-    assert.equal(dom.window.document.querySelector('#movement-stage, .preview-panel'), null);
-    for (const id of ['bot', 'action-kind', 'execute', 'copy', 'invocation']) assert.ok(dom.window.document.getElementById(id), id);
+    assert.equal(dom.window.document.querySelector('sidekick-avatar, #preview-url, #preview-click-layer'), null);
+    for (const id of ['preview-site', 'preview-surface', 'action-kind', 'execute', 'copy', 'invocation']) assert.ok(dom.window.document.getElementById(id), id);
   } finally { dom.window.close(); }
 });
 
@@ -143,29 +143,56 @@ test('both pages share a paused native avatar brand and accessible navigation', 
   }
 });
 
+test('API static brand keeps navigation without allocating a second avatar', async t => {
+  const { mountSiteHeader } = await import('../playground/shared-header.js');
+  const dom = new JSDOM('<div id="header"></div>', { url: 'https://sidekick.test/' });
+  t.after(() => dom.window.close());
+  const host = dom.window.document.getElementById('header');
+  const cleanup = mountSiteHeader(host, 'api', './', { staticBrand: true });
+  assert.equal(host.querySelector('sidekick-avatar'), null);
+  assert.equal(host.querySelector('[aria-current="page"]').dataset.sitePage, 'api');
+  assert.ok(host.querySelector('.brand').getAttribute('aria-label'));
+  cleanup();
+});
+
 async function controllerFixture(t, query = '') {
   const html = await readFile(new URL('../api-playground.html', import.meta.url), 'utf8');
   const source = (await readFile(new URL('../playground/api-playground.js', import.meta.url), 'utf8')).replace(/^import[^\n]+\n/gm, '');
   const dom = new JSDOM(html, { url: 'https://sidekick.test/api-playground.html' + query, runScripts: 'outside-only', pretendToBeVisual: true });
   t.after(() => dom.window.close());
-  const w = dom.window, $ = id => w.document.getElementById(id);
+  const w = dom.window; let child;
+  const $ = id => w.document.getElementById(id) ?? child?.document.getElementById(id);
   setFramework('element');
   Object.assign(w, { mountAPIPreview, recordSettingChange, cancelSettingChange, settingValueCategory, recordSiteEvent, setSiteSection, siteAnalyticsConsent, siteAnalyticsConsentVersion, botCombination, installLifecycleExample, lifecycleMarkup, lifecycleLabels, refreshLifecycleLabels, navigationText, guideHref, readGuideSource, getFramework, subscribeFramework:callback=>{const cleanup=subscribeFramework(callback);t.after(cleanup);return cleanup;}, mountGuideExercise:async()=>false, apiText, applyApiLocale, apiError, getSiteLocale, subscribeSiteLocale: callback => { const cleanup = subscribeSiteLocale(callback); t.after(cleanup); return cleanup; }, structuredClone, codeForAction, executeAction, createAccessory, MATERIAL_SHAPE_LABELS: { heart: 'Heart', ghostish: 'Ghost' }, mountSiteHeader() {}, loadStudioSession: () => ({ message: 'Default scene', scene: { design: {}, trackingMode: 'eyes-and-body', bodyOrientation: { yaw: 0, pitch: 0, roll: 0 }, zoom: 1 } }), seedStudioSession:()=>{}, applyStudioSession: async () => {} });
   w.matchMedia = () => ({ matches: false, addEventListener() {} });
-  class Avatar extends w.HTMLElement {
-    ready = true; calls = []; point = { x: 0, y: 0 }; activity = 'idle'; trackingMode = 'eyes-and-body'; zoom = 1;
+  const observer = new w.MutationObserver(records => {
+    for (const record of records) for (const frame of record.addedNodes) {
+      if (frame.id !== 'site-preview-frame') continue;
+      child = frame.contentWindow;
+      child.document.open(); child.document.write('<!doctype html><body><div id="preview-target">Target</div><div id="free-space">Empty area</div><div id="lifecycle-live"></div></body>'); child.document.close();
+      child.HTMLElement.prototype.scrollIntoView = () => {};
+  class Avatar extends child.HTMLElement {
+    ready = true; calls = []; motion = { cancel() {} }; point = { x: 0, y: 0 }; activity = 'idle'; trackingMode = 'eyes-and-body'; zoom = 1;
     get position() { return this.point; }
     get offsetWidth() { return 180; } get offsetHeight() { return 180; }
     movementState = { phase: 'idle', progress: 0, velocity: { x: 0, y: 0 }, acceleration: { x: 0, y: 0 } };
     moveTo(...args) { this.calls.push({ method: 'moveTo', args }); this.point = args[0]; return Promise.resolve({ finished: true }); }
     moveBy(...args) { this.calls.push({ method: 'moveBy', args }); this.point = { x: this.point.x + args[0].x, y: this.point.y + args[0].y }; return Promise.resolve({ finished: true }); }
   }
-  for (const method of ['setEmotion', 'reactTo', 'cancelReaction', 'setExpression', 'setActivity', 'play', 'stop', 'setBodyOrientation', 'transitionTo', 'cancelMove', 'cancelTransition', 'enter', 'exit', 'detachAnchor', 'moveToElement']) Avatar.prototype[method] = function (...args) { this.calls.push({ method, args }); return Promise.resolve({ finished: true }); };
-  w.customElements.define('sidekick-avatar', Avatar);
-  w.eval(source); await new Promise(resolve => setImmediate(resolve)); const bot = $('bot'); bot.calls.length = 0; if ($('bot-tools').hidden) $('bot-tools-launcher').click();
+  for (const method of ['stopBehavior', 'setEmotion', 'reactTo', 'cancelReaction', 'setExpression', 'setActivity', 'play', 'stop', 'setBodyOrientation', 'transitionTo', 'cancelMove', 'cancelTransition', 'enter', 'exit', 'detachAnchor', 'moveToElement']) Avatar.prototype[method] = function (...args) { this.calls.push({ method, args }); return Promise.resolve({ finished: true }); };
+
+      child.customElements.define('sidekick-avatar', Avatar);
+      const bot = child.document.createElement('sidekick-avatar'); bot.id = 'bot';
+      frame.contentWindow.sidekickDemoReady = Promise.resolve({ bot, document: child.document, window: child, applySession: scene => w.applyStudioSession(bot, scene), execute: action => executeAction(bot, action, w.createAccessory), moveTo: (point, options) => bot.moveTo(point, options), installLifecycle: locale => installLifecycleExample(bot, bot.ownerDocument.getElementById('lifecycle-live'), lifecycleLabels[locale]), dispose: () => bot.remove() });
+      frame.dispatchEvent(new w.Event('load'));
+    }
+  });
+  observer.observe($('preview-surface'), { childList: true }); t.after(() => observer.disconnect());
+  w.eval(source); await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve));
+  const bot = $('bot'); bot.calls.length = 0; if ($('bot-tools').hidden) $('bot-tools-launcher').click();
   const input = (id, value) => { $(id).value = String(value); $(id).dispatchEvent(new w.Event('input', { bubbles: true })); };
-  const pointer = (type, x, y, target = w.document.body, extra = {}) => { const event = new w.Event(type, { bubbles: true }); Object.assign(event, { clientX: x, clientY: y, isPrimary: true, pointerId: 1, button: 0, ...extra }); target.dispatchEvent(event); };
-  return { w, $, bot, input, pointer };
+  const pointer = (type, x, y, target = child.document.body, extra = {}) => { const event = new w.Event(type, { bubbles: true }); Object.assign(event, { clientX: x, clientY: y, isPrimary: true, pointerId: 1, button: 0, ...extra }); target.dispatchEvent(event); };
+  return { w, get child() { return child; }, $, bot, input, pointer };
 }
 const plain = value => JSON.parse(JSON.stringify(value));
 
@@ -206,11 +233,11 @@ test('controller free-page gestures ignore controls, drags, selections, cancella
   f.pointer('pointerdown', 600, 450, f.$('target-x')); f.pointer('pointerup', 600, 450, f.$('target-x'));
   f.pointer('pointerdown', 700, 500); f.pointer('pointermove', 700, 550); f.pointer('pointerup', 700, 550);
   f.pointer('pointerdown', 700, 500); f.pointer('pointercancel', 700, 500); f.pointer('pointerup', 700, 500);
-  f.pointer('pointerdown', 700, 500); f.pointer('pointerdown', 710, 500, f.w.document.body, { isPrimary: false, pointerId: 2 }); f.pointer('pointerup', 700, 500);
-  const range = f.w.document.createRange(); range.selectNodeContents(f.$('invocation')); f.w.getSelection().removeAllRanges(); f.w.getSelection().addRange(range);
+  f.pointer('pointerdown', 700, 500); f.pointer('pointerdown', 710, 500, f.child.document.body, { isPrimary: false, pointerId: 2 }); f.pointer('pointerup', 700, 500);
+  const range = f.child.document.createRange(); range.selectNodeContents(f.$('free-space')); f.child.getSelection().removeAllRanges(); f.child.getSelection().addRange(range);
   f.pointer('pointerdown', 700, 500); f.pointer('pointerup', 700, 500);
   assert.equal(f.bot.calls.length, count);
-  f.w.getSelection().removeAllRanges();
+  f.child.getSelection().removeAllRanges();
   f.pointer('pointerdown', 1, 1); f.pointer('pointerup', 1, 1);
   assert.deepEqual(plain(f.bot.calls.at(-1).args[0]), { x: 0, y: 0 });
 });
@@ -252,7 +279,7 @@ test('page movement and stop commands preserve every draft and keep execution co
 
 test('shadow controls are excluded and invalid background movement has a visible error without losing the draft', async t => {
   const f = await controllerFixture(t);
-  const host = f.w.document.createElement('div'); f.w.document.body.append(host);
+  const host = f.child.document.createElement('div'); f.child.document.body.append(host);
   const shadow = host.attachShadow({ mode: 'open' }); shadow.innerHTML = '<button>Control</button>';
   for (const type of ['pointerdown','pointerup']) {
     const event = new f.w.Event(type, { bubbles: true, composed: true });
@@ -270,12 +297,12 @@ test('shadow controls are excluded and invalid background movement has a visible
 for (const anchor of [false, true]) {
   test(`element anchor ${anchor}: JavaScript and React copied calls exactly match execution`, async t => {
     const f = await controllerFixture(t);
-    f.input('move-method', 'moveToElement'); f.input('target-selector', '#action-panel');
+    f.input('move-method', 'moveToElement'); f.input('target-selector', '#preview-target');
     f.input('align-x', 'right'); f.input('align-y', 'bottom');
     f.input('target-x', -17); f.input('target-y', 23);
     f.$('element-anchor').checked = anchor;
     f.$('element-anchor').dispatchEvent(new f.w.Event('input', { bubbles: true }));
-    const target = f.$('action-panel');
+    const target = f.$('preview-target');
     const originalCode = f.$('invocation').textContent;
     assert.match(originalCode, new RegExp(`anchor: ${anchor}`));
     f.$('execute').click();
@@ -286,7 +313,7 @@ for (const anchor of [false, true]) {
       setFramework(format === 'react' ? 'react' : 'element');
       const displayed = f.$('invocation').textContent;
       const copied = recorder();
-      const document = { querySelector: selector => selector === '#bot' ? copied.avatar : f.w.document.querySelector(selector) };
+      const document = { querySelector: selector => selector === '#bot' ? copied.avatar : f.child.document.querySelector(selector) };
       const source = format === 'react' ? displayed.match(/async function run\(\) \{([\s\S]*?)\n  \}/)[1] : stripImports(displayed);
       await new AsyncFunction('document', 'ref', source)(document, { current: copied.avatar });
       assert.equal(copied.calls[0].args[0], target);
@@ -337,12 +364,12 @@ test('direct lifecycle preset opens a valid guide return link and app outcomes r
  assert.equal(new URL(f.$('guide-source-return').href).hash,'#state-lifecycle');
  f.$('execute').click();await new Promise(resolve=>setImmediate(resolve));
  assert.equal(f.bot.home.positioning.target,'#reference-home');assert.equal(f.bot.task,null);
- f.w.document.querySelector('[data-lifecycle-action="wait"]').click();
+ f.child.document.querySelector('[data-lifecycle-action="wait"]').click();
  assert.equal(f.bot.task.status,'pending');assert.match(f.$('invocation').textContent,/sidekick@v0\.16\.0/);
- f.w.document.querySelector('[data-lifecycle-action="success"]').click();await new Promise(resolve=>setImmediate(resolve));
+ f.child.document.querySelector('[data-lifecycle-action="success"]').click();await new Promise(resolve=>setImmediate(resolve));
  assert.equal(f.bot.task.status,'success');
- f.w.document.querySelector('[data-lifecycle-action="follow"]').click();assert.equal(f.bot.task.id,2);
- f.w.document.querySelector('[data-lifecycle-action="cancel"]').click();assert.equal(f.bot.task.status,'cancelled');
+ f.child.document.querySelector('[data-lifecycle-action="follow"]').click();assert.equal(f.bot.task.id,2);
+ f.child.document.querySelector('[data-lifecycle-action="cancel"]').click();assert.equal(f.bot.task.status,'cancelled');
 });
 
 
@@ -401,7 +428,7 @@ test('devtools close, Escape and reopen preserve draft, bot, generated code and 
   const f = await controllerFixture(t);
   f.input('target-x', 237); f.input('duration', 800);
   const draft = f.$('invocation').textContent, bot = f.bot;
-  for (const id of ['bot-tools-heading', 'preview-form', 'preview-url']) {
+  for (const id of ['bot-tools-heading', 'preview-site', 'preview-refresh']) {
     f.pointer('pointerdown', 600, 450, f.$(id)); f.pointer('pointerup', 600, 450, f.$(id));
   }
   assert.equal(bot.calls.length, 0);
@@ -417,62 +444,72 @@ test('devtools close, Escape and reopen preserve draft, bot, generated code and 
   assert.equal(f.$('target-x').value, '237'); assert.equal(bot.calls.length, 0);
 });
 
-test('preview never autoloads a query URL; explicit navigation is sandboxed, private and honest about load events', async t => {
+test('preview only mounts fixed authored routes and never accepts query URL injection', async t => {
   const f = await controllerFixture(t, '?url=https://private.example/?secret=never&preview=https://private.example');
-  assert.equal(f.$('site-preview-frame'), null);
-  const originalStorage = f.w.localStorage.length;
-  f.$('preview-url').value = 'https://example.com/secret?token=PRIVATE#value';
-  f.$('preview-form').dispatchEvent(new f.w.Event('submit', { bubbles: true, cancelable: true }));
   const frame = f.$('site-preview-frame');
-  assert.equal(frame.getAttribute('sandbox'), 'allow-scripts');
-  assert.equal(frame.referrerPolicy || frame.getAttribute('referrerpolicy'), 'no-referrer');
-  assert.equal(frame.src, 'https://example.com/secret?token=PRIVATE#value');
-  assert.equal(f.w.localStorage.length, originalStorage);
-  assert.ok(!f.w.location.href.includes('PRIVATE'));
-  const status = f.$('preview-status').textContent;
-  frame.dispatchEvent(new f.w.Event('load')); frame.dispatchEvent(new f.w.Event('error'));
-  assert.equal(f.$('preview-status').textContent, status);
-  assert.equal(f.$('preview-click-layer').hidden, true);
-  f.$('preview-capture').checked = true; f.$('preview-capture').dispatchEvent(new f.w.Event('change'));
-  assert.equal(f.$('preview-click-layer').hidden, false);
-  f.$('preview-refresh').click(); assert.notEqual(f.$('site-preview-frame'), frame);
-  f.input('move-method', 'moveToElement'); assert.equal(f.$('execute').disabled, true);
-  f.$('preview-demo-button').click();
-  assert.equal(f.$('site-preview-frame'), null); assert.equal(f.$('preview-demo').hidden, false);
-  assert.equal(f.$('preview-click-layer').hidden, true); assert.equal(f.$('execute').disabled, false);
+  assert.equal(frame.getAttribute('sandbox'), 'allow-scripts allow-same-origin');
+  assert.equal(frame.getAttribute('referrerpolicy'), 'no-referrer');
+  assert.equal(new URL(frame.src).pathname, '/api-demo.html');
+  assert.equal(new URL(frame.src).searchParams.get('site'), 'company');
+  assert.doesNotMatch(frame.src, /private|secret|never/);
+  assert.equal(f.w.document.querySelector('sidekick-avatar'), null);
+  assert.equal(f.bot.ownerDocument, frame.contentDocument);
+  assert.equal(f.$('preview-target').ownerDocument, f.bot.ownerDocument);
 });
 
-test('invalid and mixed-content previews do not replace the current preview or leak input into messages', async t => {
-  const f = await controllerFixture(t);
-  for (const value of ['javascript:alert(1)', 'data:text/html,PRIVATE', 'file:///PRIVATE', 'https://user:PRIVATE@example.com', 'http://example.com/PRIVATE', '/PRIVATE']) {
-    f.$('preview-url').value = value;
-    f.$('preview-form').dispatchEvent(new f.w.Event('submit', { bubbles: true, cancelable: true }));
-    assert.equal(f.$('site-preview-frame'), null);
-    assert.equal(f.$('preview-url').getAttribute('aria-invalid'), 'true');
-    assert.ok(!f.$('preview-status').textContent.includes('PRIVATE'));
-  }
+test('example switch and reset replace one runtime, cancel old work and ignore stale results', async t => {
+  const f = await controllerFixture(t), old = f.bot, frame = f.$('site-preview-frame');
+  let finish; old.transitionTo = () => new Promise(resolve => { finish = resolve; });
+  f.input('action-kind', 'assets'); f.$('execute').click();
+  f.$('preview-site').value = 'shop'; f.$('preview-site').dispatchEvent(new f.w.Event('change'));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(old.isConnected, false); assert.equal(frame.isConnected, false);
+  assert.equal(f.w.document.querySelectorAll('iframe').length, 1);
+  const current = f.$('bot'); assert.notEqual(current, old);
+  assert.equal(current.ownerDocument, f.$('site-preview-frame').contentDocument);
+  assert.ok(old.calls.some(call => call.method === 'cancelMove'));
+  const logs = f.$('result-log').textContent;
+  finish({ finished: true }); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.$('result-log').textContent, logs, 'Removed runtime cannot report into the new demo');
+  f.$('preview-refresh').click(); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(current.isConnected, false); assert.notEqual(f.$('bot'), current);
 });
 
-
-test('preview URL policy allows HTTP only on an HTTP host and never accepts credential-bearing URLs', () => {
-  assert.deepEqual(validatePreviewURL('http://example.test/page', 'http:'), { url: 'http://example.test/page' });
-  assert.deepEqual(validatePreviewURL('https://example.test/page', 'http:'), { url: 'https://example.test/page' });
-  assert.deepEqual(validatePreviewURL('http://example.test'), { error: 'previewMixedContent' });
-  for (const value of ['//example.test', 'example.test', 'https://user@example.test', 'https://:pass@example.test', 'javascript:alert(1)', 'blob:https://example.test/abc']) assert.equal(validatePreviewURL(value).error, 'previewInvalidURL');
-});
-
-test('preview URL editing, loading and refreshing never pass input to site analytics', async t => {
-  const f = await controllerFixture(t), events = [], settings = [], sections = [];
+test('example selection and resetting never send mock data or URLs to site analytics', async t => {
+  const f = await controllerFixture(t), events = [], settings = [];
   f.w.recordSiteEvent = (...args) => events.push(args);
   f.w.recordSettingChange = (...args) => settings.push(args);
-  f.w.setSiteSection = (_win, ...args) => sections.push(args);
-  f.input('preview-url', 'https://example.com/PRIVATE?token=SECRET');
-  f.$('preview-form').dispatchEvent(new f.w.Event('submit', { bubbles: true, cancelable: true }));
-  f.$('preview-refresh').click(); f.$('preview-demo-button').click();
+  f.$('preview-site').value = 'community'; f.$('preview-site').dispatchEvent(new f.w.Event('change'));
+  await new Promise(resolve => setImmediate(resolve));
+  f.$('preview-refresh').click(); await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(events, []); assert.deepEqual(settings, []);
-  assert.doesNotMatch(JSON.stringify(sections), /PRIVATE|SECRET|example\.com/);
 });
 
+test('failed demo initialization disposes the iframe and a reset can recover', async t => {
+  const f = await controllerFixture(t);
+  f.w.applyStudioSession = async () => { throw new Error('Scene initialization failed'); };
+  f.$('preview-refresh').click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.$('site-preview-frame'), null);
+  assert.equal(f.$('execute').disabled, true);
+  assert.match(f.$('status').textContent, /Scene initialization failed/);
+  f.w.applyStudioSession = async () => {};
+  f.$('preview-refresh').click(); await new Promise(resolve => setImmediate(resolve));
+  assert.ok(f.$('bot').isConnected); assert.equal(f.$('execute').disabled, false);
+});
+
+test('bfcache pagehide retains the current child lifecycle request', async t => {
+  const f = await controllerFixture(t);
+  f.input('action-kind', 'lifecycle'); f.$('execute').click();
+  await new Promise(resolve => setImmediate(resolve));
+  f.child.document.querySelector('[data-lifecycle-action="wait"]').click();
+  const pending = f.bot.task;
+  f.w.dispatchEvent(new f.w.PageTransitionEvent('pagehide', { persisted: true }));
+  assert.equal(f.bot.task, pending); assert.equal(f.bot.task.status, 'pending'); assert.ok(f.bot.isConnected);
+  f.child.document.querySelector('[data-lifecycle-action="success"]').click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.bot.task.status, 'success');
+});
 
 test('drawer sizing survives bfcache pagehide and still responds to viewport changes', async t => {
   const f = await controllerFixture(t), panel = f.$('bot-tools');

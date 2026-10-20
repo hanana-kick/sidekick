@@ -8,14 +8,17 @@ import { forceCanvasForPage } from './helpers/force-no-webgl.mjs';
 
 const forceCanvas = process.env.SIDEKICK_FORCE_CANVAS2D === '1';
 const canvasAudits = new WeakMap();
-let browser, server, base;
+let browser, launcher, server, base;
 before(async () => {
   server = createAppServer();
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
-  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined), headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage', ...(forceCanvas ? ['--disable-webgl'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'])] });
+  launcher = await chromium.launchServer({ executablePath: process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined), host: '127.0.0.1', headless: true, chromiumSandbox: true, ignoreDefaultArgs: true, args: ['--headless', '--remote-debugging-pipe', '--no-startup-window'] });
+  browser = await chromium.connect(launcher.wsEndpoint());
 });
-after(async () => { await browser?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
+after(async () => { await browser?.close(); await launcher?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
+const demo = page => page.frames().find(frame => frame.url().includes('/api-demo.html'));
+const avatar = page => page.frameLocator('#site-preview-frame').locator('#bot');
 async function pageFor(t, options = {}) {
   const page = await browser.newPage({ locale: 'ko-KR', viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce', ...options });
   // One entry point serves every API test, later navigation and fresh avatars.
@@ -25,15 +28,14 @@ async function pageFor(t, options = {}) {
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   t.after(async () => { await page.close(); assert.deepEqual(errors, []); });
   await page.goto(`${base}/api-playground.html`);
-  await page.waitForFunction(() => document.getElementById('bot')?.ready && document.getElementById('invocation').textContent.includes('moveTo') && document.getElementById('status').textContent.includes('준비'));
+  await page.waitForFunction(() => document.querySelector('#site-preview-frame')?.contentDocument?.querySelector('#bot[data-configured]')?.ready && document.getElementById('invocation').textContent.includes('moveTo'));
   if (canvasAudit) {
-    await page.waitForFunction(() => [...document.querySelectorAll('sidekick-avatar')].every(avatar => avatar.ready));
-    const diagnostics = await page.locator('#bot').evaluate(bot => bot.diagnostics);
+    const diagnostics = await avatar(page).evaluate(bot => bot.diagnostics);
     assert.equal(diagnostics.backend, 'worker', 'Forced Canvas API coverage must keep the real dedicated worker');
     assert.equal(diagnostics.graphics, 'canvas2d', 'The production renderer must discover missing WebGL itself');
     await canvasAudit.assertDenied({ worker: true, minWorkerResponses: 1 });
   }
-  await page.evaluate(() => {
+  await demo(page).evaluate(() => {
     const bot = document.getElementById('bot');
     window.apiCalls = [];
     for (const method of ['moveTo', 'moveBy', 'cancelMove', 'play', 'setActivity', 'stop', 'setExpression', 'setBodyOrientation', 'transitionTo', 'cancelTransition', 'enter', 'exit']) {
@@ -45,11 +47,12 @@ async function pageFor(t, options = {}) {
   await page.locator('#bot-tools-launcher').click();
   return page;
 }
-async function reveal(page, id) { await page.locator(`#${id}`).evaluate(element => { for (let parent = element.parentElement; parent; parent = parent.parentElement) if (parent.tagName === 'DETAILS') parent.open = true; }); }
+async function openTools(page) { if (!await page.locator('#bot-tools').isVisible()) await page.locator('#bot-tools-launcher').click(); }
+async function reveal(page, id) { await openTools(page); await page.locator(`#${id}`).evaluate(element => { for (let parent = element.parentElement; parent; parent = parent.parentElement) if (parent.tagName === 'DETAILS') parent.open = true; }); }
 async function fill(page, id, value) { await reveal(page, id); await page.locator(`#${id}`).fill(String(value)); }
 async function select(page, id, value) { await reveal(page, id); await page.locator(`#${id}`).selectOption(value); }
-async function calls(page) { return page.evaluate(() => window.apiCalls); }
-async function lastCall(page) { return page.evaluate(() => window.apiCalls.at(-1)); }
+async function calls(page) { return demo(page).evaluate(() => window.apiCalls); }
+async function lastCall(page) { return demo(page).evaluate(() => window.apiCalls.at(-1)); }
 async function codeCalls(page, codeId = 'invocation') {
   return page.evaluate(async codeId => {
     const { createAccessory } = await import('/browser/sidekick.js');
@@ -73,12 +76,19 @@ async function executeAndCompare(page) {
   return expected[0];
 }
 async function blankPoint(page) {
+  if (await page.locator('#bot-tools').isVisible()) await page.locator('#bot-tools-close').click();
+  await page.frameLocator('#site-preview-frame').locator('#free-space').scrollIntoViewIfNeeded();
   return page.evaluate(() => {
-    for (let y = innerHeight - 15; y > 90; y -= 30) for (const x of [3, innerWidth - 3, ...Array.from({ length: Math.floor(innerWidth / 30) }, (_, i) => innerWidth - 15 - i * 30)]) {
-      const element = document.elementFromPoint(x, y);
-      if (element?.id === 'free-space' || element === document.body || element === document.documentElement || (element?.tagName === 'MAIN' && !element.closest('.controls-panel'))) return { x, y };
+    const frame = document.querySelector('#site-preview-frame'), child = frame.contentWindow;
+    const outer = frame.getBoundingClientRect(), free = child.document.querySelector('#free-space').getBoundingClientRect();
+    for (let localY = Math.max(4, free.top + 4); localY < Math.min(child.innerHeight - 4, free.bottom - 4); localY += 12) {
+      for (let localX = free.left + 8; localX < free.right - 8; localX += 16) {
+        const x = outer.x + localX, y = outer.y + localY;
+        if (document.elementFromPoint(x, y) === frame && child.document.elementFromPoint(localX, localY)?.closest('#free-space'))
+          return { x, y, localX, localY, width: child.innerWidth, height: child.innerHeight };
+      }
     }
-    throw new Error('No blank page coordinate is reachable');
+    throw new Error('No unobstructed demo click surface');
   });
 }
 
@@ -105,25 +115,25 @@ test('activity, expressions, tracking, orientation and assets use public APIs ma
   await select(page, 'action-kind', 'activity'); await select(page, 'activity', 'thinking');
   await select(page, 'activity-operation', 'setActivity');
   assert.equal((await executeAndCompare(page)).method, 'setActivity');
-  assert.equal(await page.locator('#bot').evaluate(bot => bot.activity), 'thinking');
+  assert.equal(await avatar(page).evaluate(bot => bot.activity), 'thinking');
   await select(page, 'activity-operation', 'play'); await fill(page, 'activity-duration', 700);
   assert.equal((await executeAndCompare(page)).method, 'play');
   await select(page, 'activity-operation', 'stop'); assert.equal((await executeAndCompare(page)).method, 'stop');
-  assert.equal(await page.locator('#bot').evaluate(bot => bot.activity), 'idle');
+  assert.equal(await avatar(page).evaluate(bot => bot.activity), 'idle');
   await select(page, 'action-kind', 'expression'); await select(page, 'eye-side', 'left'); await select(page, 'expression', 'smile'); await fill(page, 'expression-duration', 0);
   assert.deepEqual(await executeAndCompare(page), { method: 'setExpression', args: ['left', 'smile', { duration: 0 }] });
   await select(page, 'action-kind', 'tracking'); await select(page, 'tracking-mode', 'off');
   assert.deepEqual(await codeCalls(page), [{ property: 'trackingMode', value: 'off' }]);
-  await page.locator('#execute').click(); assert.equal(await page.locator('#bot').evaluate(bot => bot.trackingMode), 'off');
+  await page.locator('#execute').click(); assert.equal(await avatar(page).evaluate(bot => bot.trackingMode), 'off');
   await select(page, 'action-kind', 'orientation');
   await fill(page, 'zoom', 1.5); await fill(page, 'body-yaw', 15); await fill(page, 'body-pitch', -8); await fill(page, 'body-roll', 5);
   assert.deepEqual(await executeAndCompare(page), { method: 'setBodyOrientation', args: [{ yaw: 15, pitch: -8, roll: 5 }] });
-  assert.equal(await page.locator('#bot').evaluate(bot => bot.zoom), 1.5);
+  assert.equal(await avatar(page).evaluate(bot => bot.zoom), 1.5);
   await select(page, 'action-kind', 'assets'); await select(page, 'shape', 'heart'); await select(page, 'head-accessory', 'halo'); await select(page, 'eyes-accessory', 'glasses'); await select(page, 'neck-accessory', 'bowTie'); await fill(page, 'transition-duration', 0);
   const transition = await executeAndCompare(page);
   assert.equal(transition.method, 'transitionTo'); assert.equal(transition.args[0].shape, 'heart');
   assert.deepEqual(transition.args[0].accessories.map(a => a.preset), ['halo', 'glasses', 'bowTie']);
-  assert.equal(await page.locator('#bot').evaluate(bot => bot.design.body.shape), 'heart');
+  assert.equal(await avatar(page).evaluate(bot => bot.design.body.shape), 'heart');
 });
 
 test('blank page taps center and clamp the bot; control taps, selections and swipes do not move it', async t => {
@@ -131,19 +141,20 @@ test('blank page taps center and clamp the bot; control taps, selections and swi
   const point = await blankPoint(page);
   await page.mouse.click(point.x, point.y);
   const first = await lastCall(page);
-  const dimensions = await page.locator('#bot').evaluate(bot => ({ width: bot.offsetWidth, height: bot.offsetHeight }));
+  const dimensions = await avatar(page).evaluate(bot => ({ width: bot.offsetWidth, height: bot.offsetHeight }));
   assert.equal(first.method, 'moveTo');
-  assert.deepEqual(first.args[0], { x: Math.min(1280 - dimensions.width, Math.max(0, point.x - dimensions.width / 2)), y: Math.min(900 - dimensions.height, Math.max(0, point.y - dimensions.height / 2)) });
+  assert.deepEqual(first.args[0], { x: Math.min(point.width - dimensions.width, Math.max(0, point.localX - dimensions.width / 2)), y: Math.min(point.height - dimensions.height, Math.max(0, point.localY - dimensions.height / 2)) });
   const count = (await calls(page)).length;
+  await openTools(page);
   await page.locator('#target-x').click(); await page.locator('#copy').click();
   await page.mouse.move(point.x, point.y); await page.mouse.down(); await page.mouse.move(point.x - 60, point.y - 60); await page.mouse.up();
-  await page.evaluate(() => {
-    const code = document.getElementById('invocation'); const range = document.createRange(); range.selectNodeContents(code);
+  await demo(page).evaluate(() => {
+    const code = document.querySelector('h1'); const range = document.createRange(); range.selectNodeContents(code);
     const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range);
   });
-  await page.evaluate(point => {
-    const target = document.elementFromPoint(point.x, point.y);
-    for (const type of ['pointerdown', 'pointerup']) target.dispatchEvent(new PointerEvent(type, { bubbles: true, isPrimary: true, button: 0, pointerId: 7, clientX: point.x, clientY: point.y }));
+  await demo(page).evaluate(point => {
+    const target = document.getElementById('free-space');
+    for (const type of ['pointerdown', 'pointerup']) target.dispatchEvent(new PointerEvent(type, { bubbles: true, isPrimary: true, button: 0, pointerId: 7, clientX: point.localX, clientY: point.localY }));
   }, point);
   assert.equal((await calls(page)).length, count);
 });
@@ -188,18 +199,19 @@ test('JavaScript and React copy stays synchronized and mobile controls stay insi
 
 test('mobile taps and swipe gestures use page coordinates without control-scroll movement', async t => {
   const page = await pageFor(t, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  await page.locator('#free-space').scrollIntoViewIfNeeded();
+  await page.frameLocator('#site-preview-frame').locator('#free-space').scrollIntoViewIfNeeded();
   const point = await blankPoint(page);
   await page.touchscreen.tap(point.x, point.y);
   assert.equal((await lastCall(page)).method, 'moveTo');
   const count = (await calls(page)).length;
-  await page.evaluate(point => {
-    const target = document.elementFromPoint(point.x, point.y);
-    const common = { bubbles: true, pointerId: 20, pointerType: 'touch', isPrimary: true, button: 0, clientX: point.x, clientY: point.y };
+  await demo(page).evaluate(point => {
+    const target = document.elementFromPoint(point.localX, point.localY);
+    const common = { bubbles: true, pointerId: 20, pointerType: 'touch', isPrimary: true, button: 0, clientX: point.localX, clientY: point.localY };
     target.dispatchEvent(new PointerEvent('pointerdown', common));
-    target.dispatchEvent(new PointerEvent('pointermove', { ...common, clientY: point.y - 50 }));
-    target.dispatchEvent(new PointerEvent('pointerup', { ...common, clientY: point.y - 50 }));
+    target.dispatchEvent(new PointerEvent('pointermove', { ...common, clientY: point.localY - 50 }));
+    target.dispatchEvent(new PointerEvent('pointerup', { ...common, clientY: point.localY - 50 }));
   }, point);
+  await openTools(page);
   await page.locator('#copy').scrollIntoViewIfNeeded();
   assert.equal((await calls(page)).length, count);
   const toolbar = await page.locator('#cancel-preview').boundingBox();
@@ -212,9 +224,14 @@ test('both pages preserve accessible shared branding and navigation at narrow si
     await page.setViewportSize(viewport);
     for (const route of ['api-playground.html', '']) {
       await page.goto(`${base}/${route}`);
-      await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
-      const brand = await page.locator('.brand-avatar').evaluate(avatar => ({ paused: avatar.paused, tracking: avatar.trackingMode, zoom: avatar.zoom, shape: avatar.design.body.shape, accessories: avatar.design.accessories.map(a => a.preset).sort() }));
-      assert.deepEqual(brand, { paused: true, tracking: 'off', zoom: 1.2846936688304844, shape: 'ghostish', accessories: ['beret', 'bowTie', 'glasses'] });
+      if (route) {
+        await page.locator('.brand-avatar').waitFor();
+        assert.equal(await page.locator('sidekick-avatar').count(), 0, 'API shell branding must not allocate another renderer');
+      } else {
+        await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
+        const brand = await page.locator('.brand-avatar').evaluate(avatar => ({ paused: avatar.paused, tracking: avatar.trackingMode, zoom: avatar.zoom, shape: avatar.design.body.shape, accessories: avatar.design.accessories.map(a => a.preset).sort() }));
+        assert.deepEqual(brand, { paused: true, tracking: 'off', zoom: 1.2846936688304844, shape: 'ghostish', accessories: ['beret', 'bowTie', 'glasses'] });
+      }
       assert.equal(await page.locator('.product-nav [aria-current="page"]').textContent(), route ? 'API 체험' : '스튜디오');
       for (const link of await page.locator('.app-header a').all()) {
         const box = await link.boundingBox(); assert.ok(box && box.x >= 0 && box.x + box.width <= viewport.width + 1);
@@ -245,16 +262,16 @@ test('presence controls produce executable entry and exit APIs and restore a hid
   const page = await pageFor(t);
   await select(page, 'action-kind', 'presence'); await select(page, 'presence-operation', 'exit'); await select(page, 'presence-edge', 'right');
   assert.deepEqual(await executeAndCompare(page), { method: 'exit', args: [{ to: 'right' }] });
-  await page.waitForFunction(() => document.getElementById('bot').presenceState === 'hidden');
+  await demo(page).waitForFunction(() => document.getElementById('bot').presenceState === 'hidden');
   await select(page, 'presence-operation', 'enter'); await select(page, 'presence-edge', 'left'); await fill(page, 'entrance-x', 350); await fill(page, 'entrance-y', 220);
   assert.deepEqual(await executeAndCompare(page), { method: 'enter', args: [{ x: 350, y: 220 }, { from: 'left' }] });
-  await page.waitForFunction(() => document.getElementById('bot').presenceState === 'visible');
-  assert.deepEqual(await page.locator('#bot').evaluate(bot => bot.position), { x: 350, y: 220 });
+  await demo(page).waitForFunction(() => document.getElementById('bot').presenceState === 'visible');
+  assert.deepEqual(await avatar(page).evaluate(bot => bot.position), { x: 350, y: 220 });
 });
 
 test('generated JavaScript reproduces preview state on a fresh real avatar', async t => {
   const page = await pageFor(t);
-  await page.evaluate(async () => {
+  await demo(page).evaluate(async () => {
     const preview = document.getElementById('bot');
     const fresh = document.createElement('sidekick-avatar');
     fresh.id = 'fresh-code-avatar'; fresh.setAttribute('placement', 'viewport');
@@ -279,13 +296,13 @@ test('generated JavaScript reproduces preview state on a fresh real avatar', asy
     }
     const source = await page.locator('#invocation').textContent();
     await page.locator('#execute').click();
-    await page.evaluate(async source => {
+    await demo(page).evaluate(async source => {
       const { createAccessory } = await import('/browser/sidekick.js');
       const fresh = document.getElementById('fresh-code-avatar');
       const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
       await new AsyncFunction('document', 'createAccessory', source.replace(/^import\s.*?;\s*$/gm, ''))({ querySelector: () => fresh, getElementById: () => fresh }, createAccessory);
     }, source);
-    const states = await page.evaluate(() => {
+    const states = await demo(page).evaluate(() => {
       const snapshot = avatar => ({ position: avatar.position, design: avatar.design, bodyOrientation: avatar.bodyOrientation, zoom: avatar.zoom, trackingMode: avatar.trackingMode, activity: avatar.activity });
       return { preview: snapshot(document.getElementById('bot')), fresh: snapshot(document.getElementById('fresh-code-avatar')) };
     });
@@ -300,7 +317,7 @@ test('background clicks preserve selected task, all fields and copied code on de
     await select(page, 'action-kind', 'expression'); await select(page, 'expression', 'smile'); await fill(page, 'expression-duration', 720);
     const snapshot = () => page.locator('#action-panel input,#action-panel select').evaluateAll(elements => elements.map(e => [e.id, e.value, e.checked]));
     const before = await snapshot(), draft = await page.locator('#invocation').textContent();
-    await page.locator('#free-space').scrollIntoViewIfNeeded(); const point = await blankPoint(page);
+    await page.frameLocator('#site-preview-frame').locator('#free-space').scrollIntoViewIfNeeded(); const point = await blankPoint(page);
     if (mobile) await page.touchscreen.tap(point.x, point.y); else await page.mouse.click(point.x, point.y);
     assert.deepEqual(await snapshot(), before); assert.equal(await page.locator('#invocation').textContent(), draft);
     const actual = await lastCall(page); assert.equal(actual.method, 'moveTo');
@@ -318,13 +335,13 @@ test('background clicks preserve selected task, all fields and copied code on de
 
 test('element-relative action displays executable matching code without losing its draft',async t=>{
  const page=await pageFor(t);
- await select(page,'move-method','moveToElement');await fill(page,'target-selector','#action-panel');
+ await select(page,'move-method','moveToElement');await fill(page,'target-selector','#preview-target');
  await select(page,'align-x','center');await select(page,'align-y','bottom');await fill(page,'target-x',12);await fill(page,'target-y',-16);
- const before=await page.locator('#invocation').textContent();assert.match(before,/moveToElement\(document.querySelector\('#action-panel'\)/);assert.match(before,/alignX: 'center'/);
+ const before=await page.locator('#invocation').textContent();assert.match(before,/moveToElement\(document.querySelector\('#preview-target'\)/);assert.match(before,/alignX: 'center'/);
  await page.locator('#execute').click();await page.waitForFunction(()=>document.getElementById('status').textContent==='적용되었습니다.');
  assert.equal(await page.locator('#invocation').textContent(),before);
- const result=await page.evaluate(()=>{
-  const bot=document.getElementById('bot'),target=document.getElementById('action-panel').getBoundingClientRect();
+ const result=await demo(page).evaluate(()=>{
+  const bot=document.getElementById('bot'),target=document.getElementById('preview-target').getBoundingClientRect();
   return {position:bot.position,expected:{x:Math.max(0,Math.min(innerWidth-bot.offsetWidth,target.left+(target.width-bot.offsetWidth)/2+12)),y:Math.max(0,Math.min(innerHeight-bot.offsetHeight,target.bottom-bot.offsetHeight-16))}};
  });
  assert.ok(Math.abs(result.position.x-result.expected.x)<.1);assert.ok(Math.abs(result.position.y-result.expected.y)<.1);
@@ -334,7 +351,7 @@ test('element-relative action displays executable matching code without losing i
 
 test('element anchor option and copied code bind scrolling targets; detach preserves the configured draft', async t => {
   const page = await pageFor(t);
-  await page.evaluate(() => {
+  await demo(page).evaluate(() => {
     const target = document.createElement('div'); target.id = 'anchor-test-target';
     target.style.cssText = 'position:absolute;left:30px;top:400px;width:240px;height:160px;pointer-events:none';
     document.body.append(target); document.getElementById('bot').movementBounds = 'none';
@@ -343,44 +360,44 @@ test('element anchor option and copied code bind scrolling targets; detach prese
   await fill(page, 'target-x', 12); await fill(page, 'target-y', 16); await fill(page, 'duration', 0);
   assert.equal(await page.locator('#element-anchor').isChecked(), false);
   await page.locator('#execute').click();
-  assert.equal(await page.locator('#bot').evaluate(bot => bot.elementAnchor), null);
+  assert.equal(await avatar(page).evaluate(bot => bot.elementAnchor), null);
   await page.locator('#element-anchor').check();
   const draft = await page.locator('#invocation').textContent(); assert.match(draft, /anchor: true/);
   await page.locator('#execute').click();
-  await page.waitForFunction(() => document.getElementById('bot').elementAnchor?.target.id === 'anchor-test-target');
+  await demo(page).waitForFunction(() => document.getElementById('bot').elementAnchor?.target.id === 'anchor-test-target');
   // Exercise the displayed command itself on the live element, not a recorder.
-  await page.evaluate(async source => {
+  await demo(page).evaluate(async source => {
     document.getElementById('bot').detachAnchor();
     await new (Object.getPrototypeOf(async function () {}).constructor)('document', source)(document);
   }, draft);
-  await page.evaluate(() => { window.scrollTo(0, 180); });
-  await page.waitForFunction(() => {
+  await demo(page).evaluate(() => { window.scrollTo(0, 180); });
+  await demo(page).waitForFunction(() => {
     const bot = document.getElementById('bot'), rect = document.getElementById('anchor-test-target').getBoundingClientRect();
     return Math.abs(bot.position.x - rect.left - 12) < .5 && Math.abs(bot.position.y - rect.top - 16) < .5;
   });
   const before = await page.locator('#action-panel input,#action-panel select').evaluateAll(elements => elements.map(e => [e.id,e.value,e.checked]));
   await page.locator('#detach-anchor').click();
-  assert.equal(await page.locator('#bot').evaluate(bot => bot.elementAnchor), null);
+  assert.equal(await avatar(page).evaluate(bot => bot.elementAnchor), null);
   assert.equal(await page.locator('#invocation').textContent(), draft);
   assert.deepEqual(await page.locator('#action-panel input,#action-panel select').evaluateAll(elements => elements.map(e => [e.id,e.value,e.checked])), before);
   assert.match(await page.locator('#last-invocation').textContent(), /avatar.detachAnchor\(\);/);
-  const detached = await page.locator('#bot').evaluate(bot => bot.position);
-  await page.evaluate(() => { document.getElementById('anchor-test-target').style.top = '600px'; });
+  const detached = await avatar(page).evaluate(bot => bot.position);
+  await demo(page).evaluate(() => { document.getElementById('anchor-test-target').style.top = '600px'; });
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  assert.deepEqual(await page.locator('#bot').evaluate(bot => bot.position), detached);
+  assert.deepEqual(await avatar(page).evaluate(bot => bot.position), detached);
   await select(page, 'action-kind', 'anchor');
   assert.match(await page.locator('#invocation').textContent(), /avatar.detachAnchor\(\);/);
 });
 
 test('playground eye action visibly overrides an active emotion without resetting the action form', async t => {
   const page=await pageFor(t);
-  await page.locator('#bot').evaluate(bot=>{bot.paused=true;bot.trackingMode='off';});
-  const pixels=()=>page.locator('#bot').evaluate(async bot=>Array.from((await bot.capturePixelsAsync()).pixels));
+  await avatar(page).evaluate(bot=>{bot.paused=true;bot.trackingMode='off';});
+  const pixels=()=>avatar(page).evaluate(async bot=>Array.from((await bot.capturePixelsAsync()).pixels));
   await select(page,'action-kind','emotion');await select(page,'emotion-operation','setEmotion');await select(page,'emotion-name','happy');await fill(page,'emotion-intensity',1);await page.locator('#execute').click();
   const happy=await pixels();
   await select(page,'action-kind','expression');await select(page,'eye-side','both');await select(page,'expression','blink');await fill(page,'expression-duration',0);await page.locator('#execute').click();
   const closed=await pixels();assert.notDeepEqual(closed,happy,'GPU eye bitmap must change, not only authored pose');
-  assert.equal(await page.locator('#action-kind').inputValue(),'expression');assert.equal(await page.locator('#bot').evaluate(bot=>bot.emotion),'happy');
+  assert.equal(await page.locator('#action-kind').inputValue(),'expression');assert.equal(await avatar(page).evaluate(bot=>bot.emotion),'happy');
   await select(page,'expression','neutral');await page.locator('#execute').click();const neutral=await pixels();assert.notDeepEqual(neutral,closed);assert.notDeepEqual(neutral,happy);
 });
 
@@ -391,39 +408,36 @@ for (const width of [320, 1280]) test(`preview shell ${width}px: closed panel, k
   await page.locator('#bot-tools-close').click();
   assert.equal(await page.locator('#bot-tools').isVisible(), false);
   assert.equal(await page.locator('#bot-tools-launcher').getAttribute('aria-expanded'), 'false');
-  assert.equal(await page.locator('#site-preview-frame').count(), 0);
+  assert.equal(await page.locator('#site-preview-frame').count(), 1);
   assert.equal(await page.locator('#bot-tools-launcher').evaluate(el => el === document.activeElement), true);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
-  await page.locator('#free-space').click();
+  await page.frameLocator('#site-preview-frame').locator('#free-space').click();
   assert.equal((await lastCall(page)).method, 'moveTo');
   await page.locator('#bot-tools-launcher').focus(); await page.keyboard.press('Enter');
   assert.equal(await page.locator('#bot-tools-close').evaluate(el => el === document.activeElement), true);
   assert.equal(await page.locator('#invocation').textContent(), draft);
   const rect = await page.locator('#bot-tools').boundingBox();
-  assert.ok(rect.x >= 0 && rect.x + rect.width <= width && rect.y >= 0);
+  assert.ok(rect.x >= 0 && rect.x + rect.width <= width && rect.y >= 0, JSON.stringify({ width, rect }));
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#bot-tools').isVisible(), false);
 });
 
-test('iframe previews are explicit, sandboxed and leave a usable local demo after blocked embedding', async t => {
+test('built-in iframe choices use only authored routes and retain a real local target', async t => {
   const page = await pageFor(t);
   await page.locator('#bot-tools-close').click();
-  await page.route('https://preview.example/**', route => route.fulfill({
-    status: 200, contentType: 'text/html', headers: { 'Content-Security-Policy': "frame-ancestors 'none'", 'X-Frame-Options': 'DENY' }, body: '<h1>Not embeddable</h1>',
-  }));
-  await page.locator('#preview-url').fill('https://preview.example/private?token=NEVER_ANALYTICS');
-  await page.locator('#preview-form button[type=submit]').click();
-  assert.equal(await page.locator('#site-preview-frame').getAttribute('sandbox'), 'allow-scripts');
-  assert.equal(await page.locator('#site-preview-frame').getAttribute('referrerpolicy'), 'no-referrer');
-  assert.match(await page.locator('#preview-status').textContent(), /요청됨/);
-  assert.equal(await page.locator('#preview-click-layer').isVisible(), false);
-  await page.locator('#preview-capture').check();
-  assert.equal(await page.locator('#preview-click-layer').isVisible(), true);
-  await page.locator('#preview-click-layer').click({ position: { x: 100, y: 100 } });
-  assert.equal((await lastCall(page)).method, 'moveTo');
-  await page.locator('#preview-demo-button').click();
-  assert.equal(await page.locator('#site-preview-frame').count(), 0);
-  assert.equal(await page.locator('#preview-target').isVisible(), true);
+  assert.equal(await page.locator('#preview-url, #preview-click-layer').count(), 0);
+  for (const site of ['company', 'shop', 'community']) {
+    await page.locator('#preview-site').selectOption(site);
+    await page.waitForFunction(site => {
+      const frame = document.querySelector('#site-preview-frame');
+      return new URL(frame.src).searchParams.get('site') === site && frame.contentDocument.querySelector('#bot[data-configured]')?.ready;
+    }, site);
+    assert.equal(await page.locator('#site-preview-frame').getAttribute('sandbox'), 'allow-scripts allow-same-origin');
+    assert.equal(await page.locator('#site-preview-frame').getAttribute('referrerpolicy'), 'no-referrer');
+    assert.equal(new URL(await page.locator('#site-preview-frame').getAttribute('src')).origin, base);
+    assert.equal(await demo(page).locator('#preview-target').count(), 1);
+    assert.equal(await page.locator('sidekick-avatar').count(), 0);
+  }
 });
 
 // This page renders one native avatar; the shared framework switch selects generated
@@ -441,21 +455,18 @@ for (const framework of ['element', 'react']) test(`live viewport resize preserv
   }));
   const draft = await snapshot();
   assert.match(draft.code, framework === 'react' ? /SidekickAvatar/ : /avatar\.moveTo/);
-  await page.waitForFunction(() => !!document.getElementById('bot')?.diagnostics?.graphics);
-  assert.equal(await page.locator('#bot').evaluate(bot => bot.diagnostics.graphics), forceCanvas ? 'canvas2d' : 'webgl2', 'Fallback must not silently mask a WebGL test');
-  await page.locator('#bot').evaluate(async bot => {
+  await demo(page).waitForFunction(() => !!document.getElementById('bot')?.diagnostics?.graphics);
+  assert.equal(await avatar(page).evaluate(bot => bot.diagnostics.graphics), forceCanvas ? 'canvas2d' : 'webgl2', 'Fallback must not silently mask a WebGL test');
+  await avatar(page).evaluate(async bot => {
     bot.trackingMode = 'off';
     await bot.moveTo({ x: innerWidth - bot.offsetWidth, y: innerHeight - bot.offsetHeight }, { duration: 0, travel: 'none' });
   });
   await page.locator('#bot-tools-close').click();
-  const previewURL = `${base}/resize-preview-fixture`;
-  await page.route(previewURL, route => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><meta name="viewport" content="width=device-width"><body style="margin:0;background:#eef2ff"><h1>Responsive preview fixture</h1></body></html>' }));
-  await page.locator('#preview-url').fill(previewURL);
-  await page.locator('#preview-form button[type=submit]').click();
   const frame = page.locator('#site-preview-frame');
-  assert.equal(await frame.getAttribute('sandbox'), 'allow-scripts');
+  const previewURL = await frame.getAttribute('src');
+  assert.equal(await frame.getAttribute('sandbox'), 'allow-scripts allow-same-origin');
   // Track identity so resize cannot pass by silently replacing the preview or bot.
-  await page.evaluate(() => { window.resizeFrame = document.getElementById('site-preview-frame'); window.resizeBot = document.getElementById('bot'); });
+  await page.evaluate(() => { window.resizeFrame = document.getElementById('site-preview-frame'); window.resizeBot = window.resizeFrame.contentDocument.getElementById('bot'); });
   const invocationCount = (await calls(page)).length;
   const viewports = [
     { width: 320, height: 640 }, // shrink across the mobile breakpoint
@@ -473,10 +484,21 @@ for (const framework of ['element', 'react']) test(`live viewport resize preserv
       await page.waitForFunction(open => {
         const panel = document.getElementById('bot-tools'), header = document.querySelector('.app-header');
         const p = panel.getBoundingClientRect(), h = header.getBoundingClientRect();
-        const bot = document.getElementById('bot').getBoundingClientRect();
+        const child = document.querySelector('#site-preview-frame').contentWindow;
+        const bot = child.document.getElementById('bot').getBoundingClientRect();
         return panel.hidden === !open && (!open || (p.left >= -1 && p.right <= innerWidth + 1 && p.top >= h.bottom - 1 && p.bottom <= innerHeight + 1)) &&
-          bot.left >= -1 && bot.top >= -1 && bot.right <= innerWidth + 1 && bot.bottom <= innerHeight + 1;
-      }, open);
+          bot.left >= -1 && bot.top >= -1 && bot.right <= child.innerWidth + 1 && bot.bottom <= child.innerHeight + 1;
+      }, open).catch(async error => {
+        const state = await page.evaluate(() => {
+          const child = document.querySelector('#site-preview-frame').contentWindow;
+          return { parent: [innerWidth, innerHeight], child: [child.innerWidth, child.innerHeight],
+            panel: document.querySelector('#bot-tools').getBoundingClientRect().toJSON(),
+            header: document.querySelector('.app-header').getBoundingClientRect().toJSON(),
+            bot: child.document.querySelector('#bot').getBoundingClientRect().toJSON(),
+            position: child.document.querySelector('#bot').position };
+        });
+        throw new Error(`${error.message}: ${JSON.stringify({ open, viewport, state })}`, { cause: error });
+      });
       const layout = await page.evaluate(() => {
         const surface = document.getElementById('preview-surface'), frame = document.getElementById('site-preview-frame'), r = frame.getBoundingClientRect();
         const reachable = id => {
@@ -487,15 +509,15 @@ for (const framework of ['element', 'react']) test(`live viewport resize preserv
         return {
           overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
           frameWidth: r.width, frameHeight: r.height, surfaceWidth: surface.clientWidth, surfaceHeight: surface.clientHeight,
-          sameFrame: frame === window.resizeFrame, sameBot: document.getElementById('bot') === window.resizeBot,
+          sameFrame: frame === window.resizeFrame, sameBot: frame.contentDocument.getElementById('bot') === window.resizeBot,
           languageReachable: reachable('site-language'), frameworkReachable: reachable('site-framework'), launcherReachable: reachable('bot-tools-launcher'),
-          captureHidden: document.getElementById('preview-click-layer').hidden,
+          noCaptureLayer: document.getElementById('preview-click-layer') === null,
         };
       });
       assert.equal(layout.overflow, false, JSON.stringify({ open, viewport, layout }));
       assert.ok(Math.abs(layout.frameWidth - layout.surfaceWidth) <= 1);
       assert.ok(Math.abs(layout.frameHeight - layout.surfaceHeight) <= 1);
-      for (const key of ['sameFrame', 'sameBot', 'languageReachable', 'frameworkReachable', 'launcherReachable', 'captureHidden']) assert.equal(layout[key], true, `${key}: ${JSON.stringify({ open, viewport })}`);
+      for (const key of ['sameFrame', 'sameBot', 'languageReachable', 'frameworkReachable', 'launcherReachable', 'noCaptureLayer']) assert.equal(layout[key], true, `${key}: ${JSON.stringify({ open, viewport })}`);
       assert.deepEqual(await snapshot(), draft, 'Live resize must not rewrite the draft');
       assert.equal((await calls(page)).length, invocationCount, 'Resize and drawer controls must not execute a bot command');
       assert.equal(await frame.getAttribute('src'), previewURL);
@@ -503,7 +525,7 @@ for (const framework of ['element', 'react']) test(`live viewport resize preserv
     }
   }
   if (forceCanvas) {
-    const diagnostics = await page.locator('#bot').evaluate(bot => bot.diagnostics);
+    const diagnostics = await avatar(page).evaluate(bot => bot.diagnostics);
     assert.equal(diagnostics.backend, 'worker');
     assert.equal(diagnostics.graphics, 'canvas2d', 'Resize must retain the selected graphics backend');
     await canvasAudits.get(page).assertDenied({ worker: true, minWorkerResponses: 1 });
@@ -511,7 +533,6 @@ for (const framework of ['element', 'react']) test(`live viewport resize preserv
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#bot-tools').isVisible(), false);
   assert.equal(await page.locator('#bot-tools-launcher').evaluate(el => el === document.activeElement), true);
-  await page.locator('#preview-demo-button').click();
-  assert.equal(await frame.count(), 0);
+  assert.equal(await frame.count(), 1);
   assert.deepEqual(await snapshot(), draft);
 });
