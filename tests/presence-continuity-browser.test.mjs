@@ -6,6 +6,7 @@ import ts from 'typescript';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
 import { createAppServer } from '../scripts/serve.mjs';
+import { apiDemoFrame } from './helpers/api-demo-frame.mjs';
 
 // Run with SIDEKICK_HEADED=1 under xvfb. No golden images: numerical continuity
 // assertions accompany sequential rendered frames and a reviewable contact sheet.
@@ -297,34 +298,42 @@ test('API playground lifecycle visibility toggle stays in place', { timeout: 600
   const page = await newPage(t, { viewport: { width: 1280, height: 1000 } });
   await page.goto(`${base}/api-playground.html?lang=en&lesson=declarative-lifecycle`);
   await page.waitForFunction(() => !document.querySelector('#execute')?.disabled);
+  const frame = await apiDemoFrame(page);
+  assert.equal(await page.locator('#bot').count(), 0, 'the controls document has no bot');
   await page.locator('#execute').click(); await page.locator('#bot-tools-close').click();
-  await page.waitForFunction(() => document.querySelector('#bot')?.lifecycleState.phase === 'resting');
-  // The demo now has its own scroller as well as document scrolling. A plain
-  // scrollIntoViewIfNeeded can leave this button near an overlay and the real
-  // click then centers it again, legitimately moving home AFTER the baseline.
+  await frame.waitForFunction(() => document.querySelector('#bot')?.lifecycleState.phase === 'resting');
+  // The demo scrolls in its own document, independently of the parent controls.
+  // A click can scroll either document and legitimately move home, so finish
+  // both documents' actionability preparation before taking the baseline.
   // Complete the exact click actionability/scroll preparation before sampling.
-  const toggle = page.locator('[data-lifecycle-action="visible"]');
+  const toggle = frame.locator('[data-lifecycle-action="visible"]');
   await toggle.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }));
   await toggle.click({ trial: true });
-  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  await page.waitForFunction(() => {
+  await frame.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await frame.waitForFunction(() => {
     const bot = document.querySelector('#bot'), home = document.querySelector('#reference-home').getBoundingClientRect(), rect = bot.getBoundingClientRect();
     return bot.lifecycleState.phase === 'resting' && bot.movementState.phase === 'idle' &&
       Math.abs(rect.left - home.right - 8) < 1 && Math.abs(rect.top + rect.height / 2 - home.top - home.height / 2) < 1;
   });
-  await installSampler(page, '#bot');
-  const baseline = await page.evaluate(() => ({ position: window.qaBot.position,
+  await installSampler(frame, '#bot');
+  await frame.evaluate(() => {
+    const snapshot = window.qaSnapshot;
+    window.qaSnapshot = () => ({ ...snapshot(), parentScroll: { x: parent.scrollX, y: parent.scrollY } });
+    // Discard setup samples taken before the parent scroll field was installed.
+    window.qaSamples = [];
+  });
+  const baseline = await frame.evaluate(() => ({ position: window.qaBot.position,
     home: document.querySelector('#reference-home').getBoundingClientRect().toJSON(),
-    scroll: { x: scrollX, y: scrollY }, previewScroll: document.querySelector('#preview-demo').scrollTop }));
+    scroll: { x: scrollX, y: scrollY }, parentScroll: { x: parent.scrollX, y: parent.scrollY } }));
   for (const action of ['hide', 'show']) {
-    await sequence(page, page, `api-${action}`, () => page.locator('[data-lifecycle-action="visible"]').click());
-    if (action === 'hide') await hidden(page); else await visible(page);
+    await sequence(page, frame, `api-${action}`, () => frame.locator('[data-lifecycle-action="visible"]').click());
+    if (action === 'hide') await hidden(frame); else await visible(frame);
   }
-  const result = await finish(page, t.name);
+  const result = await finish(frame, t.name);
   assert.ok(result.samples.length > 0);
   for (const sample of result.samples) {
-    assert.deepEqual(sample.scroll, baseline.scroll, 'Visibility clicks must not scroll the document after the baseline');
-    assert.equal(sample.previewScroll, baseline.previewScroll, 'Visibility clicks must not scroll the nested demo after the baseline');
+    assert.deepEqual(sample.scroll, baseline.scroll, 'Visibility clicks must not scroll the child document after the baseline');
+    assert.deepEqual(sample.parentScroll, baseline.parentScroll, 'Visibility clicks must not scroll the parent controls after the baseline');
     assert.ok(distance(sample.homeRect, baseline.home) < .1, 'Home must remain fixed throughout the visibility-only test');
     assert.ok(distance(sample.position, baseline.position) < 1, 'Plain hide/show must preserve the exact resting position');
   }

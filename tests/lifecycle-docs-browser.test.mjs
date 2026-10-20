@@ -4,6 +4,7 @@ import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { createAppServer } from '../scripts/serve.mjs';
+import { apiDemoFrame } from './helpers/api-demo-frame.mjs';
 let browser, server, base;
 before(async()=>{
  server=createAppServer();await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -46,11 +47,15 @@ test('API playground lifecycle preset runs application-owned outcomes and emits 
  try{
   await page.goto(`${base}/api-playground.html?lang=en&lesson=declarative-lifecycle`);
   await page.waitForFunction(()=>!document.querySelector('#execute')?.disabled);
-  await page.locator('#execute').click(); await page.locator('#bot-tools-close').click();await page.locator('[data-lifecycle-action="wait"]').click();
-  assert.equal(await page.locator('#bot').evaluate(bot=>bot.task.status),'pending');
+  const frame=await apiDemoFrame(page);
+  assert.equal(await page.locator('#bot').count(),0,'the controls document has no bot');
+  await page.locator('#execute').click(); await page.locator('#bot-tools-close').click();
+  await frame.locator('#reference-home').waitFor();
+  await frame.locator('[data-lifecycle-action="wait"]').click();
+  assert.equal(await frame.locator('#bot').evaluate(bot=>bot.task.status),'pending');
   assert.match(await page.locator('#invocation').textContent(),/<!doctype html>/i);
   if(process.env.SIDEKICK_SCREENSHOTS){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/lifecycle-api-desktop.png`,fullPage:true});}
-  await page.locator('[data-lifecycle-action="success"]').click();
-  await page.waitForFunction(()=>document.querySelector('#bot')?.task?.status==='success');
+  await frame.locator('[data-lifecycle-action="success"]').click();
+  await frame.waitForFunction(()=>document.querySelector('#bot')?.task?.status==='success');
  }finally{await page.close();}
 });

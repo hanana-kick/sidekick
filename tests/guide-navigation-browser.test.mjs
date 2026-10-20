@@ -1,3 +1,4 @@
+import { apiDemoFrame } from './helpers/api-demo-frame.mjs';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync} from 'node:fs';
@@ -57,8 +58,8 @@ for(const lang of ['ko','en','zh-CN','ja'])test(`actual contextual link clicks f
   for(const lesson of lessons){
    await page.goto(`${base}/guide.html?lang=${lang}#${lesson.id}`);await page.locator('[data-lesson-destination]').click();
    await page.waitForSelector('#guide-source-return');assert.equal(readGuideSource(page.url()).id,lesson.id);
-   if(lesson.id==='element-anchor'){await page.waitForSelector('#bot[data-configured]');assert.equal(await page.inputValue('#move-method'),'moveToElement');assert.equal(await page.isChecked('#element-anchor'),true);assert.match(await page.locator('#invocation').textContent(),/moveToElement/);}
-   if(lesson.id==='performance'){await page.waitForSelector('#bot[data-configured]');assert.equal(await page.inputValue('#action-kind'),'performance');assert.match(await page.locator('#invocation').textContent(),/paused = true/);}
+   if(lesson.id==='element-anchor'){await apiDemoFrame(page);assert.equal(await page.inputValue('#move-method'),'moveToElement');assert.equal(await page.isChecked('#element-anchor'),true);assert.match(await page.locator('#invocation').textContent(),/moveToElement/);}
+   if(lesson.id==='performance'){await apiDemoFrame(page);assert.equal(await page.inputValue('#action-kind'),'performance');assert.match(await page.locator('#invocation').textContent(),/paused = true/);}
    await page.locator('#guide-source-return').click();await page.waitForSelector('[data-lesson-destination]');assert.equal(new URL(page.url()).hash,'#'+lesson.id);
   }
   assert.deepEqual(errors,[]);
@@ -96,7 +97,7 @@ test('direct reload, source scroll, history, manual level and invalid context',a
   if(process.env.SIDEKICK_SCREENSHOTS){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.screenshot({path:process.env.SIDEKICK_SCREENSHOTS+'/contextual-guide-mobile.png',fullPage:true});}
   await page.locator('#guide-source-return').click();await page.waitForSelector('#demo-bot[data-configured]');assert.equal(new URL(page.url()).hash,'#onboarding');
   await page.goBack();await page.waitForSelector('#demo-bot[data-configured]');assert.match(page.url(),/api-playground/);
-  await page.goto(`${base}/api-playground.html?context=%7Bbad`);await page.waitForSelector('#invalid-guide-context');assert.equal(await page.locator('#bot').count(),0);
+  await page.goto(`${base}/api-playground.html?context=%7Bbad`);await page.waitForSelector('#invalid-guide-context');assert.equal(await page.locator('#bot').count(),0);assert.equal(await page.locator('#site-preview-frame').count(),0,'Invalid context must not mount an avatar demo');
  }finally{await page.close();}
 });
 for(const lang of ['ko','en','zh-CN','ja'])test(`state-first reference and narrow-screen table: ${lang}`,async()=>{

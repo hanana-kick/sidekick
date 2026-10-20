@@ -1,3 +1,4 @@
+import { apiDemoFrame } from './helpers/api-demo-frame.mjs';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync} from 'node:fs';
@@ -40,7 +41,9 @@ test('framework survives locale, contextual navigation, reload and fits 320px he
   await page.locator('[data-level="2"]').click();await page.fill('#behavior-gap','28');await page.locator('#apply-options').click();
   const before=await page.locator('#declaration-code').textContent();await page.locator('#context-playground-link').click();await page.waitForSelector('#demo-bot[data-configured]');assert.equal(await page.inputValue('#site-framework'),'react');assert.equal(await page.locator('#declaration-code').textContent(),before);
   await page.reload();await page.waitForSelector('#demo-bot[data-configured]');assert.equal(await page.inputValue('#site-framework'),'react');await page.locator('#guide-source-return').click();await page.waitForSelector('#demo-bot[data-configured]');assert.equal(await page.inputValue('#behavior-gap'),'28');
-  await page.locator('#api-playground-link').click();await page.waitForSelector('#bot[data-configured]');assert.equal(await page.inputValue('#site-framework'),'react');assert.match(await page.locator('#invocation').textContent(),/<SidekickAvatar/);assert.doesNotMatch(await page.locator('#install-code').textContent(),/<sidekick-avatar/);
+  await page.locator('#api-playground-link').click();
+  await apiDemoFrame(page);
+  assert.equal(await page.inputValue('#site-framework'),'react');assert.match(await page.locator('#invocation').textContent(),/<SidekickAvatar/);assert.doesNotMatch(await page.locator('#install-code').textContent(),/<sidekick-avatar/);
   const action=await page.inputValue('#action-kind');await page.selectOption('#site-framework','element');assert.equal(await page.inputValue('#action-kind'),action);assert.equal(await page.locator('#code-format').count(),0);
  }finally{await page.close();}
 });

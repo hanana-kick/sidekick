@@ -525,6 +525,15 @@ test('drawer sizing survives bfcache pagehide and still responds to viewport cha
 
 
 test('preview styles leave pointer interaction ownership to the avatar runtime', async () => {
-  const css = await readFile(new URL('../playground/api-preview.css', import.meta.url), 'utf8');
-  assert.doesNotMatch(css, /#bot\s*\{[^}]*pointer-events\s*:/, 'Site styles must not override interaction=box; the component already defaults to pointer-events:none');
+  for (const file of ['api-preview.css', 'api-demo.css']) {
+    const css = await readFile(new URL(`../playground/${file}`, import.meta.url), 'utf8');
+    assert.doesNotMatch(css, /#bot\s*\{[^}]*pointer-events\s*:/, `${file} must not override interaction=box; the component already defaults to pointer-events:none`);
+  }
+});
+
+
+test('static API brand inherits the shared responsive logo dimensions', async () => {
+  const source = await readFile(new URL('../playground/shared-header.js', import.meta.url), 'utf8');
+  const styles = source.match(/avatar\.style\.cssText = '([^']+)'/)[1];
+  assert.doesNotMatch(styles, /(?:^|;)(?:width|height):/, 'Static brand must not override shared desktop/mobile dimensions');
 });

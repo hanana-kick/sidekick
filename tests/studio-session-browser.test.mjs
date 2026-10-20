@@ -1,3 +1,4 @@
+import { apiDemoFrame } from './helpers/api-demo-frame.mjs';
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -32,30 +33,37 @@ test('Studio JSON and subsequent edit reach Playground with complete scene; temp
   const stored = await page.evaluate(key => localStorage.getItem(key), key);
   assert.equal(JSON.parse(stored).design.body.color, '#abcdef');
   await page.locator('#api-playground-link').click();
-  await page.waitForFunction(() => document.getElementById('bot')?.ready && document.getElementById('status').textContent.includes('준비되었습니다'));
-  const actual = await page.locator('#bot').evaluate(bot => ({ design: bot.design, bodyOrientation: bot.bodyOrientation, zoom: bot.zoom, activity: bot.activity, trackingMode: bot.trackingMode, paused: bot.paused }));
+  await apiDemoFrame(page);
+  await page.waitForFunction(() => document.getElementById('status').textContent.includes('준비되었습니다'));
+  const actual = await page.frameLocator('#site-preview-frame').locator('#bot').evaluate(bot => ({ design: bot.design, bodyOrientation: bot.bodyOrientation, zoom: bot.zoom, activity: bot.activity, trackingMode: bot.trackingMode, paused: bot.paused }));
   const expected = JSON.parse(stored);
   assert.deepEqual(actual.design, expected.design); assert.deepEqual(actual.bodyOrientation, expected.bodyOrientation);
   assert.equal(actual.activity, expected.activity); assert.equal(actual.zoom, expected.zoom); assert.equal(actual.trackingMode, expected.trackingMode); assert.equal(actual.paused, expected.paused);
   await page.locator('#bot-tools-launcher').click();
   await page.locator('#action-kind').selectOption('expression'); await page.locator('#execute').click();
   assert.equal(await page.evaluate(key => localStorage.getItem(key), key), stored);
-  await page.reload(); await page.waitForFunction(() => document.getElementById('status').textContent.includes('준비되었습니다'));
-  assert.deepEqual(await page.locator('#bot').evaluate(bot => bot.design), expected.design);
+  await page.reload(); await apiDemoFrame(page); await page.waitForFunction(() => document.getElementById('status').textContent.includes('준비되었습니다'));
+  assert.deepEqual(await page.frameLocator('#site-preview-frame').locator('#bot').evaluate(bot => bot.design), expected.design);
   await page.locator('.product-nav a').first().click(); await page.waitForFunction(() => document.getElementById('flat')?.ready);
   assert.deepEqual(await page.locator('#flat').evaluate(bot => bot.bodyOrientation), expected.bodyOrientation);
 });
 
-test('shared header dimensions, menu typography and logo match exactly at desktop and mobile sizes', async t => {
+test('shared header dimensions and menu typography match; API brand stays static at desktop and mobile sizes', async t => {
   const page = await open(t);
   for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }, { width: 320, height: 480 }]) {
     await page.setViewportSize(viewport);
     const snapshots = [];
     for (const route of ['', '/api-playground.html']) {
-      await page.goto(base + route); await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
+      await page.goto(base + route);
+      if (route) {
+        await apiDemoFrame(page);
+        assert.equal(await page.locator('.brand-avatar').evaluate(brand => brand.tagName), 'SPAN');
+        assert.equal(await page.locator('.app-header sidekick-avatar').count(), 0, 'API header must not allocate another renderer');
+      } else await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
       await page.evaluate(() => document.fonts.ready);
       snapshots.push(await page.evaluate(() => ['.app-header', '.brand', '.brand-avatar', '.product-nav', '.product-nav a', '.product-nav a:last-child'].map(selector => {
         const el = document.querySelector(selector), rect = el.getBoundingClientRect(), style = getComputedStyle(el);
+        if (selector === '.brand-avatar') return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
         return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, font: style.fontFamily, fontSize: style.fontSize, lineHeight: style.lineHeight, weight: style.fontWeight, padding: style.padding, gap: style.gap };
       })));
     }
@@ -66,7 +74,7 @@ test('shared header dimensions, menu typography and logo match exactly at deskto
 test('invalid Studio scene is preserved and explained in Playground', async t => {
   const page = await open(t), raw = '{"sceneVersion":2,"camera":{"yaw":45}}';
   await page.evaluate(({ key, raw }) => localStorage.setItem(key, raw), { key, raw });
-  await page.goto(`${base}/api-playground.html`); await page.waitForFunction(() => document.getElementById('bot')?.ready);
+  await page.goto(`${base}/api-playground.html`); await apiDemoFrame(page);
   assert.match(await page.locator('#studio-session-status').textContent(), /원본은 보존/);
   assert.equal(await page.evaluate(key => localStorage.getItem(key), key), raw);
 });

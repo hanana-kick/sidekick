@@ -1,3 +1,4 @@
+import { apiDemoFrame } from './helpers/api-demo-frame.mjs';
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -27,6 +28,7 @@ for(const locale of ['ko','en','zh-CN','ja'])for(const path of ['','api-playgrou
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),true);
  for(const href of await page.locator('.product-nav a').evaluateAll(links=>links.map(link=>link.href)))assert.ok(href.includes(`lang=${locale}`));
  if(path==='api-playground.html') {
+  await apiDemoFrame(page);
   await page.locator('#bot-tools-launcher').click();
   const titles={ko:'무엇을 하게 할까요?',en:'What should your companion do?','zh-CN':'想让伙伴做什么？',ja:'何をしてもらいましょう？'};
   assert.equal(await page.locator('h1').textContent(),titles[locale]);
@@ -65,7 +67,8 @@ for(const locale of ['ko','en','zh-CN','ja'])for(const path of ['','api-playgrou
   await page.setViewportSize({width:320,height:480});
   await page.locator('.settings-scroll').evaluate(el=>{el.scrollTop=0;});
  }
- await page.waitForFunction(()=>{const bot=document.querySelector('#flat,#bot');return !bot||(bot.ready&&(bot.id!=='bot'||bot.hasAttribute('data-configured')));});
+ if(path==='api-playground.html') await apiDemoFrame(page);
+ else await page.waitForFunction(()=>{const bot=document.querySelector('#flat');return !bot||bot.ready;});
  if(screenshots){
   await page.screenshot({path:`${screenshots}/locale-${locale}-${path.replace('.html','')||'studio'}-320x480.png`,fullPage:false});
   await page.setViewportSize({width:1280,height:900});
@@ -73,15 +76,24 @@ for(const locale of ['ko','en','zh-CN','ja'])for(const path of ['','api-playgrou
  }
  assert.deepEqual(errors,[]);
 });
-test('changing language preserves playground draft, hash, bot and navigation preference',async t=>{
+test('changing language preserves playground draft, hash and navigation preference while replacing only the demo',async t=>{
  const page=await browser.newPage({locale:'ko-KR',reducedMotion:'reduce'});t.after(()=>page.close());
  await page.goto(`${base}/api-playground.html?lang=ko#action-panel`);await page.waitForSelector('#site-language');
+ await apiDemoFrame(page);
+ await page.locator('#bot-tools-launcher').click();
  await page.locator('#action-kind').selectOption('expression');await page.locator('#expression-duration').fill('950');
- await page.evaluate(()=>{window.originalBot=document.querySelector('#bot');});
  for(const locale of ['en','zh-CN','ja','ko']){
+  await page.evaluate(()=>{window.originalFrame=document.querySelector('#site-preview-frame');window.originalBot=window.originalFrame.contentDocument.querySelector('#bot');});
   await page.locator('#site-language').selectOption(locale);
+  const frame=await apiDemoFrame(page);
+  assert.equal(await frame.locator('html').getAttribute('lang'),locale);
   assert.equal(await page.locator('#action-kind').inputValue(),'expression');assert.equal(await page.locator('#expression-duration').inputValue(),'950');
-  assert.equal(await page.evaluate(()=>window.originalBot===document.querySelector('#bot')),true);
+  assert.equal(await page.evaluate(()=>{
+    const iframe=document.querySelector('#site-preview-frame'),bot=iframe.contentDocument.querySelector('#bot');
+    return Boolean(window.originalBot)&&iframe!==window.originalFrame&&!window.originalFrame.isConnected
+      &&bot!==window.originalBot&&bot.ready&&bot.hasAttribute('data-configured');
+  }),true,'Locale replaces the old demo with one real ready avatar, not a null parent selector');
+  assert.equal(await page.locator('#site-preview-frame').count(),1);
   assert.ok(page.url().endsWith('#action-panel'));
  }
  await page.locator('#site-language').selectOption('ja');await page.locator('.product-nav a').first().click();
