@@ -485,3 +485,9 @@ test('drawer sizing survives bfcache pagehide and still responds to viewport cha
   f.w.innerHeight = 900; f.w.dispatchEvent(new f.w.Event('resize'));
   assert.equal(panel.style.maxHeight, '384px');
 });
+
+
+test('preview styles leave pointer interaction ownership to the avatar runtime', async () => {
+  const css = await readFile(new URL('../playground/api-preview.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(css, /#bot\s*\{[^}]*pointer-events\s*:/, 'Site styles must not override interaction=box; the component already defaults to pointer-events:none');
+});

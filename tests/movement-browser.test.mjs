@@ -40,16 +40,34 @@ for (const reducedMotion of ['no-preference', 'reduce']) test(`bounded canvas mo
 
 test('viewport resize clamps, scrolling keeps fixed coordinates, pointer passes through', async t => {
   const page = await pageFor(t, { reducedMotion: 'reduce' });
+  // Exercise avatar hit testing, not the fixed devtools drawer that legitimately
+  // sits above the avatar. The narrow shared header also occupies the old y=120.
+  await page.locator('#bot-tools-close').click();
   await page.evaluate(async () => { const bot = document.getElementById('bot'); await bot.moveTo({ x: 10000, y: 10000 }); });
   await page.setViewportSize({ width: 390, height: 700 });
-  await page.waitForFunction(() => document.getElementById('bot').position.x <= 210);
-  const result = await page.evaluate(async () => {
-    const bot = document.getElementById('bot'); await bot.moveTo({ x: 10, y: 100 }); window.scrollTo(0, 200);
-    const rect = bot.getBoundingClientRect(), target = document.elementFromPoint(30, 120);
-    bot.interaction = 'box'; const interactiveTarget = document.elementFromPoint(30, 120);
-    return { rect: { x: rect.x, y: rect.y }, passThrough: target !== bot, boxTarget: interactiveTarget === bot, width: bot.offsetWidth };
+  await page.waitForFunction(() => {
+    const bot = document.getElementById('bot');
+    return bot.position.x <= innerWidth - bot.offsetWidth && bot.position.y <= innerHeight - bot.offsetHeight;
   });
-  assert.deepEqual(result.rect, { x: 10, y: 100 }); assert.equal(result.passThrough, true); assert.equal(result.boxTarget, true); assert.equal(result.width, 180);
+  const result = await page.evaluate(async () => {
+    const bot = document.getElementById('bot'), clamped = bot.position;
+    await bot.moveTo({ x: 10, y: 240 }); window.scrollTo(0, 200);
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const rect = bot.getBoundingClientRect(), point = { x: rect.left + 20, y: rect.top + 20 };
+    const target = document.elementFromPoint(point.x, point.y), nonePointerEvents = getComputedStyle(bot).pointerEvents;
+    bot.interaction = 'box';
+    const interactiveTarget = document.elementFromPoint(point.x, point.y), boxPointerEvents = getComputedStyle(bot).pointerEvents;
+    bot.interaction = 'none';
+    const restoredTarget = document.elementFromPoint(point.x, point.y);
+    return { clamped, scrollY, rect: { x: rect.x, y: rect.y }, passThrough: !!target && target !== bot,
+      boxTarget: interactiveTarget === bot, restoredPassThrough: restoredTarget === target,
+      nonePointerEvents, boxPointerEvents, width: bot.offsetWidth };
+  });
+  assert.deepEqual(result.clamped, { x: 210, y: 520 });
+  assert.ok(result.scrollY > 0, 'The fixed-position assertion must include actual document scrolling');
+  assert.deepEqual(result.rect, { x: 10, y: 240 });
+  assert.equal(result.passThrough, true); assert.equal(result.boxTarget, true); assert.equal(result.restoredPassThrough, true);
+  assert.equal(result.nonePointerEvents, 'none'); assert.equal(result.boxPointerEvents, 'auto'); assert.equal(result.width, 180);
 });
 
 test('actual worker asset swap, pause, play/stop and disconnection settle commands', async t => {

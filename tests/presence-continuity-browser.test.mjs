@@ -83,6 +83,7 @@ async function installSampler(scope, selector) {
         sameCanvas: canvas === window.qaOriginalCanvas, generation: bot.diagnostics.generation,
         frames: bot.diagnostics.frames, running: bot.diagnostics.running,
         scroll: { x: scrollX, y: scrollY },
+        previewScroll: document.querySelector('#preview-demo')?.scrollTop ?? null,
         homeRect: document.querySelector('#reference-home')?.getBoundingClientRect().toJSON() ?? null,
         botRect: botRect.toJSON() };
     };
@@ -298,22 +299,35 @@ test('API playground lifecycle visibility toggle stays in place', { timeout: 600
   await page.waitForFunction(() => !document.querySelector('#execute')?.disabled);
   await page.locator('#execute').click(); await page.locator('#bot-tools-close').click();
   await page.waitForFunction(() => document.querySelector('#bot')?.lifecycleState.phase === 'resting');
-  // Playwright's click scrolls the controls into view. Do that BEFORE measuring
-  // home: a viewport companion legitimately follows a home moved by page scroll.
-  await page.locator('[data-lifecycle-action="visible"]').scrollIntoViewIfNeeded();
+  // The demo now has its own scroller as well as document scrolling. A plain
+  // scrollIntoViewIfNeeded can leave this button near an overlay and the real
+  // click then centers it again, legitimately moving home AFTER the baseline.
+  // Complete the exact click actionability/scroll preparation before sampling.
+  const toggle = page.locator('[data-lifecycle-action="visible"]');
+  await toggle.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }));
+  await toggle.click({ trial: true });
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await page.waitForFunction(() => {
     const bot = document.querySelector('#bot'), home = document.querySelector('#reference-home').getBoundingClientRect(), rect = bot.getBoundingClientRect();
     return bot.lifecycleState.phase === 'resting' && bot.movementState.phase === 'idle' &&
       Math.abs(rect.left - home.right - 8) < 1 && Math.abs(rect.top + rect.height / 2 - home.top - home.height / 2) < 1;
   });
-  await installSampler(page, '#bot'); const origin = await page.evaluate(() => window.qaBot.position);
+  await installSampler(page, '#bot');
+  const baseline = await page.evaluate(() => ({ position: window.qaBot.position,
+    home: document.querySelector('#reference-home').getBoundingClientRect().toJSON(),
+    scroll: { x: scrollX, y: scrollY }, previewScroll: document.querySelector('#preview-demo').scrollTop }));
   for (const action of ['hide', 'show']) {
     await sequence(page, page, `api-${action}`, () => page.locator('[data-lifecycle-action="visible"]').click());
     if (action === 'hide') await hidden(page); else await visible(page);
   }
   const result = await finish(page, t.name);
-  assert.ok(result.samples.every(s => distance(s.position, origin) < 1));
+  assert.ok(result.samples.length > 0);
+  for (const sample of result.samples) {
+    assert.deepEqual(sample.scroll, baseline.scroll, 'Visibility clicks must not scroll the document after the baseline');
+    assert.equal(sample.previewScroll, baseline.previewScroll, 'Visibility clicks must not scroll the nested demo after the baseline');
+    assert.ok(distance(sample.homeRect, baseline.home) < .1, 'Home must remain fixed throughout the visibility-only test');
+    assert.ok(distance(sample.position, baseline.position) < 1, 'Plain hide/show must preserve the exact resting position');
+  }
 });
 
 for (const framework of ['element', 'react']) test(`copied ${framework} lifecycle runtime preserves plain visibility`, { timeout: 60000 }, async t => {

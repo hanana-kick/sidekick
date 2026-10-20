@@ -413,13 +413,45 @@ test('detach/reconnect cancels motion and releases then recreates GPU resources'
   assert.equal(result.reconnected.buffers, 8); assert.equal(result.reconnected.ready, true); assert.equal(result.canvases, 1);
 });
 
-test('main-thread fallback context loss is surfaced and restoration rebuilds the renderer', async t => {
+test('main-thread WebGL context loss recovers on a fresh Canvas2D surface without waiting for restoration', async t => {
   const page = await pageFor(t, {}, page => page.addInitScript(() => { window.Worker = undefined; }));
-  const supported = await page.locator('#flat').evaluate(a => { const gl = a.shadowRoot.querySelector('canvas').getContext('webgl2'); window.lossExtension = gl.getExtension('WEBGL_lose_context'); window.lossExtension?.loseContext(); return !!window.lossExtension; });
-  assert.equal(supported, true); await page.waitForFunction(() => !document.getElementById('flat').ready);
-  await page.waitForTimeout(100); await page.evaluate(() => window.lossExtension.restoreContext());
-  await page.waitForFunction(() => document.getElementById('flat').ready);
-  assert.equal(await page.locator('#flat').evaluate(a => a.diagnostics.buffers), 8);
+  const initial = await page.locator('#flat').evaluate(async a => {
+    a.paused = true; a.setActivity('still'); a.trackingMode = 'off'; a.seek(12.5);
+    await a.motion.to({ body: { rotation: [0, .4, 0] }, eyes: { left: { weights: { smile: .35 } } } });
+    await a.capturePixelsAsync();
+    const canvas = a.shadowRoot.querySelector('canvas'), gl = canvas.getContext('webgl2');
+    const audit = window.contextLossAudit = { canvas, generation: a.diagnostics.generation, pose: a.pose, time: a.diagnostics.time, errors: [], ready: [], deletedBuffers: 0 };
+    const deleteBuffer = gl.deleteBuffer.bind(gl);
+    gl.deleteBuffer = buffer => { audit.deletedBuffers++; deleteBuffer(buffer); };
+    a.addEventListener('sidekick-error', event => audit.errors.push({ ...event.detail, ready: a.ready, buffers: a.diagnostics.buffers }));
+    a.addEventListener('sidekick-ready', () => audit.ready.push({ graphics: a.diagnostics.graphics, visible: !a.shadowRoot.querySelector('canvas').hidden }));
+    const extension = gl.getExtension('WEBGL_lose_context');
+    const result = { supported: !!extension, graphics: a.diagnostics.graphics, buffers: a.diagnostics.buffers };
+    extension?.loseContext(); return result;
+  });
+  assert.equal(initial.supported, true); assert.equal(initial.graphics, 'webgl2'); assert.equal(initial.buffers, 8);
+  // The not-ready interval can fit inside one browser task. Observe its error event,
+  // not polling, and require recovery without ever restoring the lost context.
+  await page.waitForFunction(() => { const a = document.getElementById('flat'); return a.ready && a.diagnostics.generation > contextLossAudit.generation; });
+  const result = await page.locator('#flat').evaluate(async a => {
+    const audit = contextLossAudit, canvas = a.shadowRoot.querySelector('canvas');
+    const image = await a.capturePixelsAsync(), png = await a.snapshot(), before = a.diagnostics;
+    // A late event from the retired surface must not replace or restart recovery.
+    audit.canvas.dispatchEvent(new Event('webglcontextrestored'));
+    return { changed: canvas !== audit.canvas, canvases: a.shadowRoot.querySelectorAll('canvas').length,
+      diagnostics: a.diagnostics, previousGeneration: audit.generation, stableGeneration: before.generation === a.diagnostics.generation,
+      pose: a.pose, previousPose: audit.pose, previousTime: audit.time,
+      errors: audit.errors, ready: audit.ready, deletedBuffers: audit.deletedBuffers,
+      alpha: image.pixels.some((value, i) => i % 4 === 3 && value), corner: image.pixels[3], pngType: png.type, pngSize: png.size,
+      fallbackHidden: a.shadowRoot.querySelector('[part="fallback"]').hidden };
+  });
+  assert.equal(result.changed, true); assert.equal(result.canvases, 1); assert.equal(result.stableGeneration, true);
+  assert.equal(result.diagnostics.generation, result.previousGeneration + 1);
+  assert.equal(result.diagnostics.backend, 'main'); assert.equal(result.diagnostics.graphics, 'canvas2d'); assert.equal(result.diagnostics.buffers, 0);
+  assert.equal(result.diagnostics.running, false); assert.equal(result.diagnostics.time, result.previousTime); assert.deepEqual(result.pose, result.previousPose);
+  assert.deepEqual(result.errors, [{ message: 'WebGL context lost', recoverable: true, ready: false, buffers: 0 }]);
+  assert.deepEqual(result.ready, [{ graphics: 'canvas2d', visible: true }]); assert.equal(result.deletedBuffers, initial.buffers);
+  assert.equal(result.alpha, true); assert.equal(result.corner, 0); assert.equal(result.pngType, 'image/png'); assert.ok(result.pngSize > 100); assert.equal(result.fallbackHidden, true);
 });
 
 test('representative catalog shapes and curated accessories remain transparent at canvas borders', async t => {

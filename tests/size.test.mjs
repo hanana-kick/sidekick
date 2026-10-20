@@ -104,3 +104,20 @@ test('initial HTML applies before renderer startup without touching width/height
   assert.equal(a.size, 120); assert.match(a.sizeStyle.textContent, /width:120px!important/); assert.equal(a.style.width, '300px');
   await flush(); assert.equal(a.size, 120);
 });
+
+test('no-WebGL browser fixture denies both realm context APIs without faking Canvas or diagnostics', async () => {
+  const { installNoWebGL } = await import('./helpers/force-no-webgl.mjs');
+  const { runInNewContext } = await import('node:vm');
+  for (const worker of [false, true]) {
+    const calls = [], canvasContext = {};
+    class Surface { getContext(...args) { calls.push({ receiver: this, args }); return canvasContext; } }
+    const realm = worker ? { OffscreenCanvas: Surface } : { HTMLCanvasElement: Surface };
+    runInNewContext(`(${installNoWebGL.toString()})();`, realm);
+    const canvas = new Surface();
+    for (const kind of ['webgl', 'webgl2', 'experimental-webgl']) assert.equal(canvas.getContext(kind), null);
+    assert.equal(realm.__sidekickNoWebGL.denied, 3); assert.equal(calls.length, 0);
+    const options = { alpha: true }; assert.equal(canvas.getContext('2d', options), canvasContext);
+    assert.equal(calls[0].receiver, canvas); assert.deepEqual(calls[0].args, ['2d', options]);
+    assert.equal(realm.graphics, undefined, 'fixture cannot forge backend diagnostics');
+  }
+});

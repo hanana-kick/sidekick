@@ -116,12 +116,42 @@ test('independent worker motion requests survive color edits and settle cancella
   assert.deepEqual(result.eyeResult, { finished: true }); assert.deepEqual(result.bodyResult, { finished: false }); assert.equal(result.diagnostics.buffers, 0); assert.equal(result.terminated, 1);
 });
 
-test('worker WebGL context loss terminates its generation and replaces the canvas for local recovery', async t => {
+test('worker WebGL context loss cancels its generation and preserves presentation on fresh local Canvas2D', async t => {
   const page = await pageFor(t, { contextLoss: true });
-  await page.evaluate(() => { const avatar = document.getElementById('avatar'); window.oldCanvas = avatar.shadowRoot.querySelector('canvas'); window.oldGeneration = avatar.diagnostics.generation; workerAudit.workers[0].postMessage({ testLoseContext: true }); });
+  const initial = await page.evaluate(async () => {
+    const avatar = document.getElementById('avatar'); avatar.seek(13.5);
+    await avatar.motion.to({ body: { rotation: [0, .4, 0] }, eyes: { left: { weights: { smile: .35 } } } }, { duration: 0 });
+    const audit = window.contextLossAudit = { canvas: avatar.shadowRoot.querySelector('canvas'), generation: avatar.diagnostics.generation, errors: [], ready: [] };
+    avatar.addEventListener('sidekick-error', event => audit.errors.push({ ...event.detail, ready: avatar.ready, buffers: avatar.diagnostics.buffers, time: avatar.diagnostics.time, pose: avatar.pose }));
+    avatar.addEventListener('sidekick-ready', () => audit.ready.push({ graphics: avatar.diagnostics.graphics, visible: !avatar.shadowRoot.querySelector('canvas').hidden }));
+    audit.motion = avatar.motion.to({ body: { rotation: [0, 1, 0] } }, { duration: 60000 });
+    await avatar.capturePixelsAsync();
+    const initial = { graphics: avatar.diagnostics.graphics, backend: avatar.diagnostics.backend };
+    workerAudit.workers[0].postMessage({ testLoseContext: true }); return initial;
+  });
+  assert.deepEqual(initial, { graphics: 'webgl2', backend: 'worker' });
   await page.waitForFunction(() => { const avatar = document.getElementById('avatar'); return avatar.ready && avatar.diagnostics.backend === 'main'; }, null, { timeout: 20000 });
-  const result = await page.evaluate(async () => { const avatar = document.getElementById('avatar'), image = await avatar.capturePixelsAsync(); return { changed: oldCanvas !== avatar.shadowRoot.querySelector('canvas'), generation: avatar.diagnostics.generation, previous: oldGeneration, terminated: workerAudit.terminated, mainContexts: workerAudit.mainContexts, recoverable: workerAudit.errors.some(error => error.recoverable && /context lost/i.test(error.message)), alpha: image.pixels.some((value, i) => i % 4 === 3 && value) }; });
-  assert.equal(result.changed, true); assert.ok(result.generation > result.previous); assert.equal(result.terminated, 1); assert.equal(result.mainContexts, 1); assert.equal(result.recoverable, true); assert.equal(result.alpha, true);
+  const result = await page.evaluate(async () => {
+    const avatar = document.getElementById('avatar'), audit = contextLossAudit, image = await avatar.capturePixelsAsync(), png = await avatar.snapshot();
+    const diagnostics = avatar.diagnostics, pose = avatar.pose, motion = await audit.motion;
+    audit.canvas.dispatchEvent(new Event('webglcontextrestored'));
+    const stableGeneration = avatar.diagnostics.generation === diagnostics.generation;
+    const result = { changed: audit.canvas !== avatar.shadowRoot.querySelector('canvas'), previous: audit.generation,
+      diagnostics, pose, motion, stableGeneration, errors: audit.errors, ready: audit.ready,
+      created: workerAudit.created, transferred: workerAudit.transfers, terminated: workerAudit.terminated, mainContexts: workerAudit.mainContexts,
+      alpha: image.pixels.some((value, i) => i % 4 === 3 && value), corner: image.pixels[3], pngType: png.type, pngSize: png.size };
+    avatar.remove(); return { ...result, detached: avatar.diagnostics, finalTerminations: workerAudit.terminated };
+  });
+  assert.equal(result.changed, true); assert.equal(result.diagnostics.generation, result.previous + 1); assert.equal(result.stableGeneration, true);
+  assert.equal(result.created, 1); assert.equal(result.transferred, 1); assert.equal(result.terminated, 1); assert.equal(result.finalTerminations, 1);
+  assert.equal(result.mainContexts, 0, 'Known WebGL loss must not allocate another GPU context on main');
+  assert.equal(result.diagnostics.graphics, 'canvas2d'); assert.equal(result.diagnostics.buffers, 0); assert.equal(result.diagnostics.running, false);
+  assert.deepEqual(result.motion, { finished: false }); assert.equal(result.errors.length, 1);
+  const loss = result.errors[0]; assert.equal(loss.message, 'WebGL context lost'); assert.equal(loss.recoverable, true); assert.equal(loss.ready, false); assert.equal(loss.buffers, 0);
+  assert.equal(result.diagnostics.time, loss.time); assert.deepEqual(result.pose, loss.pose); assert.equal(result.pose.eyes.left.smile, .35);
+  assert.deepEqual(result.ready, [{ graphics: 'canvas2d', visible: true }]);
+  assert.equal(result.alpha, true); assert.equal(result.corner, 0); assert.equal(result.pngType, 'image/png'); assert.ok(result.pngSize > 100);
+  assert.equal(result.detached.ready, false); assert.equal(result.detached.backend, 'none'); assert.equal(result.detached.running, false); assert.equal(result.detached.buffers, 0);
 });
 
 for (const failWorker of ['constructor', 'network']) test(`${failWorker} worker startup failure recovers with a fresh main surface`, async t => {

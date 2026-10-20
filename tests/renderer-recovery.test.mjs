@@ -48,9 +48,11 @@ test('a shader initialization failure is classified without rebinding its locked
   assert.equal(failure.rendererFallback, true); assert.deepEqual(modes, ['webgl2']);
 });
 
-test('classified local WebGL failure replaces the locked canvas once, preserves state, and stops on Canvas2D failure', async () => {
-  const dom = new JSDOM('<!doctype html>'), keys = ['HTMLElement', 'customElements'], originals = keys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]);
-  for (const key of keys) Object.defineProperty(globalThis, key, { configurable: true, value: dom.window[key] });
+test('classified local WebGL failure replaces the locked canvas once, preserves state, and stops on Canvas2D failure', async t => {
+  const dom = new JSDOM('<!doctype html><body></body>');
+  const keys = ['window', 'document', 'HTMLElement', 'customElements', 'CustomEvent', 'Worker', 'OffscreenCanvas', 'ImageData', 'ResizeObserver', 'IntersectionObserver', 'matchMedia', 'requestAnimationFrame', 'cancelAnimationFrame'];
+  const originals = keys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]);
+  for (const key of keys) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value: dom.window[key] });
   try {
     const { SidekickAvatar } = await import('../src/element/avatar.ts');
     customElements.define('recovery-test-avatar', SidekickAvatar);
@@ -72,6 +74,78 @@ test('classified local WebGL failure replaces the locked canvas once, preserves 
     assert.equal(avatar.canvas, recoveryCanvas); assert.equal(starts.length, 1);
     assert.equal(errors[1][1].recoverable, false); assert.equal(avatar.fallback.hidden, false); assert.equal(avatar.fallback.textContent, 'Canvas2D unavailable');
     avatar.connected = false;
+    await t.test('production local bridge owns loss, cancellation, CPU presentation and retired-surface cleanup', async () => {
+      const { countingCanvas } = await import('./performance-fixture.mjs');
+      const gpu = countingCanvas(128, 128), modes = [], frames = new Map(), encodings = [];
+      let nextFrame = 0;
+      Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+      Object.assign(globalThis, {
+        Worker: undefined, OffscreenCanvas: undefined,
+        ImageData: class { constructor(data, width, height) { Object.assign(this, { data, width, height }); } },
+        ResizeObserver: class { observe() {} disconnect() {} },
+        IntersectionObserver: class { observe() {} disconnect() {} },
+        matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
+        requestAnimationFrame: callback => { frames.set(++nextFrame, callback); return nextFrame; },
+        cancelAnimationFrame: id => frames.delete(id),
+      });
+      const contexts = new WeakMap();
+      dom.window.HTMLCanvasElement.prototype.getContext = function (kind) {
+        modes.push(kind);
+        const old = contexts.get(this);
+        if (old) return old.kind === kind ? old.context : null;
+        const context = kind === 'webgl2' ? gpu.gl : {
+          createImageData: (width, height) => ({ width, height, data: new Uint8ClampedArray(width * height * 4) }),
+          putImageData() {},
+        };
+        contexts.set(this, { kind, context }); return context;
+      };
+      dom.window.HTMLCanvasElement.prototype.toBlob = function (callback) { encodings.push(callback); };
+      const a = document.createElement('recovery-test-avatar'), events = [], errors = [];
+      a.getBoundingClientRect = () => ({ width: 128, height: 128, left: 0, top: 0 });
+      a.setActivity('still'); a.trackingMode = 'off'; a.paused = true; a.seek(12.5);
+      await a.motion.to({ body: { rotation: [0, .4, 0] }, eyes: { left: { weights: { smile: .35 } } } });
+      const ready = () => new Promise(resolve => a.addEventListener('sidekick-ready', resolve, { once: true }));
+      const initialReady = ready(); document.body.append(a); await initialReady;
+      try {
+        assert.equal(a.diagnostics.graphics, 'webgl2'); assert.equal(a.diagnostics.buffers, 8);
+        const oldCanvas = a.shadowRoot.querySelector('canvas'), generation = a.diagnostics.generation;
+        a.addEventListener('sidekick-error', event => errors.push({ ...event.detail, ready: a.ready, pose: a.pose, time: a.diagnostics.time }));
+        a.addEventListener('sidekick-ready', () => events.push({ graphics: a.diagnostics.graphics, visible: !a.canvas.hidden }));
+        a.paused = false;
+        const motion = a.motion.to({ body: { rotation: [0, 1, 0] } }, { duration: 60000 });
+        const shape = a.setShape('puffy', { duration: 60000 });
+        await a.capturePixelsAsync();
+        const beforeLoss = { pose: a.pose, time: a.diagnostics.time };
+        const snapshot = a.snapshot(), rejectedSnapshot = assert.rejects(snapshot, /context lost/);
+        assert.equal(encodings.length, 1); assert.ok(frames.size > 0);
+        const recovered = ready(), lost = new dom.window.Event('webglcontextlost', { cancelable: true });
+        oldCanvas.dispatchEvent(lost);
+        assert.equal(lost.defaultPrevented, true); assert.equal(a.ready, false); assert.equal(a.canvas.hidden, true);
+        assert.notEqual(a.canvas, oldCanvas); assert.equal(a.diagnostics.generation, generation + 1);
+        // The retired renderer must not resurrect while the CPU bridge loads.
+        oldCanvas.dispatchEvent(new dom.window.Event('webglcontextrestored'));
+        await recovered; await rejectedSnapshot;
+        assert.deepEqual(await motion, { finished: false }); assert.deepEqual(await shape, { finished: false });
+        assert.equal(a.design.body.shape, 'puffy');
+        assert.deepEqual(a.pose, beforeLoss.pose); assert.equal(a.diagnostics.time, beforeLoss.time);
+        assert.equal(a.diagnostics.graphics, 'canvas2d'); assert.equal(a.diagnostics.backend, 'main');
+        assert.equal(a.diagnostics.buffers, 0); assert.equal(a.diagnostics.running, false);
+        assert.equal(errors.length, 1); assert.equal(errors[0].ready, false); assert.equal(errors[0].recoverable, true);
+        assert.equal(a.diagnostics.time, errors[0].time); assert.deepEqual(a.pose, errors[0].pose);
+        assert.deepEqual(events, [{ graphics: 'canvas2d', visible: true }]);
+        for (const key of ['liveBuffers', 'liveVAOs', 'livePrograms', 'liveShaders']) assert.equal(gpu.snapshot()[key], 0, key);
+        const image = await a.capturePixelsAsync();
+        assert.ok(image.pixels.some((value, i) => i % 4 === 3 && value)); assert.equal(image.pixels[3], 0);
+        assert.deepEqual(modes, ['webgl2', '2d', '2d'], 'Only snapshot encoding and recovery request 2D; no second WebGL attempt');
+        const stable = a.diagnostics;
+        encodings[0](new Blob(['late snapshot'], { type: 'image/png' }));
+        oldCanvas.dispatchEvent(new dom.window.Event('webglcontextlost', { cancelable: true }));
+        oldCanvas.dispatchEvent(new dom.window.Event('webglcontextrestored'));
+        await Promise.resolve(); await Promise.resolve();
+        assert.deepEqual(a.diagnostics, stable); assert.equal(errors.length, 1); assert.equal(events.length, 1);
+        a.remove(); assert.equal(a.diagnostics.backend, 'none'); assert.equal(a.diagnostics.buffers, 0); assert.equal(frames.size, 0);
+      } finally { a.remove(); }
+    });
   } finally {
     dom.window.close(); for (const [key, descriptor] of originals) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }
   }

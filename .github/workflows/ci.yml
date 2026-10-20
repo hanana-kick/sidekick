@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [reference, regression, canvas-interactions]
+        suite: [reference, regression, canvas-interactions, canvas-drawer]
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.1.0
