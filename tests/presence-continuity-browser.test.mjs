@@ -58,15 +58,26 @@ async function installSampler(scope, selector) {
     window.qaSamples = []; window.qaSegment = 'baseline';
     window.qaSnapshot = () => {
       const bot = window.qaBot, canvas = bot.shadowRoot.querySelector('canvas');
+      const botRect = bot.getBoundingClientRect(), card = document.querySelector('#card')?.getBoundingClientRect();
+      const clip = canvas.style.clipPath;
+      // The even-odd hole must erase the WHOLE canvas, not merely overlap it.
+      // A fully masked staging point can be relocated between rendered frames.
+      const coordinates = clip.match(/-?[\d.]+(?=px)/g)?.map(Number) ?? [];
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      const fullCutout = [0, 0, w, 0, w, h, 0, h, 0, 0, 0, 0, w, 0, w, h, 0, h, 0, 0, 0, 0];
+      const fullyOccluded = !!card && clip.startsWith('polygon(evenodd,') &&
+        coordinates.length === fullCutout.length && coordinates.every((value, i) => Math.abs(value - fullCutout[i]) < .001) &&
+        botRect.left >= card.left - .01 && botRect.top >= card.top - .01 &&
+        botRect.right <= card.right + .01 && botRect.bottom <= card.bottom + .01;
       return { time: performance.now(), segment: window.qaSegment, position: bot.position,
         movement: bot.movementState, presence: bot.presenceState, lifecycle: bot.lifecycleState,
         opacity: Number(getComputedStyle(canvas).opacity), visibility: getComputedStyle(bot).visibility,
-        clip: canvas.style.clipPath, design: JSON.stringify(bot.design),
+        clip, fullyOccluded, cardRect: card?.toJSON() ?? null, design: JSON.stringify(bot.design),
         sameCanvas: canvas === window.qaOriginalCanvas, generation: bot.diagnostics.generation,
         frames: bot.diagnostics.frames, running: bot.diagnostics.running,
         scroll: { x: scrollX, y: scrollY },
         homeRect: document.querySelector('#reference-home')?.getBoundingClientRect().toJSON() ?? null,
-        botRect: bot.getBoundingClientRect().toJSON() };
+        botRect: botRect.toJSON() };
     };
     window.qaSampling = true;
     const sample = () => { if (!window.qaSampling) return; window.qaSamples.push(window.qaSnapshot()); requestAnimationFrame(sample); };
@@ -132,7 +143,7 @@ async function finish(scope, name) {
   assert.ok(result.samples.every(s => s.design === result.samples[0].design), 'no default appearance flash');
   for (let i = 1; i < result.samples.length; i++) {
     const a = result.samples[i - 1], b = result.samples[i];
-    if (a.presence === 'hidden' || b.presence === 'hidden' || a.opacity === 0 || b.opacity === 0) continue;
+    if (a.presence === 'hidden' || b.presence === 'hidden' || a.opacity === 0 || b.opacity === 0 || a.fullyOccluded || b.fullyOccluded) continue;
     const elapsed = (b.time - a.time) / 1000;
     const allowance = 12 + 2 * Math.max(a.movement.speed, b.movement.speed) * elapsed;
     assert.ok(distance(a.position, b.position) <= allowance, `no visible frame jump at ${b.time.toFixed(1)}ms: ${distance(a.position, b.position).toFixed(1)}px > ${allowance.toFixed(1)}px`);
