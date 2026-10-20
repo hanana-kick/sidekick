@@ -311,3 +311,88 @@ for(const mode of ['element','react'])for(const width of [320,1280])test(`explic
   await frame.locator('#reference-bot').evaluate(bot=>{bot.size=null;bot.stopBehavior();});
  }finally{await page.close();}
 });
+
+// Existing coverage starts at two viewport widths and performs one late shrink.
+// These cases resize the same live document in both axes, including during a
+// running move. A vh-sized preview makes parent-height changes real iframe
+// viewport changes instead of merely resizing whitespace around a fixed iframe.
+const liveResizeSteps=[
+ {viewport:{width:320,height:520},sizes:[48]},
+ {viewport:{width:1280,height:1000},sizes:[72,96]},
+ {viewport:{width:1280,height:460},sizes:[160.5]},
+ {viewport:{width:700,height:900},sizes:[96,72]},
+];
+async function resizeLiveReference(page,frame,step){
+ const before=await frame.evaluate(()=>({width:innerWidth,height:innerHeight}));
+ await frame.locator('#reference-bot').evaluate((bot,sizes)=>{for(const size of sizes)bot.size=size;},step.sizes);
+ await page.setViewportSize(step.viewport);
+ await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();
+ await frame.waitForFunction(previous=>innerWidth!==previous.width||innerHeight!==previous.height,before);
+ // ResizeObserver and movement constraints run after layout. Do not classify the
+ // synchronous pre-observer resize frame as an animation escape.
+ await frame.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ const samples=await frame.evaluate(async()=>{const samples=[];for(let i=0;i<6;i++){await new Promise(requestAnimationFrame);samples.push(window.behaviorRect());}return samples;});
+ for(const sample of samples)assertBehaviorBox(sample,'live viewport resize');
+ return samples.at(-1);
+}
+async function assertLiveBacking(frame,size){
+ const actual=await frame.locator('#reference-bot').evaluate(async bot=>{
+  const bitmap=await createImageBitmap(await bot.snapshot({crop:false}));
+  const result={width:bitmap.width,height:bitmap.height,dpr:devicePixelRatio,graphics:bot.diagnostics.graphics,size:bot.size};bitmap.close();return result;
+ });
+ assert.equal(actual.size,size);assert.equal(actual.graphics,forceCanvas?'canvas2d':'webgl2');
+ const expected=Math.max(1,Math.round(size*Math.min(Math.max(actual.dpr,1),2,(forceCanvas?384:2048)/size)));
+ assert.deepEqual([actual.width,actual.height],[expected,expected],'backing follows latest size and DPR after viewport changes');
+}
+async function waitForLiveAnchor(frame,side,size){
+ await frame.waitForFunction(({side,size})=>{
+  const bot=document.querySelector('#reference-bot'),b=bot.getBoundingClientRect(),t=document.querySelector('#reference-target').getBoundingClientRect();
+  let x=t.left+(t.width-b.width)/2,y=t.top+(t.height-b.height)/2;
+  if(side==='right')x=t.right+16;else if(side==='below')y=t.bottom+16;
+  x=Math.max(0,Math.min(innerWidth-b.width,x));y=Math.max(0,Math.min(innerHeight-b.height,y));
+  return bot.behaviorState.status==='acting'&&Math.abs(b.width-size)<.01&&Math.abs(b.height-size)<.01&&Math.abs(b.left-x)<1&&Math.abs(b.top-y)<1;
+ },{side,size});
+ assertBehaviorBox(await frame.evaluate(()=>window.behaviorRect()),'realigned target after viewport resize');
+}
+for(const mode of ['element','react'])test(`live viewport shrink, grow and height changes during motion: ${mode}`,{timeout:120000},async()=>{
+ const page=await browser.newPage({viewport:{width:1000,height:800},deviceScaleFactor:2,reducedMotion:'no-preference'});
+ try{
+  await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);
+  await page.locator('.state-lab iframe').evaluate(iframe=>{iframe.style.height='55vh';});
+  await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await trackBehavior(frame);
+  await frame.evaluate(async()=>{
+   const bot=document.querySelector('#reference-bot');bot.stopBehavior();bot.size=72;bot.placement='viewport';bot.movementBounds='viewport';
+   await bot.moveTo({x:0,y:0},{duration:0});window.viewportMoveResult=null;
+   window.viewportMove=bot.moveTo({x:innerWidth-72,y:innerHeight-72},{duration:10000,travel:'none'}).then(result=>window.viewportMoveResult=result);
+  });
+  await frame.waitForFunction(()=>document.querySelector('#reference-bot').movementState.phase==='flight');
+  const dimensions=[];
+  for(const step of liveResizeSteps){
+   assert.equal(await frame.evaluate(()=>window.viewportMoveResult),null,'viewport sequence starts while original move remains in flight');
+   const box=await resizeLiveReference(page,frame,step);dimensions.push([box.viewportWidth,box.viewportHeight]);
+   await assertLiveBacking(frame,step.sizes.at(-1));
+  }
+  assert.equal(new Set(dimensions.map(([w,h])=>`${w}x${h}`)).size,liveResizeSteps.length,'each resize changes the actual child viewport');
+  const result=await frame.evaluate(async()=>{document.querySelector('#reference-bot').paused=true;return await window.viewportMove;});
+  assert.equal(result.finished,true,'resize does not cancel the original move; explicit pause finishes it');
+  assertBehaviorBox(await frame.evaluate(()=>window.behaviorRect()),'finished resized move');
+ }finally{await page.close();}
+});
+for(const mode of ['element','react'])test(`live viewport and consecutive size changes preserve wait/follow anchors: ${mode}`,{timeout:120000},async()=>{
+ const page=await browser.newPage({viewport:{width:1000,height:800},deviceScaleFactor:2,reducedMotion:'no-preference'});
+ try{
+  await page.goto(`${base}/guide.html?lang=en&framework=${mode}#state-behavior`);const frame=await frameFor(page);
+  await page.locator('.state-lab iframe').evaluate(iframe=>{iframe.style.height='55vh';});
+  await page.check('[data-state-enable="behavior"]');await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await trackBehavior(frame);
+  for(const [type,side]of [['wait','right'],['follow','below']]){
+   await edit(page,'behavior',JSON.stringify({type,target:'#reference-target',side,gap:16}));
+   await frame.waitForFunction(({type,side})=>{const bot=document.querySelector('#reference-bot');return bot.behavior?.type===type&&bot.behavior?.side===side&&bot.behaviorState.status==='acting';},{type,side});
+   const id=await frame.locator('#reference-bot').evaluate(bot=>bot.behaviorState.id);
+   for(const step of liveResizeSteps){
+    await resizeLiveReference(page,frame,step);const size=step.sizes.at(-1);
+    await waitForLiveAnchor(frame,side,size);await assertLiveBacking(frame,size);
+    assert.equal(await frame.locator('#reference-bot').evaluate(bot=>bot.behaviorState.id),id,'resize must not restart behavior');
+   }
+  }
+ }finally{await page.close();}
+});

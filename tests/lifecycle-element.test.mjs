@@ -681,3 +681,46 @@ test('clearing faded presence restores opacity when home takes ownership', async
   assert.equal(avatar.presenceState, 'visible');
   assert.equal(Number(avatar.canvas.style.opacity || 1), 1);
 });
+
+for (const type of ['wait', 'follow', 'guide', 'review']) for (const immediate of [true, false]) for (const nearEdge of [false, true]) test(`active ${type} behavior reanchors current size without restarting (${immediate ? 'immediate' : 'normal'} motion, ${nearEdge ? 'viewport clamp' : 'center'})`, async t => {
+  const { avatar, workTarget, workBox } = fixture(t, { immediate });
+  if (nearEdge) { workBox.x = dom.window.innerWidth - 60; workBox.y = dom.window.innerHeight - 60; }
+  const rectangle = (x, y, width, height) => ({ x, y, left: x, top: y, width, height, right: x + width, bottom: y + height });
+  avatar.getBoundingClientRect = () => rectangle(avatar.position.x, avatar.position.y, avatar.size, avatar.size);
+  Object.defineProperty(avatar, 'offsetWidth', { get: () => Math.round(avatar.size) });
+  Object.defineProperty(avatar, 'offsetHeight', { get: () => Math.round(avatar.size) });
+  avatar.size = 72;
+  for (const side of ['left', 'right', 'above', 'below']) {
+    avatar.behavior = type === 'review' ? { type, targets: [workTarget], dwell: 100000, side, gap: 16 } : { type, target: workTarget, duration: 100000, side, gap: 16 };
+    await until(() => avatar.behaviorState.status === 'acting', `${side} behavior started`);
+    const id = avatar.behaviorState.id;
+    for (const size of [48, 96, 160.5]) {
+      avatar.size = size;
+      const target = workTarget.getBoundingClientRect();
+      let x = target.left + (target.width - size) / 2, y = target.top + (target.height - size) / 2;
+      if (side === 'left') x = target.left - size - 16;
+      if (side === 'right') x = target.right + 16;
+      if (side === 'above') y = target.top - size - 16;
+      if (side === 'below') y = target.bottom + 16;
+      x = Math.max(0, Math.min(dom.window.innerWidth - size, x));
+      y = Math.max(0, Math.min(dom.window.innerHeight - size, y));
+      await until(() => Math.abs(avatar.position.x - x) < 1 && Math.abs(avatar.position.y - y) < 1, `${side} size ${size} anchor`);
+      assert.equal(avatar.behaviorState.id, id); assert.equal(avatar.behaviorState.status, 'acting');
+      assert.equal(avatar.elementAnchor.target, workTarget);
+    }
+  }
+  avatar.stopBehavior();
+});
+
+test('ordinary pixel-offset anchors stay authored after size changes', async t => {
+  const { avatar, workTarget } = fixture(t);
+  avatar.getBoundingClientRect = () => ({ left: avatar.position.x, top: avatar.position.y, width: avatar.size, height: avatar.size });
+  avatar.size = 72;
+  await avatar.moveToElement(workTarget, { anchor: true, x: 5, y: 7 });
+  for (const size of [48, 96, 160.5]) {
+    avatar.size = size; await advance(50);
+    assert.equal(avatar.elementAnchor.x, 5); assert.equal(avatar.elementAnchor.y, 7);
+    assert.equal(avatar.position.x, workTarget.getBoundingClientRect().left + 5);
+    assert.equal(avatar.position.y, workTarget.getBoundingClientRect().top + 7);
+  }
+});

@@ -295,7 +295,7 @@ export class SidekickAvatar extends HTMLElementBase {
       const weights = eyeExpressionWeights(expression);
       void this.behaviorOperation(() => this.motion.to({ eyes: { left: { weights }, right: { weights } } }, { duration: 180 }));
     },
-    move: (target, side, gap) => this.behaviorOperation(() => this.moveToElement(target, this.behaviorPlacement(side, gap))),
+    move: (target, side, gap) => this.behaviorOperation(() => this.moveToElementAnchored(target, this.behaviorPlacement(side, gap), { side, gap })),
     watch: (target, lost) => this.watchBehaviorTarget(target, lost),
     stop: () => this.behaviorOperation(() => { if (!this.lifecycleRest) { this.releaseAnchor(false); this.movement.cancel(); } }),
     change: state => this.emit('sidekick-behavior-change', state),
@@ -394,7 +394,7 @@ export class SidekickAvatar extends HTMLElementBase {
   get elementAnchor(): ElementAnchorState | null { return this.anchorState ? { ...this.anchorState } : null; }
   detachAnchor(): void { this.clearPositioning(); this.releaseAnchor(true); }
   private releaseAnchor(brake: boolean): void { this.anchorRevision++; this.anchorCleanup?.(); this.anchorCleanup = undefined; this.anchorState = null; this.anchorSleeping = false; this.movement.suspend(false); if (brake) this.movement.stopFollowing(); }
-  private attachAnchor(state: ElementAnchorState): void {
+  private attachAnchor(state: ElementAnchorState, behaviorPlacement?: { side: BehaviorSide; gap: number }): void {
     this.releaseAnchor(false); this.anchorState = state;
     this.anchorCleanup = observeElementAnchor(this.ownerDocument, () => {
       if (this.anchorState !== state) return;
@@ -408,6 +408,14 @@ export class SidekickAvatar extends HTMLElementBase {
       const view = this.ownerDocument.defaultView!;
       const inView = (rect: { left: number; top: number; width: number; height: number }): boolean => rect.width > 0 && rect.height > 0 && rect.left + rect.width > 0 && rect.top + rect.height > 0 && rect.left < view.innerWidth && rect.top < view.innerHeight;
       const rect = this.getBoundingClientRect();
+      // Behavior offsets encode a semantic edge gap, not an authored pixel offset.
+      // Recompute them from the current footprint so resizing does not keep the
+      // dimensions sampled when the behavior first attached. Ordinary anchors
+      // retain their fixed x/y offsets. The public getter returns a copy.
+      if (behaviorPlacement) {
+        const placement = this.behaviorPlacement(behaviorPlacement.side, behaviorPlacement.gap);
+        Object.assign(state, { x: placement.x ?? 0, y: placement.y ?? 0 });
+      }
       let point: AvatarPosition;
       try { point = resolveElementTarget(this, this.position, state.target, { anchor: true, x: state.x, y: state.y, alignX: state.alignX, alignY: state.alignY }).position; }
       catch { this.detachAnchor(); return; }
@@ -610,11 +618,14 @@ export class SidekickAvatar extends HTMLElementBase {
   moveTo(position: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { const target = this.constrainPosition(validatePosition(position), true); validateMoveOptions(options); this.interruptBehavior(); this.clearPositioning(); this.releaseAnchor(false); const revision = this.presenceController.reveal(); if (!this.presenceController.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.to(target, options).then(result => { if (result.finished) this.presenceController.recovered(revision); return result; }); }
   /** Sample the target's viewport border-box and align matching anchors, then move with inertia. */
   moveToElement(target: Element, options: MoveToElementOptions = {}): Promise<MoveResult> {
+    return this.moveToElementAnchored(target, options);
+  }
+  private moveToElementAnchored(target: Element, options: MoveToElementOptions, behaviorPlacement?: { side: BehaviorSide; gap: number }): Promise<MoveResult> {
     const resolved = resolveElementTarget(this, this.position, target, options);
     const state: ElementAnchorState | null = options.anchor ? { target, x: options.x ?? 0, y: options.y ?? 0, alignX: options.alignX ?? 'left', alignY: options.alignY ?? 'top' } : null;
     const expectedRevision = this.anchorRevision + 1;
     const result = this.moveTo(resolved.position, resolved.options);
-    if (state && this.anchorRevision === expectedRevision) this.attachAnchor(state);
+    if (state && this.anchorRevision === expectedRevision) this.attachAnchor(state, behaviorPlacement);
     return result;
   }
   moveBy(delta: AvatarPosition, options: MoveOptions = {}): Promise<MoveResult> { validatePosition(delta); validateMoveOptions(options); this.interruptBehavior(); this.clearPositioning(); this.releaseAnchor(false); const revision = this.presenceController.reveal(); if (!this.presenceController.owns(revision)) return Promise.resolve({ finished: false, position: this.position }); return this.movement.by(delta, options, point => this.constrainPosition(point, true)).then(result => { if (result.finished) this.presenceController.recovered(revision); return result; }); }

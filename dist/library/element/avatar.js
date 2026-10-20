@@ -389,7 +389,7 @@ export class SidekickAvatar extends HTMLElementBase {
             const weights = eyeExpressionWeights(expression);
             void this.behaviorOperation(() => this.motion.to({ eyes: { left: { weights }, right: { weights } } }, { duration: 180 }));
         },
-        move: (target, side, gap) => this.behaviorOperation(() => this.moveToElement(target, this.behaviorPlacement(side, gap))),
+        move: (target, side, gap) => this.behaviorOperation(() => this.moveToElementAnchored(target, this.behaviorPlacement(side, gap), { side, gap })),
         watch: (target, lost) => this.watchBehaviorTarget(target, lost),
         stop: () => this.behaviorOperation(() => { if (!this.lifecycleRest) {
             this.releaseAnchor(false);
@@ -535,7 +535,7 @@ export class SidekickAvatar extends HTMLElementBase {
     detachAnchor() { this.clearPositioning(); this.releaseAnchor(true); }
     releaseAnchor(brake) { this.anchorRevision++; this.anchorCleanup?.(); this.anchorCleanup = undefined; this.anchorState = null; this.anchorSleeping = false; this.movement.suspend(false); if (brake)
         this.movement.stopFollowing(); }
-    attachAnchor(state) {
+    attachAnchor(state, behaviorPlacement) {
         this.releaseAnchor(false);
         this.anchorState = state;
         this.anchorCleanup = observeElementAnchor(this.ownerDocument, () => {
@@ -561,6 +561,14 @@ export class SidekickAvatar extends HTMLElementBase {
             const view = this.ownerDocument.defaultView;
             const inView = (rect) => rect.width > 0 && rect.height > 0 && rect.left + rect.width > 0 && rect.top + rect.height > 0 && rect.left < view.innerWidth && rect.top < view.innerHeight;
             const rect = this.getBoundingClientRect();
+            // Behavior offsets encode a semantic edge gap, not an authored pixel offset.
+            // Recompute them from the current footprint so resizing does not keep the
+            // dimensions sampled when the behavior first attached. Ordinary anchors
+            // retain their fixed x/y offsets. The public getter returns a copy.
+            if (behaviorPlacement) {
+                const placement = this.behaviorPlacement(behaviorPlacement.side, behaviorPlacement.gap);
+                Object.assign(state, { x: placement.x ?? 0, y: placement.y ?? 0 });
+            }
             let point;
             try {
                 point = resolveElementTarget(this, this.position, state.target, { anchor: true, x: state.x, y: state.y, alignX: state.alignX, alignY: state.alignY }).position;
@@ -868,12 +876,15 @@ export class SidekickAvatar extends HTMLElementBase {
         this.presenceController.recovered(revision); return result; }); }
     /** Sample the target's viewport border-box and align matching anchors, then move with inertia. */
     moveToElement(target, options = {}) {
+        return this.moveToElementAnchored(target, options);
+    }
+    moveToElementAnchored(target, options, behaviorPlacement) {
         const resolved = resolveElementTarget(this, this.position, target, options);
         const state = options.anchor ? { target, x: options.x ?? 0, y: options.y ?? 0, alignX: options.alignX ?? 'left', alignY: options.alignY ?? 'top' } : null;
         const expectedRevision = this.anchorRevision + 1;
         const result = this.moveTo(resolved.position, resolved.options);
         if (state && this.anchorRevision === expectedRevision)
-            this.attachAnchor(state);
+            this.attachAnchor(state, behaviorPlacement);
         return result;
     }
     moveBy(delta, options = {}) { validatePosition(delta); validateMoveOptions(options); this.interruptBehavior(); this.clearPositioning(); this.releaseAnchor(false); const revision = this.presenceController.reveal(); if (!this.presenceController.owns(revision))

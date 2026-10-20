@@ -138,6 +138,7 @@ export declare class SidekickAvatar extends HTMLElementBase {
     moveTo(position: AvatarPosition, options?: MoveOptions): Promise<MoveResult>;
     /** Sample the target's viewport border-box and align matching anchors, then move with inertia. */
     moveToElement(target: Element, options?: MoveToElementOptions): Promise<MoveResult>;
+    private moveToElementAnchored;
     moveBy(delta: AvatarPosition, options?: MoveOptions): Promise<MoveResult>;
     cancelMove(): void;
     private constrainPosition;

@@ -5,12 +5,13 @@ import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
 import { createAppServer } from '../scripts/serve.mjs';
 
+const forceCanvas = process.env.SIDEKICK_FORCE_CANVAS2D === '1';
 let browser, server, base;
 before(async () => {
   server = createAppServer();
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
-  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined), headless: true, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
+  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined), headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage', ...(forceCanvas ? ['--disable-webgl'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'])] });
 });
 after(async () => { await browser?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
 async function pageFor(t, options = {}) {
@@ -410,4 +411,88 @@ test('iframe previews are explicit, sandboxed and leave a usable local demo afte
   await page.locator('#preview-demo-button').click();
   assert.equal(await page.locator('#site-preview-frame').count(), 0);
   assert.equal(await page.locator('#preview-target').isVisible(), true);
+});
+
+// This page renders one native avatar; the shared framework switch selects generated
+// Element/React code, not a second runtime renderer. Runtime React resize lives in
+// state-reference-browser.test.mjs. Run this file again with SIDEKICK_FORCE_CANVAS2D=1.
+for (const framework of ['element', 'react']) test(`live viewport resize preserves ${framework} drafts, drawer access and iframe geometry (${forceCanvas ? 'canvas2d' : 'webgl2'})`, { timeout: 60000 }, async t => {
+  const page = await pageFor(t);
+  await select(page, 'site-framework', framework);
+  await fill(page, 'target-x', 237); await fill(page, 'target-y', 119);
+  await fill(page, 'duration', 850); await select(page, 'travel', 'none');
+  const snapshot = () => page.evaluate(() => ({
+    fields: [...document.querySelectorAll('#action-panel input, #action-panel select, #action-panel textarea')].map(el => [el.id, el.value, el.checked ?? null]),
+    code: document.getElementById('invocation').textContent,
+    framework: document.getElementById('site-framework').value,
+  }));
+  const draft = await snapshot();
+  assert.match(draft.code, framework === 'react' ? /SidekickAvatar/ : /avatar\.moveTo/);
+  await page.waitForFunction(() => !!document.getElementById('bot')?.diagnostics?.graphics);
+  assert.equal(await page.locator('#bot').evaluate(bot => bot.diagnostics.graphics), forceCanvas ? 'canvas2d' : 'webgl2', 'Fallback must not silently mask a WebGL test');
+  await page.locator('#bot').evaluate(async bot => {
+    bot.trackingMode = 'off';
+    await bot.moveTo({ x: innerWidth - bot.offsetWidth, y: innerHeight - bot.offsetHeight }, { duration: 0, travel: 'none' });
+  });
+  await page.locator('#bot-tools-close').click();
+  const previewURL = `${base}/resize-preview-fixture`;
+  await page.route(previewURL, route => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html><meta name="viewport" content="width=device-width"><body style="margin:0;background:#eef2ff"><h1>Responsive preview fixture</h1></body></html>' }));
+  await page.locator('#preview-url').fill(previewURL);
+  await page.locator('#preview-form button[type=submit]').click();
+  const frame = page.locator('#site-preview-frame');
+  assert.equal(await frame.getAttribute('sandbox'), 'allow-scripts');
+  // Track identity so resize cannot pass by silently replacing the preview or bot.
+  await page.evaluate(() => { window.resizeFrame = document.getElementById('site-preview-frame'); window.resizeBot = document.getElementById('bot'); });
+  const invocationCount = (await calls(page)).length;
+  const viewports = [
+    { width: 320, height: 640 }, // shrink across the mobile breakpoint
+    { width: 320, height: 420 }, // height-only reduction with wrapped header
+    { width: 960, height: 420 }, // grow width while height remains constrained
+    { width: 1440, height: 1000 }, // grow both dimensions
+    { width: 390, height: 844 }, // shrink again without reloading
+  ];
+  for (const open of [false, true]) {
+    if (open) await page.locator('#bot-tools-launcher').click();
+    for (const viewport of viewports) {
+      await page.setViewportSize(viewport);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      // Observe settled geometry rather than sleeping through an assumed resize delay.
+      await page.waitForFunction(open => {
+        const panel = document.getElementById('bot-tools'), header = document.querySelector('.app-header');
+        const p = panel.getBoundingClientRect(), h = header.getBoundingClientRect();
+        const bot = document.getElementById('bot').getBoundingClientRect();
+        return panel.hidden === !open && (!open || (p.left >= -1 && p.right <= innerWidth + 1 && p.top >= h.bottom - 1 && p.bottom <= innerHeight + 1)) &&
+          bot.left >= -1 && bot.top >= -1 && bot.right <= innerWidth + 1 && bot.bottom <= innerHeight + 1;
+      }, open);
+      const layout = await page.evaluate(() => {
+        const surface = document.getElementById('preview-surface'), frame = document.getElementById('site-preview-frame'), r = frame.getBoundingClientRect();
+        const reachable = id => {
+          const el = document.getElementById(id), b = el.getBoundingClientRect();
+          const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+          return b.left >= 0 && b.right <= innerWidth + 1 && b.top >= 0 && b.bottom <= innerHeight + 1 && (hit === el || el.contains(hit));
+        };
+        return {
+          overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          frameWidth: r.width, frameHeight: r.height, surfaceWidth: surface.clientWidth, surfaceHeight: surface.clientHeight,
+          sameFrame: frame === window.resizeFrame, sameBot: document.getElementById('bot') === window.resizeBot,
+          languageReachable: reachable('site-language'), frameworkReachable: reachable('site-framework'), launcherReachable: reachable('bot-tools-launcher'),
+          captureHidden: document.getElementById('preview-click-layer').hidden,
+        };
+      });
+      assert.equal(layout.overflow, false, JSON.stringify({ open, viewport, layout }));
+      assert.ok(Math.abs(layout.frameWidth - layout.surfaceWidth) <= 1);
+      assert.ok(Math.abs(layout.frameHeight - layout.surfaceHeight) <= 1);
+      for (const key of ['sameFrame', 'sameBot', 'languageReachable', 'frameworkReachable', 'launcherReachable', 'captureHidden']) assert.equal(layout[key], true, `${key}: ${JSON.stringify({ open, viewport })}`);
+      assert.deepEqual(await snapshot(), draft, 'Live resize must not rewrite the draft');
+      assert.equal((await calls(page)).length, invocationCount, 'Resize and drawer controls must not execute a bot command');
+      assert.equal(await frame.getAttribute('src'), previewURL);
+      assert.equal(await page.locator('#bot-tools-launcher').getAttribute('aria-expanded'), String(open));
+    }
+  }
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#bot-tools').isVisible(), false);
+  assert.equal(await page.locator('#bot-tools-launcher').evaluate(el => el === document.activeElement), true);
+  await page.locator('#preview-demo-button').click();
+  assert.equal(await frame.count(), 0);
+  assert.deepEqual(await snapshot(), draft);
 });
