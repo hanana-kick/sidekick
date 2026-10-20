@@ -1,6 +1,6 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { accessSync, constants } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
 import { createAppServer } from '../scripts/serve.mjs';
@@ -13,7 +13,10 @@ before(async () => {
   server = createAppServer();
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
-  launcher = await chromium.launchServer({ executablePath: process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined), host: '127.0.0.1', headless: true, chromiumSandbox: true, ignoreDefaultArgs: true, args: ['--headless', '--remote-debugging-pipe', '--no-startup-window'] });
+  launcher = await chromium.launchServer({ executablePath: [process.env.CHROMIUM_PATH, '/opt/google/chrome/chrome', '/usr/bin/chromium'].find(path => {
+      if (!path) return false;
+      try { accessSync(path, constants.X_OK); return true; } catch { return false; }
+    }), host: '127.0.0.1', headless: true, chromiumSandbox: true, ignoreDefaultArgs: true, args: ['--headless', '--remote-debugging-pipe', '--no-startup-window'] });
   browser = await chromium.connect(launcher.wsEndpoint());
 });
 after(async () => { await browser?.close(); await launcher?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
