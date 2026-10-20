@@ -42,5 +42,22 @@ test('every CI workflow shares the development version and Node 24-native Action
     }
     setups += setupCount;
   }
-  assert.equal(setups, 7);
+  // One additional setup belongs to the independent browser matrix job.
+  assert.equal(setups, 8);
+});
+
+
+test('independent browser groups retain all suites and mandatory unit/isolation gates', async () => {
+  const source = await read('.github/workflows/ci.yml');
+  const manifest = JSON.parse(await read('package.json'));
+  assert.match(source, /needs: test/);
+  assert.match(source, /fail-fast: false/);
+  assert.match(source, /suite: \[reference, regression, canvas-interactions\]/);
+  for (const suite of ['reference', 'regression', 'canvas-interactions']) assert.ok(manifest.scripts[`test:browser:${suite}`]);
+  assert.match(source, /run: npm test/);
+  assert.match(source, /run: npm run test:site-analytics:build/);
+  assert.match(source, /run: xvfb-run -a npm run test:browser:\$\{\{ matrix\.suite \}\}/);
+  assert.doesNotMatch(source, /continue-on-error/);
+  assert.match(manifest.scripts['test:browser:canvas-interactions'], /SIDEKICK_FORCE_CANVAS2D=1.*state-reference-browser.*size-browser/);
+  assert.match(manifest.scripts['test:browser:canvas-interactions'], /live viewport resize.*api-playground-browser/);
 });
