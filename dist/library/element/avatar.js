@@ -126,7 +126,7 @@ export class SidekickAvatar extends HTMLElementBase {
             const continuingPresence = reason === 'declaration-changed' && !!this.lifecycleController.presence &&
                 (!!this.presenceFade || this.presenceState === 'entering' || this.presenceState === 'exiting');
             this.cancelPresenceFade();
-            if (reason !== 'declaration-changed') {
+            if (reason !== 'declaration-changed' || !this.lifecycleController.presence) {
                 this.presenceOpacity = 1;
                 this.canvas?.style.removeProperty('opacity');
             }

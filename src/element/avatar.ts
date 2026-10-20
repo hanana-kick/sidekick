@@ -130,7 +130,7 @@ export class SidekickAvatar extends HTMLElementBase {
       const continuingPresence = reason === 'declaration-changed' && !!this.lifecycleController.presence &&
         (!!this.presenceFade || this.presenceState === 'entering' || this.presenceState === 'exiting');
       this.cancelPresenceFade();
-      if (reason !== 'declaration-changed') { this.presenceOpacity = 1; this.canvas?.style.removeProperty('opacity'); }
+      if (reason !== 'declaration-changed' || !this.lifecycleController.presence) { this.presenceOpacity = 1; this.canvas?.style.removeProperty('opacity'); }
       this.pendingBehavior = undefined;
       this.lifecycleCancelling = true;
       try { this.behaviorController.cancel(reason); } finally { this.lifecycleCancelling = false; }

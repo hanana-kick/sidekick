@@ -670,3 +670,14 @@ test('hiding an arrival before it reaches the viewport does not clamp its positi
   assert.ok(Math.abs(avatar.position.x - before.x) < 10, 'visibility change cannot re-enable bounds during braking');
   await until(() => avatar.presenceState === 'hidden', 'hidden interrupted entrance');
 });
+
+
+test('clearing faded presence restores opacity when home takes ownership', async t => {
+  const f = fixture(t), { avatar } = f;
+  avatar.presence = { visible: false };
+  await until(() => avatar.presenceState === 'hidden', 'hidden');
+  avatar.presence = null; avatar.home = f.home();
+  await until(() => avatar.lifecycleState.phase === 'resting', 'home without presence ownership');
+  assert.equal(avatar.presenceState, 'visible');
+  assert.equal(Number(avatar.canvas.style.opacity || 1), 1);
+});
