@@ -63,7 +63,10 @@ async function installSampler(scope, selector) {
         opacity: Number(getComputedStyle(canvas).opacity), visibility: getComputedStyle(bot).visibility,
         clip: canvas.style.clipPath, design: JSON.stringify(bot.design),
         sameCanvas: canvas === window.qaOriginalCanvas, generation: bot.diagnostics.generation,
-        frames: bot.diagnostics.frames, running: bot.diagnostics.running };
+        frames: bot.diagnostics.frames, running: bot.diagnostics.running,
+        scroll: { x: scrollX, y: scrollY },
+        homeRect: document.querySelector('#reference-home')?.getBoundingClientRect().toJSON() ?? null,
+        botRect: bot.getBoundingClientRect().toJSON() };
     };
     window.qaSampling = true;
     const sample = () => { if (!window.qaSampling) return; window.qaSamples.push(window.qaSnapshot()); requestAnimationFrame(sample); };
@@ -137,6 +140,36 @@ async function finish(scope, name) {
   return result;
 }
 
+async function captureReversal(scope, declaration, name) {
+  const reversal = await scope.evaluate(async declaration => {
+    const bot = window.qaBot, reports = [];
+    const report = event => reports.push({ time: performance.now(), ...event.detail });
+    bot.addEventListener('sidekick-move-progress', report);
+    const before = window.qaSnapshot();
+    try {
+      bot.presence = declaration;
+      for (let i = 0; i < 20; i++) await Promise.resolve();
+      return { before, after: window.qaSnapshot(), reports };
+    } finally { bot.removeEventListener('sidekick-move-progress', report); }
+  }, declaration);
+  // Save before any assertion so failures retain the exact synchronous boundary.
+  if (output) await writeFile(join(output, `${slug(name)}-reversal.json`), JSON.stringify(reversal, null, 2));
+  return reversal;
+}
+function assertReversal(reversal) {
+  // Reading movementState returns the previous render tick. to() first samples
+  // the OLD trajectory at performance.now(), then reports the new track at
+  // progress=0. Compare those adjacent reports at the same physical instant,
+  // rather than incorrectly demanding no motion since the previous rAF.
+  const index = reversal.reports.findIndex((report, i) => i > 0 && report.progress === 0 && reversal.reports[i - 1].progress > 0);
+  assert.ok(index > 0, 'observe old-flight catch-up followed by new-track report');
+  const before = reversal.reports[index - 1], after = reversal.reports[index];
+  assert.ok(distance(before.position, after.position) < 1, 'retarget does not teleport at the sampled boundary');
+  assert.ok(distance(before.velocity, after.velocity) < 1, 'retarget preserves instantaneous velocity at the sampled boundary');
+  assert.ok(distance(after.position, reversal.after.position) < 1, 'no subsequent synchronous relocation');
+  assert.ok(distance(after.velocity, reversal.after.movement.velocity) < 1, 'no subsequent synchronous velocity reset');
+}
+
 for (const backend of ['worker', 'main']) {
   test(`plain presence fades in place over 180ms and stops hidden rendering ${backend}`, { timeout: 60000 }, async t => {
     const page = await fixture(t, backend), origin = await page.evaluate(() => window.qaBot.position);
@@ -167,19 +200,12 @@ for (const backend of ['worker', 'main']) {
     await page.waitForFunction(() => window.qaBot.movementState.speed > 100);
     let reversal;
     await sequence(page, page, `${backend}-${edge}-reverse`, async () => {
-      reversal = await page.evaluate(async edge => {
-        const before = window.qaSnapshot();
-        window.qaBot.presence = { visible: true, entrance: { source: 'viewport', edge, inset: 110 } };
-        for (let i = 0; i < 20; i++) await Promise.resolve();
-        return { before, after: window.qaSnapshot() };
-      }, edge);
+      reversal = await captureReversal(page, { visible: true, entrance: { source: 'viewport', edge, inset: 110 } }, t.name);
     }, 1200);
-    assert.ok(distance(reversal.before.position, reversal.after.position) < 1, 'retarget does not teleport');
-    assert.ok(distance(reversal.before.movement.velocity, reversal.after.movement.velocity) < 1, 'retarget preserves instantaneous velocity');
+    assertReversal(reversal);
     await visible(page); const result = await finish(page, t.name);
     assert.ok(result.samples.some(s => s.presence === 'exiting' && s.movement.speed > 20));
     assert.ok(result.samples.some(s => s.presence === 'entering' && s.movement.speed > 20));
-    if (output) await writeFile(join(output, `${slug(t.name)}-reversal.json`), JSON.stringify(reversal, null, 2));
   });
 }
 
@@ -188,13 +214,8 @@ for (const edge of ['left', 'right', 'top', 'bottom']) test(`element ${edge} mas
   await page.evaluate(() => { window.qaBot.presence = { visible: false }; }); await hidden(page);
   await page.evaluate(edge => { window.qaBot.presence = { visible: true, entrance: { source: 'element', target: '#card', direction: edge } }; }, edge);
   await page.waitForFunction(() => window.qaBot.movementState.speed > 80 && window.qaBot.shadowRoot.querySelector('canvas').style.clipPath.startsWith('polygon'));
-  const reversal = await page.evaluate(async edge => {
-    const before = window.qaSnapshot(); window.qaBot.presence = { visible: false, exit: { to: edge } };
-    for (let i = 0; i < 20; i++) await Promise.resolve();
-    return { before, after: window.qaSnapshot() };
-  }, edge);
-  assert.ok(distance(reversal.before.position, reversal.after.position) < 1);
-  assert.ok(distance(reversal.before.movement.velocity, reversal.after.movement.velocity) < 1);
+  const reversal = await captureReversal(page, { visible: false, exit: { to: edge } }, t.name);
+  assertReversal(reversal);
   assert.ok(reversal.after.clip.startsWith('polygon'), 'interrupted reveal keeps its occlusion mask');
   await sequence(page, page, `element-${edge}-reversal`, async () => {}, 1200); await hidden(page);
   await sequence(page, page, `element-${edge}-reenter`, () => page.evaluate(edge => { window.qaBot.presence = { visible: true, entrance: { source: 'element', target: '#card', direction: edge } }; }, edge), 1200);
@@ -242,6 +263,15 @@ test('API playground lifecycle visibility toggle stays in place', { timeout: 600
   await page.waitForFunction(() => !document.querySelector('#execute')?.disabled);
   await page.locator('#execute').click();
   await page.waitForFunction(() => document.querySelector('#bot')?.lifecycleState.phase === 'resting');
+  // Playwright's click scrolls the controls into view. Do that BEFORE measuring
+  // home: a viewport companion legitimately follows a home moved by page scroll.
+  await page.locator('[data-lifecycle-action="visible"]').scrollIntoViewIfNeeded();
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await page.waitForFunction(() => {
+    const bot = document.querySelector('#bot'), home = document.querySelector('#reference-home').getBoundingClientRect(), rect = bot.getBoundingClientRect();
+    return bot.lifecycleState.phase === 'resting' && bot.movementState.phase === 'idle' &&
+      Math.abs(rect.left - home.right - 8) < 1 && Math.abs(rect.top + rect.height / 2 - home.top - home.height / 2) < 1;
+  });
   await installSampler(page, '#bot'); const origin = await page.evaluate(() => window.qaBot.position);
   for (const action of ['hide', 'show']) {
     await sequence(page, page, `api-${action}`, () => page.locator('[data-lifecycle-action="visible"]').click());
