@@ -80,7 +80,9 @@ test('changing language preserves playground draft, hash and navigation preferen
  const page=await browser.newPage({locale:'ko-KR',reducedMotion:'reduce'});t.after(()=>page.close());
  await page.goto(`${base}/api-playground.html?lang=ko#action-panel`);await page.waitForSelector('#site-language');
  await apiDemoFrame(page);
- await page.locator('#bot-tools-launcher').click();
+ if (!await page.locator('#bot-tools').isVisible()) await page.locator('#bot-tools-launcher').click();
+ await page.locator('#bot-tools').waitFor({ state: 'visible' });
+ assert.equal(await page.locator('#bot-tools-launcher').getAttribute('aria-expanded'), 'true');
  await page.locator('#action-kind').selectOption('expression');await page.locator('#expression-duration').fill('950');
  for(const locale of ['en','zh-CN','ja','ko']){
   await page.evaluate(()=>{window.originalFrame=document.querySelector('#site-preview-frame');window.originalBot=window.originalFrame.contentDocument.querySelector('#bot');});
