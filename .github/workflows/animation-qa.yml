@@ -5,7 +5,7 @@ on:
       plan:
         description: Pilot first; full only after counter and parity validation
         type: choice
-        options: [pilot, full, screening]
+        options: [pilot, full, screening, ownership]
         default: pilot
       graphics:
         description: Full matrix subset; pilot always uses Canvas
@@ -24,7 +24,7 @@ jobs:
     name: CPU experiment (${{ matrix.backend }}/${{ matrix.graphics }}/${{ matrix.order }}) - NOT release CI
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: ${{ inputs.plan == 'ownership' && 8 || 30 }}
     strategy:
       fail-fast: false
       matrix:
@@ -43,7 +43,7 @@ jobs:
       - run: node scripts/ci-cpu/prepare.mjs
       - name: Measure owned sandboxed browser process tree
         run: |
-          if [ "$BENCH_PLAN" = screening ]; then node scripts/ci-cpu/screen.mjs; else node scripts/ci-cpu/run.mjs; fi
+          if [ "$BENCH_PLAN" = ownership ]; then node scripts/ci-cpu/ownership-diagnostic.mjs; elif [ "$BENCH_PLAN" = screening ]; then node scripts/ci-cpu/screen.mjs; else node scripts/ci-cpu/run.mjs; fi
         env:
           BENCH_ORDER: ${{ matrix.order }}
           BENCH_PLAN: ${{ inputs.plan }}
