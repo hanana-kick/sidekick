@@ -1,10 +1,10 @@
-name: Animation visual QA
+name: Company envelope and community rail probe
 on:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  visual:
+  probe:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -15,13 +15,27 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:all
-      - run: node node_modules/playwright-core/cli.js install --with-deps chromium ffmpeg
-      - run: xvfb-run -a node --test --test-concurrency=1 tests/animation-continuity-browser.test.mjs tests/presence-continuity-browser.test.mjs
+      - run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - name: Company speech envelopes and existing placement transitions
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          xvfb-run -a node --test --test-concurrency=1 --test-name-pattern='^(company speech envelope|three demos contain|narrow empty community|normal-motion company stories)' tests/api-demo-browser.test.mjs 2>&1 | tee artifacts/company-envelope.log
+        env:
+          SIDEKICK_HEADED: '1'
+          SIDEKICK_SCREENSHOTS: artifacts
+      - name: Community short-height rail
+        if: success() || failure()
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          xvfb-run -a node --test --test-concurrency=1 tests/community-rail-browser.test.mjs 2>&1 | tee artifacts/community-rail.log
         env:
           SIDEKICK_HEADED: '1'
           SIDEKICK_SCREENSHOTS: artifacts
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
-          name: animation-visuals
+          name: company-envelope-community-rail
           path: artifacts/
+          if-no-files-found: ignore
