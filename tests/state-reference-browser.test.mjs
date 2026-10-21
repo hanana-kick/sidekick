@@ -28,23 +28,26 @@ async function dismissLiveAnalyticsConsent(page){
 async function frameFor(page){await page.waitForSelector('[data-state-reference][data-configured]');await dismissLiveAnalyticsConsent(page);const frame=page.frames().find(f=>f.url().includes('/state-preview.html'));assert.ok(frame);await frame.waitForFunction(()=>document.querySelector('#reference-bot')?.ready);await assertGraphics(frame);return frame;}
 async function edit(page,key,value){if(key==='behavior'&&JSON.parse(value).type==='idle'&&Object.keys(JSON.parse(value)).length===1){await page.selectOption('[data-behavior-preset]','idle');return;}await page.check(`[data-state-enable="${key}"]`);const control=page.locator(`[data-state-control="${key}"]`);if(await control.evaluate(e=>e.tagName)==='SELECT')await control.selectOption(value);else{await control.fill(value);if(await control.evaluate(e=>e.tagName)==='TEXTAREA')await page.locator(`[data-state-field="${key}"] button`).click();else await control.dispatchEvent('change');}}
 async function snapshot(frame){return frame.locator('#reference-bot').evaluate(bot=>({design:bot.design,orientation:bot.bodyOrientation,zoom:bot.zoom,tracking:bot.trackingMode,emotion:bot.emotionState.emotion,emotionIntensity:bot.emotionState.intensity,activity:bot.activity,behavior:bot.behavior,presence:bot.presence,position:bot.position,paused:bot.paused}));}
-for(const viewport of [{width:320,height:320},{width:360,height:480}])for(const choice of ['Do not allow','Close'])test(`mobile controls: initial analytics ${choice} is reachable at ${viewport.width}x${viewport.height}`,{skip:!process.env.SIDEKICK_STATE_LIVE_URL},async()=>{
+for(const viewport of [{width:320,height:320},{width:360,height:480}])for(const choice of ['Do not allow','Close'])test(`mobile controls: user-opened analytics ${choice} is reachable at ${viewport.width}x${viewport.height}`,{skip:!process.env.SIDEKICK_STATE_LIVE_URL},async()=>{
  const page=await newReferencePage({viewport,deviceScaleFactor:3}),requests=[];
  page.on('request',request=>{if(/google-analytics\.com|googletagmanager\.com/.test(request.url()))requests.push(request.url());});
  try{
   await page.goto(`${base}/guide.html?lang=en#state-appearance`);
-  const panel=page.locator('#site-analytics-panel');
-  await panel.waitFor({state:'visible'});
+  const panel=page.locator('#site-analytics-panel'),toggle=page.locator('.site-analytics-toggle');
+  await panel.waitFor({state:'attached'});
+  assert.equal(await panel.isVisible(),false,'analytics does not cover the initial page');
+  assert.equal(await toggle.getAttribute('aria-expanded'),'false');
+  assert.deepEqual(requests,[],'closed analytics settings never load analytics');
+  await toggle.click();await panel.waitFor({state:'visible'});
   assert.equal(await panel.getAttribute('aria-labelledby'),'site-analytics-title');
   assert.ok((await page.locator('#site-analytics-title').textContent()).includes('Allow Google Analytics'));
   const button=panel.getByRole('button',{name:choice,exact:true});
   await button.scrollIntoViewIfNeeded();
   const box=await button.boundingBox();assert.ok(box);
-  assert.ok(box.x>=0&&box.y>=0&&box.x+box.width<=viewport.width&&box.y+box.height<=viewport.height,'initial consent action is inside the small viewport');
+  assert.ok(box.x>=0&&box.y>=0&&box.x+box.width<=viewport.width&&box.y+box.height<=viewport.height,'user-opened consent action is inside the small viewport');
   assert.ok(box.width>=24&&box.height>=24,'consent action has a usable target');
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal overflow');
   await button.click();await panel.waitFor({state:'hidden'});
-  const toggle=page.locator('.site-analytics-toggle');
   assert.equal(await toggle.getAttribute('aria-expanded'),'false');
   await toggle.click();await panel.waitFor({state:'visible'});
   await page.keyboard.press('Tab');

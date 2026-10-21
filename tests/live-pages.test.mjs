@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
 import { apiDemoFrame } from './helpers/api-demo-frame.mjs';
+import { assertPublishedDemoURL } from './helpers/published-demo-url.mjs';
 
 // Run only as an explicit post-deployment check, never in the offline test suite.
 // Both entry points must settle at the user's approved custom-domain root.
@@ -135,7 +136,7 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
       // Renderer readiness precedes asynchronous Studio session restoration.
       // Wait until the page has applied its initial position before testing flight.
       const frame = await apiDemoFrame(page);
-      assert.equal(frame.url(), new URL('api-demo.html?site=company&lang=ko', canonical).href, 'The authored demo stays on the verified canonical origin and root path');
+      assertPublishedDemoURL(frame.url(), canonical, { site: 'company', lang: 'ko' });
       assert.equal(await page.locator('#bot').count(), 0, 'The API controls document must not allocate a second avatar');
       await page.emulateMedia({ reducedMotion: 'no-preference' });
       const flight = await frame.evaluate(async () => {
@@ -147,7 +148,17 @@ for (const [name, entry] of [['custom-http', customHTTP], ['custom-https', custo
       assert.equal(flight.result.finished, true);
       assert.equal(flight.state.phase, 'idle');
       assert.equal(flight.travel.strength, 0);
-      assert.equal(await page.locator('#cancel-preview').isVisible(), true);
+      // Site interactions are autonomous until the user opens the inline editor.
+      assert.equal(await page.locator('#cancel-preview').count(), 0, 'No obsolete floating stop overlay');
+      assert.equal(await page.locator('#bot-tools').isVisible(), false);
+      await page.locator('#bot-tools-launcher').click();
+      assert.equal(await page.locator('#bot-tools-launcher').getAttribute('aria-expanded'), 'true');
+      await page.locator('#cancel').click();
+      await page.waitForFunction(() => document.querySelector('#last-invocation')?.textContent.includes('.cancelMove('));
+      assert.equal(await frame.evaluate(() => document.getElementById('bot').movementState.phase), 'idle');
+      await page.locator('#bot-tools-close').click();
+      assert.equal(await page.locator('#bot-tools').isVisible(), false);
+      assert.equal(await page.locator('#bot-tools-launcher').getAttribute('aria-expanded'), 'false');
       assert.deepEqual(errors, [], 'Published API playground has no browser errors');
       assert.deepEqual(failures, [], 'Published API playground loads all resources');
       if (screenshots) await page.screenshot({ path: `${screenshots}/live-api-${name}-success.png` });
