@@ -91,13 +91,16 @@ async function snapshot(frame) {
 async function withPlacementDiagnostics(page, name, run) {
   try { await run(); }
   catch (error) {
-    const geometry = await page.evaluate(() => {
+    const geometry = await page.evaluate(({measureSource}) => {
       const rect = el => { if (!el) return null; const r = el.getBoundingClientRect(); return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}; };
       const frame = document.querySelector('#site-preview-frame'), child = frame?.contentDocument;
+      const viewport=child?{width:child.defaultView.visualViewport?.width||child.defaultView.innerWidth,height:child.defaultView.visualViewport?.height||child.defaultView.innerHeight,left:child.defaultView.visualViewport?.offsetLeft||0,top:child.defaultView.visualViewport?.offsetTop||0}:null;
+      const measure=Function(`return (${measureSource})`)();
+      const sizing=child?['Try the listening modes here.','Try listening modes.','Compare the models here.'].map(text=>({text,...measure(text,child,viewport)})):[];
       return {parent:{scrollX,scrollY,width:innerWidth,height:innerHeight},frame:rect(frame),
-        child:child ? {scrollX:child.defaultView.scrollX,scrollY:child.defaultView.scrollY,width:child.defaultView.innerWidth,height:child.defaultView.innerHeight,
+        child:child ? {viewport,sizing,scrollX:child.defaultView.scrollX,scrollY:child.defaultView.scrollY,width:child.defaultView.innerWidth,height:child.defaultView.innerHeight,
           nav:[...child.querySelectorAll('.th-nav button,.th-compose-link')].map(el=>({label:el.getAttribute('aria-label'),...rect(el)})),home:rect(child.querySelector('#th-companion-home')),bot:rect(child.querySelector('#bot')),speech:rect(child.querySelector('[data-sidekick-speech]')?.shadowRoot?.querySelector('.bubble')),company:[...child.querySelectorAll('#nova-design h2,.nova-mode-tabs,#nova-compare .nova-heading h2,.nova-finishes>div')].map(rect)} : null};
-    }).catch(diagnosticError => ({diagnosticError:diagnosticError.message}));
+    },{measureSource:measureCompanySpeech.toString()}).catch(diagnosticError => ({diagnosticError:diagnosticError.message}));
     if (process.env.SIDEKICK_SCREENSHOTS) {
       await mkdir(process.env.SIDEKICK_SCREENSHOTS, {recursive:true});
       await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/${name}-failure.png`}).catch(()=>{});
@@ -487,7 +490,7 @@ test('normal-motion company stories respond after scrolling away without stale n
  const frame=await frameFor(page,'company');
  await frame.locator('.nova-mode-tabs').scrollIntoViewIfNeeded();
  await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.textContent.includes('listening modes'));
- await frame.locator('#nova-compare .nova-heading h2').scrollIntoViewIfNeeded();
+ await frame.locator('a[href="#nova-compare"]').first().click();
  await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.textContent.includes('Compare the models'),null,{timeout:4000});
  assert.equal(await frame.locator('#bot').evaluate(bot=>bot.elementAnchor.target.matches('#nova-compare .nova-heading h2')),true);
  const close=frame.locator('[data-sidekick-speech]').getByRole('button',{name:'Dismiss tip'});
@@ -534,6 +537,10 @@ for(const locale of ['en','ko','ja','zh-CN'])for(const width of [320,505])test(`
  for(const selector of selectors){
   await page.locator('#preview-refresh').click();const frame=await frameFor(page,'company');
   await page.locator('#preview-surface').scrollIntoViewIfNeeded();
+  if(locale==='en'&&width===320&&selector.includes('mode-tabs'))console.log('English narrow speech sizing',await frame.evaluate(measureSource=>{
+   const viewport={width:visualViewport?.width||innerWidth,height:visualViewport?.height||innerHeight};const measure=Function(`return (${measureSource})`)();
+   return {viewport,font:getComputedStyle(document.body).font,replicas:['Try the listening modes here.','Try listening modes.'].map(text=>({text,...measure(text,document,viewport)}))};
+  },measureCompanySpeech.toString()));
   if(selector.includes('mode-tabs'))await frame.locator(selector).scrollIntoViewIfNeeded();else await frame.locator(`a[href="${selector.split(' ')[0].replace('>img','')}"]`).first().click();
   await frame.locator('[data-sidekick-speech]').waitFor();
   const result=await frame.evaluate(({selector,measureSource})=>{

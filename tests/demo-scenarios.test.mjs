@@ -317,3 +317,17 @@ test('compact Compare can share the image gutter when each image is narrower tha
  assert.ok(plan,'real visual plus its empty gutter remains a valid candidate');assert.ok(clearEnvelope(plan.host,plan.bubble,viewport,protectedRects));
  const blocked=planCompanyPresentation({target,viewport,host:{width:115,height:115},speech:{width:263,height:47},protectedRects:[...protectedRects,box(124,232,16,196)],visuals:[box(24,260,100,150),box(140,260,100,150)]});assert.equal(blocked,null,'a protected gutter cannot be treated as image-adjacent whitespace');
 });
+
+test('constrained centered Compare defers without consumption then recovers at its ordinary navigation alignment',async t=>{
+ let normal=false;
+ const x=setup(t,'company','<div class="nova-site"><section id="nova-compare"><div class="nova-heading"><h2>Compare models</h2><p>Model description</p></div><div class="nova-compare-products"><img><img><h3>Model One</h3><h3>Model Two</h3></div></section></div>',{},(root,w)=>{
+  Object.defineProperty(w,'innerWidth',{value:464});Object.defineProperty(w,'innerHeight',{value:428});
+  const box=(left,top,width,height)=>({left,top,width,height,right:left+width,bottom:top+height});
+  root.querySelector('h2').getBoundingClientRect=()=>box(24,normal?84.969:145,401,normal?82.063:130);
+  root.querySelector('p').getBoundingClientRect=()=>box(24,normal?185.031:338,401,normal?24.797:37);
+  [...root.querySelectorAll('img')].forEach((el,i)=>el.getBoundingClientRect=()=>box(24+i*208.5,normal?237.828:390,192.5,150));
+  [...root.querySelectorAll('h3')].forEach((el,i)=>el.getBoundingClientRect=()=>box(24+i*208.5,normal?404.828:557,192.5,34.5));return false;
+ });
+ const heading=x.root.querySelector('h2');x.observe(heading);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);assert.deepEqual(x.sourceEvents,[]);
+ normal=true;x.w.dispatchEvent(new x.w.Event('scroll'));await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,1);assert.deepEqual(x.sourceEvents.map(e=>e.id),['nova-compare']);
+});
