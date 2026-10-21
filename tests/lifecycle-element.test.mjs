@@ -737,3 +737,21 @@ test('preview-style pause finishes a running move and unpause does not replay it
   avatar.paused = false; await advance(200);
   assert.equal(avatar.movementState.phase, 'idle'); assert.deepEqual(avatar.position, target);
 });
+
+test('speech follows native movement and is cleared by exit and disconnect', async t => {
+  const { avatar } = fixture(t);
+  await avatar.moveTo({ x: 200, y: 200 }, { duration: 0 });
+  avatar.say('Native dialogue', { duration: 0 });
+  const root = () => dom.window.document.querySelector('[data-sidekick-speech]');
+  assert.ok(root());
+  const bubble = root().shadowRoot.querySelector('.bubble');
+  const left = parseFloat(bubble.style.left);
+  await avatar.moveTo({ x: 240, y: 200 }, { duration: 0 });
+  assert.equal(parseFloat(bubble.style.left), left + 40);
+  await avatar.exit({ duration: 0 }); assert.equal(root(), null);
+  await avatar.enter({ x: 200, y: 200 }, { duration: 0 });
+  avatar.say('Again', { duration: 0 }); assert.ok(root());
+  avatar.remove(); assert.equal(root(), null);
+  dom.window.document.body.append(avatar); assert.equal(root(), null);
+  avatar.clearSpeech();
+});

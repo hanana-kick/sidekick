@@ -378,11 +378,11 @@ test('shared select gutters preserve native options, keyboard input and narrow h
     const measurements = await page.locator('.app-header select').evaluateAll(selects => selects.map(select => {
       const css = getComputedStyle(select), rect = select.getBoundingClientRect();
       const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d'); ctx.font = css.font;
-      return { width: rect.width, end: parseFloat(css.paddingInlineEnd), start: parseFloat(css.paddingInlineStart), text: ctx.measureText(select.selectedOptions[0].textContent).width, arrow: css.backgroundImage, x: rect.x, right: rect.right, options: select.options.length };
+      return { id: select.id, label: select.selectedOptions[0].textContent, width: rect.width, end: parseFloat(css.paddingInlineEnd), start: parseFloat(css.paddingInlineStart), text: ctx.measureText(select.selectedOptions[0].textContent).width, arrow: css.backgroundImage, x: rect.x, right: rect.right, options: select.options.length };
     }));
     for (const item of measurements) {
       assert.equal(item.end, 28); assert.equal(item.start, 8); assert.match(item.arrow, /svg/);
-      assert.ok(item.text + item.start + item.end + 2 <= item.width + 1, 'selected label fits beside inset arrow');
+      assert.ok(item.text + item.start + item.end + 2 <= item.width + 1, `selected label fits beside inset arrow (${route}: ${JSON.stringify(item)})`);
       assert.ok(item.x >= 0 && item.right <= 320); assert.ok(item.options >= 2);
     }
   }
@@ -435,3 +435,12 @@ for (const deviceScaleFactor of [1, 2]) test(`demo visible ink fits64px at DPR${
   assert.ok(bounds.width >= 54 && bounds.width <= 58, JSON.stringify(bounds));
   assert.ok(bounds.height >= 63 && bounds.height <= 65.5, '64px target permits antialiased edge rounding: ' + JSON.stringify(bounds));
 });
+
+ test('on-site scrolling, real wishlist and local arrivals drive dialogue without floating controls', {timeout:120000}, async t=>{
+ const page=await pageFor(t);assert.equal(await page.locator('.flight-toolbar,#cancel-preview').count(),0);assert.equal(await page.locator('#bot-tools-launcher').evaluate(el=>getComputedStyle(el).position==='fixed'),false);
+ let frame=await switchSite(page,'company');await frame.locator('#nova-design').scrollIntoViewIfNeeded();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/materials|listening|Compare|finish/);
+ frame=await switchSite(page,'shop');await frame.locator('[data-wish="13"]').click();await frame.locator('[data-product="1"]').scrollIntoViewIfNeeded();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/cheaper!.*less than your saved/);assert.equal(await frame.locator('#muse-wish-count').textContent(),'1');
+ frame=await switchSite(page,'community');await frame.locator('[data-post="4"]').scrollIntoViewIfNeeded();await frame.waitForFunction(()=>document.querySelectorAll('.th-post').length===21);await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/Local demo/);
+ await frame.locator('#th-compose-text').fill('A local post for the demo');await frame.locator('#th-publish').click();await frame.waitForFunction(()=>document.querySelector('#th-feed').textContent.includes('Local demo mention:'));await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.textContent.includes('mentioned'),null,{timeout:20000});
+ await page.locator('#preview-refresh').click();frame=await frameFor(page,'community');assert.equal(await frame.locator('[data-sidekick-speech]').count(),0);assert.equal(await frame.locator('.th-post').count(),20);
+ });

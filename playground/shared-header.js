@@ -5,6 +5,7 @@ import { SITE_LOCALES, SITE_LANGUAGE_NAMES, getSiteLocale, setSiteLocale, subscr
 /** One brand and navigation for both the React Studio and plain-JS API page. */
 export function mountSiteHeader(host, activePage, base = './') {
   const doc = host.ownerDocument;
+  let privacyHost=null,privacyHeader=null;
   mountSiteAnalytics(doc, activePage);
   const brand = doc.createElement('a');
   brand.className = 'brand'; brand.href = base;
@@ -53,7 +54,13 @@ export function mountSiteHeader(host, activePage, base = './') {
   };
   const controls = doc.createElement('div'); controls.className = 'site-navigation'; controls.append(nav, framework, selector);if(returnLink)controls.append(returnLink);
   host.replaceChildren(brand, controls); update();
+  // Studio intentionally has no document scrolling. Keep its optional consent
+  // entry in the header flow instead of an unreachable footer or overlay.
+  if(activePage==='studio'){
+    const analyticsHost=doc.querySelector('.site-analytics'),header=host.closest('.app-header');
+    if(analyticsHost&&header){privacyHost=analyticsHost;privacyHeader=header;header.classList.add('has-inline-privacy');header.append(analyticsHost);}
+  }
   const unsubscribe = subscribeSiteLocale(update);
   const unsubscribeFramework = subscribeFramework(update);
-  return () => { unsubscribeFramework(); unsubscribe(); host.replaceChildren(); };
+  return () => { if(privacyHost?.parentElement===privacyHeader)doc.body.append(privacyHost);unsubscribeFramework(); unsubscribe(); host.replaceChildren(); };
 }

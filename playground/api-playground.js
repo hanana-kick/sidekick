@@ -23,10 +23,11 @@ let storage; try { storage = localStorage; } catch {}
 const studioSession = loadStudioSession(storage);
 
 $('studio-session-status').textContent = studioSession.message;
+let manualOverride = false;
 let initialized = false, initializedOnce = false, initializing = false, gesture = null, selectedAction = null, code = '', lastAction = null, lastCode = '', execution = 0;
 const samples = [];
 const t = (key, values) => apiText(key, values, getSiteLocale());
-const preview = mountAPIPreview(document, t, { locale: getSiteLocale, onReset: resetDemo, onReady: connectDemo, onError: errorNotice });
+const preview = mountAPIPreview(document, t, { locale: getSiteLocale, onReset: resetDemo, onReady: connectDemo, onError: errorNotice, onToggle: open=>demoRuntime?.pauseScenarios?.(open || manualOverride) });
 const notices = new Map([['status', { key: 'initializing' }]]);
 const logErrors = new WeakMap();
 let validationError = null;
@@ -105,6 +106,7 @@ function movementOptions() {
 let disposeLifecycleExample = null;
 function readAction() {
   switch ($('action-kind').value) {
+    case 'speech': return $('speech-operation').value === 'clearSpeech' ? {method:'clearSpeech',args:[]} : {method:'say',args:[$('speech-text').value,{duration:numeric('speech-duration')}]};
     case 'lifecycle': return { lifecycle: true, locale: getSiteLocale(), steps: ['home', 'presence', 'task'].map(property => ({ property, value: JSON.parse($('lifecycle-' + property).value) })) };
     case 'movement': if ($('move-method').value === 'moveToElement') {
       const selector = $('target-selector').value.trim();
@@ -204,6 +206,7 @@ function report(kind, result) {
   while ($('result-log').children.length > 12) $('result-log').lastElementChild.remove();
 }
 async function run(action, explicit = false) {
+  manualOverride = true;demoRuntime?.pauseScenarios?.(true);if($('scenario-hint'))$('scenario-hint').textContent=t('manualExperience');
   const usageSection = $('action-kind').value, consent = siteAnalyticsConsent(window), version = siteAnalyticsConsentVersion(window);
   if (!initialized || !bot) return;
   const activeBot = bot, activeRuntime = demoRuntime, generation = demoGeneration;
@@ -240,7 +243,7 @@ async function run(action, explicit = false) {
 }
 $('execute').onclick = () => { try { void run(readAction(), true); } catch (error) { errorNotice(error); } };
 const cancelMove = () => void run({ method: 'cancelMove', args: [] });
-$('cancel').onclick = cancelMove; $('cancel-preview').onclick = cancelMove;
+$('cancel').onclick = cancelMove;
 $('detach-anchor').onclick = () => void run({ method: 'detachAnchor', args: [] });
 $('cancel-transition').onclick = () => void run({ method: 'cancelTransition', args: [] });
 // Explicit known controls only. No selectors, coordinates, JSON, code, labels or generic field capture.
@@ -276,13 +279,13 @@ $('copy-last').onclick = copyCode('last-invocation', 'last-copy-status', () => l
 // Each listener belongs to the current child document and is aborted on replacement.
 function resetDemo() {
   ++demoGeneration; ++execution;
-  initialized = false; initializing = false; gesture = null;
+  initialized = false; initializing = false; gesture = null;manualOverride = false;
   disposeLifecycleExample?.(); disposeLifecycleExample = null;
   demoEvents?.abort(); demoEvents = null;
   if (bot) { bot.paused = true; bot.trackingMode = 'off'; bot.stopBehavior(); bot.cancelMove(); bot.cancelTransition(); bot.motion.cancel(); }
   demoRuntime = null; bot = null; demoDocument = null; demoWindow = null; samples.length = 0;
   $('execute').disabled = true;
-  for (const id of ['cancel', 'cancel-preview', 'detach-anchor', 'cancel-transition']) $(id).disabled = true;
+  for (const id of ['cancel', 'detach-anchor', 'cancel-transition']) $(id).disabled = true;
   notice('status', 'initializing');
 }
 async function connectDemo(runtime) {
@@ -294,7 +297,7 @@ async function connectDemo(runtime) {
   const listen = (target, name, callback, options = {}) => target.addEventListener(name, callback, { ...options, signal });
   const excluded = event => event.composedPath().some(target => target instanceof childWindow.Element && Boolean(target.closest('button,input,select,textarea,label,a,summary,pre,[contenteditable],[role=button],[role=combobox],details')));
   listen(childDocument, 'pointerdown', event => {
-    if (!initialized || !event.isPrimary || event.button !== 0 || excluded(event) || childWindow.getSelection()?.toString()) { gesture = null; return; }
+    if (($('bot-tools').hidden && !manualOverride) || !initialized || !event.isPrimary || event.button !== 0 || excluded(event) || childWindow.getSelection()?.toString()) { gesture = null; return; }
     gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, scrollX: childWindow.scrollX, scrollY: childWindow.scrollY, time: performance.now() };
   });
   listen(childWindow, 'pointermove', event => { if (gesture?.id === event.pointerId && Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 8) gesture = null; }, { passive: true });
@@ -334,8 +337,9 @@ async function connectDemo(runtime) {
     $('target-x').value = String(point.x); $('target-y').value = String(point.y); $('entrance-x').value = String(point.x); $('entrance-y').value = String(point.y);
   }
   activeBot.setAttribute('data-configured', '');
+  runtime.startScenarios?.();runtime.pauseScenarios?.(!$('bot-tools').hidden);
   initialized = true; initializing = false;
-  for (const id of ['cancel', 'cancel-preview', 'detach-anchor', 'cancel-transition']) $(id).disabled = false;
+  for (const id of ['cancel', 'detach-anchor', 'cancel-transition']) $(id).disabled = false;
   if (!initializedOnce && technicalKinds[technicalLesson]) {
     preview.setOpen(true, false); $('action-kind').value = technicalKinds[technicalLesson];
     if (technicalLesson === 'element-anchor') { $('move-method').value = 'moveToElement'; $('target-selector').value = '#preview-target'; $('align-x').value = 'right'; $('align-y').value = 'center'; $('element-anchor').checked = true; $('target-x').value = '16'; $('target-y').value = '0'; }

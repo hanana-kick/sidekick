@@ -1,3 +1,4 @@
+import { scenarioCopy, cheaperMatch } from '../playground/demo-scenarios.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, stat } from 'node:fs/promises';
@@ -17,6 +18,7 @@ async function mount(t, site, locale = 'en') {
   w.HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new w.Event('close')); };
   const source = (await readFile(new URL(`../playground/demos/${site}.js`, import.meta.url), 'utf8'))
     .replace(/^import\s+['"][^'"]+\.css['"];?\s*$/gm, '')
+    .replace(/^import \{ scenarioCopy \} from ['"][^'"]+['"];?$/gm, `const scenarioCopy = ${JSON.stringify(scenarioCopy)};`)
     .replace(/import\.meta\.env\.BASE_URL/g, "'./'")
     .replace(/import\.meta\.url/g, "'https://sidekick.test/playground/demos/module.js'")
     .replace(/export\s+(?=(?:function|const|let|class)\b)/g, '');
@@ -26,7 +28,7 @@ async function mount(t, site, locale = 'en') {
   const root = w.document.getElementById('demo-content');
   const dispose = w.renderTestSite(root, { locale, on });
   t.after(() => { abort.abort(); dispose?.(); dom.window.close(); });
-  return { w, root, $: selector => root.querySelector(selector), $$: selector => [...root.querySelectorAll(selector)] };
+  return { w, root, adapter:dispose, $: selector => root.querySelector(selector), $$: selector => [...root.querySelectorAll(selector)] };
 }
 
 for (const site of Object.keys(siteExports)) {
@@ -165,3 +167,16 @@ for (const locale of ['en', 'ko', 'ja', 'zh-CN']) {
     assert.equal(f.$('.th-self-name').textContent, 'Local Tester');
   });
 }
+
+ test('real shop wishlist state is exposed to on-site recommendations without inventing prices',async t=>{
+ const f=await mount(t,'shop');assert.equal(f.adapter.getScenarioState().saved.length,0);f.$('[data-wish="13"]').click();const state=f.adapter.getScenarioState();assert.deepEqual([...state.saved],[13]);assert.equal(state.products.find(p=>p.id===13).price,95);assert.equal(state.products.find(p=>p.id===1).price,89);assert.equal(cheaperMatch(state.products,[9],0),null,'skirt cannot recommend a tee');assert.equal(cheaperMatch(state.products,[21],9).item.id,9,'skirt editions are comparable');
+ });
+ test('local community arrivals insert real feed posts and visible notifications in every locale',async t=>{
+ for(const locale of ['ko','en','ja','zh-CN']){const f=await mount(t,'community',locale);const before=f.$$('.th-post').length;let event;f.root.addEventListener('sidekick-demo-arrival',e=>event=e.detail);f.adapter.simulateArrival('mention');assert.equal(f.$$('.th-post').length,before+1);assert.ok(f.$('#th-feed').textContent.includes('@alexmorgan'));assert.equal(f.$('.th-notification-dot').hidden,false);assert.equal(event.kind,'mention');}
+ });
+
+test('wishlist hit targets remain stationary while desktop quick view appears',async()=>{
+ const css=await readFile(new URL('../playground/demos/shop.css',import.meta.url),'utf8');
+ assert.doesNotMatch(css,/\.muse-product-picture:hover \.muse-heart\{bottom:48px\}/);
+ assert.match(css,/\.muse-quick-view\{position:absolute;bottom:0;left:0;right:54px;/);
+});

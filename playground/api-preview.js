@@ -1,15 +1,12 @@
+import { scenarioCopy } from './demo-scenarios.js';
 /** Only repository-owned demo documents can be mounted here. */
-export function mountAPIPreview(doc, text, { locale, onReset, onReady, onError }) {
+export function mountAPIPreview(doc, text, { locale, onReset, onReady, onError, onToggle = () => {} }) {
   const win = doc.defaultView, $ = id => doc.getElementById(id);
   const panel = $('bot-tools'), launcher = $('bot-tools-launcher');
-  const header = doc.querySelector('.app-header');
-  const fitPanel = () => { panel.style.maxHeight = `${Math.max(40, win.innerHeight - (header?.getBoundingClientRect().height ?? 70) - 96)}px`; };
-  fitPanel(); win.addEventListener('resize', fitPanel);
-  const headerObserver = win.ResizeObserver ? new win.ResizeObserver(fitPanel) : null;
-  if (header) headerObserver?.observe(header);
   let revision = 0, runtime = null, frame = null, language = locale(), status = 'previewLoading';
   function setOpen(open, restore = true) {
     panel.hidden = !open;
+    onToggle(open);
     launcher.setAttribute('aria-expanded', String(open));
     if (open) $('bot-tools-close').focus();
     else if (restore) launcher.focus();
@@ -21,6 +18,7 @@ export function mountAPIPreview(doc, text, { locale, onReset, onReady, onError }
   });
   const refreshLabels = () => {
     $('preview-status').textContent = text(status);
+    if($('scenario-hint'))$('scenario-hint').textContent=(scenarioCopy[language]||scenarioCopy.en).hint[['company','shop','community'].indexOf($('preview-site').value)]||'';
     if (frame) frame.title = `${text('previewFrameTitle')} · ${text(`preview.${$('preview-site').value}`)}`;
   };
   function disposeFrame() {
@@ -65,7 +63,7 @@ export function mountAPIPreview(doc, text, { locale, onReset, onReady, onError }
   $('preview-refresh').addEventListener('click', load);
   win.addEventListener('pagehide', event => {
     if (event.persisted) return;
-    ++revision; disposeFrame(); headerObserver?.disconnect(); win.removeEventListener('resize', fitPanel);
+    ++revision; disposeFrame();
   });
   return {
     setOpen, start: load,

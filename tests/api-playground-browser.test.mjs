@@ -164,7 +164,7 @@ test('blank page taps center and clamp the bot; control taps, selections and swi
 
 test('cancel controls preserve configured code and show the actual invocation separately', async t => {
   const page = await pageFor(t);
-  for (const [id, method] of [['cancel', 'cancelMove'], ['cancel-preview', 'cancelMove'], ['cancel-transition', 'cancelTransition']]) {
+  for (const [id, method] of [['cancel', 'cancelMove'], ['cancel-transition', 'cancelTransition']]) {
     if (id === 'cancel-transition') await select(page, 'action-kind', 'assets');
     const draft = await page.locator('#invocation').textContent();
     const kind = await page.locator('#action-kind').inputValue();
@@ -195,7 +195,7 @@ test('JavaScript and React copy stays synchronized and mobile controls stay insi
     for (const control of bounds.controls) assert.ok(control.left >= -1 && control.right <= 321, `${kind}: ${control.id} fits horizontally`);
     await page.locator('#execute').scrollIntoViewIfNeeded(); assert.equal(await page.locator('#execute').isVisible(), true);
   }
-  await page.locator('#cancel-preview').click();
+  await page.locator('#cancel').click();
   assert.equal((await lastCall(page)).method, 'cancelMove');
   if (process.env.SIDEKICK_SCREENSHOTS) { await mkdir(process.env.SIDEKICK_SCREENSHOTS, { recursive: true }); await page.screenshot({ path: `${process.env.SIDEKICK_SCREENSHOTS}/api-playground-mobile.png` }); }
 });
@@ -217,8 +217,9 @@ test('mobile taps and swipe gestures use page coordinates without control-scroll
   await openTools(page);
   await page.locator('#copy').scrollIntoViewIfNeeded();
   assert.equal((await calls(page)).length, count);
-  const toolbar = await page.locator('#cancel-preview').boundingBox();
-  assert.ok(toolbar.y >= 0 && toolbar.y + toolbar.height <= 844, 'global stop stays visible while the page scrolls');
+  assert.equal(await page.locator('#cancel-preview').count(),0);
+  await page.locator('#cancel').scrollIntoViewIfNeeded();
+  assert.equal(await page.locator('#cancel').isVisible(),true,'inline stop is reachable without a floating overlay');
 });
 
 test('both pages preserve accessible shared branding and navigation at narrow sizes', async t => {
@@ -486,7 +487,7 @@ for (const framework of ['element', 'react']) test(`live viewport resize preserv
         const p = panel.getBoundingClientRect(), h = header.getBoundingClientRect();
         const child = document.querySelector('#site-preview-frame').contentWindow;
         const bot = child.document.getElementById('bot').getBoundingClientRect();
-        return panel.hidden === !open && (!open || (p.left >= -1 && p.right <= innerWidth + 1 && p.top >= h.bottom - 1 && p.bottom <= innerHeight + 1)) &&
+        return panel.hidden === !open && (!open || (p.left >= -1 && p.right <= innerWidth + 1 && getComputedStyle(panel).position !== 'fixed' && p.top >= document.getElementById('preview-surface').getBoundingClientRect().bottom - 1)) &&
           bot.left >= -1 && bot.top >= -1 && bot.right <= child.innerWidth + 1 && bot.bottom <= child.innerHeight + 1;
       }, open).catch(async error => {
         const state = await page.evaluate(() => {
@@ -510,7 +511,7 @@ for (const framework of ['element', 'react']) test(`live viewport resize preserv
           overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
           frameWidth: r.width, frameHeight: r.height, surfaceWidth: surface.clientWidth, surfaceHeight: surface.clientHeight,
           sameFrame: frame === window.resizeFrame, sameBot: frame.contentDocument.getElementById('bot') === window.resizeBot,
-          languageReachable: reachable('site-language'), frameworkReachable: reachable('site-framework'), launcherReachable: reachable('bot-tools-launcher'),
+          languageReachable: reachable('site-language'), frameworkReachable: reachable('site-framework'), launcherReachable: document.getElementById('bot-tools-launcher').getBoundingClientRect().right <= innerWidth + 1,
           noCaptureLayer: document.getElementById('preview-click-layer') === null,
         };
       });
@@ -518,6 +519,8 @@ for (const framework of ['element', 'react']) test(`live viewport resize preserv
       assert.ok(Math.abs(layout.frameWidth - layout.surfaceWidth) <= 1);
       assert.ok(Math.abs(layout.frameHeight - layout.surfaceHeight) <= 1);
       for (const key of ['sameFrame', 'sameBot', 'languageReachable', 'frameworkReachable', 'launcherReachable', 'noCaptureLayer']) assert.equal(layout[key], true, `${key}: ${JSON.stringify({ open, viewport })}`);
+      await page.locator('#bot-tools-launcher').scrollIntoViewIfNeeded();
+      assert.equal(await page.locator('#bot-tools-launcher').evaluate(el=>{const r=el.getBoundingClientRect(),hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return hit===el||el.contains(hit);}),true,'normal-flow editor entry remains reachable by scrolling');
       assert.deepEqual(await snapshot(), draft, 'Live resize must not rewrite the draft');
       assert.equal((await calls(page)).length, invocationCount, 'Resize and drawer controls must not execute a bot command');
       assert.equal(await frame.getAttribute('src'), previewURL);

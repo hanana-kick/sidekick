@@ -1,3 +1,4 @@
+import { SpeechController } from './speech.js';
 import { LifecycleController, validateSidekickPresence, validateSidekickTask, validateSidekickHome } from './lifecycle.js';
 import { validatePositioning, samePositioning, copyPositioning, resolvePositioning } from './positioning.js';
 import { parseEmotion, validateEmotionOptions } from '../core/emotion.js';
@@ -36,6 +37,10 @@ export class SidekickAvatar extends HTMLElementBase {
         super.addEventListener(type, listener, options); }
     removeEventListener(type, listener, options) { if (listener)
         super.removeEventListener(type, listener, options); }
+    speech = new SpeechController(this, () => this.position, () => this.connected && !this.presenceHidden);
+    /** Replace the current plain-text dialogue. No audio or HTML parsing. */
+    say(text, options = {}) { this.speech.say(text, options); }
+    clearSpeech() { this.speech.clear(); }
     emotionEyeOverrides = { left: false, right: false };
     setEyeControl(sides, override, options = {}) {
         if (!sides.length)
@@ -255,6 +260,8 @@ export class SidekickAvatar extends HTMLElementBase {
         this.lifecycleController.update({ presence: value });
         if (!this.ready) {
             this.presenceHidden = value?.visible === false;
+            if (this.presenceHidden)
+                this.clearSpeech();
             this.style.setProperty('--sidekick-visibility', this.presenceHidden ? 'hidden' : 'visible');
         }
     }
@@ -507,7 +514,7 @@ export class SidekickAvatar extends HTMLElementBase {
     movement = new AvatarMovement({
         now: () => performance.now(), immediate: () => this.paused || this.reduced || !this.connected,
         constrain: point => this.constrainPosition(point),
-        render: point => { this.style.setProperty('--sidekick-x', `${point.x}px`); this.style.setProperty('--sidekick-y', `${point.y}px`); this.refreshEntranceClip?.(); if (this.lastTrackedPointer && this.trackingDocument && !this.gesturing) {
+        render: point => { this.style.setProperty('--sidekick-x', `${point.x}px`); this.style.setProperty('--sidekick-y', `${point.y}px`); this.refreshEntranceClip?.(); this.speech.move(); if (this.lastTrackedPointer && this.trackingDocument && !this.gesturing) {
             this.pendingPointer = { ...this.lastTrackedPointer };
             this.queueInput();
         } },
@@ -854,14 +861,15 @@ export class SidekickAvatar extends HTMLElementBase {
         constrain: point => this.constrainPosition(point, true),
         move: (point, options) => this.movement.to(point, options),
         stage: point => this.movement.relocate(point),
-        visibility: hidden => { this.presenceHidden = hidden; this.style.setProperty('--sidekick-visibility', hidden ? 'hidden' : 'visible'); this.updateMouseTracking(); this.syncState(); },
+        visibility: hidden => { this.presenceHidden = hidden; if (hidden)
+            this.clearSpeech(); this.style.setProperty('--sidekick-visibility', hidden ? 'hidden' : 'visible'); this.updateMouseTracking(); this.syncState(); },
         complete: (kind, result) => this.emit(kind === 'enter' ? 'sidekick-enter-end' : 'sidekick-exit-end', result),
     });
     get presenceState() { return this.presenceController.current; }
     enter(position, options = {}) { validatePosition(position); validatePresenceOptions(options, 'from'); if (this.placement !== 'viewport' || !this.connected)
         throw new Error('enter requires a connected viewport avatar'); this.interruptBehavior(); this.clearPositioning(); return this.presenceController.enter(position, options); }
     exit(options = {}) { validatePresenceOptions(options, 'to'); if (this.placement !== 'viewport' || !this.connected)
-        throw new Error('exit requires a connected viewport avatar'); this.interruptBehavior(); this.clearPositioning(); return this.presenceController.exit(options); }
+        throw new Error('exit requires a connected viewport avatar'); this.interruptBehavior(); this.clearPositioning(); this.clearSpeech(); return this.presenceController.exit(options); }
     get placement() { return this.placementState; }
     set placement(value) { if (value !== 'inline' && value !== 'viewport')
         throw new TypeError('placement must be inline or viewport'); this.reflectAttribute('placement', value); }
@@ -1315,6 +1323,8 @@ export class SidekickAvatar extends HTMLElementBase {
         this.visibilityObserver = new IntersectionObserver(entries => {
             const entry = entries.at(-1);
             this.visible = Boolean(entry?.isIntersecting && entry.intersectionRect.width > 0 && entry.intersectionRect.height > 0);
+            if (!this.visible)
+                this.clearSpeech();
             this.updateMouseTracking();
             this.syncState();
         }, { threshold: [0, Number.EPSILON] });
@@ -1322,6 +1332,7 @@ export class SidekickAvatar extends HTMLElementBase {
         this.initializeRenderer();
     }
     disconnectedCallback() {
+        this.clearSpeech();
         this.lifecycleController.suspend('disconnected');
         this.emotionController.cancel('disconnected');
         this.behaviorController.cancel('disconnected');
@@ -1844,7 +1855,7 @@ export class SidekickAvatar extends HTMLElementBase {
         this.style.setProperty('--sidekick-touch-action', this.interaction === 'box' ? 'none' : 'auto');
         this.style.setProperty('--sidekick-cursor', this.interaction === 'box' ? 'grab' : 'auto');
     }
-    resize = () => { this.measureMovementBox(); if (this.presenceController?.bypassBounds)
+    resize = () => { this.speech.measure(); this.measureMovementBox(); if (this.presenceController?.bypassBounds)
         this.presenceController.resize();
     else
         this.movement.resize(); this.pendingResize = true; this.queueInput(); };

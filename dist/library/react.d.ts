@@ -117,3 +117,4 @@ export type { Emotion, EmotionValue, EmotionOptions, ReactionOptions, EmotionSta
 export type { Entrance } from './element/entrance.js';
 export type { Positioning, PositionPlacement, ResolvedPositioning } from './element/positioning.js';
 export type { SidekickPresence, SidekickTask, SidekickTaskStatus, SidekickTerminalStatus, SidekickReaction, SidekickHome, SidekickRest, SidekickLifecycleDeclaration, SidekickLifecyclePhase, SidekickLifecycleState } from './element/lifecycle.js';
+export type { SpeechOptions } from './element/speech.js';

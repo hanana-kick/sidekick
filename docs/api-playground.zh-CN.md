@@ -17,3 +17,29 @@ iframe 只允许渲染脚本，使用不透明来源 sandbox；不允许表单�
 单元测试覆盖面板状态与焦点、草稿保留、网址验证、禁止自动导航、sandbox、不确定的加载状态、演示恢复及分析隔离。浏览器测试覆盖 320/1280px、键盘、点击穿透及嵌入拒绝；实际视觉结果需在支持的 CI 中运行验证。
 
 参考：[iframe](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe)、[frame-ancestors](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/frame-ancestors)。
+
+
+## 文本台词 API
+
+say(text, options) 显示无音频的纯文本气泡，并立即返回 void。每次调用替换上一条消息及其计时器，不排队。clearSpeech() 返回 void，可重复安全调用。没有完成 Promise 或结束事件。
+
+duration 范围为 0–60000ms，默认 5000。0 表示保持到清除。placement 支持 auto（默认）、top、bottom，空间不足时切换到另一侧。dismissible 默认为 false。启用关闭按钮时，请通过 dismissLabel 提供本地化的无障碍名称。
+
+纯空白文本、超过1000字符的文本和无效选项会抛出 TypeError，且不替换现有台词。不解析 HTML。文档隐藏、移出屏幕、exit()、隐藏 presence 或移除 DOM 时永久清除台词。应用重置时调用 clearSpeech()。
+
+小型 DOM 气泡跟随保守的机器人 DOM 边界，而不是精确像素轮廓，并限制在当前 iframe／视口内。长文本在受限区域内换行并可滚动。仅溢出的文本区域可通过键盘聚焦，并接收鼠标或触摸滚动；关闭按钮始终位于滚动区域之外。完整文本也通过 polite 状态通知提供。不移动焦点，只有可选关闭按钮和溢出的文本区域拦截输入。不增加渲染循环、GPU 绘制、音频或画布尺寸。
+
+```js
+const bot = document.querySelector('sidekick-avatar');
+bot.say("这个更便宜！", {
+  duration: 5000, placement: 'auto',
+  dismissible: true, dismissLabel: "关闭台词"
+});
+// React: botRef.current?.say(text, options);
+// Reset / cleanup:
+bot.clearSpeech();
+```
+
+TypeScript: `SpeechOptions` from `@hanana-kick/sidekick/register` or `@hanana-kick/sidekick/react`. Method-only API; no HTML attributes or declarative React speech props.
+
+布局限制：机器人自身的 CSS zoom 或祖先元素的 transform（包括独立 translate/rotate/scale）、perspective、CSS zoom 会在替换原台词之前抛出 TypeError。body 和 html 不得通过 filter、backdrop-filter、contain、will-change、content-visibility 等样式改变固定定位的包含块。支持机器人自身的 transform。显示期间需保持这些限制，修改祖先布局前调用 clearSpeech()。

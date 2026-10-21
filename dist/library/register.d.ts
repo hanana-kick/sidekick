@@ -10,3 +10,4 @@ export type { ElementAnchorState } from './element/element-anchor.js';
 export type { BotBehavior, BehaviorTarget, BehaviorSide, BehaviorPhase, BehaviorState, BehaviorResult, PerformOptions } from './element/behavior.js';
 export type { Entrance } from './element/entrance.js';
 export { validateEntrance } from './element/entrance.js';
+export type { SpeechOptions } from './element/speech.js';

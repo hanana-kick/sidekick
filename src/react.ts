@@ -480,3 +480,5 @@ function samePositioning(a: Positioning | null, b: Positioning | null): boolean 
   return a === b || !!a && !!b && a.target === b.target && (a.placement ?? 'bottom-right') === (b.placement ?? 'bottom-right') && (a.gap ?? 16) === (b.gap ?? 16) && (a.follow ?? true) === (b.follow ?? true) && (a.offset?.x ?? 0) === (b.offset?.x ?? 0) && (a.offset?.y ?? 0) === (b.offset?.y ?? 0);
 }
 function copyPositioning(value: Positioning | null): Positioning | null { return value ? { ...value, ...(value.offset ? { offset: { ...value.offset } } : {}) } : null; }
+
+export type { SpeechOptions } from './element/speech.js';

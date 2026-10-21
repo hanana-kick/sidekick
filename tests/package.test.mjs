@@ -33,7 +33,8 @@ test('packed core installs offline without React, Studio, or lifecycle builds', 
   assert.ok(!consumer.manifest.sideEffects.includes('./dist/library/core.js'));
   // Mesh-based Canvas2D fallback, recovery and four-language docs total ~924 KB packed.
   // Keep a tight total budget and the independent no-React/no-Studio file assertions above.
-  assert.ok(consumer.packed.size < 935_000, `Unexpected packed size ${consumer.packed.size}`);
+  // Speech API adds 16,219 packed bytes (949,129 total); retain a bounded 960 KB budget.
+  assert.ok(consumer.packed.size < 960_000, `Unexpected packed size ${consumer.packed.size}`);
   const output = consumer.run(['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
     for (const suffix of ['', '/auto', '/register', '/core']) {

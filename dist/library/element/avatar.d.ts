@@ -1,3 +1,4 @@
+import type { SpeechOptions } from './speech.js';
 import type { SidekickPresence, SidekickTask, SidekickHome, SidekickLifecycleState } from './lifecycle.js';
 import type { Positioning } from './positioning.js';
 import type { Emotion, EmotionOptions, EmotionState, EmotionResult, ReactionOptions } from '../core/emotion.js';
@@ -28,6 +29,10 @@ export declare class SidekickAvatar extends HTMLElementBase {
     removeEventListener<K extends keyof SidekickEventMap>(type: K, listener: (this: SidekickAvatar, event: SidekickEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
     removeEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
     removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions): void;
+    private speech;
+    /** Replace the current plain-text dialogue. No audio or HTML parsing. */
+    say(text: string, options?: SpeechOptions): void;
+    clearSpeech(): void;
     private emotionEyeOverrides;
     private setEyeControl;
     private emotionController;

@@ -177,7 +177,7 @@ export function mountSiteAnalytics(doc, page, config = {
   instances.set(win, analytics);
   const host = doc.createElement('aside'); host.className = 'site-analytics';
   const toggle = doc.createElement('button'); toggle.type = 'button'; toggle.className = 'site-analytics-toggle'; toggle.setAttribute('aria-controls', 'site-analytics-panel');
-  const panel = doc.createElement('section'); panel.id = 'site-analytics-panel'; panel.hidden = analytics.getConsent() !== null;
+  const panel = doc.createElement('section'); panel.id = 'site-analytics-panel'; panel.hidden = true;
   panel.setAttribute('aria-labelledby', 'site-analytics-title');
   const title = doc.createElement('strong'); title.id = 'site-analytics-title';
   const status = doc.createElement('p'); status.setAttribute('role', 'status');
@@ -187,7 +187,7 @@ export function mountSiteAnalytics(doc, page, config = {
   const actions = doc.createElement('div'); actions.className = 'site-analytics-actions';
   const allow = doc.createElement('button'), deny = doc.createElement('button'), close = doc.createElement('button');
   for (const button of [allow, deny, close]) button.type = 'button';
-  actions.append(allow, deny, close); panel.append(title, description, privacy, status, actions); host.append(panel, toggle); doc.body.append(host);
+  actions.append(allow, deny, close); panel.append(title, description, privacy, status, actions); host.append(toggle, panel); doc.body.append(host);
   function update() {
     const text = copy[getSiteLocale()] ?? copy.ko;
     [toggle.textContent, title.textContent, description.textContent, allow.textContent, deny.textContent, close.textContent] = text;

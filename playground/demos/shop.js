@@ -24,7 +24,7 @@ export function renderShop(root, { locale = 'en', on } = {}) {
  const listen=on||((el,event,fn)=>el.addEventListener(event,fn));
  const prices=[12,89,68,62,49,48,26,110,42,39,64,36]; const brands=['MORROW','dear, day','STUDIO FORM','ONDO'];
  const category=[1,2,3,6,5,4,1,2,5,1,2,7];
- const products=Array.from({length:24},(_,id)=>({id,img:id%12,name:t.names[id%12]+(id>=12?` · ${t.variant}`:''),price:prices[id%12]+(id>=12?6:0),cat:category[id%12],brand:brands[id%4],discount:[30,20,25,15][id%4],rating:(4.6+(id%4)/10).toFixed(1),reviews:34+(id*31)%390}));
+ const products=Array.from({length:24},(_,id)=>({id,img:id%12,name:t.names[id%12]+(id>=12?` · ${t.variant}`:''),price:prices[id%12]+(id>=12?6:0),cat:category[id%12],comparisonGroup:id%12===9?'skirts':category[id%12],brand:brands[id%4],discount:[30,20,25,15][id%4],rating:(4.6+(id%4)/10).toFixed(1),reviews:34+(id*31)%390}));
  const state={cat:0,query:'',sort:0,onlySaved:false,brand:'',wish:new Set(),cart:new Map(),detail:0,size:'M',color:0}; let toastTimer;
  const money=n=>`$${n}`; const imageTag=(p,cls='',lazy=true)=>`<img class="${cls}" src="${asset(`product-${p.img}`)}" alt="${escape(p.name)}" ${lazy?'loading="lazy"':''} width="280" height="466">`;
  root.classList.add('muse');
@@ -81,5 +81,7 @@ export function renderShop(root, { locale = 'en', on } = {}) {
  listen(dialog,'click',e=>{if(e.target===dialog)dialog.close();});
  listen(dialog,'keydown',e=>{if(e.target.matches('[data-detail-tab]')&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const next=(Number(e.target.dataset.detailTab)+(e.key==='ArrowRight'?1:2))%3;const button=$(`[data-detail-tab="${next}"]`);button.click();button.focus();}});
  renderProducts();renderCart();
- return ()=>{clearTimeout(toastTimer);if(dialog.open)dialog.close();root.classList.remove('muse');};
+ const dispose=()=>{clearTimeout(toastTimer);if(dialog.open)dialog.close();root.classList.remove('muse');};
+ dispose.getScenarioState=()=>({products:products.map(p=>({...p})),saved:[...state.wish]});
+ return dispose;
 }

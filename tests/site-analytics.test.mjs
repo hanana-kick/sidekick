@@ -80,7 +80,7 @@ test('consent UI is singleton, accessible, localized, closable without grant, an
   const doc = dom.window.document; const analytics = mountSiteAnalytics(doc, 'studio', config);
   assert.equal(mountSiteAnalytics(doc, 'studio', config), analytics); assert.equal(doc.querySelectorAll('.site-analytics').length, 1);
   const panel = doc.querySelector('#site-analytics-panel'); const [allow, deny, close] = panel.querySelectorAll('button'); const toggle = doc.querySelector('.site-analytics-toggle');
-  assert.equal(panel.hidden, false); close.click(); assert.equal(panel.hidden, true); assert.equal(analytics.getConsent(), null); assert.equal(doc.scripts.length, 0);
+  assert.equal(panel.hidden, true); assert.equal(analytics.getConsent(), null); assert.equal(doc.scripts.length, 0); toggle.click(); assert.equal(panel.hidden, false); close.click(); assert.equal(panel.hidden, true); assert.equal(analytics.getConsent(), null); assert.equal(doc.scripts.length, 0);
   for (const locale of ['ko', 'en', 'ja', 'zh-CN']) { setSiteLocale(locale); assert.ok(toggle.textContent.length); assert.equal(panel.querySelector('a').href, 'https://policies.google.com/privacy'); }
   toggle.click(); assert.equal(toggle.getAttribute('aria-expanded'), 'true'); allow.click(); loaded(dom.window); assert.equal(analytics.getConsent(), 'granted');
   toggle.click(); deny.click(); assert.equal(analytics.getConsent(), 'denied'); assert.equal(panel.hidden, true);

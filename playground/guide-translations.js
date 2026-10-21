@@ -3,6 +3,7 @@ import { stateTranslationRows } from './guide-state-lessons.js';
 // Stable source keys followed by explicit technical-documentation copy: ko, en, zh-CN, ja.
 // Keys are not display text. Keeping them stable preserves controls and executable examples.
 const rows = [
+["say()로 텍스트 대사를 표시하고 clearSpeech()로 지웁니다. 새 대사는 이전 대사를 교체하며 음성은 출력하지 않습니다.", "say()로 텍스트 대사를 표시하고 clearSpeech()로 지웁니다. 새 대사는 이전 대사를 교체하며 음성은 출력하지 않습니다.", "Use say() for plain-text dialogue and clearSpeech() to dismiss it. New dialogue replaces the previous message; there is no audio.", "使用 say() 显示纯文本台词，clearSpeech() 清除。新台词替换上一条，不输出音频。", "say() でテキスト台詞を表示し、clearSpeech() で消します。新しい台詞は前の台詞を置き換え、音声は出ません。"],
 ...workflowRows.map(([ko,...others])=>[ko,ko,...others]),
 ...stateTranslationRows,
 ["setExpression()과 setEyeWeights()는 지정한 눈의 감정 표현을 대체하고 다른 눈과 몸의 감정 동작은 유지합니다. 새 setEmotion() 또는 reactTo() 호출은 양쪽 눈을 다시 제어합니다.","setExpression()과 setEyeWeights()는 지정한 눈의 감정 표현을 대체하고 다른 눈과 몸의 감정 동작은 유지합니다. 새 setEmotion() 또는 reactTo() 호출은 양쪽 눈을 다시 제어합니다.","setExpression() and setEyeWeights() replace emotion for the specified eyes while preserving the other eye and emotional body motion. A new setEmotion() or reactTo() call controls both eyes again.","setExpression() 和 setEyeWeights() 会替换指定眼睛的情绪表情，同时保留另一只眼睛与身体的情绪动作。再次调用 setEmotion() 或 reactTo() 会重新控制双眼。","setExpression() と setEyeWeights() は指定した目の感情表現を置き換え、もう一方の目と体の感情動作を維持します。新たな setEmotion() または reactTo() の呼び出しで両目を再び制御します。"],

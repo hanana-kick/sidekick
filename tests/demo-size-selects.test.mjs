@@ -41,3 +41,9 @@ test('small-phone header keeps full select row without a third navigation row', 
   assert.match(compact, /\.site-framework \{ grid-column: 1 \/ 4; grid-row: 2;/);
   assert.match(compact, /\.site-language \{ grid-column: 4 \/ 7; grid-row: 2;/);
 });
+
+test('optional Studio privacy entry avoids an extra inline baseline in its compact closed row', async () => {
+  const css = await read('playground/shared-header.css');
+  assert.match(css, /\.site-analytics:has\(section\[hidden\]\) \{ display:flex; \}/);
+  assert.match(css, /\.site-analytics-toggle \{ min-height:20px; padding:1px 6px; font-size:10px; line-height:16px; \}/);
+});

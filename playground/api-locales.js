@@ -3,7 +3,16 @@ import { getSiteLocale } from './site-i18n.js';
 /** Explicit message keys. Columns are Korean, English, Simplified Chinese, Japanese. */
 export const API_LOCALES = Object.freeze(['ko', 'en', 'zh-CN', 'ja']);
 const messages = {
-  "intro": ["선택한 예시 사이트 안에서 봇을 움직이고 API를 실행하세요. 제어패널에서 설정한 동작을 코드로 복사할 수 있습니다.","Move the bot and run APIs inside the selected example site. Copy the configured action as code from Bot controls.","在所选示例网站内部移动机器人并运行 API。可从控制面板复制操作代码。","選択したサンプルサイト内でボットを動かし、API を実行できます。操作パネルで設定した動作をコードとしてコピーできます。"],
+  "manualExperience": ["수동 API 모드입니다. 예시 초기화를 누르면 사이트 상호작용으로 돌아갑니다.","Manual API mode. Reset demo to return to on-site interactions.","当前为手动 API 模式。重置示例可恢复网站互动。","手動 API モードです。デモをリセットするとサイト内の連動に戻ります。"],
+  "actionSpeech": ["대사 출력", "Speech", "输出台词", "セリフ表示"],
+  "speechText": ["대사", "Message", "消息", "メッセージ"],
+  "speechOperation": ["동작", "Operation", "操作", "操作"],
+  "speechSay": ["말하기", "Say", "说话", "話す"],
+  "speechClear": ["대사 지우기", "Clear speech", "清除台词", "セリフを消す"],
+  "speechDuration": ["표시 시간 · ms (0 = 유지)", "Duration · ms (0 = keep)", "时长 · ms（0 = 保留）", "表示時間 · ms（0 = 維持）"],
+  "speechHint": ["입력한 텍스트를 봇 옆에 표시합니다. 외부로 전송하지 않습니다.", "Display plain text beside the bot. Nothing is sent externally.", "在机器人旁显示纯文本，不会向外发送。", "ボットの横にテキストを表示します。外部送信はありません。"],
+
+  "intro": ["예시 사이트를 스크롤하고 관심 상품을 담거나 글을 써보세요. 봇이 사이트 안의 상황에 맞춰 움직이고 이야기합니다. API 편집기는 필요할 때 펼칠 수 있습니다.", "Scroll, save a style, or write a local post. Your companion responds to what happens inside the site. Open the inline API editor when you want to explore the code.", "滚动页面、收藏款式或在本地发帖，机器人会根据网站中的情况移动和说话。需要时可展开内嵌 API 编辑器。", "スクロール、お気に入り保存、ローカル投稿に合わせてボットが動き、話しかけます。コードは必要なときにインライン API エディターで確認できます。"],
   "previewFailed": ["예시를 불러오지 못했습니다. 초기화를 눌러 다시 시도하세요.","Example could not load. Reset to try again.","示例加载失败。请重置后重试。","サンプルを読み込めませんでした。リセットして再試行してください。"],
   "previewReady": ["iframe 내부 삽입 완료","Bot inserted inside iframe","已插入 iframe 内部","iframe 内に挿入済み"],
   "previewLoading": ["예시를 준비하고 있습니다.","Preparing example…","正在准备示例…","サンプルを準備中…"],
@@ -28,9 +37,9 @@ const messages = {
   "previewMixedContent": ["HTTPS 페이지에서는 HTTPS 사이트만 미리볼 수 있습니다.", "An HTTPS page can preview only HTTPS sites.", "HTTPS 页面只能预览 HTTPS 网站。", "HTTPS ページでは HTTPS サイトのみプレビューできます。"],
   "previewFrameTitle": ["내장 예시 사이트","Built-in example site","内置示例网站","内蔵サンプルサイト"],
   "previewDemoRequired": ["이 요소를 사용하려면 기본 데모로 돌아가세요. 외부 iframe 요소는 선택할 수 없습니다.", "Return to the built-in demo to use this element. External iframe elements cannot be selected.", "请返回内置演示以使用此元素。无法选择外部 iframe 元素。", "この要素を使うには組み込みデモに戻ってください。外部 iframe 内の要素は選択できません。"],
-  "toolsTitle": ["Sidekick 봇 제어", "Sidekick bot controls", "Sidekick 机器人控制", "Sidekick ボット操作"],
+  "toolsTitle": ["API 편집기", "API editor", "API 编辑器", "API エディター"],
   "toolsClose": ["닫기", "Close", "关闭", "閉じる"],
-  "toolsOpen": ["봇 제어", "Bot controls", "机器人控制", "ボット操作"],
+  "toolsOpen": ["API 코드 살펴보기", "Explore the API code", "查看 API 代码", "API コードを見る"],
 
   actionLifecycle: ['표시·작업·집', 'Presence, task and home', '显示、任务与归位', '表示・タスク・ホーム'],
   lifecycleGuide: ['표시·작업·집 가이드', 'Presence, task and home guide', '显示、任务与归位指南', '表示・タスク・ホームのガイド'],

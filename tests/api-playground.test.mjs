@@ -174,7 +174,7 @@ async function controllerFixture(t, query = '') {
     moveTo(...args) { this.calls.push({ method: 'moveTo', args }); this.point = args[0]; return Promise.resolve({ finished: true }); }
     moveBy(...args) { this.calls.push({ method: 'moveBy', args }); this.point = { x: this.point.x + args[0].x, y: this.point.y + args[0].y }; return Promise.resolve({ finished: true }); }
   }
-  for (const method of ['stopBehavior', 'setEmotion', 'reactTo', 'cancelReaction', 'setExpression', 'setActivity', 'play', 'stop', 'setBodyOrientation', 'transitionTo', 'cancelMove', 'cancelTransition', 'enter', 'exit', 'detachAnchor', 'moveToElement']) Avatar.prototype[method] = function (...args) { this.calls.push({ method, args }); return Promise.resolve({ finished: true }); };
+  for (const method of ['say', 'clearSpeech', 'stopBehavior', 'setEmotion', 'reactTo', 'cancelReaction', 'setExpression', 'setActivity', 'play', 'stop', 'setBodyOrientation', 'transitionTo', 'cancelMove', 'cancelTransition', 'enter', 'exit', 'detachAnchor', 'moveToElement']) Avatar.prototype[method] = function (...args) { this.calls.push({ method, args }); return Promise.resolve({ finished: true }); };
 
       child.customElements.define('sidekick-avatar', Avatar);
       const bot = child.document.createElement('sidekick-avatar'); bot.id = 'bot';
@@ -262,7 +262,7 @@ test('page movement and stop commands preserve every draft and keep execution co
   assert.deepEqual(snapshot(), before); assert.equal(f.$('invocation').textContent, draft);
   assert.equal(f.bot.calls.at(-1).method, 'moveTo');
   assert.match(f.$('last-invocation').textContent, /moveTo/);
-  for (const id of ['cancel', 'cancel-preview', 'cancel-transition']) {
+  for (const id of ['cancel', 'cancel-transition']) {
     f.$(id).click(); assert.deepEqual(snapshot(), before); assert.equal(f.$('invocation').textContent, draft);
     assert.match(f.$('last-invocation').textContent, new RegExp(id === 'cancel-transition' ? 'cancelTransition' : 'cancelMove'));
   }
@@ -506,16 +506,16 @@ test('bfcache pagehide retains the current child lifecycle request', async t => 
   assert.equal(f.bot.task.status, 'success');
 });
 
-test('drawer sizing survives bfcache pagehide and still responds to viewport changes', async t => {
+test('inline editor remains normal-flow across bfcache and viewport resizing', async t => {
   const f = await controllerFixture(t), panel = f.$('bot-tools');
   f.w.dispatchEvent(new f.w.PageTransitionEvent('pagehide', { persisted: true }));
-  const before = panel.style.maxHeight;
   f.w.innerHeight = 480; f.w.dispatchEvent(new f.w.Event('resize'));
-  assert.notEqual(panel.style.maxHeight, before);
-  assert.equal(panel.style.maxHeight, '384px');
+  assert.equal(panel.style.maxHeight, '');
+  assert.equal(f.$('cancel-preview'), null);
+  assert.equal(f.w.document.querySelector('.flight-toolbar'), null);
+  assert.ok(f.$('bot-tools-launcher').closest('.site-preview'));
   f.w.dispatchEvent(new f.w.PageTransitionEvent('pagehide', { persisted: false }));
-  f.w.innerHeight = 900; f.w.dispatchEvent(new f.w.Event('resize'));
-  assert.equal(panel.style.maxHeight, '384px');
+  assert.equal(panel.style.maxHeight, '');
 });
 
 
@@ -541,4 +541,8 @@ test('reduced-motion demo CSS never introduces asynchronous host geometry transi
   assert.ok(rule, 'The authored demo retains an explicit reduced-motion rule');
   assert.match(rule, /scroll-behavior:auto!important/);
   assert.match(rule, /transition-duration:0s!important/, 'A nonzero universal duration activates transition-property:all on avatar translate, so move completion would precede layout');
+});
+
+test('speech editor runs exactly the copied text/options',async t=>{
+ const f=await controllerFixture(t),{$,w}=f;const bot=$('bot');$('action-kind').value='speech';$('action-kind').dispatchEvent(new w.Event('change',{bubbles:true}));$('speech-text').value='Plain <b>text</b>\nSecond line';$('speech-text').dispatchEvent(new w.Event('input',{bubbles:true}));$('speech-duration').value='0';$('speech-duration').dispatchEvent(new w.Event('input',{bubbles:true}));$('execute').click();await new Promise(resolve=>setImmediate(resolve));const call=bot.calls.findLast(c=>c.method==='say');assert.ok(call);assert.equal(call.args[0],'Plain <b>text</b>\nSecond line');assert.equal(call.args[1].duration,0);assert.match($('invocation').textContent,/say\(/);$('speech-operation').value='clearSpeech';$('speech-operation').dispatchEvent(new w.Event('change',{bubbles:true}));$('execute').click();await new Promise(resolve=>setImmediate(resolve));assert.equal(bot.calls.at(-1).method,'clearSpeech');
 });

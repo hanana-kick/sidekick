@@ -1721,3 +1721,29 @@ positioning と position-x/position-y を同時に指定した場合は position
 `positioning = null` は接続を解除して減速します。`moveTo`、`moveBy`、`moveToElement`、`cancelMove`、`detachAnchor`、直接の `enter` / `exit` は宣言的な位置制御を解除します。再開するには宣言を再設定します。React の同じ prop による再描画は手動操作を上書きしないため、一度 `null` にするか宣言を変更してください。
 
 `entrance` と併用すると entrance の出発位置から positioning の目的位置へ登場し、その後に追跡を開始します。既存の移動境界は引き続き適用されます。座標は所属文書・iframe のレイアウトビューポートの CSS px で、DOM 原点を保持します。アバターの祖先にある CSS transform/zoom は未対応です。動きを減らす設定では位置を即時適用します。
+
+
+## テキスト台詞 API
+
+say(text, options) は音声なしのプレーンテキスト吹き出しを表示し、直ちに void を返します。新しい呼び出しは前の台詞とタイマーを置き換え、キューには追加しません。clearSpeech() は void を返し、繰り返し呼び出せます。完了 Promise や終了イベントはありません。
+
+duration は 0–60000ms、既定値は 5000 です。0 は解除まで維持します。placement は auto（既定）、top、bottom。空間が足りない場合は反対側に表示します。dismissible の既定値は false。閉じるボタンを使う場合は dismissLabel に翻訳されたアクセシブルな名前を指定します。
+
+空白だけの文字列、1000文字超、無効なオプションは既存の台詞を変えずに TypeError を投げます。HTML は解釈しません。文書非表示、画面外移動、exit()、非表示 presence、DOM 削除で台詞は消え、再表示されません。アプリのリセットでは clearSpeech() を呼びます。
+
+小さな DOM 吹き出しは実際の輪郭ではなく、ボットの保守的な DOM 境界に追従し、現在の iframe／画面内に制限されます。長文は制限された領域内で折り返され、スクロールできます。あふれた本文だけがキーボードフォーカスとポインター・タッチスクロールを受け付け、閉じるボタンはスクロール領域外に残ります。全文は polite の状態通知でも提供されます。フォーカスは移動せず、閉じるボタンとあふれた本文以外は操作を遮りません。追加描画ループ、GPU パス、音声、キャンバス拡大はありません。
+
+```js
+const bot = document.querySelector('sidekick-avatar');
+bot.say("This one costs less!", {
+  duration: 5000, placement: 'auto',
+  dismissible: true, dismissLabel: "Dismiss message"
+});
+// React: botRef.current?.say(text, options);
+// Reset / cleanup:
+bot.clearSpeech();
+```
+
+TypeScript: `SpeechOptions` from `@hanana-kick/sidekick/register` or `@hanana-kick/sidekick/react`. Method-only API; no HTML attributes or declarative React speech props.
+
+配置制限: ボットの CSS zoom、祖先の transform（個別の translate/rotate/scale を含む）、perspective、CSS zoom は既存の台詞を置き換える前に TypeError になります。body と html では filter、backdrop-filter、contain、will-change、content-visibility など固定位置の基準を変えるスタイルを使わないでください。ボット自身の transform は使用できます。表示中はこの制限を守り、祖先の配置を変える前に clearSpeech() を呼びます。

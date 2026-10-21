@@ -23,3 +23,29 @@ The entered URL, path, query, fragment and input text stay in memory and the ifr
 Unit tests cover drawer state/focus, preserved drafts, URL validation, no automatic navigation, sandbox policy, uncertain load status, demo restoration and analytics exclusion. Browser regression coverage includes 320px/1280px viewports, pointer passthrough, keyboard handling and framing rejection. Browser results must be checked in supported CI; unit tests do not prove visual layout.
 
 References: [MDN iframe](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe), [CSP frame-ancestors](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/frame-ancestors).
+
+
+## Text dialogue API
+
+say(text, options) shows a plain-text bubble without audio and immediately returns void. Each call replaces the previous message and timer; there is no queue. clearSpeech() returns void and is idempotent. There is no completion Promise or end event.
+
+duration accepts 0–60000ms, default 5000. Zero persists until dismissal. placement accepts auto (default), top or bottom, with opposite-side fallback when space is limited. dismissible defaults to false. Supply a localized accessible dismissLabel when enabling its close button.
+
+Blank text, text over 1000 characters and invalid options throw TypeError without replacing current speech. HTML is never interpreted. Document hiding, moving offscreen, exit(), hidden presence and DOM removal dismiss speech permanently. Call clearSpeech() on application reset.
+
+The small DOM bubble follows conservative avatar DOM bounds, not exact ink bounds, and stays within its current iframe/viewport. Long text wraps inside a bounded, scrollable message region. Only an overflowing message becomes keyboard-focusable and accepts pointer/touch scrolling; the close button stays outside the scrolling text. The full text is also available as a polite live status. It never moves focus and only the optional close button and overflowing text intercept input. There is no extra rendering loop, GPU pass, audio or enlarged canvas.
+
+```js
+const bot = document.querySelector('sidekick-avatar');
+bot.say("This one costs less!", {
+  duration: 5000, placement: 'auto',
+  dismissible: true, dismissLabel: "Dismiss message"
+});
+// React: botRef.current?.say(text, options);
+// Reset / cleanup:
+bot.clearSpeech();
+```
+
+TypeScript: `SpeechOptions` from `@hanana-kick/sidekick/register` or `@hanana-kick/sidekick/react`. Method-only API; no HTML attributes or declarative React speech props.
+
+Geometry restriction: say() throws TypeError before replacing current speech if the avatar uses CSS zoom or any composed ancestor uses transforms (including individual translate/rotate/scale), perspective or CSS zoom. Body and html must not establish a fixed-position containing block through filter, backdrop-filter, containment, will-change or content-visibility. Own avatar transforms are supported. Keep these restrictions for the message lifetime; clear speech before changing ancestor geometry.

@@ -3,7 +3,7 @@ import { apiError } from './api-locales.js';
 
 /** One serializable action describes both the invocation and the displayed example. */
 const literal = value => {
-  if (typeof value === 'string') return `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll("\n", "\\n").replaceAll("\r", "\\r")}'`;
+  if (typeof value === 'string') return `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll("\n", "\\n").replaceAll("\r", "\\r").replaceAll("<", "\\u003c").replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029")}'`;
   if (Array.isArray(value)) return `[${value.map(literal).join(', ')}]`;
   if (value && typeof value === 'object') return `{ ${Object.entries(value).map(([key, entry]) => `${key}: ${literal(entry)}`).join(', ')} }`;
   return JSON.stringify(value);

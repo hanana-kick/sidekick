@@ -1721,3 +1721,29 @@ export function Example() {
 `positioning = null`은 연결을 해제하고 감속합니다. `moveTo`, `moveBy`, `moveToElement`, `cancelMove`, `detachAnchor`, 직접 호출한 `enter`/`exit`는 선언형 위치 제어를 해제합니다. 다시 사용하려면 새 선언을 지정합니다. React에서는 동일한 prop 재렌더가 수동 제어를 덮어쓰지 않으므로, `null`을 거쳐 다시 지정하거나 값을 변경합니다.
 
 `entrance`와 함께 지정하면 `entrance`의 출발 지점에서 `positioning`의 목적지로 등장한 뒤 추적을 시작합니다. 설정된 화면 경계 제한은 그대로 적용됩니다. 좌표는 해당 문서/iframe의 레이아웃 뷰포트 CSS px 기준이며 기존 DOM 원점을 보존합니다. 아바타 조상에 CSS transform/zoom이 있으면 지원하지 않습니다. 축소 모션 환경에서는 이동을 즉시 적용합니다.
+
+
+## 텍스트 대사 API
+
+say(text, options)는 음성 없이 일반 텍스트 말풍선을 표시하고 즉시 void를 반환합니다. 새 호출은 기존 대사와 타이머를 교체하며 큐에 쌓지 않습니다. clearSpeech()는 void를 반환하고 여러 번 호출해도 안전합니다. 완료 Promise나 종료 이벤트는 없습니다.
+
+duration은 0–60000ms이며 기본값은 5000입니다. 0은 수동 해제까지 유지합니다. placement는 auto(기본값), top, bottom이며 공간이 부족하면 반대편으로 전환합니다. dismissible의 기본값은 false입니다. 닫기 버튼을 사용할 때 dismissLabel로 접근 가능한 현지화 이름을 지정하세요.
+
+공백뿐인 문자열, 1000자를 초과하는 문자열, 잘못된 옵션은 기존 대사를 변경하지 않고 TypeError를 던집니다. HTML을 해석하지 않습니다. 문서 숨김, 화면 밖 이동, exit(), 숨김 presence 및 DOM 제거 시 대사가 사라지고 다시 표시되지 않습니다. 앱의 초기화에서는 clearSpeech()를 호출하세요.
+
+작은 DOM 말풍선은 봇의 보수적인 DOM 경계를 따라가며 현재 iframe/뷰포트 안에 제한됩니다. 실제 픽셀 윤곽 추적은 아닙니다. 긴 텍스트는 제한된 영역 안에서 줄바꿈되며 스크롤할 수 있습니다. 넘치는 메시지만 키보드 포커스와 포인터·터치 스크롤을 허용하며 닫기 버튼은 스크롤 영역 밖에 유지됩니다. 전체 텍스트는 polite 상태 알림으로도 제공됩니다. 포커스를 이동하지 않고 닫기 버튼과 넘치는 텍스트 외에는 클릭을 가로채지 않습니다. 추가 렌더 루프, GPU 패스, 오디오 또는 확대된 캔버스가 없습니다.
+
+```js
+const bot = document.querySelector('sidekick-avatar');
+bot.say("This one costs less!", {
+  duration: 5000, placement: 'auto',
+  dismissible: true, dismissLabel: "Dismiss message"
+});
+// React: botRef.current?.say(text, options);
+// Reset / cleanup:
+bot.clearSpeech();
+```
+
+TypeScript: `SpeechOptions` from `@hanana-kick/sidekick/register` or `@hanana-kick/sidekick/react`. Method-only API; no HTML attributes or declarative React speech props.
+
+배치 제한: 봇의 CSS zoom 또는 조상 요소의 transform(개별 translate/rotate/scale 포함), perspective, CSS zoom은 기존 대사를 바꾸기 전에 TypeError를 발생시킵니다. body와 html에는 filter, backdrop-filter, contain, will-change, content-visibility 등 고정 위치 기준을 바꾸는 스타일을 사용하지 마세요. 봇 자체의 transform은 지원합니다. 대사가 표시되는 동안 이 제한을 유지하고 조상의 배치를 바꾸기 전에 clearSpeech()를 호출하세요.
