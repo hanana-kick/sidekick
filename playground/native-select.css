@@ -11,7 +11,7 @@
   background-position: right 12px center;
   background-size: 16px 16px;
 }
-:root body select:not([multiple]):not([size]):dir(rtl) {
+:root body select:not([multiple]):not([size]):is(:dir(rtl), [dir="rtl"]) {
   background-position: left 12px center;
 }
 /* System arrows remain visible in Windows High Contrast and other forced palettes. */
@@ -32,7 +32,7 @@
     background-position: right 8px center;
     background-size: 12px 12px;
   }
-  :root body .app-header select:not([multiple]):not([size]):dir(rtl) {
+  :root body .app-header select:not([multiple]):not([size]):is(:dir(rtl), [dir="rtl"]) {
     background-position: left 8px center;
   }
 }

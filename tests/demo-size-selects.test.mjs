@@ -26,7 +26,18 @@ test('native dropdowns share a logical text gutter and accessible system fallbac
   assert.match(css, /padding-inline-end: 36px/);
   assert.match(css, /background-position: right 12px center/);
   assert.match(css, /:dir\(rtl\)/);
+  assert.match(css, /\[dir="rtl"\]/, 'explicit RTL select does not depend on native directionality inference');
   assert.match(css, /forced-colors: active/);
   assert.match(css, /appearance: auto/);
   assert.match(await read('playground/components/ui/select.tsx'), /py-2 px-3/);
+});
+
+
+test('small-phone header keeps full select row without a third navigation row', async () => {
+  const css = await read('playground/shared-header.css');
+  const compact = css.slice(css.lastIndexOf('@media (max-width: 420px)'));
+  assert.match(compact, /\.brand \{ grid-column: 1 \/ 3; grid-row: 1;/);
+  assert.match(compact, /\.product-nav \{ grid-column: 3 \/ 7; grid-row: 1;/);
+  assert.match(compact, /\.site-framework \{ grid-column: 1 \/ 4; grid-row: 2;/);
+  assert.match(compact, /\.site-language \{ grid-column: 4 \/ 7; grid-row: 2;/);
 });

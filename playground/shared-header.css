@@ -113,13 +113,13 @@
 .site-analytics a { color: #1d4ed8; text-decoration: underline; }
 .site-analytics-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
-/* At small-phone widths give native selects a complete row instead of
-   squeezing their selected text between the brand and inset arrows. */
+/* On small phones keep complete select labels on their own row, while the
+   brand and wrapping navigation share row one. Two rows preserve Studio space. */
 @media (max-width: 420px) {
- .app-header .brand { grid-column: 1 / -1; grid-row: 1; }
+ .app-header .brand { grid-column: 1 / 3; grid-row: 1; }
  .app-header .site-navigation .site-framework { grid-column: 1 / 4; grid-row: 2; font-size: 11px; }
  .app-header .site-navigation .site-language { grid-column: 4 / 7; grid-row: 2; }
- .app-header .site-navigation .product-nav { grid-row: 3; }
+ .app-header .site-navigation .product-nav { grid-column: 3 / 7; grid-row: 1; }
  .app-header .site-navigation .guide-source-return,
- .app-header .site-analytics { grid-row: 4; }
+ .app-header .site-analytics { grid-row: 3; }
 }
