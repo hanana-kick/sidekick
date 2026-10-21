@@ -1,3 +1,4 @@
+import {speechBox} from '../playground/company-presentation.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
@@ -6,9 +7,14 @@ import {cheaperMatch,installDemoScenarios,scenarioCopy,scenarioPlacement,capture
 function setup(t,site,markup,adapter={},beforeInstall=()=>false){
  const dom=new JSDOM(`<div id="root">${markup}</div><div id="bot"></div>`,{pretendToBeVisual:true,url:`https://sidekick.test/api-demo.html?site=${site}&sourceGeneration=4`});t.after(()=>dom.window.close());const w=dom.window,root=w.document.querySelector('#root'),bot=w.document.querySelector('#bot'),calls=[];
  const sourceEvents=[];Object.defineProperty(w,'parent',{value:{postMessage:data=>sourceEvents.push(data)}});
+ const nativeTimeout=w.setTimeout.bind(w);w.setTimeout=(fn,ms,...args)=>nativeTimeout(fn,ms===180?0:ms,...args);
  w.matchMedia=()=>({matches:true});let observer;w.IntersectionObserver=class{constructor(cb){this.cb=cb;observer=this;}observe(){}disconnect(){} emit(target){this.cb([{target,isIntersecting:true,intersectionRatio:.7}]);}};
- for(const node of root.querySelectorAll('*'))node.getBoundingClientRect=()=>({width:200,height:100,top:50,bottom:150});
- Object.assign(bot,{moveToElement:async(el,options)=>calls.push(['move',el,options]),say:(text,options)=>calls.push(['say',text,options]),clearSpeech:()=>calls.push(['clear']),cancelMove:()=>{},detachAnchor:()=>calls.push(['detach'])});
+ const rect=(left,top,width,height)=>({left,top,width,height,right:left+width,bottom:top+height});
+ for(const node of root.querySelectorAll('*'))node.getBoundingClientRect=()=>rect(100,50,200,100);
+ const nativeRect=w.HTMLElement.prototype.getBoundingClientRect;
+ w.HTMLElement.prototype.getBoundingClientRect=function(){return this.hasAttribute('data-company-speech-sizer')?rect(0,0,Math.min(280,w.innerWidth-16),47):nativeRect.call(this);};
+ let botRect=rect(700,600,115,115);bot.getBoundingClientRect=()=>botRect;
+ Object.assign(bot,{moveToElement:async(el,options)=>{calls.push(['move',el,options]);if(site==='company'){const r=el.getBoundingClientRect();botRect=rect(r.left+options.x,r.top+options.y,115,115);}},say:(text,options)=>{calls.push(['say',text,options]);if(site==='company'){const portal=w.document.createElement('div');portal.dataset.sidekickSpeech='';const shadow=portal.attachShadow({mode:'open'}),bubble=w.document.createElement('div');bubble.className='bubble';bubble.getBoundingClientRect=()=>speechBox(botRect,{width:Math.min(280,w.innerWidth-16),height:47},rect(0,0,w.innerWidth,w.innerHeight),options.placement);shadow.append(bubble);w.document.body.append(portal);}},clearSpeech:()=>{calls.push(['clear']);w.document.querySelector('[data-sidekick-speech]')?.remove();},cancelMove:()=>{},detachAnchor:()=>calls.push(['detach'])});
  const initialEngaged=beforeInstall(root,w);const api=installDemoScenarios({bot,root,site,adapter,initialEngaged,window:w});t.after(()=>api.dispose());return{w,root,bot,calls,api,sourceEvents,observe:el=>observer.emit(el)};
 }
 const flush=()=>new Promise(resolve=>setTimeout(resolve,0));
@@ -47,7 +53,7 @@ test('one-shot arrival during movement is queued and released after the cooldown
  clock+=8000;x.bot.moveToElement=async()=>{};queued.fn();await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,2);assert.match(x.calls.filter(c=>c[0]==='say')[1][1],/mentioned/);assert.deepEqual(x.sourceEvents.map(e=>e.id),['community-post-present','community-mention-present']);
 });
 test('offscreen completion releases its anchor instead of showing stale speech',async t=>{
- const x=setup(t,'company','<section id="nova-design"></section>');const target=x.root.firstChild;let resolve;x.bot.moveToElement=()=>new Promise(r=>resolve=r);x.observe(target);x.w.dispatchEvent(new x.w.Event('scroll'));target.getBoundingClientRect=()=>({width:200,height:100,top:-200,bottom:-100});resolve();await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);assert.ok(x.calls.some(c=>c[0]==='detach'));
+ const x=setup(t,'company','<section id="nova-design"></section>');const target=x.root.firstChild;let resolve;x.bot.moveToElement=()=>new Promise(r=>resolve=r);x.observe(target);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();target.getBoundingClientRect=()=>({width:200,height:100,top:-200,bottom:-100});resolve();await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);assert.ok(x.calls.some(c=>c[0]==='detach'));
 });
 
 test('leaving a narrated section lets the next visible section respond without the old cooldown',async t=>{
@@ -182,4 +188,74 @@ test('boot intent capture detaches at readiness and disposal, with no cross-site
  const consumed=captureDemoEngagement(root,w);root.click();assert.equal(consumed.take(),true);assert.equal(consumed.take(),false);
  const abandoned=captureDemoEngagement(root,w);root.click();abandoned.dispose();root.click();assert.equal(abandoned.take(),false);
  const next=captureDemoEngagement(root,w);assert.equal(next.take(),false,'new site starts without prior intent');
+});
+
+test('company envelope rejects flipping speech over controls and covers viewport edge matrices',async()=>{
+ const {planCompanyPresentation,clearEnvelope}=await import('../playground/company-presentation.js');
+ const box=(left,top,width,height)=>({left,top,width,height,right:left+width,bottom:top+height});
+ const target=box(123.359,189.641,202.281,48),viewport=box(0,0,464,428);
+ const plan=planCompanyPresentation({target,viewport,host:{width:115,height:115},speech:{width:280,height:47},protectedRects:[target]});
+ assert.ok(plan,'the measured public Sound geometry has a clear nearby envelope');
+ assert.ok(clearEnvelope(plan.host,plan.bubble,viewport,[target]));
+ for(const width of [279,320,459,768,1280])for(const height of [320,430,464,600,900])for(const size of [115,231])for(const speechHeight of [47,68,110])for(const top of [-15,12,height/2,height-40]){
+  const viewport=box(7,11,width,height),target=box(30,top+11,Math.min(width-60,230),48);
+  const result=planCompanyPresentation({target,viewport,host:{width:size,height:size},speech:{width:Math.min(280,width-16),height:speechHeight},protectedRects:[target]});
+  if(result)assert.ok(clearEnvelope(result.host,result.bubble,viewport,[target]),JSON.stringify({width,height,size,speechHeight,top,result}));
+ }
+ assert.equal(planCompanyPresentation({target:viewport,viewport,host:{width:115,height:115},speech:{width:280,height:47},protectedRects:[viewport]}),null);
+});
+test('company sizing is non-live and removed; unsafe geometry defers without consuming delivery',async t=>{
+ const {measureCompanySpeech}=await import('../playground/company-presentation.js');
+ const x=setup(t,'company','<section id="nova-sound"><div class="nova-mode-tabs"><button>Quiet</button></div></section>');
+ const target=x.root.querySelector('.nova-mode-tabs');let blocked=true;
+ target.getBoundingClientRect=()=>blocked?{left:0,top:0,right:1024,bottom:768,width:1024,height:768}:{left:100,top:50,right:300,bottom:150,width:200,height:100};
+ x.observe(target);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='say').length,0);assert.deepEqual(x.sourceEvents,[]);assert.equal(x.w.document.querySelector('[data-company-speech-sizer]'),null);
+ measureCompanySpeech('Plain <text>',x.w.document,{width:320});assert.equal(x.w.document.querySelector('[data-company-speech-sizer]'),null);
+ blocked=false;x.w.dispatchEvent(new x.w.Event('resize'));await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='say').length,1);assert.deepEqual(x.sourceEvents.map(e=>e.id),['nova-sound']);
+});
+test('company final geometry guard rejects moved controls without speaking or consuming source',async t=>{
+ const x=setup(t,'company','<section id="nova-sound"><div class="nova-mode-tabs"></div></section>');const target=x.root.querySelector('.nova-mode-tabs');
+ let resolve;x.bot.moveToElement=()=>new Promise(r=>resolve=r);x.observe(target);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
+ target.getBoundingClientRect=()=>({left:0,top:0,right:1024,bottom:768,width:1024,height:768});resolve({finished:true});await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='say').length,0);assert.deepEqual(x.sourceEvents,[]);
+});
+
+test('company protection includes neighboring visible sections',async t=>{
+ const {companyGeometry,planCompanyPresentation,overlaps}=await import('../playground/company-presentation.js');
+ const x=setup(t,'company','<div class="nova-site"><section><button>Neighbor</button></section><section id="nova-design"><h2>Title</h2></section></div>');
+ const target=x.root.querySelector('h2'),neighbor=x.root.querySelector('button');
+ target.getBoundingClientRect=()=>({left:100,top:200,right:300,bottom:230,width:200,height:30});
+ neighbor.getBoundingClientRect=()=>({left:100,top:25,right:300,bottom:65,width:200,height:40});
+ const geometry=companyGeometry(target,x.w),plan=planCompanyPresentation({...geometry,host:{width:115,height:115},speech:{width:280,height:47}});
+ assert.ok(geometry.protectedRects.some(r=>r.top===25));assert.ok(plan);assert.equal(overlaps(plan.bubble,neighbor.getBoundingClientRect()),false);
+});
+test('an unplaceable first company story cannot starve another clear visible target',async t=>{
+ const x=setup(t,'company','<div class="nova-site"><section id="nova-design"><h2>Blocked</h2></section><section id="nova-sound"><div class="nova-mode-tabs">Clear</div></section></div>');
+ const first=x.root.querySelector('h2'),second=x.root.querySelector('.nova-mode-tabs');first.getBoundingClientRect=()=>({left:800,top:0,right:1024,bottom:768,width:224,height:768});
+ x.observe(first);x.observe(second);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
+ assert.equal(x.calls.find(c=>c[0]==='move')[1],second);assert.deepEqual(x.sourceEvents.map(e=>e.id),['nova-sound']);
+});
+test('small safe company scroll preserves speech; unsafe early interruption gets one settled retry',async t=>{
+ let now=10000;t.mock.method(Date,'now',()=>now);
+ const x=setup(t,'company','<section id="nova-sound"><div class="nova-mode-tabs"></div></section>'),target=x.root.querySelector('.nova-mode-tabs');
+ x.observe(target);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();const clears=x.calls.filter(c=>c[0]==='clear').length;
+ target.getBoundingClientRect=()=>({left:100,top:51,right:300,bottom:151,width:200,height:100});x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='clear').length,clears);assert.equal(x.calls.filter(c=>c[0]==='say').length,1);
+ target.getBoundingClientRect=()=>({left:0,top:0,right:1024,bottom:768,width:1024,height:768});now+=100;x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
+ assert.equal(x.w.document.querySelector('[data-sidekick-speech]'),null);
+ target.getBoundingClientRect=()=>({left:100,top:50,right:300,bottom:150,width:200,height:100});x.w.dispatchEvent(new x.w.Event('scroll'));await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,2);
+ target.getBoundingClientRect=()=>({left:0,top:0,right:1024,bottom:768,width:1024,height:768});now+=100;x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
+ target.getBoundingClientRect=()=>({left:100,top:50,right:300,bottom:150,width:200,height:100});x.w.dispatchEvent(new x.w.Event('scroll'));await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,2,'retry is bounded');
+});
+
+test('accepted company speech remeasures wrapping width before viewport expansion',async t=>{
+ const x=setup(t,'company','<div class="nova-site"><section id="nova-sound"><div class="nova-mode-tabs"></div></section><section><button id="neighbor">Neighbor</button></section></div>',{},(root,w)=>{
+  Object.defineProperty(w,'innerWidth',{value:250,writable:true});
+  root.querySelector('#neighbor').getBoundingClientRect=()=>({left:285,top:283,right:315,bottom:330,width:30,height:47});return false;
+ });
+ const target=x.root.querySelector('.nova-mode-tabs');x.observe(target);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,1);
+ x.w.innerWidth=400;x.w.dispatchEvent(new x.w.Event('resize'));await flush();
+ assert.equal(x.w.document.querySelector('[data-sidekick-speech]'),null,'expanded real bubble must not cover the newly visible neighboring control');
 });

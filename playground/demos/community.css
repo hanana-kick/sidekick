@@ -20,3 +20,17 @@ body.community{background:#fff;color:#101419;font-family:Arial,'Noto Sans',syste
 @media(max-width:360px){.th-actions{flex-wrap:wrap;row-gap:4px}.th-actions .th-action{padding-inline:3px;gap:3px;min-width:24px}.th-views{gap:3px}}
 /* Empty feeds have no card edge to float over: reserve Compose in the mobile nav. */
 @media(max-width:600px){.th-shell:has(.th-empty) .th-left{display:flex;flex-direction:row;align-items:center}.th-shell:has(.th-empty) .th-nav{flex:1;min-width:0}.th-shell:has(.th-empty) .th-nav button{padding:8px}.th-shell:has(.th-empty) .th-compose-link{position:static;flex:0 0 44px;width:44px;height:44px;margin:0 6px 0 0;box-shadow:none}}
+/* Short embedded desktop previews must not squeeze or clip rail actions.
+   Keep mobile's fixed bottom row unchanged; very short rails scroll independently. */
+@media(min-width:601px){
+ .th-left{overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scroll-padding-block:8px}
+ .th-left>*{flex-shrink:0}
+}
+@media(min-width:601px) and (max-height:500px){
+ .th-left{padding-top:8px;padding-bottom:8px}
+ .th-brand{padding-top:0;padding-bottom:4px}
+ .th-nav{gap:2px}
+ .th-nav button{min-height:44px;padding:8px 12px}
+ .th-compose-link{height:44px;min-height:44px;margin-top:8px}
+ .th-my-profile{padding-top:4px;padding-bottom:4px}
+}
