@@ -4,6 +4,7 @@ import { accessSync, constants } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
 import { createAppServer } from '../scripts/serve.mjs';
+import { installDemoWorkerAudit } from './helpers/demo-worker-audit.mjs';
 
 // Use a fresh owned browser with its sandbox enabled. No user profile or CDP attachment.
 let browser, launcher, server, base;
@@ -41,21 +42,7 @@ async function pageFor(t, options = {}) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce', ...options });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.addInitScript(() => {
-    if (window === top) window.demoWorkerAudit = { created: 0, terminated: 0 };
-    const NativeWorker = window.Worker;
-    window.Worker = class extends NativeWorker {
-      constructor(...args) {
-        super(...args);
-        top.demoWorkerAudit.created++;
-        this.auditTerminated = false;
-      }
-      terminate() {
-        if (!this.auditTerminated) { top.demoWorkerAudit.terminated++; this.auditTerminated = true; }
-        return super.terminate();
-      }
-    };
-  });
+  await page.addInitScript(installDemoWorkerAudit);
   t.after(async () => { await page.close(); assert.deepEqual(errors, [], 'no page or iframe runtime errors'); });
   await page.goto(`${base}/api-playground.html?lang=en`);
   const consent = page.locator('#site-analytics-panel');
@@ -215,9 +202,15 @@ test('element anchors follow iframe scrolling and blank taps use child viewport 
   }, expected);
 });
 
-test('repeated site replacement cancels old work and keeps only one live render worker', { timeout: 120000 }, async t => {
+test('repeated site replacement retires each demo worker while preserving the header worker', { timeout: 120000 }, async t => {
   const page = await pageFor(t);
   const initial = await snapshot(await frameFor(page));
+  await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
+  const initialAudit = await page.evaluate(() => window.demoWorkerAudit);
+  assert.deepEqual(initialAudit.header, { created: 1, terminated: 0 }, 'one stable header worker');
+  assert.equal(initialAudit.demos.length, 1, 'one initial demo document');
+  assert.deepEqual({ created: initialAudit.demos[0].created, terminated: initialAudit.demos[0].terminated }, { created: 1, terminated: 0 });
+  let replacements = 0;
   for (const site of ['shop', 'community', 'company', 'shop', 'community', 'company']) {
     await openTools(page);
     await page.locator('#travel').selectOption('none');
@@ -234,7 +227,15 @@ test('repeated site replacement cancels old work and keeps only one live render 
     assert.deepEqual((await snapshot(frame)).design, initial.design, 'each new demo starts with Studio design');
     assert.equal((await snapshot(frame)).activity, initial.activity, 'in-flight previous actions do not leak into next scene');
     const audit = await page.evaluate(() => window.demoWorkerAudit);
-    assert.ok(audit.created - audit.terminated <= 1, JSON.stringify(audit));
+    assert.deepEqual(audit.header, initialAudit.header, 'demo switching must neither recreate nor terminate the header worker');
+    assert.equal(audit.demos.length, ++replacements + 1, 'one audited child document per demo mount');
+    for (const retired of audit.demos.slice(0, -1)) {
+      assert.equal(retired.created, 1, `one renderer in retired document: ${retired.url}`);
+      assert.equal(retired.terminated, retired.created, `all workers retired before replacement: ${JSON.stringify(retired)}`);
+    }
+    const current = audit.demos.at(-1);
+    assert.equal(new URL(current.url).searchParams.get('site'), site);
+    assert.deepEqual({ created: current.created, terminated: current.terminated }, { created: 1, terminated: 0 }, 'exactly one live worker in the selected demo');
     assert.equal(await page.locator('#site-preview-frame').count(), 1);
   }
 });
