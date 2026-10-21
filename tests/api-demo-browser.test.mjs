@@ -100,11 +100,11 @@ async function snapshot(frame) {
   }));
 }
 
-test('three demos contain their own bot and real target; the parent has controls only', { timeout: 90000 }, async t => {
+test('three demos contain their own bot and real target; the parent has controls and the original header brand only', { timeout: 90000 }, async t => {
   const page = await pageFor(t);
   for (const site of ['company', 'shop', 'community']) {
     const frame = await switchSite(page, site);
-    assert.equal(await page.locator('sidekick-avatar').count(), 0);
+    assert.equal(await page.locator('sidekick-avatar:not(.brand-avatar)').count(), 0);
     assert.equal(await page.locator('#site-preview-frame').count(), 1);
     assert.equal(await frame.locator('sidekick-avatar').count(), 1);
     assert.equal(await frame.locator('h1').count(), 1);

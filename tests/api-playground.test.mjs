@@ -143,16 +143,11 @@ test('both pages share a paused native avatar brand and accessible navigation', 
   }
 });
 
-test('API static brand keeps navigation without allocating a second avatar', async t => {
-  const { mountSiteHeader } = await import('../playground/shared-header.js');
-  const dom = new JSDOM('<div id="header"></div>', { url: 'https://sidekick.test/' });
-  t.after(() => dom.window.close());
-  const host = dom.window.document.getElementById('header');
-  const cleanup = mountSiteHeader(host, 'api', './', { staticBrand: true });
-  assert.equal(host.querySelector('sidekick-avatar'), null);
-  assert.equal(host.querySelector('[aria-current="page"]').dataset.sitePage, 'api');
-  assert.ok(host.querySelector('.brand').getAttribute('aria-label'));
-  cleanup();
+test('API entry registers the original shared avatar instead of substituting a static mark', async () => {
+  const source = await readFile(new URL('../playground/api-playground.js', import.meta.url), 'utf8');
+  assert.match(source, /import \{ MATERIAL_SHAPE_LABELS \} from '\.\.\/src\/index\.ts'/);
+  assert.match(source, /mountSiteHeader\(\$\('site-header-brand'\), 'api'\)/);
+  assert.doesNotMatch(source, /staticBrand/);
 });
 
 async function controllerFixture(t, query = '') {
@@ -532,8 +527,9 @@ test('preview styles leave pointer interaction ownership to the avatar runtime',
 });
 
 
-test('static API brand inherits the shared responsive logo dimensions', async () => {
+test('original avatar brand inherits the shared responsive logo dimensions', async () => {
   const source = await readFile(new URL('../playground/shared-header.js', import.meta.url), 'utf8');
-  const styles = source.match(/avatar\.style\.cssText = '([^']+)'/)[1];
-  assert.doesNotMatch(styles, /(?:^|;)(?:width|height):/, 'Static brand must not override shared desktop/mobile dimensions');
+  assert.doesNotMatch(source, /avatar\.style\.(?:cssText|width|height)\s*=/, 'Brand must not override shared desktop/mobile dimensions');
+  const css = await readFile(new URL('../playground/shared-header.css', import.meta.url), 'utf8');
+  for (const size of [44, 36, 28]) assert.ok(css.includes(`width: ${size}px; height: ${size}px;`), `${size}px original logo size`);
 });

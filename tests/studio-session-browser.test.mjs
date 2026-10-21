@@ -48,18 +48,16 @@ test('Studio JSON and subsequent edit reach Playground with complete scene; temp
   assert.deepEqual(await page.locator('#flat').evaluate(bot => bot.bodyOrientation), expected.bodyOrientation);
 });
 
-test('shared header dimensions and menu typography match; API brand stays static at desktop and mobile sizes', async t => {
+test('shared original avatar, header dimensions and menu typography match at desktop and mobile sizes', async t => {
   const page = await open(t);
   for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }, { width: 320, height: 480 }]) {
     await page.setViewportSize(viewport);
     const snapshots = [];
     for (const route of ['', '/api-playground.html']) {
       await page.goto(base + route);
-      if (route) {
-        await apiDemoFrame(page);
-        assert.equal(await page.locator('.brand-avatar').evaluate(brand => brand.tagName), 'SPAN');
-        assert.equal(await page.locator('.app-header sidekick-avatar').count(), 0, 'API header must not allocate another renderer');
-      } else await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
+      if (route) await apiDemoFrame(page);
+      await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
+      assert.equal(await page.locator('.brand-avatar').evaluate(brand => brand.tagName), 'SIDEKICK-AVATAR');
       await page.evaluate(() => document.fonts.ready);
       snapshots.push(await page.evaluate(() => ['.app-header', '.brand', '.brand-avatar', '.product-nav', '.product-nav a', '.product-nav a:last-child'].map(selector => {
         const el = document.querySelector(selector), rect = el.getBoundingClientRect(), style = getComputedStyle(el);

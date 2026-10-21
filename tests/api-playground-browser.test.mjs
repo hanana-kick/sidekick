@@ -227,14 +227,11 @@ test('both pages preserve accessible shared branding and navigation at narrow si
     await page.setViewportSize(viewport);
     for (const route of ['api-playground.html', '']) {
       await page.goto(`${base}/${route}`);
-      if (route) {
-        await page.locator('.brand-avatar').waitFor();
-        assert.equal(await page.locator('sidekick-avatar').count(), 0, 'API shell branding must not allocate another renderer');
-      } else {
-        await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
-        const brand = await page.locator('.brand-avatar').evaluate(avatar => ({ paused: avatar.paused, tracking: avatar.trackingMode, zoom: avatar.zoom, shape: avatar.design.body.shape, accessories: avatar.design.accessories.map(a => a.preset).sort() }));
-        assert.deepEqual(brand, { paused: true, tracking: 'off', zoom: 1.2846936688304844, shape: 'ghostish', accessories: ['beret', 'bowTie', 'glasses'] });
-      }
+      await page.waitForFunction(() => document.querySelector('.brand-avatar')?.ready);
+      const brand = await page.locator('.brand-avatar').evaluate(avatar => ({ paused: avatar.paused, tracking: avatar.trackingMode, zoom: avatar.zoom, shape: avatar.design.body.shape, accessories: avatar.design.accessories.map(a => a.preset).sort() }));
+      assert.deepEqual(brand, { paused: true, tracking: 'off', zoom: 1.2846936688304844, shape: 'ghostish', accessories: ['beret', 'bowTie', 'glasses'] });
+      assert.equal(await page.locator('.app-header sidekick-avatar').count(), 1);
+      if (route) assert.equal(await page.locator('sidekick-avatar:not(.brand-avatar)').count(), 0, 'demo avatar stays inside its iframe');
       assert.equal(await page.locator('.product-nav [aria-current="page"]').textContent(), route ? 'API 체험' : '스튜디오');
       for (const link of await page.locator('.app-header a').all()) {
         const box = await link.boundingBox(); assert.ok(box && box.x >= 0 && box.x + box.width <= viewport.width + 1);
@@ -439,7 +436,7 @@ test('built-in iframe choices use only authored routes and retain a real local t
     assert.equal(await page.locator('#site-preview-frame').getAttribute('referrerpolicy'), 'no-referrer');
     assert.equal(new URL(await page.locator('#site-preview-frame').getAttribute('src')).origin, base);
     assert.equal(await demo(page).locator('#preview-target').count(), 1);
-    assert.equal(await page.locator('sidekick-avatar').count(), 0);
+    assert.equal(await page.locator('sidekick-avatar:not(.brand-avatar)').count(), 0);
   }
 });
 

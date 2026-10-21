@@ -7,7 +7,7 @@ import { mountSiteHeader } from './shared-header.js';
 import { recordSiteEvent, setSiteSection, siteAnalyticsConsent, siteAnalyticsConsentVersion } from './site-analytics.js';
 import { botCombination, settingValueCategory } from './product-analytics-schema.js';
 import { recordSettingChange, cancelSettingChange } from './site-setting-analytics.js';
-import { MATERIAL_SHAPE_LABELS } from '../src/core/shapes.ts';
+import { MATERIAL_SHAPE_LABELS } from '../src/index.ts';
 import { codeForAction } from './playground-actions.js';
 import { loadStudioSession, seedStudioSession } from './studio-session.ts';
 
@@ -17,7 +17,7 @@ import { navigationText, guideHref, readGuideSource } from './guide-navigation.j
 mountGuideExercise().then(exercise => {
 if (!exercise) {
 const $ = id => document.getElementById(id);
-mountSiteHeader($('site-header-brand'), 'api', './', { staticBrand: true });
+mountSiteHeader($('site-header-brand'), 'api');
 let demoRuntime = null, bot = null, demoDocument = null, demoWindow = null, demoEvents = null, demoGeneration = 0;
 let storage; try { storage = localStorage; } catch {}
 const studioSession = loadStudioSession(storage);

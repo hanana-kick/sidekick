@@ -3,14 +3,13 @@ import { getFramework, setFramework, subscribeFramework, frameworkHref } from '.
 import { readGuideSource, guideHref, navigationText } from './guide-navigation.js';
 import { SITE_LOCALES, SITE_LANGUAGE_NAMES, getSiteLocale, setSiteLocale, subscribeSiteLocale, translateSite, localizedSiteHref } from './site-i18n.js';
 /** One brand and navigation for both the React Studio and plain-JS API page. */
-export function mountSiteHeader(host, activePage, base = './', { staticBrand = false } = {}) {
+export function mountSiteHeader(host, activePage, base = './') {
   const doc = host.ownerDocument;
   mountSiteAnalytics(doc, activePage);
   const brand = doc.createElement('a');
   brand.className = 'brand'; brand.href = base;
 
-  const avatar = doc.createElement(staticBrand ? 'span' : 'sidekick-avatar');
-  if (staticBrand) { avatar.textContent = 's'; avatar.style.cssText = 'display:grid;place-items:center;border-radius:10px;background:#ffcc37;color:#0f172a;font:bold 24px system-ui'; }
+  const avatar = doc.createElement('sidekick-avatar');
   // Preserve the original logo's screen scale under body-referenced framing:
   // 2 × (2.568286993103977 / 3.9982869931039766). User avatars keep their zoom.
   for (const [name, value] of Object.entries({
