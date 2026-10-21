@@ -1,12 +1,25 @@
-name: Animation visual QA
+name: Full-canvas CPU experiment - NOT release validation
 on:
   workflow_dispatch:
+    inputs:
+      plan:
+        description: Pilot validates harness only; full is a separate fixed experiment
+        type: choice
+        options: [pilot, full]
+        default: pilot
 permissions:
   contents: read
 jobs:
-  visual:
+  full-canvas-cpu:
+    name: Canvas CPU (${{ matrix.backend }}/${{ matrix.size }}) - NOT release CI
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [main, worker]
+        size: ${{ fromJSON(inputs.plan == 'full' && '[115,640]' || '[640]') }}
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.1.0
@@ -14,14 +27,22 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run build:all
-      - run: node node_modules/playwright-core/cli.js install --with-deps chromium ffmpeg
-      - run: xvfb-run -a node --test --test-concurrency=1 tests/animation-continuity-browser.test.mjs tests/presence-continuity-browser.test.mjs
+      - run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - run: node --test scripts/ci-cpu/*.test.mjs
+      - run: node scripts/ci-cpu/prepare.mjs
+      - name: Fixed cycles, no replacements
+        run: node scripts/ci-cpu/coordinate.mjs
         env:
-          SIDEKICK_HEADED: '1'
-          SIDEKICK_SCREENSHOTS: artifacts
+          BENCH_PLAN: ${{ inputs.plan }}
+          BENCH_BACKEND: ${{ matrix.backend }}
+          BENCH_SIZE: ${{ matrix.size }}
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
-          name: animation-visuals
-          path: artifacts/
+          name: full-canvas-cpu-${{ matrix.backend }}-${{ matrix.size }}
+          path: |
+            artifacts/ci-cpu/**/result.json
+            artifacts/ci-cpu/**/windows.csv
+            artifacts/ci-cpu/adapter-provenance.json
+            scripts/ci-cpu/manifest.json
+          if-no-files-found: warn

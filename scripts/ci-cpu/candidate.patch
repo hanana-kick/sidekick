@@ -1,0 +1,373 @@
+diff --git a/experiments/full-canvas-crop/full-presentation-canvas.ts b/experiments/full-canvas-crop/full-presentation-canvas.ts
+new file mode 100644
+index 0000000..d38d77c
+--- /dev/null
++++ b/experiments/full-canvas-crop/full-presentation-canvas.ts
+@@ -0,0 +1,127 @@
++import { AvatarRenderer } from '../../src/renderer/webgl.js';
++import type { RenderState } from '../../src/renderer/webgl.js';
++import type { AvatarDesign } from '../../src/core/design.js';
++import type { Mat4 } from '../../src/core/math.js';
++import type { Geometry } from '../../src/renderer/geometry.js';
++import type { Mesh, RenderBackend, RendererOptions } from '../../src/renderer/render-backend.js';
++import { SoftwareRasterizer } from './software-rasterizer.js';
++import type { SoftwareEyes } from './software-rasterizer.js';
++import { growSurface, projectedVertexBounds, expandSurfacePixels } from './tight-surface.js';
++import type { Bounds2, RenderSurface } from './tight-surface.js';
++type Canvas = HTMLCanvasElement | OffscreenCanvas;
++type Damage = Readonly<{x:number;y:number;width:number;height:number}>;
++export interface StorageDiagnostics { readonly storage?:Readonly<RenderSurface>; readonly damage?:Damage; readonly full:Readonly<{width:number;height:number}>; readonly valid:boolean }
++const union=(a:Damage|undefined,b:Damage):Damage=>{
++ if(!a)return Object.freeze({...b});const x=Math.min(a.x,b.x),y=Math.min(a.y,b.y);
++ return Object.freeze({x,y,width:Math.max(a.x+a.width,b.x+b.width)-x,height:Math.max(a.y+a.height,b.y+b.height)-y});
++};
++
++/** Disabled Canvas-only storage experiment. Actual presentation backing and CSS
++ * remain full-sized; no image bitmap transport, physical crop, or WebGL change. */
++export class FullPresentationRenderer extends AvatarRenderer {
++ private storageBackend?:FullPresentationCanvasBackend;
++ constructor(canvas:Canvas,options:RendererOptions={}){
++  super(canvas,options);
++  if(this.graphics==='canvas2d'){
++   const backend=new FullPresentationCanvasBackend(canvas,this.backend.maxDimension);
++   this.backend.dispose();this.storageBackend=backend;this.backend=backend;
++  }
++ }
++ get diagnostics():StorageDiagnostics|undefined{return this.storageBackend?.diagnostics;}
++ override render(design:AvatarDesign,state:RenderState):void{
++  try{this.storageBackend?.assertAvailable();super.render(design,state);this.storageBackend?.assertAvailable();}catch(error){this.storageBackend?.abort();throw error;}
++ }
++}
++
++/** Shared logical meshes only. Deferred CPU work completes before canvas commit.
++ * Upload failure may leave canvas partially cleared: captures then reject until
++ * recovery. No atomic visible rollback claim is made for clearRect/putImageData.
++ */
++export class FullPresentationCanvasBackend implements RenderBackend {
++ readonly kind='canvas2d' as const;
++ get lost():boolean{
++  const lost=this.context.isContextLost?.()??false;
++  if(lost){this.valid=false;this.resetRequired=true;}
++  return lost;
++ }
++ private readonly context:CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D;
++ private readonly raster=new SoftwareRasterizer();
++ private commands?:Array<()=>void>;
++ private projection!:Mat4;
++ private bounds:Bounds2=[Infinity,Infinity,-Infinity,-Infinity];
++ private indices=new WeakMap<Uint16Array,Map<string,Uint16Array>>();
++ private envelope?:RenderSurface;
++ private storage?:RenderSurface;
++ private previousDamage?:Damage;
++ private lastDamage?:Damage;
++ private fullWidth=0;private fullHeight=0;
++ private image?:ImageData;
++ private eyesState?:SoftwareEyes;
++ private alpha=1;private draws=0;
++ private valid=false;private disposed=false;private resetRequired=false;
++ constructor(readonly canvas:Canvas,readonly maxDimension=384){
++  const context=canvas.getContext('2d',{alpha:true}) as CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D|null;
++  if(!context)throw new Error('Canvas storage context unavailable');this.context=context;
++ }
++ get diagnostics():StorageDiagnostics{return Object.freeze({storage:this.storage,damage:this.lastDamage,full:Object.freeze({width:this.canvas.width,height:this.canvas.height}),valid:!this.lost&&this.valid&&this.fullWidth===this.canvas.width&&this.fullHeight===this.canvas.height});}
++ assertAvailable():void{if(this.disposed)throw new Error('Backend disposed');if(this.lost)throw new Error('Canvas context lost');}
++ upload(data:Geometry):Mesh{return {data,count:data.indices.length};}
++ adopt(_mesh:Mesh):void{if(this.disposed)throw new Error('Backend disposed');}
++ update(_mesh:Mesh,_data:Geometry,_indices:boolean,_reuseVertices:boolean):void{if(_indices)this.indices.delete(_data.indices);}
++ deleteMesh(_mesh:Mesh):void{}
++ begin(projection:Mat4):void{
++  this.assertAvailable();
++  this.valid=false;this.projection=projection;this.commands=[];this.draws=0;this.alpha=1;this.eyesState=undefined;
++  this.bounds=[Infinity,Infinity,-Infinity,-Infinity];
++  if(this.resetRequired||this.fullWidth!==this.canvas.width||this.fullHeight!==this.canvas.height){
++   this.resetRequired=false;
++   this.fullWidth=this.canvas.width;this.fullHeight=this.canvas.height;this.envelope=undefined;this.storage=undefined;
++   // A resized canvas is clear, and a newly acquired canvas may contain old ink.
++   // Clear conservatively once per epoch without allocating a full CPU image.
++   this.previousDamage={x:0,y:0,width:this.fullWidth,height:this.fullHeight};
++  }
++ }
++ eyes(eyes?:SoftwareEyes):void{this.eyesState=eyes;}
++ opacity(value:number):void{this.alpha=value;}
++ draw(mesh:Mesh,model:Mat4,color:string,count:number,indexOffset:number):void{
++  if(!this.commands)throw new Error('Frame not begun');
++  if(count===0||this.alpha<=0)return;
++  const data=mesh.data,alpha=this.alpha,eyes=this.eyesState,projection=this.projection;
++  let ranges=this.indices.get(data.indices);if(!ranges){ranges=new Map();this.indices.set(data.indices,ranges);}
++  const key=`${indexOffset}:${count}`;let referenced=ranges.get(key);
++  if(!referenced){referenced=Uint16Array.from(new Set(data.indices.subarray(indexOffset,indexOffset+count)));ranges.set(key,referenced);}
++  const bounds=projectedVertexBounds(data.vertices,referenced,0,referenced.length,model,projection,this.fullWidth,this.fullHeight);
++  this.bounds=[Math.min(this.bounds[0],bounds[0]),Math.min(this.bounds[1],bounds[1]),Math.max(this.bounds[2],bounds[2]),Math.max(this.bounds[3],bounds[3])];
++  // Capture this draw's Geometry reference: another fading accessory may replace
++  // the shared logical mesh data before deferred replay.
++  this.commands.push(()=>this.raster.draw(data,model,projection,color,count,indexOffset,alpha,eyes));this.draws++;
++ }
++ end():void{
++  this.assertAvailable();
++  const commands=this.commands;this.commands=undefined;if(!commands)return;
++  const storage=this.draws?growSurface(this.envelope,this.bounds,this.fullWidth,this.fullHeight)
++   :Object.freeze({x:0,y:0,width:1,height:1,fullWidth:this.fullWidth,fullHeight:this.fullHeight});
++  if(this.draws)this.envelope=storage;
++  const top=this.fullHeight-storage.y-storage.height;
++  this.raster.clear(storage.width,storage.height,{x:storage.x,y:top,width:this.fullWidth,height:this.fullHeight});
++  for(const command of commands)command();
++  if(!this.image||this.image.width!==storage.width||this.image.height!==storage.height)this.image=this.context.createImageData(storage.width,storage.height);
++  this.image.data.set(this.raster.pixels);
++  const current=Object.freeze({x:storage.x,y:top,width:storage.width,height:storage.height});
++  const damage=union(this.previousDamage,current);this.previousDamage=damage;this.lastDamage=damage;
++  // putImageData is 1:1 backing-pixel placement, never drawImage or CSS scaling.
++  this.assertAvailable();
++  this.context.clearRect(damage.x,damage.y,damage.width,damage.height);
++  this.context.putImageData(this.image,storage.x,top);
++  this.assertAvailable();
++  this.previousDamage=current;this.storage=storage;this.valid=true;
++ }
++ abort():void{this.commands=undefined;this.valid=false;}
++ readPixels():Uint8Array{
++  this.assertAvailable();
++  if(!this.diagnostics.valid||!this.storage)throw new Error('No valid completed storage frame');
++  return expandSurfacePixels(this.raster.readPixels(),this.storage);
++ }
++ dispose():void{if(this.disposed)return;this.disposed=true;this.abort();this.image=undefined;this.raster.dispose();}
++ initializationError(cause:unknown):Error{return cause instanceof Error?cause:new Error(String(cause));}
++}
+diff --git a/experiments/full-canvas-crop/software-rasterizer.ts b/experiments/full-canvas-crop/software-rasterizer.ts
+new file mode 100644
+index 0000000..c618ab0
+--- /dev/null
++++ b/experiments/full-canvas-crop/software-rasterizer.ts
+@@ -0,0 +1,157 @@
++import { multiply } from '../../src/core/math.js';
++import type { Mat4 } from '../../src/core/math.js';
++import type { Geometry } from '../../src/renderer/geometry.js';
++
++export interface SoftwareViewport { x: number; y: number; width: number; height: number }
++
++/** The same body-local eye uniforms used by the WebGL fragment shader. */
++export interface SoftwareEyes {
++  color: readonly number[];
++  centers: readonly number[];
++  size: readonly number[];
++  states: readonly number[];
++  leftTargets: readonly number[];
++  rightTargets: readonly number[];
++  faceScale: readonly number[];
++}
++const clamp = (x: number, low: number, high: number): number => Math.min(high, Math.max(low, x));
++const mix = (a: number, b: number, t: number): number => a + (b - a) * t;
++/** Port of the analytic glyph SDF; does not approximate expressions with paths. */
++export function softwareEyeDistance(x: number, y: number, openness: number, smile: number, size: readonly number[], targets: readonly number[]): number {
++  const open = clamp(openness, 0, 1), happy = clamp(smile, 0, 1), unit = Math.min(size[0]!, size[1]!);
++  const smileHeight = unit * targets[2]!;
++  const height = mix(unit * targets[3]!, mix(size[1]!, smileHeight, happy), open);
++  const width = mix(size[0]!, 2 * size[0]! * targets[0]! + smileHeight, happy * open);
++  const radius = Math.min(width, height) * .5, halfSpan = Math.max(width - height, 0) * .5;
++  if (halfSpan <= 0) {
++    const qx = Math.abs(x) - width * .5 + radius, qy = Math.abs(y) - height * .5 + radius;
++    return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - radius;
++  }
++  x = Math.abs(x);
++  const bend = happy * open, offset = halfSpan * (1 - bend * bend) * .5, scaledY = bend * y + offset;
++  if (scaledY * halfSpan < x * offset) return Math.hypot(x - halfSpan, y) - radius;
++  const scaledRadius = halfSpan * (1 + bend * bend) * .5;
++  return Math.abs((bend * (x * x + y * y - halfSpan * halfSpan) + 2 * y * offset) / (Math.hypot(bend * x, scaledY) + scaledRadius)) - radius;
++}
++const edge = (ax: number, ay: number, bx: number, by: number, x: number, y: number): number => (bx - ax) * (y - ay) - (by - ay) * (x - ax);
++const topLeft = (ax: number, ay: number, bx: number, by: number): boolean => by > ay || (by === ay && bx < ax);
++
++/** Orthographic, depth-tested CPU triangle backend. Canvas2D only presents its pixels.
++ * Geometry, face chart, culling, depth writes and premultiplied blending agree with
++ * the GPU backend. GPU multisample coverage and derivative quads are not emulated.
++ */
++export class SoftwareRasterizer {
++  width = 0;
++  height = 0;
++  pixels = new Uint8ClampedArray(0);
++  private depth = new Float64Array(0);
++  private rgba = new Float32Array(0);
++  private viewport: SoftwareViewport = { x: 0, y: 0, width: 0, height: 0 };
++  private projected = new Float64Array(0);
++  clear(width: number, height: number, viewport?: SoftwareViewport): void {
++    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) throw new RangeError('Raster dimensions must be positive integers.');
++    // No viewport allocation or crop validation on the legacy full-buffer path.
++    if (viewport && (!Number.isInteger(viewport.x) || !Number.isInteger(viewport.y) || !Number.isInteger(viewport.width) || !Number.isInteger(viewport.height) || viewport.x < 0 || viewport.y < 0 || viewport.x + width > viewport.width || viewport.y + height > viewport.height)) throw new RangeError('Raster viewport must contain the crop.');
++    this.viewport.x = viewport?.x ?? 0; this.viewport.y = viewport?.y ?? 0;
++    this.viewport.width = viewport?.width ?? width; this.viewport.height = viewport?.height ?? height;
++    if (width !== this.width || height !== this.height) {
++      this.width = width; this.height = height;
++      this.pixels = new Uint8ClampedArray(width * height * 4);
++      this.rgba = new Float32Array(width * height * 4);
++      this.depth = new Float64Array(width * height);
++    } else { this.pixels.fill(0); this.rgba.fill(0); }
++    this.depth.fill(1);
++  }
++  draw(geometry: Geometry, model: Mat4, projection: Mat4, hex: string, count = geometry.indices.length, indexOffset = 0, opacity = 1, eyes?: SoftwareEyes): void {
++    if (!this.width || !this.height || opacity <= 0) return;
++    const vertices = geometry.vertices, indices = geometry.indices, matrix = multiply(projection, model);
++    const vertexCount = vertices.length / 6;
++    if (this.projected.length < vertexCount * 3) this.projected = new Float64Array(vertexCount * 3);
++    const points = this.projected, viewport = this.viewport;
++    for (let v = 0; v < vertexCount; v++) {
++      const i = v * 6, o = v * 3, x = vertices[i]!, y = vertices[i + 1]!, z = vertices[i + 2]!;
++      const w = matrix[3]! * x + matrix[7]! * y + matrix[11]! * z + matrix[15]!;
++      points[o] = ((matrix[0]! * x + matrix[4]! * y + matrix[8]! * z + matrix[12]!) / w + 1) * viewport.width * .5;
++      points[o + 1] = (1 - (matrix[1]! * x + matrix[5]! * y + matrix[9]! * z + matrix[13]!) / w) * viewport.height * .5;
++      points[o + 2] = ((matrix[2]! * x + matrix[6]! * y + matrix[10]! * z + matrix[14]!) / w + 1) * .5;
++    }
++    const value = parseInt(hex.slice(1), 16), red = ((value >> 16) & 255) / 255, green = ((value >> 8) & 255) / 255, blue = (value & 255) / 255;
++    const alpha = eyes ? 1 : clamp(opacity, 0, 1);
++    const maxAA = eyes ? Math.min(eyes.size[0]!, eyes.size[1]!) * .2 : 0;
++    // Reject far-away body pixels before evaluating six analytic distances. The
++    // bound covers the neutral capsule and every intermediate circular arc.
++    const eyeBounds = eyes ? [0, 1].map(eye => {
++      const targets = eye ? eyes.rightTargets : eyes.leftTargets;
++      const open = clamp(eyes.states[eye * 2]!, 0, 1), happy = clamp(eyes.states[eye * 2 + 1]!, 0, 1);
++      const unit = Math.min(eyes.size[0]!, eyes.size[1]!), smileHeight = unit * targets[2]!;
++      const height = mix(unit * targets[3]!, mix(eyes.size[1]!, smileHeight, happy), open);
++      const width = mix(eyes.size[0]!, 2 * eyes.size[0]! * targets[0]! + smileHeight, happy * open);
++      return [width * .5 + maxAA, Math.max(height * .5, width * .5) + maxAA];
++    }) : [];
++    const end = Math.min(indices.length, indexOffset + count);
++    for (let i = indexOffset; i + 2 < end; i += 3) {
++      const ia = indices[i]!, ib = indices[i + 1]!, ic = indices[i + 2]!;
++      const a = ia * 3, b = ib * 3, c = ic * 3;
++      const ax = points[a]!, ay = points[a + 1]!, bx = points[b]!, by = points[b + 1]!, cx = points[c]!, cy = points[c + 1]!;
++      const area = edge(ax, ay, bx, by, cx, cy);
++      // WebGL CCW front faces become clockwise after the top-down Y conversion.
++      if (!(area < -1e-12)) continue;
++      const minX = Math.max(viewport.x, Math.ceil(Math.min(ax, bx, cx) - .5)), maxX = Math.min(viewport.x + this.width - 1, Math.floor(Math.max(ax, bx, cx) - .5));
++      const minY = Math.max(viewport.y, Math.ceil(Math.min(ay, by, cy) - .5)), maxY = Math.min(viewport.y + this.height - 1, Math.floor(Math.max(ay, by, cy) - .5));
++      if (minX > maxX || minY > maxY) continue;
++      const ab = topLeft(ax, ay, bx, by), bc = topLeft(bx, by, cx, cy), ca = topLeft(cx, cy, ax, ay);
++      const za = points[a + 2]!, zb = points[b + 2]!, zc = points[c + 2]!;
++      const va = ia * 6, vb = ib * 6, vc = ic * 6;
++      const sx = eyes?.faceScale[0] ?? 1, sy = eyes?.faceScale[1] ?? 1;
++      const xa = vertices[va]! * sx, xb = vertices[vb]! * sx, xc = vertices[vc]! * sx;
++      const ya = vertices[va + 1]! * sy, yb = vertices[vb + 1]! * sy, yc = vertices[vc + 1]! * sy;
++      const dxX = ((by - cy) * xa + (cy - ay) * xb + (ay - by) * xc) / area;
++      const dxY = ((by - cy) * ya + (cy - ay) * yb + (ay - by) * yc) / area;
++      const dyX = ((cx - bx) * xa + (ax - cx) * xb + (bx - ax) * xc) / area;
++      const dyY = ((cx - bx) * ya + (ax - cx) * yb + (bx - ax) * yc) / area;
++      for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) {
++        const e0 = edge(bx, by, cx, cy, x + .5, y + .5), e1 = edge(cx, cy, ax, ay, x + .5, y + .5), e2 = edge(ax, ay, bx, by, x + .5, y + .5);
++        if (e0 > 0 || (e0 === 0 && !bc) || e1 > 0 || (e1 === 0 && !ca) || e2 > 0 || (e2 === 0 && !ab)) continue;
++        const wa = e0 / area, wb = e1 / area, wc = e2 / area, z = wa * za + wb * zb + wc * zc, pixel = (y - viewport.y) * this.width + x - viewport.x;
++        if (z < 0 || z > 1 || z >= this.depth[pixel]!) continue;
++        this.depth[pixel] = z;
++        let r = red, g = green, bl = blue;
++        if (eyes && wa * vertices[va + 5]! + wb * vertices[vb + 5]! + wc * vertices[vc + 5]! >= .00001) {
++          const fx = wa * xa + wb * xb + wc * xc, fy = wa * ya + wb * yb + wc * yc;
++          let mask = 0;
++          for (let eye = 0; eye < 2; eye++) {
++            const ex = fx - eyes.centers[eye * 2]!, ey = fy - eyes.centers[eye * 2 + 1]!;
++            if (Math.abs(ex) > eyeBounds[eye]![0]! || Math.abs(ey) > eyeBounds[eye]![1]!) continue;
++            const targets = eye ? eyes.rightTargets : eyes.leftTargets, open = eyes.states[eye * 2]!, smile = eyes.states[eye * 2 + 1]!;
++            const d = softwareEyeDistance(ex, ey, open, smile, eyes.size, targets);
++            const aa = clamp(Math.abs(softwareEyeDistance(ex + dxX, ey + dxY, open, smile, eyes.size, targets) - d) + Math.abs(softwareEyeDistance(ex + dyX, ey + dyY, open, smile, eyes.size, targets) - d), .0001, maxAA);
++            const t = clamp((d + aa) / (2 * aa), 0, 1);
++            mask = Math.max(mask, 1 - t * t * (3 - 2 * t));
++          }
++          r = mix(red, eyes.color[0]!, mask); g = mix(green, eyes.color[1]!, mask); bl = mix(blue, eyes.color[2]!, mask);
++        }
++        const p = pixel * 4, remain = 1 - alpha;
++        const outAlpha = alpha + this.rgba[p + 3]! * remain;
++        this.rgba[p] = r * alpha + this.rgba[p]! * remain;
++        this.rgba[p + 1] = g * alpha + this.rgba[p + 1]! * remain;
++        this.rgba[p + 2] = bl * alpha + this.rgba[p + 2]! * remain;
++        this.rgba[p + 3] = outAlpha;
++        this.pixels[p] = this.rgba[p]! / outAlpha * 255;
++        this.pixels[p + 1] = this.rgba[p + 1]! / outAlpha * 255;
++        this.pixels[p + 2] = this.rgba[p + 2]! / outAlpha * 255;
++        this.pixels[p + 3] = outAlpha * 255;
++      }
++    }
++  }
++  dispose(): void {
++    this.width = 0; this.height = 0;
++    this.pixels = new Uint8ClampedArray(0); this.rgba = new Float32Array(0);
++    this.depth = new Float64Array(0); this.projected = new Float64Array(0);
++  }
++  /** WebGL readPixels convention: bottom-up rows and premultiplied RGBA. */
++  readPixels(): Uint8Array {
++    const result = new Uint8Array(this.rgba.length), stride = this.width * 4;
++    for (let y = 0; y < this.height; y++) for (let x = 0; x < stride; x++) result[(this.height - 1 - y) * stride + x] = Math.round(this.rgba[y * stride + x]! * 255);
++    return result;
++  }
++}
+diff --git a/experiments/full-canvas-crop/tight-surface.ts b/experiments/full-canvas-crop/tight-surface.ts
+new file mode 100644
+index 0000000..4a4687a
+--- /dev/null
++++ b/experiments/full-canvas-crop/tight-surface.ts
+@@ -0,0 +1,58 @@
++import type { Mat4 } from '../../src/core/math.js';
++
++/** Integer backing-pixel crop; y is measured from the bottom, as in WebGL. */
++export interface RenderSurface { x: number; y: number; width: number; height: number; fullWidth: number; fullHeight: number }
++export type Bounds2 = [number, number, number, number];
++/** Grow-only within a resize epoch, avoiding per-frame allocation/size oscillation. */
++export function growSurface(previous: RenderSurface | undefined, bounds: Bounds2, fullWidth: number, fullHeight: number): RenderSurface {
++  // Two backing pixels protect coverage and derivative helper quads. Tile alignment
++  // adds slack and preserves the even-pixel 2x2 derivative-quad phase at the origin.
++  const tile = 16, guard = 2;
++  const low = (value: number, max: number): number => Math.min(Math.floor((max - 1) / tile) * tile, Math.max(0, Math.floor((value - guard) / tile) * tile));
++  const high = (value: number, max: number): number => Math.max(1, Math.min(max, Math.ceil((value + guard) / tile) * tile));
++  let x = low(bounds[0], fullWidth), y = low(bounds[1], fullHeight);
++  let right = high(bounds[2], fullWidth), top = high(bounds[3], fullHeight);
++  if (!bounds.every(Number.isFinite) || right <= x || top <= y) { x = y = 0; right = fullWidth; top = fullHeight; }
++  if (previous && previous.fullWidth === fullWidth && previous.fullHeight === fullHeight) {
++    x = Math.min(x, previous.x); y = Math.min(y, previous.y);
++    right = Math.max(right, previous.x + previous.width); top = Math.max(top, previous.y + previous.height);
++  }
++  return Object.freeze({ x, y, width: right - x, height: top - y, fullWidth, fullHeight });
++}
++/** Reconstitute the baseline bottom-up RGBA layout for correctness comparisons. */
++export function expandSurfacePixels(pixels: Uint8Array, surface: RenderSurface): Uint8Array {
++  const result = new Uint8Array(surface.fullWidth * surface.fullHeight * 4);
++  for (let row = 0; row < surface.height; row++) result.set(pixels.subarray(row * surface.width * 4, (row + 1) * surface.width * 4), ((surface.y + row) * surface.fullWidth + surface.x) * 4);
++  return result;
++}
++
++/** Crop placement in the original host's CSS coordinates, independent of DPR rounding. */
++export function surfaceLayout(surface: RenderSurface, cssWidth: number, cssHeight: number): { left: number; top: number; width: number; height: number } {
++  const sx = cssWidth / surface.fullWidth, sy = cssHeight / surface.fullHeight;
++  return { left: surface.x * sx, top: (surface.fullHeight - surface.y - surface.height) * sy, width: surface.width * sx, height: surface.height * sy };
++}
++
++/** Tight bounds of the actually submitted indexed triangles, including outgoing
++ * accessories. Keep matrix multiplication order identical to the shader. A
++ * near-plane crossing is not safe to crop from vertex extrema: retain full frame.
++ */
++export function projectedVertexBounds(vertices: Float32Array, indices: Uint16Array, indexOffset: number, count: number, model: Mat4, projection: Mat4, width: number, height: number): Bounds2 {
++  const result: Bounds2 = [Infinity, Infinity, -Infinity, -Infinity];
++  for (let i = indexOffset; i < indexOffset + count; i++) {
++    const index = indices[i]!;
++    const offset = index * 6, x = vertices[offset]!, y = vertices[offset + 1]!, z = vertices[offset + 2]!;
++    const wx = model[0]! * x + model[4]! * y + model[8]! * z + model[12]!;
++    const wy = model[1]! * x + model[5]! * y + model[9]! * z + model[13]!;
++    const wz = model[2]! * x + model[6]! * y + model[10]! * z + model[14]!;
++    const ww = model[3]! * x + model[7]! * y + model[11]! * z + model[15]!;
++    const cx = projection[0]! * wx + projection[4]! * wy + projection[8]! * wz + projection[12]! * ww;
++    const cy = projection[1]! * wx + projection[5]! * wy + projection[9]! * wz + projection[13]! * ww;
++    const cz = projection[2]! * wx + projection[6]! * wy + projection[10]! * wz + projection[14]! * ww;
++    const cw = projection[3]! * wx + projection[7]! * wy + projection[11]! * wz + projection[15]! * ww;
++    if ((!Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(cz) || !Number.isFinite(cw)) || cw <= 0 || cz < -cw) return [0,0,width,height];
++    const px = (cx / cw + 1) * width / 2, py = (cy / cw + 1) * height / 2;
++    result[0] = Math.min(result[0], px); result[1] = Math.min(result[1], py);
++    result[2] = Math.max(result[2], px); result[3] = Math.max(result[3], py);
++  }
++  return result;
++}
+diff --git a/src/renderer/webgl.ts b/src/renderer/webgl.ts
+index bea6dad..9e046aa 100644
+--- a/src/renderer/webgl.ts
++++ b/src/renderer/webgl.ts
+@@ -46,7 +46,7 @@ export interface RenderState {
+ }
+ /** Shared geometry and animation, presented through WebGL2 or Canvas2D. */
+ export class AvatarRenderer {
+-  private backend: RenderBackend;
++  protected backend: RenderBackend;
+   get gl(): WebGL2RenderingContext | undefined { return this.backend.gl; }
+   get graphics(): 'webgl2' | 'canvas2d' { return this.backend.kind; }
+   private meshes: Record<'body' | 'beret' | 'glasses' | 'halo', Mesh>;
