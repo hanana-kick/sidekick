@@ -63,6 +63,8 @@ function fixture() {
   avatar.placementState = 'viewport';
   avatar.readyState = true;
   avatar.movementBox = { width: 20, height: 20 };
+  Object.defineProperty(avatar, 'offsetWidth', { configurable: true, get: () => 20 });
+  Object.defineProperty(avatar, 'offsetHeight', { configurable: true, get: () => 20 });
   const errors = [], ends = [];
   avatar.addEventListener('sidekick-error', event => errors.push(event.detail));
   avatar.addEventListener('sidekick-enter-end', event => ends.push(event.detail));
@@ -259,4 +261,47 @@ test('HTML JSON null clears the entrance declaration without rejecting the attri
   assert.equal(avatar.presenceState, 'visible');
   assert.equal(avatar.canvas.style.clipPath, '');
   assert.deepEqual(errors, []);
+});
+
+test('responsive entrance refreshes bounds before ResizeObserver delivers the smaller host size', async () => {
+  const { avatar, layout, declaration, errors } = fixture();
+  const width = dom.window.innerWidth;
+  try {
+    Object.defineProperty(dom.window, 'innerWidth', { configurable: true, value: 251 });
+    Object.defineProperty(avatar, 'offsetWidth', { configurable: true, get: () => 45 });
+    Object.defineProperty(avatar, 'offsetHeight', { configurable: true, get: () => 45 });
+    avatar.getBoundingClientRect = () => ({ left: avatar.position.x, top: avatar.position.y, width: 45, height: 45 });
+    // CSS has already resized, but the asynchronous observer still caches desktop dimensions.
+    avatar.movementBox = { width: 72, height: 72 };
+    Object.assign(layout, { left: 69.2734375, top: 100, width: 110, height: 110 });
+    avatar.reduced = true;
+    avatar.entrance = declaration;
+    await drain();
+    assert.deepEqual(errors, []);
+    assert.equal(avatar.position.x, 195.2734375, 'must not clamp against stale 72px width to x179');
+    assert.equal(avatar.position.y, 132.5);
+  } finally {
+    Object.defineProperty(dom.window, 'innerWidth', { configurable: true, value: width });
+  }
+});
+
+test('responsive entrance refreshes a grown host before ResizeObserver delivery', async () => {
+  const { avatar, layout, declaration, errors } = fixture();
+  const width = dom.window.innerWidth;
+  try {
+    Object.defineProperty(dom.window, 'innerWidth', { configurable: true, value: 400 });
+    Object.defineProperty(avatar, 'offsetWidth', { configurable: true, get: () => 90 });
+    Object.defineProperty(avatar, 'offsetHeight', { configurable: true, get: () => 90 });
+    avatar.getBoundingClientRect = () => ({ left: avatar.position.x, top: avatar.position.y, width: 90, height: 90 });
+    avatar.movementBox = { width: 20, height: 20 };
+    Object.assign(layout, { left: 100, top: 100, width: 120, height: 120 });
+    avatar.reduced = true;
+    avatar.entrance = declaration;
+    await drain();
+    assert.deepEqual(errors, []);
+    assert.deepEqual(avatar.position, { x: 236, y: 115 });
+    assert.deepEqual(avatar.movementBox, { width: 90, height: 90 });
+  } finally {
+    Object.defineProperty(dom.window, 'innerWidth', { configurable: true, value: width });
+  }
 });

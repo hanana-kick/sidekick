@@ -1,0 +1,34 @@
+<!doctype html><meta charset="utf-8"><title>Shared GitHub header QA</title>
+<style>body{font:13px system-ui;margin:12px}iframe{display:block;width:320px;height:480px;border:1px solid #888;margin-block:12px}pre{white-space:pre-wrap;max-width:900px}button,select{padding:8px;margin:3px}</style>
+<h1>Shared GitHub header QA</h1>
+<p>Serve this fixture from the build root. Test all three pages and four locales, including 320 × 480. Use Tab to inspect the GitHub focus outline. External navigation opens a new tab.</p>
+<label>Page <select id="route"><option value="">Studio</option><option value="guide.html">Guide</option><option value="api-playground.html">API</option></select></label>
+<label>Locale <select id="locale"><option>ko</option><option>en</option><option>zh-CN</option><option>ja</option></select></label>
+<label>Width <select id="width"><option>320</option><option>375</option><option>420</option><option>421</option><option>760</option><option>1280</option></select></label>
+<label><input id="privacy" type="checkbox" checked>Inert collapsed privacy layout mock (no tracking)</label><button id="measure">Measure</button><iframe id="app" title="Sidekick test viewport" src="./?lang=ko"></iframe><pre id="result">Loading…</pre>
+<script>
+const app=document.querySelector('#app'),result=document.querySelector('#result');
+const inside=(a,b)=>a.left>=b.left-1&&a.right<=b.right+1&&a.top>=b.top-1&&a.bottom<=b.bottom+1;
+async function measure(){
+ const d=app.contentDocument,w=app.contentWindow;await d.fonts.ready;await new Promise(r=>w.requestAnimationFrame(()=>w.requestAnimationFrame(r)));
+ const header=d.querySelector('.app-header'),settings=d.querySelector('.settings-scroll'),preview=d.querySelector('.previews'),github=d.querySelector('.site-github');if(!header||!github){result.textContent='Page is still loading';return;}
+ if(settings && !d.querySelector('.site-analytics') && document.querySelector('#privacy').checked){
+  const aside=d.createElement('aside');aside.className='site-analytics';aside.dataset.qaMock='true';
+  const button=d.createElement('button');button.className='site-analytics-toggle';button.type='button';
+  button.textContent={ko:'방문 통계',en:'Analytics','zh-CN':'访问统计',ja:'アクセス解析'}[d.documentElement.lang];
+  const panel=d.createElement('section');panel.hidden=true;panel.textContent='Inert QA-only privacy panel. No analytics code, storage or network requests.';
+  button.onclick=()=>{panel.hidden=!panel.hidden;button.setAttribute('aria-expanded',String(!panel.hidden))};
+  button.setAttribute('aria-expanded','false');aside.append(button,panel);header.classList.add('has-inline-privacy');header.append(aside);
+ }
+ if(!document.querySelector('#privacy').checked){d.querySelector('[data-qa-mock]')?.remove();if(!d.querySelector('.site-analytics'))header.classList.remove('has-inline-privacy')}
+ const h=header.getBoundingClientRect(),g=github.getBoundingClientRect();
+ const nav=[...d.querySelectorAll('.product-nav a')].map(el=>{const rect=el.getBoundingClientRect(),range=d.createRange();range.selectNodeContents(el);return {text:el.textContent,inside:inside(rect,h),inkInside:[...range.getClientRects()].every(r=>inside(r,rect)),width:rect.width,height:rect.height}});
+ const selects=[...header.querySelectorAll('select')].map(el=>{const s=w.getComputedStyle(el),r=el.getBoundingClientRect(),c=d.createElement('canvas').getContext('2d');c.font=s.font;const textWidth=c.measureText(el.selectedOptions[0].textContent).width;return {text:el.selectedOptions[0].textContent,width:r.width,textWidth,start:s.paddingInlineStart,end:s.paddingInlineEnd,arrow:s.backgroundPosition,fullLabelFits:textWidth+parseFloat(s.paddingInlineStart)+parseFloat(s.paddingInlineEnd)+2<=r.width,inside:inside(r,h)}});
+ const overlaps=[...header.querySelectorAll('select,.product-nav,.brand')].some(el=>{const r=el.getBoundingClientRect();return Math.min(r.right,g.right)>Math.max(r.left,g.left)+1&&Math.min(r.bottom,g.bottom)>Math.max(r.top,g.top)+1});
+ result.textContent=JSON.stringify({viewport:{width:w.innerWidth,height:w.innerHeight},headerHeight:h.height,github:{href:github.href,label:github.getAttribute('aria-label'),inside:inside(g,h),overlaps,width:g.width,height:g.height},settings:settings?{client:settings.clientHeight,scroll:settings.scrollHeight,pass:settings.clientHeight>=50&&settings.scrollHeight>settings.clientHeight}:null,previewHeight:preview?.getBoundingClientRect().height,nav,selects,pageOverflow:{x:d.documentElement.scrollWidth>w.innerWidth,y:d.documentElement.scrollHeight>w.innerHeight}},null,2);
+}
+app.onload=()=>setTimeout(measure,1200);
+document.querySelector('#measure').onclick=measure;document.querySelector('#privacy').onchange=measure;
+for(const id of ['locale','route'])document.querySelector('#'+id).onchange=()=>{app.src='./'+document.querySelector('#route').value+'?lang='+document.querySelector('#locale').value};
+document.querySelector('#width').onchange=e=>{app.style.width=e.target.value+'px';setTimeout(measure,300)};
+</script>

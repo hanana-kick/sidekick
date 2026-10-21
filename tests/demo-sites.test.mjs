@@ -1,3 +1,4 @@
+import { emitSourceEvent } from '../playground/example-source-event.js';
 import { scenarioCopy, cheaperMatch } from '../playground/demo-scenarios.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,9 +8,12 @@ import { JSDOM } from 'jsdom';
 const siteExports = { company: 'renderCompany', shop: 'renderShop', community: 'renderCommunity' };
 async function mount(t, site, locale = 'en') {
   const dom = new JSDOM('<!doctype html><body><div id="demo-content"></div></body>', {
-    url: `https://sidekick.test/api-demo.html?site=${site}&lang=${locale}`, runScripts: 'outside-only', pretendToBeVisual: true,
+    url: `https://sidekick.test/api-demo.html?site=${site}&lang=${locale}&sourceGeneration=1`, runScripts: 'outside-only', pretendToBeVisual: true,
   });
   const w = dom.window;
+  w.emitSourceEvent = emitSourceEvent;
+  w.sourceEvents = [];
+  Object.defineProperty(w, 'parent', {value:{postMessage:data=>w.sourceEvents.push(data)}});
   w.document.body.className = site;
   w.HTMLElement.prototype.scrollIntoView = function () {};
   w.scrollTo = () => {};
@@ -17,6 +21,7 @@ async function mount(t, site, locale = 'en') {
   w.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   w.HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new w.Event('close')); };
   const source = (await readFile(new URL(`../playground/demos/${site}.js`, import.meta.url), 'utf8'))
+    .replace(/^import \{ emitSourceEvent \} from [^;]+;$/gm, '')
     .replace(/^import\s+['"][^'"]+\.css['"];?\s*$/gm, '')
     .replace(/^import \{ scenarioCopy \} from ['"][^'"]+['"];?$/gm, `const scenarioCopy = ${JSON.stringify(scenarioCopy)};`)
     .replace(/import\.meta\.env\.BASE_URL/g, "'./'")
@@ -172,7 +177,7 @@ for (const locale of ['en', 'ko', 'ja', 'zh-CN']) {
  const f=await mount(t,'shop');assert.equal(f.adapter.getScenarioState().saved.length,0);f.$('[data-wish="13"]').click();const state=f.adapter.getScenarioState();assert.deepEqual([...state.saved],[13]);assert.equal(state.products.find(p=>p.id===13).price,95);assert.equal(state.products.find(p=>p.id===1).price,89);assert.equal(cheaperMatch(state.products,[9],0),null,'skirt cannot recommend a tee');assert.equal(cheaperMatch(state.products,[21],9).item.id,9,'skirt editions are comparable');
  });
  test('local community arrivals insert real feed posts and visible notifications in every locale',async t=>{
- for(const locale of ['ko','en','ja','zh-CN']){const f=await mount(t,'community',locale);const before=f.$$('.th-post').length;let event;f.root.addEventListener('sidekick-demo-arrival',e=>event=e.detail);f.adapter.simulateArrival('mention');assert.equal(f.$$('.th-post').length,before+1);assert.ok(f.$('#th-feed').textContent.includes('@alexmorgan'));assert.equal(f.$('.th-notification-dot').hidden,false);assert.equal(event.kind,'mention');}
+ for(const locale of ['ko','en','ja','zh-CN']){const f=await mount(t,'community',locale);const before=f.$$('.th-post').length;let event;f.root.addEventListener('sidekick-demo-arrival',e=>event=e.detail);f.adapter.simulateArrival('mention');assert.equal(f.$$('.th-post').length,before+1);assert.ok(f.$('#th-feed').textContent.includes('@alexmorgan'));assert.equal(f.$('.th-notification-dot').hidden,false);assert.equal(event.kind,'mention');assert.deepEqual(f.w.sourceEvents.map(e=>e.id),['community-mention']);f.adapter.simulateArrival('post');assert.deepEqual(f.w.sourceEvents.map(e=>e.id),['community-mention','community-post']);}
  });
 
 test('wishlist hit targets remain stationary while desktop quick view appears',async()=>{

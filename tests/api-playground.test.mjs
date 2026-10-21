@@ -546,3 +546,16 @@ test('reduced-motion demo CSS never introduces asynchronous host geometry transi
 test('speech editor runs exactly the copied text/options',async t=>{
  const f=await controllerFixture(t),{$,w}=f;const bot=$('bot');$('action-kind').value='speech';$('action-kind').dispatchEvent(new w.Event('change',{bubbles:true}));$('speech-text').value='Plain <b>text</b>\nSecond line';$('speech-text').dispatchEvent(new w.Event('input',{bubbles:true}));$('speech-duration').value='0';$('speech-duration').dispatchEvent(new w.Event('input',{bubbles:true}));$('execute').click();await new Promise(resolve=>setImmediate(resolve));const call=bot.calls.findLast(c=>c.method==='say');assert.ok(call);assert.equal(call.args[0],'Plain <b>text</b>\nSecond line');assert.equal(call.args[1].duration,0);assert.match($('invocation').textContent,/say\(/);$('speech-operation').value='clearSpeech';$('speech-operation').dispatchEvent(new w.Event('change',{bubbles:true}));$('execute').click();await new Promise(resolve=>setImmediate(resolve));assert.equal(bot.calls.at(-1).method,'clearSpeech');
 });
+
+test('blank taps require an open editor or an explicitly started manual session', async t => {
+  const f = await controllerFixture(t);
+  const tap = () => { f.pointer('pointerdown', 700, 500); f.pointer('pointerup', 700, 500); };
+  const moves = () => f.bot.calls.filter(call => call.method === 'moveTo').length;
+  f.$('bot-tools-close').click();
+  const initial = moves(); tap();
+  assert.equal(moves(), initial, 'closed autonomous browsing is not a movement command');
+  f.$('bot-tools-launcher').click(); tap();
+  assert.equal(moves(), initial + 1, 'opening the editor enables manual taps');
+  f.$('bot-tools-close').click(); tap();
+  assert.equal(moves(), initial + 2, 'the explicit tap starts manual mode, retained after closing');
+});

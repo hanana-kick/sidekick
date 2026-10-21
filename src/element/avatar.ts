@@ -562,6 +562,9 @@ export class SidekickAvatar extends HTMLElementBase {
           if (transform && transform !== 'none') { const matrix = new DOMMatrixReadOnly(transform); if (!matrix.is2D || Math.abs(matrix.b) > .000001 || Math.abs(matrix.c) > .000001) throw new TypeError('entrance target cannot have rotated, skewed or 3D-transformed ancestors'); }
         }
       }
+      // Responsive CSS can precede ResizeObserver delivery. Presence must clamp
+      // this fresh entrance geometry against the same current host dimensions.
+      this.measureMovementBox();
       const geometry = entrancePositions(config, rect.width, rect.height, view.innerWidth, view.innerHeight, target?.getBoundingClientRect());
       const offset = { x: rect.left - this.position.x, y: rect.top - this.position.y };
       const local = (point: AvatarPosition): AvatarPosition => ({ x: point.x - offset.x, y: point.y - offset.y });

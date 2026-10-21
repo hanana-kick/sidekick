@@ -1,7 +1,9 @@
+import { mountExampleSource } from './example-source-viewer.js';
 import { scenarioCopy } from './demo-scenarios.js';
 /** Only repository-owned demo documents can be mounted here. */
 export function mountAPIPreview(doc, text, { locale, onReset, onReady, onError, onToggle = () => {} }) {
   const win = doc.defaultView, $ = id => doc.getElementById(id);
+  const source = mountExampleSource(doc, { locale });
   const panel = $('bot-tools'), launcher = $('bot-tools-launcher');
   let revision = 0, runtime = null, frame = null, language = locale(), status = 'previewLoading';
   function setOpen(open, restore = true) {
@@ -17,11 +19,13 @@ export function mountAPIPreview(doc, text, { locale, onReset, onReady, onError, 
     if (event.key === 'Escape' && !panel.hidden) { event.preventDefault(); setOpen(false); }
   });
   const refreshLabels = () => {
+    source.refreshLabels();
     $('preview-status').textContent = text(status);
     if($('scenario-hint'))$('scenario-hint').textContent=(scenarioCopy[language]||scenarioCopy.en).hint[['company','shop','community'].indexOf($('preview-site').value)]||'';
     if (frame) frame.title = `${text('previewFrameTitle')} · ${text(`preview.${$('preview-site').value}`)}`;
   };
   function disposeFrame() {
+    source.setContext(null);
     try { onReset(); }
     finally {
       try { runtime?.dispose(); }
@@ -40,6 +44,7 @@ export function mountAPIPreview(doc, text, { locale, onReset, onReady, onError, 
     next.setAttribute('sandbox', 'allow-scripts allow-same-origin');
     next.setAttribute('referrerpolicy', 'no-referrer');
     const url = new URL('./api-demo.html', win.location.href);
+    url.searchParams.set('sourceGeneration', String(generation));
     url.searchParams.set('site', selected); url.searchParams.set('lang', language);
     next.src = url.href;
     next.addEventListener('load', async () => {
@@ -57,13 +62,15 @@ export function mountAPIPreview(doc, text, { locale, onReset, onReady, onError, 
         status = 'previewFailed'; refreshLabels(); onError(error);
       }
     }, { once: true });
-    $('preview-surface').append(next); refreshLabels();
+    $('preview-surface').append(next);
+    source.setContext({ frame: next, origin: win.location.origin, site: selected, generation: String(generation) });
+    refreshLabels();
   }
   $('preview-site').addEventListener('change', load);
   $('preview-refresh').addEventListener('click', load);
   win.addEventListener('pagehide', event => {
     if (event.persisted) return;
-    ++revision; disposeFrame();
+    ++revision; disposeFrame(); source.dispose();
   });
   return {
     setOpen, start: load,

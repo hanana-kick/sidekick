@@ -1,0 +1,19 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Actual example source QA</title>
+<style>body{margin:0;font:14px system-ui}header{padding:10px;background:#f8fafc}iframe{width:100%;height:85vh;border:0}button{padding:8px}output{white-space:pre-wrap}</style>
+<header>Authored QA fixture. The embedded page is the real API playground, not a simulated viewer.
+<button id="width390">390px mobile</button><button id="width1280">1280px desktop</button><a href="./example-source-error-qa.html">Load failure / retry fixture</a>
+<button id="verify">Verify displayed source bytes / markers</button><output id="result" role="status"></output>
+<details><summary>Interaction and mobile checks</summary>
+<ol><li>Open Example source. Scroll NOVA to Design / Sound / Compare / Configure. Wait for the real bot speech. The matching authored section and presentation lines highlight.</li><li>Switch to Shop. Save a more expensive item with ♡; browse a cheaper same-category item. Source highlights only when the real recommendation speaks.</li><li>Switch to Community. Scroll to receive a local new post; publish locally to receive a mention. Arrival source highlights when it is actually inserted.</li><li>Reset or switch while a recommendation is moving. Old source highlights must disappear. Try all four locales.</li><li>Wheel/touch/keyboard-read code: follow turns off. Enable follow to jump back. Tab keys, arrow-key file tabs, Copy file, collapse/reopen all work without interrupting the example.</li><li>At 390px width the source is a nonmodal disclosure below the still-interactive iframe. At 1280px it is beside the iframe. No horizontal page overflow, focus theft or motion when reduced-motion is enabled.</li></ol></details></header>
+<iframe id="app" title="Real API playground" src="../../api-playground.html?lang=en"></iframe>
+<script type="module">
+import {loadExampleSource} from '../../playground/example-source-bundle.js';
+for(const width of [390,1280])document.querySelector('#width'+width).onclick=()=>{document.querySelector('#app').style.width=width+'px';};
+document.querySelector('#verify').onclick=async()=>{
+ const doc=document.querySelector('#app').contentDocument,site=doc.querySelector('#preview-site').value,files=await loadExampleSource(site),path=doc.querySelector('.source-path')?.textContent,file=files.find(f=>f.path===path);
+ if(!file){document.querySelector('#result').textContent='Open Example source first.';return;}
+ const shown=[...doc.querySelectorAll('.source-line code')].map(n=>n.textContent),expected=file.text.split('\n').map(line=>line||' ');
+ const checks={file:path,exactLines:JSON.stringify(shown)===JSON.stringify(expected),highlightedLines:[...doc.querySelectorAll('.is-highlighted')].map(n=>Number(n.dataset.line)),focus:doc.activeElement?.tagName,pageOverflow:doc.documentElement.scrollWidth>doc.documentElement.clientWidth,sourceOpen:doc.querySelector('.example-source').open};
+ document.querySelector('#result').textContent=JSON.stringify(checks,null,2);
+};
+</script></html>

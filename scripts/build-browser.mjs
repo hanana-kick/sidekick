@@ -12,7 +12,8 @@ export async function buildBrowser({ libraryDirectory = resolve(root, 'dist/libr
   const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   const notice = readFileSync(join(root, 'third_party/material-shapes/NOTICE'), 'utf8');
   const license = readFileSync(join(root, 'third_party/material-shapes/LICENSE'), 'utf8');
-  const header = `/*! Sidekick ${version} | UNLICENSED; no license is granted for Sidekick itself.\n\nThird-party Material Shapes notices and Apache-2.0 license:\n${notice}\n${license}\n*/`;
+  const sidekickLicense = readFileSync(join(root, 'LICENSE'), 'utf8');
+  const header = `/*! Sidekick ${version} | Sidekick Library and Character License 1.0; see LICENSE.\n\n${sidekickLicense}\n\nThird-party Material Shapes notices and Apache-2.0 license:\n${notice}\n${license}\n*/`;
   const common = { minify: true, comments: false, sourcemap: false, postBanner: header };
   // Resolve the worker beside the published script, never beside the HTML page.
   // Classic scripts must capture currentScript while their entry is evaluating.

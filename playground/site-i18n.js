@@ -42,10 +42,10 @@ export function localizedSiteHref(path, language = locale) {
   return `${pathname}?${params}${hash === undefined ? '' : `#${hash}`}`;
 }
 export const SITE_MESSAGES = Object.freeze({
-  ko: { home: 'Sidekick 스튜디오 홈', navigation: 'Sidekick 메뉴', language: '언어', studio: '스튜디오', api: 'API 체험', guide: '가이드', studioTitle: 'Sidekick · 스튜디오', apiTitle: 'Sidekick · API 체험', guideTitle: 'Sidekick · 가이드' },
-  en: { home: 'Sidekick Studio home', navigation: 'Sidekick navigation', language: 'Language', studio: 'Studio', api: 'API playground', guide: 'Guide', studioTitle: 'Sidekick · Studio', apiTitle: 'Sidekick · API playground', guideTitle: 'Sidekick · Guide' },
-  'zh-CN': { home: 'Sidekick 工作室首页', navigation: 'Sidekick 导航', language: '语言', studio: '工作室', api: 'API 体验', guide: '指南', studioTitle: 'Sidekick · 工作室', apiTitle: 'Sidekick · API 体验', guideTitle: 'Sidekick · 指南' },
-  ja: { home: 'Sidekick スタジオのホーム', navigation: 'Sidekick ナビゲーション', language: '言語', studio: 'スタジオ', api: 'API 体験', guide: 'ガイド', studioTitle: 'Sidekick · スタジオ', apiTitle: 'Sidekick · API 体験', guideTitle: 'Sidekick · ガイド' },
+  ko: { home: 'Sidekick 스튜디오 홈', github: 'GitHub 저장소 (새 탭에서 열기)', navigation: 'Sidekick 메뉴', language: '언어', studio: '스튜디오', api: 'API 체험', guide: '가이드', studioTitle: 'Sidekick · 스튜디오', apiTitle: 'Sidekick · API 체험', guideTitle: 'Sidekick · 가이드' },
+  en: { home: 'Sidekick Studio home', github: 'GitHub repository (opens in a new tab)', navigation: 'Sidekick navigation', language: 'Language', studio: 'Studio', api: 'API playground', guide: 'Guide', studioTitle: 'Sidekick · Studio', apiTitle: 'Sidekick · API playground', guideTitle: 'Sidekick · Guide' },
+  'zh-CN': { home: 'Sidekick 工作室首页', github: 'GitHub 仓库（在新标签页中打开）', navigation: 'Sidekick 导航', language: '语言', studio: '工作室', api: 'API 体验', guide: '指南', studioTitle: 'Sidekick · 工作室', apiTitle: 'Sidekick · API 体验', guideTitle: 'Sidekick · 指南' },
+  ja: { home: 'Sidekick スタジオのホーム', github: 'GitHub リポジトリ（新しいタブで開く）', navigation: 'Sidekick ナビゲーション', language: '言語', studio: 'スタジオ', api: 'API 体験', guide: 'ガイド', studioTitle: 'Sidekick · スタジオ', apiTitle: 'Sidekick · API 体験', guideTitle: 'Sidekick · ガイド' },
 });
 export function translateSite(key) { return SITE_MESSAGES[locale][key] ?? SITE_MESSAGES.ko[key] ?? key; }
 applyDocumentLocale();

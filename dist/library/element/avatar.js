@@ -787,6 +787,9 @@ export class SidekickAvatar extends HTMLElementBase {
                     }
                 }
             }
+            // Responsive CSS can precede ResizeObserver delivery. Presence must clamp
+            // this fresh entrance geometry against the same current host dimensions.
+            this.measureMovementBox();
             const geometry = entrancePositions(config, rect.width, rect.height, view.innerWidth, view.innerHeight, target?.getBoundingClientRect());
             const offset = { x: rect.left - this.position.x, y: rect.top - this.position.y };
             const local = (point) => ({ x: point.x - offset.x, y: point.y - offset.y });

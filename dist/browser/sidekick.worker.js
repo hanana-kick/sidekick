@@ -1,4 +1,97 @@
-/*! Sidekick 0.16.0 | UNLICENSED; no license is granted for Sidekick itself.
+/*! Sidekick 0.16.0 | Sidekick Library and Character License 1.0; see LICENSE.
+
+Sidekick Library and Character License 1.0
+
+Copyright (c) 2026 the respective Sidekick authors and rights holders.
+
+1. Scope and definitions
+
+This license applies only to the Sidekick material distributed with this license
+that its respective rights holders are entitled to license (the "Material").
+"Library" means the software, source code, compiled bundles, APIs, documentation,
+and examples in the Material. "Official Character" means the original expressive
+Sidekick character artwork and character designs embodied in this distribution's
+built-in character compositions, facial designs, accessories, poses and animations,
+including their rendered images and adaptations that retain that expression.
+Changing a color, shape option, accessory, name, medium, or file format does not by
+itself remove the retained Official Character expression from this definition.
+
+The Official Character does not include the idea of an animated companion, style
+alone, generic shapes or familiar symbols, algorithms, public-domain material, or
+independently created user or third-party artwork that does not copy protected
+Sidekick expression. Using the Library alone does not make an independently
+created character an Official Character or transfer ownership of user content.
+Third-party material is excluded from this license and remains governed by its
+own licenses and notices, even when included in the same file or bundle.
+
+2. Library use and embedding
+
+Permission is granted, free of charge and worldwide, to use, reproduce, modify,
+combine, distribute, and provide the Library in source or compiled form, including
+in proprietary, paid, subscription-based, advertising-supported, and other
+commercial or noncommercial websites, applications, products and services, subject
+only to the conditions of this license. There is no embedding fee, revenue limit,
+application-category restriction, source-disclosure requirement, or required
+on-screen attribution. You may charge for applications, services, integrations,
+support and software distributions incorporating the Library.
+
+This permission includes displaying, animating, and customizing the Official
+Character as an embedded interface element or companion, and making the copies
+and adaptations needed for that use. Normal screenshots, recordings, documentation,
+app-store listings, demonstrations and advertising of the embedding product may
+show that embedded use. Neither charging for the embedding product nor the mere
+presence of the Official Character in it is Character Commercialization.
+
+3. No commercialization of the character itself
+
+No permission is granted to commercialize the Official Character itself, whether
+unchanged or adapted ("Character Commercialization"). This includes selling,
+licensing, renting, or otherwise monetizing the Official Character or rights to it
+as merchandise, physical or digital stickers or emoticons, avatar or skin packs,
+digital collectibles (including NFTs), standalone images, animations, models,
+character assets, or other character-based goods or content. It also includes
+paid character-specific unlocks and offering such items as paid, sponsored,
+promotional, or bundled goods, even if called free or included in another price.
+Embedding the Library in a character-asset sales or distribution interface does
+not authorize the prohibited commercialization of the Official Character.
+
+This restriction does not prohibit the commercial embedding and ordinary product
+advertising expressly permitted by section 2, nor the sale or licensing of wholly
+independent user-created characters excluded by section 1. Noncommercial personal
+use and sharing of the Official Character are permitted under this license.
+
+4. Redistribution and notices
+
+Keep this license and applicable copyright and third-party notices with copies or
+substantial portions of the Material that you distribute. Notices may accompany a
+product in its license files or legal notices; they need not appear beside the
+embedded character. Do not offer the Material under terms that purport to grant
+Character Commercialization rights. Recipients receive the permissions in this
+license directly from the relevant rights holders. Your own code and independent
+content may use different terms. No ownership of the Official Character, or right
+to imply endorsement by Sidekick, is granted.
+
+5. Earlier versions and independent rights
+
+This license applies to copies distributed under it. It does not withdraw, replace,
+or restrict rights already granted under another license, including any prior MIT
+license, or rights independently obtained from other rights holders. Earlier
+releases retain their applicable terms. This license does not claim new exclusive
+rights over third-party or public-domain material and does not limit uses allowed
+by applicable law without permission, including applicable copyright exceptions.
+
+6. Disclaimer
+
+To the extent permitted by applicable law, the Material is provided as is, without
+warranties of any kind, express or implied, including merchantability, fitness for
+a particular purpose, and noninfringement. To that extent, the authors and rights
+holders are not liable for claims, damages, or other liability arising from the
+Material or its use, whether in contract, tort, or otherwise.
+
+This is a custom license, not the MIT License or an OSI-approved open-source
+license. The English text in this file is authoritative; README summaries are
+explanations and do not replace these terms.
+
 
 Third-party Material Shapes notices and Apache-2.0 license:
 Material Shapes contour data and recipe generator

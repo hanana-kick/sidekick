@@ -78,8 +78,10 @@ async function executeAndCompare(page) {
   assert.deepEqual((await calls(page))[before], expected.find(call => call.method));
   return expected[0];
 }
-async function blankPoint(page) {
-  if (await page.locator('#bot-tools').isVisible()) await page.locator('#bot-tools-close').click();
+async function blankPoint(page, { openEditor = true } = {}) {
+  // Inline controls do not cover the iframe. An open editor explicitly enables
+  // manual blank-tap movement; closing an unused editor restores on-site mode.
+  if (openEditor) await openTools(page);
   await page.frameLocator('#site-preview-frame').locator('#free-space').scrollIntoViewIfNeeded();
   return page.evaluate(() => {
     const frame = document.querySelector('#site-preview-frame'), child = frame.contentWindow;
@@ -412,7 +414,17 @@ for (const width of [320, 1280]) test(`preview shell ${width}px: closed panel, k
   assert.equal(await page.locator('#site-preview-frame').count(), 1);
   assert.equal(await page.locator('#bot-tools-launcher').evaluate(el => el === document.activeElement), true);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
-  await page.frameLocator('#site-preview-frame').locator('#free-space').click();
+  const autonomous = await blankPoint(page, { openEditor: false });
+  const beforeAutonomousTap = (await calls(page)).length;
+  await page.mouse.click(autonomous.x, autonomous.y);
+  assert.equal((await calls(page)).length, beforeAutonomousTap, 'ordinary site browsing must not become manual movement');
+  await openTools(page);
+  await page.locator('#execute').click();
+  await page.locator('#bot-tools-close').click();
+  const manual = await blankPoint(page, { openEditor: false });
+  const beforeManualTap = (await calls(page)).length;
+  await page.mouse.click(manual.x, manual.y);
+  assert.equal((await calls(page)).length, beforeManualTap + 1, 'an explicit API action keeps manual mode after closing');
   assert.equal((await lastCall(page)).method, 'moveTo');
   await page.locator('#bot-tools-launcher').focus(); await page.keyboard.press('Enter');
   assert.equal(await page.locator('#bot-tools-close').evaluate(el => el === document.activeElement), true);

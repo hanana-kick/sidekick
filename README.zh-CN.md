@@ -1313,7 +1313,14 @@ SIDEKICK_HEADED=1 xvfb-run -a npm run test:browser
 
 在 WebGL2 模式下，每个元素使用一个 WebGL 上下文及可复用缓冲区。默认身体+贝雷帽需要 3 次 draw call，眼睛不增加 draw call。DPR 最大为 2；绘制缓冲区的长轴上限在 WebGL2 下为 2048px，在 Canvas2D 下为 384px，两轴应用相同比例。宽或高的宿主中仍保持角色比例。CPU 几何基准测试不保证 GPU 帧时间/FPS。任意 SVG、自定义网格、部件插件、布料物理、像素命中测试、上下文池和 AI 服务集成均不在支持范围内。
 
-本仓库的软件包许可证为 `UNLICENSED`。这不意味着授予公开的开源许可；使用与分发权限请向仓库所有者确认。以下第三方声明须单独保留。
+本软件包使用自定义的 [Sidekick Library and Character License 1.0](LICENSE)，不是 MIT 或 OSI 批准的开源许可证；元数据声明为 `SEE LICENSE IN LICENSE`。
+
+- 可免费在商业及非商业网站和应用中嵌入、修改库，包括付费应用、订阅和广告支持的服务。没有收入上限、源码公开或界面署名要求。展示嵌入产品的常规截图、文档、演示及广告也获允许。
+- 禁止将官方角色本身及保留其受保护表达的改编版本商品化，包括周边、贴纸或表情包、头像或皮肤包、数字收藏品、独立素材、角色付费解锁，以及捆绑销售或促销角色商品。嵌入库并不意味着可以销售角色。
+- 通用形状、第三方素材和未复制 Sidekick 受保护表达的用户原创角色不在限制范围内。允许官方角色的非商业个人使用与分享。
+- 分发时保留 LICENSE 及适用声明。本条款适用于以本条款分发的副本，不追溯变更已有授权（包括 MIT 授权）。英文 LICENSE 为准，本摘要不替代原文。
+
+以下第三方声明须单独保留。
 
 - Material 轮廓：固定版本的 [AndroidX MaterialShapes 源码](https://github.com/androidx/androidx/blob/9a589fa61f8661e0cbef9123dcc98d3c1f655fc7/compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/MaterialShapes.kt)，通过 `graphics-shapes-android:1.1.0` 计算。Apache 2.0 声明及来源见 [`third_party/material-shapes/`](third_party/material-shapes/)。重新生成使用 `scripts/generate-material-shapes.mjs`，仅此任务需要 Java 21+、unzip 和网络。
 - Studio shadcn/ui 源码：[`playground/components/ui/LICENSE.md`](playground/components/ui/LICENSE.md)。静态 Studio 构建也包含该声明。
@@ -1604,7 +1611,7 @@ React SSR 与以前一样安全，ref 在客户端注册后提供。声明式 `p
 
 在 [API 体验](https://sidekick.hananakick.cc/api-playground.html)中选择移动、活动/状态、左右眼表情、鼠标跟踪、身体方向、外观过渡及入场/退场。修改值后，HTML + JavaScript 或 React 代码会立即更新。执行与代码生成基于同一份命令数据。安装和 Studio 角色初始化代码在独立准备区域中提供。
 
-角色使用一个小型透明画布，以 `placement="viewport"` 在整个页面移动，不创建全屏画布。坐标是以 viewport 左上角为基准的 CSS 像素，不叠加页面滚动高度。点击或轻点空白处会将角色中心移到该位置。当前所选任务、输入值和配置代码保持不变；实际点击移动、停止的调用可在独立的“最后执行代码”中查看和复制。切换任务类型后再返回，各项输入仍保留。按钮、表单、链接、代码选择和滚动手势不会触发移动。角色允许指针事件穿透，不阻碍页面操作。
+角色使用一个小型透明画布，以 `placement="viewport"` 在整个页面移动，不创建全屏画布。坐标是以 viewport 左上角为基准的 CSS 像素，不叠加页面滚动高度。打开 API 编辑器或执行手动命令后，点击空白处会将角色中心移到该位置。未执行手动命令就关闭编辑器时，会恢复正常网站互动；重置示例会退出手动模式。当前所选任务、输入值和配置代码保持不变；实际点击移动、停止的调用可在独立的“最后执行代码”中查看和复制。切换任务类型后再返回，各项输入仍保留。按钮、表单、链接、代码选择和滚动手势不会触发移动。角色允许指针事件穿透，不阻碍页面操作。
 
 在相同浏览器、相同 origin 下仅共享 Studio 保存的机器人设计。大小、缩放、朝向、活动、跟踪、暂停等预览设置由各页面独立管理；明确传入的指南设置仍会应用。Studio 本身继续保存和恢复完整场景。API 体验中的临时命令不会覆盖 Studio 保存值。保存数据无效或浏览器存储不可用时，会显示提示和默认角色，不删除原始数据。跨浏览器或设备迁移时，请使用 Studio JSON 导出/导入。
 

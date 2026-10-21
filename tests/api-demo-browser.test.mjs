@@ -230,12 +230,13 @@ test('element anchors follow iframe scrolling and blank taps use child viewport 
     return { x: bot.position.x - target.x, y: bot.position.y - target.y, scroll: scrollY };
   });
   const before = await relation();
+  const parentScrollBefore = await page.evaluate(() => scrollY);
   await frame.evaluate(() => scrollBy(0, 100));
   await frame.waitForFunction(() => scrollY > 0);
   await page.waitForTimeout(100);
   const after = await relation();
   assert.ok(Math.abs(after.x - before.x) < 2 && Math.abs(after.y - before.y) < 2, 'anchored relative position survives inner scrolling');
-  assert.equal(await page.evaluate(() => scrollY), 0, 'the scroll occurred in the child, not the controls page');
+  assert.equal(await page.evaluate(() => scrollY), parentScrollBefore, 'child scrolling must not change the inline controls page scroll');
   await openTools(page);
   await page.locator('#detach-anchor').click();
   await closeTools(page);
@@ -243,7 +244,9 @@ test('element anchors follow iframe scrolling and blank taps use child viewport 
   await frame.waitForFunction(() => scrollY === 0);
   const point = { x: 12, y: 100 };
   assert.equal(await frame.evaluate(point => Boolean(document.elementFromPoint(point.x, point.y)?.closest('button,input,select,textarea,label,a,summary,pre,details')), point), false);
+  await page.locator('#site-preview-frame').scrollIntoViewIfNeeded();
   const outer = await page.locator('#site-preview-frame').boundingBox();
+  assert.equal(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.id, { x: outer.x + point.x, y: outer.y + point.y }), 'site-preview-frame', 'manual tap reaches the actual iframe after inline editor scrolling');
   await page.mouse.click(outer.x + point.x, outer.y + point.y);
   const expected = await frame.evaluate(point => {
     const bot = document.querySelector('#bot');

@@ -1,3 +1,4 @@
+import { emitSourceEvent } from '../example-source-event.js';
 import { scenarioCopy } from '../demo-scenarios.js';
 import './community.css';
 
@@ -45,11 +46,14 @@ export function renderCommunity(root,{locale='en',on=(n,e,f)=>n.addEventListener
  const q=s=>root.querySelector(s),all=s=>root.querySelectorAll(s);
  const scenarioText=scenarioCopy[locale]||scenarioCopy.en;
  let arrivalId=0;
+ // @source-start community-arrival
  function simulateArrival(kind){
   const id=-100000-(++arrivalId);posts.unshift({id,person:0,body:kind==='mention'?scenarioText.localMention:scenarioText.localPost,likes:0,reposts:0,replies:0});
   addNotification(kind==='mention'?scenarioText.mention:scenarioText.post);renderFeed();
   root.dispatchEvent(new root.ownerDocument.defaultView.CustomEvent('sidekick-demo-arrival',{detail:{kind,id}}));
+  emitSourceEvent(kind==='mention'?'community-mention':'community-post',root.ownerDocument.defaultView);
  }
+ // @source-end community-arrival
  function renderFollows(expanded=false){q('#th-follows').innerHTML=(expanded?[5,8,9,6,7]:[5,8,9]).map(i=>`<div class="th-follow-row"><button data-profile="${i}" class="th-follow-person">${avatar(people[i])}<span><strong>${people[i][0]}</strong><small>@${people[i][1]}</small></span></button><button class="th-follow-button ${followed.has(i)?'is-following':''}" data-follow="${i}" aria-pressed="${followed.has(i)}">${followed.has(i)?t.unfollow:t.follow}</button></div>`).join('');}
  function renderFeed(){
   let filtered=posts.filter(p=>(view!=='saved'||p.saved)&&(tab!=='following'||followed.has(p.person)||p.person===-1));

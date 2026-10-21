@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Source loading failure / retry QA</title>
+<link rel="stylesheet" href="../../playground/example-source-viewer.css">
+<style>body{font:14px system-ui;--line:#cbd5e1}button,summary{padding:10px}#preview-surface{min-height:220px;background:#f8fafc}iframe{border:0}pre{margin:0}[hidden]{display:none!important}</style>
+<h1>Authored source loading failure / retry fixture</h1><p>This isolated fixture uses the real source viewer with one intentional loader failure. Open Example source: an error appears. Retry then loads the actual source bundle. No demo events are forged.</p>
+<div id="preview-surface"><iframe title="Inert fixture context" src="about:blank"></iframe></div>
+<script type="module">
+import {mountExampleSource} from '../../playground/example-source-viewer.js';
+let attempt=0;
+const viewer=mountExampleSource(document,{locale:()=> 'en',loader:()=>++attempt===1?Promise.reject(new Error('Intentional QA failure')):import('../../playground/example-source-bundle.js')});
+viewer.setContext({frame:document.querySelector('iframe'),origin:location.origin,site:'company',generation:'fixture'});
+</script></html>

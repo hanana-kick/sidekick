@@ -22,7 +22,7 @@ test('packed core installs offline without React, Studio, or lifecycle builds', 
   for (const script of ['build', 'prepare', 'prepack', 'preinstall', 'install', 'postinstall']) assert.equal(consumer.manifest.scripts[script], undefined);
   for (const name of ['react', 'react-dom', 'vite', 'radix-ui', 'tailwindcss', 'shadcn', 'typescript']) assert.equal(existsSync(join(consumer.directory, 'node_modules', name)), false, `${name} leaked into core install`);
   const files = consumer.packed.files.map(file => file.path);
-  assert.ok(files.every(file => file === 'package.json' || /^README(?:\.(?:en|zh-CN|ja))?\.md$/.test(file) || file.startsWith('dist/library/') || file.startsWith('dist/browser/') || file.startsWith('third_party/material-shapes/')), files.join('\n'));
+  assert.ok(files.every(file => file === 'package.json' || file === 'LICENSE' || /^README(?:\.(?:en|zh-CN|ja))?\.md$/.test(file) || file.startsWith('dist/library/') || file.startsWith('dist/browser/') || file.startsWith('third_party/material-shapes/')), files.join('\n'));
   for (const file of ['README.md', 'README.en.md', 'README.zh-CN.md', 'README.ja.md']) assert.ok(files.includes(file));
   assert.ok(files.includes('dist/library/react.d.ts'));
   for (const file of ['sidekick.js', 'sidekick.iife.js', 'sidekick-react.js', 'sidekick-element.js', 'sidekick-fallback.js', 'sidekick.worker.js']) assert.ok(files.includes('dist/browser/' + file));
@@ -33,8 +33,9 @@ test('packed core installs offline without React, Studio, or lifecycle builds', 
   assert.ok(!consumer.manifest.sideEffects.includes('./dist/library/core.js'));
   // Mesh-based Canvas2D fallback, recovery and four-language docs total ~924 KB packed.
   // Keep a tight total budget and the independent no-React/no-Studio file assertions above.
-  // Speech API adds 16,219 packed bytes (949,129 total); retain a bounded 960 KB budget.
-  assert.ok(consumer.packed.size < 960_000, `Unexpected packed size ${consumer.packed.size}`);
+  // Custom license, six self-contained legal banners and four summaries add about 12.3 KB
+  // (961,548 bytes on the integrated candidate); retain a bounded 970 KB budget.
+  assert.ok(consumer.packed.size < 970_000, `Unexpected packed size ${consumer.packed.size}`);
   const output = consumer.run(['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
     for (const suffix of ['', '/auto', '/register', '/core']) {
@@ -124,7 +125,7 @@ test('pinned local Git dependency installs prebuilt artifacts without the Studio
   const destination = join(directory, 'consumer');
   // This throwaway fixture is the only repository committed by this test. It has
   // no remote and never touches the working repository's index, HEAD or config.
-  for (const path of ['package.json', 'README.md', 'README.en.md', 'README.zh-CN.md', 'README.ja.md', 'dist/library', 'dist/browser', 'third_party/material-shapes']) cpSync(join(root, path), join(repository, path), { recursive: true });
+  for (const path of ['LICENSE', 'package.json', 'README.md', 'README.en.md', 'README.zh-CN.md', 'README.ja.md', 'dist/library', 'dist/browser', 'third_party/material-shapes']) cpSync(join(root, path), join(repository, path), { recursive: true });
   const git = args => execFileSync('git', args, { cwd: repository, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   git(['init', '--quiet']); git(['add', '.']);
   git(['-c', 'user.name=Package fixture', '-c', 'user.email=fixture@invalid.test', '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'Isolated package fixture']);
