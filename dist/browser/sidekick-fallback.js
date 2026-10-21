@@ -1,4 +1,4 @@
-/*! Sidekick 0.16.0 | Sidekick Library and Character License 1.0; see LICENSE.
+/*! Sidekick 0.17.0 | Sidekick Library and Character License 1.0; see LICENSE.
 
 Sidekick Library and Character License 1.0
 

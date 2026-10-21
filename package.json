@@ -1,6 +1,6 @@
 {
   "name": "@hanana-kick/sidekick",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "API-designed flat companions with transparent rendering and direct contour transitions.",
   "type": "module",
   "private": true,
@@ -60,7 +60,7 @@
     "build:studio": "vite build",
     "check:library": "node scripts/build-library.mjs --check",
     "pack:library": "npm run build:library && npm pack",
-    "test:package": "node --test --test-concurrency=1 tests/lifecycle-react.test.mjs tests/behavior-react.test.mjs tests/package.test.mjs tests/react-wrapper.test.mjs tests/build-side-effects.test.mjs tests/browser-bundles.test.mjs tests/docs-api.test.mjs tests/license.test.mjs tests/license-release.test.mjs",
+    "test:package": "node --test --test-concurrency=1 tests/lifecycle-react.test.mjs tests/behavior-react.test.mjs tests/package.test.mjs tests/react-wrapper.test.mjs tests/build-side-effects.test.mjs tests/browser-bundles.test.mjs tests/docs-api.test.mjs tests/license.test.mjs tests/license-release.test.mjs tests/release-version.test.mjs",
     "build:browser": "npm run build:library",
     "pack:release": "npm run check:library && node scripts/package-release.mjs",
     "test:browser:reference": "node --test --test-concurrency=1 tests/first-frame-browser.test.mjs tests/framework-docs-browser.test.mjs tests/framework-example-layout-browser.test.mjs tests/state-reference-browser.test.mjs",
