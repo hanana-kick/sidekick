@@ -674,7 +674,10 @@ export class SidekickAvatar extends HTMLElementBase {
             };
         };
         this.anchorRead = read;
-        this.anchorCleanup = observeElementAnchor(this.ownerDocument, read, () => this.anchorSleeping || this.movement.state.phase === 'idle');
+        // A settled bot does not imply a stationary target: CSS/WAAPI and layout
+        // changes may have no scroll/resize event. Keep the shared visible sampler;
+        // only offscreen/display-none bindings use its existing idle polling.
+        this.anchorCleanup = observeElementAnchor(this.ownerDocument, read, () => this.anchorSleeping);
     }
     positioningTarget;
     positioningRevision = 0;
@@ -770,7 +773,7 @@ export class SidekickAvatar extends HTMLElementBase {
                     return () => {
                         if (revision !== this.anchorRevision || this.positioningDeclaration !== config)
                             return;
-                        this.anchorSleeping = sleeping || this.movement.state.phase === 'idle';
+                        this.anchorSleeping = sleeping;
                         this.movement.suspend(sleeping || this.ownerDocument.hidden);
                         this.movement.followTarget(point);
                     };

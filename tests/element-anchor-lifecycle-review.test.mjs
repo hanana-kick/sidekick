@@ -149,3 +149,21 @@ test('movement RAF before anchor RAF cannot resolve against a last-frame stale t
  for(let time=start+117;time<start+8000&&avatar.movementState.phase!=='idle';time+=16)runAt(time);
  const result=await promise;assert.equal(result.finished,true);assert.equal(result.position.x,270);assert.equal(result.position.y,110);
 });
+
+for (const reduced of [true, false]) test(`settled visible anchor samples layout-only changes on the next frame (${reduced ? 'reduced' : 'normal'} motion)`, async t => {
+  const { avatar, target, layout } = fixture(t);
+  avatar.paused = false; avatar.reduced = reduced;
+  await avatar.moveToElement(target, { anchor: true, duration: 0 });
+  frame(); // Consume initial forced read before changing layout, with no scroll/resize event.
+  assert.equal(avatar.movementState.phase, 'idle');
+  layout.x += 70;
+  frame();
+  if (reduced) {
+    assert.equal(avatar.position.x, 140, 'reduced motion follows the current geometry immediately');
+    layout.x += 117; layout.originY += 30; frame();
+    assert.deepEqual(avatar.position, { x: 257, y: 80 }, 'successive reflow/transform changes must not wait for the idle timer');
+  } else {
+    assert.equal(avatar.movement.track?.to.x, 140, 'normal motion must start pursuing the fresh destination without a 250ms dead gap');
+    assert.notEqual(avatar.movementState.phase, 'idle');
+  }
+});

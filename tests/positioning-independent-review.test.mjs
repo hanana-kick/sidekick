@@ -111,3 +111,16 @@ test('lost-target cancellation progress cannot erase a newer declaration',async(
  avatar.addEventListener('sidekick-move-progress',()=>{if(replaced)return;replaced=true;avatar.positioning={target:'viewport',placement:'top-left'};});
  target.remove();frame();await drain();assert.equal(avatar.positioning?.target,'viewport');assert.ok(avatar.anchorCleanup);
 });
+
+for (const reduced of [true, false]) test(`settled declarative follow samples layout-only changes on the next frame (${reduced ? 'reduced' : 'normal'} motion)`, async () => {
+ const {avatar,target,layout}=fixture();avatar.reduced=reduced;avatar.acceptedAttributes.set('move-duration','0');
+ avatar.positioning={target,placement:'center-right'};await drain();frame();
+ assert.equal(avatar.movementState.phase,'idle');assert.equal(avatar.position.x,316);
+ layout.left+=70;frame();
+ if(reduced){
+  assert.equal(avatar.position.x,386);
+  layout.width+=80;layout.left+=37;frame();assert.equal(avatar.position.x,503);
+ }else{
+  assert.equal(avatar.movement.track?.to.x,386);assert.notEqual(avatar.movementState.phase,'idle');
+ }
+});
