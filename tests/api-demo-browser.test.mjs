@@ -87,8 +87,27 @@ async function snapshot(frame) {
   }));
 }
 
+async function withPlacementDiagnostics(page, name, run) {
+  try { await run(); }
+  catch (error) {
+    const geometry = await page.evaluate(() => {
+      const rect = el => { if (!el) return null; const r = el.getBoundingClientRect(); return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}; };
+      const frame = document.querySelector('#site-preview-frame'), child = frame?.contentDocument;
+      return {parent:{scrollX,scrollY,width:innerWidth,height:innerHeight},frame:rect(frame),
+        child:child ? {scrollX:child.defaultView.scrollX,scrollY:child.defaultView.scrollY,width:child.defaultView.innerWidth,height:child.defaultView.innerHeight,
+          nav:[...child.querySelectorAll('.th-nav button,.th-compose-link')].map(el=>({label:el.getAttribute('aria-label'),...rect(el)})),home:rect(child.querySelector('#th-companion-home')),bot:rect(child.querySelector('#bot'))} : null};
+    }).catch(diagnosticError => ({diagnosticError:diagnosticError.message}));
+    if (process.env.SIDEKICK_SCREENSHOTS) {
+      await mkdir(process.env.SIDEKICK_SCREENSHOTS, {recursive:true});
+      await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/${name}-failure.png`}).catch(()=>{});
+    }
+    throw new Error(`${error.message}\nPlacement diagnostics: ${JSON.stringify(geometry)}`, {cause:error});
+  }
+}
+
 test('three demos contain their own bot and real target; the parent has controls and the original header brand only', { timeout: 90000 }, async t => {
   const page = await pageFor(t);
+  await withPlacementDiagnostics(page, 'demo-initial-placement', async () => {
   for (const site of ['company', 'shop', 'community']) {
     const frame = await switchSite(page, site);
     assert.equal(await page.locator('sidekick-avatar:not(.brand-avatar)').count(), 0);
@@ -104,14 +123,27 @@ test('three demos contain their own bot and real target; the parent has controls
         && bot.ownerDocument.defaultView === window;
     }), true, 'bot and all action targets belong to the child document');
     assert.equal(await frame.locator('vite-error-overlay').count(), 0);
-    const initialPlacement = await frame.locator('#bot').evaluate(bot => ({ actual: bot.position, expected: {
-      x: Math.max(0, innerWidth - bot.offsetWidth - 16), y: Math.max(0, innerHeight - bot.offsetHeight - 16),
-    }}));
-    assert.ok(Math.abs(initialPlacement.actual.x - initialPlacement.expected.x) < 1 && Math.abs(initialPlacement.actual.y - initialPlacement.expected.y) < 1, 'Page-owned corner placement leaves the hero headline clear');
+    if (site === 'community') {
+      await frame.waitForFunction(() => document.querySelector('#bot').elementAnchor?.target === document.querySelector('#th-companion-home'));
+      const placement = await frame.locator('#bot').evaluate(bot => {
+        const actual = bot.getBoundingClientRect(), home = document.querySelector('#th-companion-home').getBoundingClientRect();
+        const intersects = rect => actual.left < rect.right && actual.right > rect.left && actual.top < rect.bottom && actual.bottom > rect.top;
+        return { dx: actual.left - home.left, dy: actual.top - home.top,
+          obstructed: [...document.querySelectorAll('.th-feed-header h1,.th-feed-header button,.th-nav button,#community-compose,.th-compose-link')].some(el => intersects(el.getBoundingClientRect())) };
+      });
+      assert.ok(Math.abs(placement.dx) < 1 && Math.abs(placement.dy) < 1, 'Community rests at its reserved semantic header anchor');
+      assert.equal(placement.obstructed, false, 'Community home leaves heading, navigation and composer clear');
+    } else {
+      const initialPlacement = await frame.locator('#bot').evaluate(bot => ({ actual: bot.position, expected: {
+        x: Math.max(0, innerWidth - bot.offsetWidth - 16), y: Math.max(0, innerHeight - bot.offsetHeight - 16),
+      }}));
+      assert.ok(Math.abs(initialPlacement.actual.x - initialPlacement.expected.x) < 1 && Math.abs(initialPlacement.actual.y - initialPlacement.expected.y) < 1, 'Page-owned corner placement leaves the hero headline clear');
+    }
     await frame.locator('#bot').evaluate(bot => { bot.size = 231; });
     assert.equal(await frame.locator('#bot').evaluate(bot => bot.offsetWidth), 231, 'explicit size remains authoritative');
     await frame.locator('#bot').evaluate(bot => { bot.size = 115; });
   }
+  });
 });
 
 test('each example is a complete long-form surface with local loaded imagery and distinct structure', { timeout: 90000 }, async t => {
@@ -463,8 +495,17 @@ test('normal-motion company stories respond after scrolling away without stale n
 
 test('narrow empty community keeps compose and navigation clear of its message', {timeout:60000}, async t=>{
  const page=await pageFor(t,{viewport:{width:320,height:700}});
+ await withPlacementDiagnostics(page, 'community-empty-navigation', async () => {
  const frame=await switchSite(page,'community');
- await frame.locator('[data-nav="notifications"]').click();
+ // Selecting a site leaves the preview below the parent fold. Scroll the actual
+ // preview into view before interacting with its child-viewport-fixed navigation.
+ await page.locator('#preview-surface').scrollIntoViewIfNeeded();
+ const preview=await page.locator('#site-preview-frame').boundingBox();
+ assert.ok(preview && preview.y>=0 && preview.y+preview.height<=700, `Preview is fully visible: ${JSON.stringify(preview)}`);
+ const notifications=frame.locator('[data-nav="notifications"]');
+ const target=await notifications.boundingBox();
+ assert.ok(target && target.x>=0 && target.x+target.width<=320 && target.y>=0 && target.y+target.height<=700, `Notifications is clickable in the parent viewport: ${JSON.stringify(target)}`);
+ await notifications.click();
  const layout=await frame.evaluate(()=>{
   const rect=el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
   return {message:rect(document.querySelector('.th-empty h2')),compose:rect(document.querySelector('.th-compose-link')),nav:[...document.querySelectorAll('.th-nav button')].map(rect),width:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,height:innerHeight,bar:rect(document.querySelector(".th-left"))};
@@ -481,4 +522,5 @@ test('narrow empty community keeps compose and navigation clear of its message',
  await frame.locator('.th-compose-link').click();
  assert.equal(await frame.locator('#th-compose-text').evaluate(el=>el===document.activeElement),true);
  assert.equal(await frame.locator('#th-feed-title').textContent(),'Home');
+ });
 });
