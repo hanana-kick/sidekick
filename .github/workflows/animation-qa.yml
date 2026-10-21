@@ -5,7 +5,7 @@ on:
       plan:
         description: Pilot first; full only after counter and parity validation
         type: choice
-        options: [pilot, full]
+        options: [pilot, full, screening]
         default: pilot
       graphics:
         description: Full matrix subset; pilot always uses Canvas
@@ -21,15 +21,16 @@ permissions:
   contents: read
 jobs:
   owned-cpu-experiment:
-    name: CPU experiment (${{ matrix.backend }}/${{ matrix.graphics }}) - NOT release CI
+    name: CPU experiment (${{ matrix.backend }}/${{ matrix.graphics }}/${{ matrix.order }}) - NOT release CI
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        backend: ${{ fromJSON(inputs.plan == 'full' && inputs.backend == 'all' && '["main","worker"]' || inputs.plan == 'full' && inputs.backend == 'worker' && '["worker"]' || '["main"]') }}
+        backend: ${{ fromJSON(inputs.plan == 'screening' && '["main","worker"]' || inputs.plan == 'full' && inputs.backend == 'all' && '["main","worker"]' || inputs.plan == 'full' && inputs.backend == 'worker' && '["worker"]' || '["main"]') }}
         graphics: ${{ fromJSON(inputs.plan == 'full' && inputs.graphics == 'all' && '["canvas","swiftshader"]' || inputs.plan == 'full' && inputs.graphics == 'swiftshader' && '["swiftshader"]' || '["canvas"]') }}
+        order: ${{ fromJSON(inputs.plan == 'screening' && '["forward","reverse"]' || '["single"]') }}
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.1.0
@@ -41,17 +42,19 @@ jobs:
       - run: node --test scripts/ci-cpu/*.test.mjs
       - run: node scripts/ci-cpu/prepare.mjs
       - name: Measure owned sandboxed browser process tree
-        run: node scripts/ci-cpu/run.mjs
+        run: |
+          if [ "$BENCH_PLAN" = screening ]; then node scripts/ci-cpu/screen.mjs; else node scripts/ci-cpu/run.mjs; fi
         env:
+          BENCH_ORDER: ${{ matrix.order }}
           BENCH_PLAN: ${{ inputs.plan }}
           BENCH_BACKEND: ${{ matrix.backend }}
           BENCH_GRAPHICS: ${{ matrix.graphics }}
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
-          name: cpu-experiment-${{ matrix.backend }}-${{ matrix.graphics }}
+          name: cpu-experiment-${{ matrix.backend }}-${{ matrix.graphics }}-${{ matrix.order }}
           path: |
-            artifacts/ci-cpu/result.json
-            artifacts/ci-cpu/windows.csv
+            artifacts/ci-cpu/**/result.json
+            artifacts/ci-cpu/**/windows.csv
             scripts/ci-cpu/manifest.json
           if-no-files-found: warn
