@@ -60,3 +60,5 @@ proof of a win or permission to deploy.
 Local validations permitted here: node --test scripts/ci-cpu/owned-process-cpu.test.mjs;
 node scripts/ci-cpu/prepare.mjs; node --check scripts/ci-cpu/run.mjs.
 Actual browser execution is reserved for the separately approved CI runner.
+
+Pilot run 39554610923 stopped before parity or timing: Chrome 155 reported WebGL2 despite the disable-webgl flag. The fixture now passes the existing RuntimeState renderer selector explicitly (canvas2d for Canvas trials, auto for SwiftShader) in both main and worker paths, while retaining the actual-backend assertion. No browser security setting or rendering source was changed.
