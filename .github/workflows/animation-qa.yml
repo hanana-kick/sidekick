@@ -5,14 +5,14 @@ on:
       plan:
         description: Pilot validates harness only; full is a separate fixed experiment
         type: choice
-        options: [pilot, full]
+        options: [pilot, full, perf-capability]
         default: pilot
 permissions:
   contents: read
 jobs:
   full-canvas-cpu:
     name: Canvas CPU (${{ matrix.backend }}/${{ matrix.size }}) - NOT release CI
-    if: github.ref != 'refs/heads/main'
+    if: github.ref != 'refs/heads/main' && inputs.plan != 'perf-capability'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -46,3 +46,23 @@ jobs:
             artifacts/ci-cpu/adapter-provenance.json
             scripts/ci-cpu/manifest.json
           if-no-files-found: warn
+
+  perf-capability:
+    name: Owned task-clock toy capability - NOT browser or release proof
+    if: github.ref != 'refs/heads/main' && inputs.plan == 'perf-capability'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Existing compiler only, one toy invocation, no fallback
+        run: python3 scripts/diagnostics/run-perf-capability.py
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: owned-task-clock-capability
+          path: |
+            artifacts/perf-capability/*.json
+            artifacts/perf-capability/*.jsonl
+            artifacts/perf-capability/*.txt
+            scripts/diagnostics/perf-task-clock-toy.c
+          if-no-files-found: error
