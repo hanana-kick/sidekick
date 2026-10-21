@@ -474,7 +474,7 @@ for (const deviceScaleFactor of [1, 2]) test(`demo visible ink fits64px at DPR${
 
  test('on-site scrolling, real wishlist and local arrivals drive dialogue without floating controls', {timeout:120000}, async t=>{
  const page=await pageFor(t);assert.equal(await page.locator('.flight-toolbar,#cancel-preview').count(),0);assert.equal(await page.locator('#bot-tools-launcher').evaluate(el=>getComputedStyle(el).position==='fixed'),false);
- let frame=await switchSite(page,'company');await frame.locator('#nova-design h2').scrollIntoViewIfNeeded();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/materials|listening|Compare|finish/);
+ let frame=await switchSite(page,'company');await frame.locator('a[href="#nova-design"]').first().click();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/materials|listening|Compare|finish/);
  frame=await switchSite(page,'shop');await frame.locator('[data-wish="13"]').click();await frame.locator('[data-product="1"] .muse-product-picture').scrollIntoViewIfNeeded();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/\$89, \$6 less than your saved style.*Same category; fit may differ/);assert.equal(await frame.locator('#muse-wish-count').textContent(),'1');
  frame=await switchSite(page,'community');await frame.locator('[data-post="4"]').scrollIntoViewIfNeeded();await frame.waitForFunction(()=>document.querySelectorAll('.th-post').length===21);await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/Local demo/);
  await frame.locator('#th-compose-text').fill('A local post for the demo');await frame.locator('#th-publish').click();await frame.waitForFunction(()=>document.querySelector('#th-feed').textContent.includes('Local demo mention:'));await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.textContent.includes('mentioned'),null,{timeout:20000});
@@ -530,24 +530,25 @@ for(const locale of ['en','ko','ja','zh-CN'])for(const width of [320,505])test(`
  const page=await pageFor(t,{viewport:{width,height:761}});
  await withPlacementDiagnostics(page, `company-envelope-${locale}-${width}`, async()=>{
  await page.goto(`${base}/api-playground.html?lang=${locale}`);
- const selectors=['#nova-design h2','#nova-sound .nova-mode-tabs','#nova-compare .nova-heading h2','#nova-configure .nova-finishes>div'];
+ const selectors=['#nova-design>img','#nova-sound .nova-mode-tabs','#nova-compare .nova-heading h2','#nova-configure .nova-config-image'];
  for(const selector of selectors){
   await page.locator('#preview-refresh').click();const frame=await frameFor(page,'company');
   await page.locator('#preview-surface').scrollIntoViewIfNeeded();
-  await frame.locator(selector).scrollIntoViewIfNeeded();
+  if(selector.includes('mode-tabs'))await frame.locator(selector).scrollIntoViewIfNeeded();else await frame.locator(`a[href="${selector.split(' ')[0].replace('>img','')}"]`).first().click();
   await frame.locator('[data-sidekick-speech]').waitFor();
   const result=await frame.evaluate(({selector,measureSource})=>{
    const bot=document.querySelector('#bot'),bubble=document.querySelector('[data-sidekick-speech]').shadowRoot.querySelector('.bubble'),target=document.querySelector(selector),section=target.closest('section');
    const rect=el=>{const r=el.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height};};
-   const measured=Function(`return (${measureSource})`)()(bubble.querySelector('.message').textContent,document,{width:innerWidth});
+   const viewport={left:visualViewport?.offsetLeft||0,top:visualViewport?.offsetTop||0,width:visualViewport?.width||innerWidth,height:visualViewport?.height||innerHeight};viewport.right=viewport.left+viewport.width;viewport.bottom=viewport.top+viewport.height;
+   const measured=Function(`return (${measureSource})`)()(bubble.querySelector('.message').textContent,document,viewport);
    const boxes=[rect(bot),rect(bubble)];const overlaps=(a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
-   const protectedBoxes=[...section.querySelectorAll('h1,h2,h3,p,button,a,input,select,textarea,[role="tablist"],.nova-finishes>div')].map(rect).filter(r=>r.width>1&&r.height>1);
-   return {boxes,measured,inside:boxes.every(r=>r.left>=8&&r.top>=8&&r.right<=innerWidth-8&&r.bottom<=innerHeight-8),overlap:boxes.some(b=>protectedBoxes.some(r=>overlaps(b,r))),focus:document.activeElement?.outerHTML};
+   const protectedBoxes=[...document.querySelector('.nova-site').querySelectorAll('h1,h2,h3,p,button,a,input,select,textarea,[role="tablist"],.nova-finishes>div')].map(rect).filter(r=>r.width>1&&r.height>1&&overlaps(r,viewport));
+   return {boxes,measured,viewport,inside:boxes.every(r=>r.left>=viewport.left+8&&r.top>=viewport.top+8&&r.right<=viewport.right-8&&r.bottom<=viewport.bottom-8),overlap:boxes.some(b=>protectedBoxes.some(r=>overlaps(b,r))),focus:document.activeElement?.outerHTML};
   },{selector,measureSource:measureCompanySpeech.toString()});
   assert.ok(Math.abs(result.measured.width-result.boxes[1].width)<1&&Math.abs(result.measured.height-result.boxes[1].height)<1,'Non-live sizing matches actual speech portal');
   assert.equal(result.inside,true,JSON.stringify({selector,result}));assert.equal(result.overlap,false,JSON.stringify({selector,result}));
   if(selector.includes('mode-tabs'))for(const mode of ['0','1','2']){await frame.locator(`[data-sound-mode="${mode}"][role="tab"]`).click();assert.equal(await frame.locator(`[data-sound-mode="${mode}"][role="tab"]`).getAttribute('aria-selected'),'true');}
-  if(selector.includes('finishes')){await frame.locator('[data-finish="1"]').click();assert.equal(await frame.locator('[data-finish="1"]').getAttribute('aria-pressed'),'true');}
+  if(selector.includes('config-image')){await frame.locator('[data-finish="1"]').click();assert.equal(await frame.locator('[data-finish="1"]').getAttribute('aria-pressed'),'true');}
  }
  });
 });
