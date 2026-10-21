@@ -12,6 +12,11 @@ on:
         type: choice
         options: [all, canvas, swiftshader]
         default: all
+      backend:
+        description: Full matrix subset; pilot always uses main
+        type: choice
+        options: [all, main, worker]
+        default: all
 permissions:
   contents: read
 jobs:
@@ -22,7 +27,9 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(inputs.plan == 'full' && (inputs.graphics == 'canvas' && '{"include":[{"backend":"main","graphics":"canvas"},{"backend":"worker","graphics":"canvas"}]}' || inputs.graphics == 'swiftshader' && '{"include":[{"backend":"main","graphics":"swiftshader"},{"backend":"worker","graphics":"swiftshader"}]}' || '{"include":[{"backend":"main","graphics":"canvas"},{"backend":"worker","graphics":"canvas"},{"backend":"main","graphics":"swiftshader"},{"backend":"worker","graphics":"swiftshader"}]}') || '{"include":[{"backend":"main","graphics":"canvas"}]}') }}
+      matrix:
+        backend: ${{ fromJSON(inputs.plan == 'full' && inputs.backend == 'all' && '["main","worker"]' || inputs.plan == 'full' && inputs.backend == 'worker' && '["worker"]' || '["main"]') }}
+        graphics: ${{ fromJSON(inputs.plan == 'full' && inputs.graphics == 'all' && '["canvas","swiftshader"]' || inputs.plan == 'full' && inputs.graphics == 'swiftshader' && '["swiftshader"]' || '["canvas"]') }}
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.1.0
