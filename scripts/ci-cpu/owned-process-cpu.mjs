@@ -12,3 +12,10 @@ export class OwnedProcessSampler {
  result(){const first=this.samples[0],last=this.samples.at(-1);const initial=new Map(first.processes.map(p=>[p.pid,p]));const final=new Map(last.processes.map(p=>[p.pid,p]));const perProcess=[];for(const [pid,p] of final){const b=initial.get(pid);if(!b){this.issues.push({kind:'new-process-during-window',pid});continue;}if(p.startTicks!==b.startTicks)continue;perProcess.push({pid,startTicks:p.startTicks,userMs:(p.userTicks-b.userTicks)*1000/this.hz,systemMs:(p.systemTicks-b.systemTicks)*1000/this.hz});}
  const wallMs=last.monotonicMs-first.monotonicMs,userMs=perProcess.reduce((s,p)=>s+p.userMs,0),systemMs=perProcess.reduce((s,p)=>s+p.systemMs,0);return {valid:this.issues.length===0,issues:this.issues,ticksPerSecond:this.hz,wallMs,userMs,systemMs,cpuMs:userMs+systemMs,cpuPercent:100*(userMs+systemMs)/wallMs,perProcess,samples:this.samples};}
 }
+
+// This gate does not repair or include any CPU interval. It only waits before
+// a fresh authoritative sampler starts; every failed probe remains recorded.
+export class OwnershipStabilityGate {
+ constructor({minimumMs=60000,stableMs=30000,maximumMs=120000}={}){Object.assign(this,{minimumMs,stableMs,maximumMs});this.started=null;this.since=null;this.signature=null;}
+ observe(snapshot,issues=[]){const now=snapshot.monotonicMs;if(this.started===null)this.started=now;const signature=issues.length?null:snapshot.processes.map(p=>`${p.pid}:${p.startTicks}`).sort().join(',');if(signature===null||signature!==this.signature){this.signature=signature;this.since=signature===null?null:now;}const elapsed=now-this.started,stableFor=this.since===null?0:now-this.since;return {ready:signature!==null&&elapsed>=this.minimumMs&&stableFor>=this.stableMs,timedOut:elapsed>=this.maximumMs,elapsed,stableFor};}
+}
