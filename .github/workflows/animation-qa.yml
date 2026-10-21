@@ -5,7 +5,7 @@ on:
       plan:
         description: Pilot first; full only after counter and parity validation
         type: choice
-        options: [pilot, full, screening, ownership]
+        options: [pilot, full, screening, ownership, capability]
         default: pilot
       graphics:
         description: Full matrix subset; pilot always uses Canvas
@@ -22,7 +22,7 @@ permissions:
 jobs:
   owned-cpu-experiment:
     name: CPU experiment (${{ matrix.backend }}/${{ matrix.graphics }}/${{ matrix.order }}) - NOT release CI
-    if: github.ref != 'refs/heads/main'
+    if: github.ref != 'refs/heads/main' && inputs.plan != 'capability'
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.plan == 'ownership' && 8 || 30 }}
     strategy:
@@ -57,4 +57,22 @@ jobs:
             artifacts/ci-cpu/**/result.json
             artifacts/ci-cpu/**/windows.csv
             scripts/ci-cpu/manifest.json
+          if-no-files-found: warn
+
+  cgroup-capability:
+    name: Read-only owned cgroup capability - NOT performance or release CI
+    if: github.ref != 'refs/heads/main' && inputs.plan == 'capability'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Test path resolution without accessing cgroups
+        run: python3 -m unittest discover -s scripts/ci-cpu -p 'test_cgroup_capability.py'
+      - name: Read only this process's cgroup capability facts
+        run: python3 scripts/ci-cpu/cgroup-capability.py
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: cgroup-capability-only
+          path: artifacts/ci-cpu/cgroup-capability/result.json
           if-no-files-found: warn
