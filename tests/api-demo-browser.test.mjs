@@ -94,7 +94,7 @@ test('three demos contain their own bot and real target; the parent has controls
     assert.equal(await page.locator('sidekick-avatar:not(.brand-avatar)').count(), 0);
     assert.equal(await page.locator('#site-preview-frame').count(), 1);
     assert.equal(await frame.locator('sidekick-avatar').count(), 1);
-    assert.deepEqual(await frame.locator('#bot').evaluate(bot => ({ size: bot.size, width: bot.offsetWidth, height: bot.offsetHeight })), { size: 144, width: 144, height: 144 });
+    assert.deepEqual(await frame.locator('#bot').evaluate(bot => ({ size: bot.size, width: bot.offsetWidth, height: bot.offsetHeight })), { size: 115, width: 115, height: 115 });
     assert.equal(await frame.locator('h1').count(), 1);
     assert.ok((await frame.locator('h1').textContent()).trim());
     assert.equal(await frame.evaluate(() => {
@@ -110,7 +110,7 @@ test('three demos contain their own bot and real target; the parent has controls
     assert.ok(Math.abs(initialPlacement.actual.x - initialPlacement.expected.x) < 1 && Math.abs(initialPlacement.actual.y - initialPlacement.expected.y) < 1, 'Page-owned corner placement leaves the hero headline clear');
     await frame.locator('#bot').evaluate(bot => { bot.size = 231; });
     assert.equal(await frame.locator('#bot').evaluate(bot => bot.offsetWidth), 231, 'explicit size remains authoritative');
-    await frame.locator('#bot').evaluate(bot => { bot.size = 144; });
+    await frame.locator('#bot').evaluate(bot => { bot.size = 115; });
   }
 });
 
@@ -414,4 +414,24 @@ test('embedded shop sorting uses the same inset native chevron and preserves opt
   assert.ok(actual.left >= 0 && actual.right <= actual.viewport, 'sort remains within narrow shop viewport');
   await sort.focus(); await page.keyboard.press('Home'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Tab');
   assert.equal(await sort.inputValue(), '1');
+});
+
+
+for (const deviceScaleFactor of [1, 2]) test(`demo visible ink fits64px at DPR${deviceScaleFactor} without shrinking explicit sizes`, { timeout: 60000 }, async t => {
+  const page = await pageFor(t, { deviceScaleFactor });
+  const frame = await frameFor(page);
+  const bounds = await frame.locator('#bot').evaluate(async bot => {
+    bot.trackingMode = 'off'; bot.bodyOrientation = { yaw: 0, pitch: 0, roll: 0 };
+    bot.setActivity('still'); bot.paused = true; bot.seek(0);
+    const image = await bot.capturePixelsAsync();
+    let minX = image.width, minY = image.height, maxX = -1, maxY = -1;
+    for (let y = 0; y < image.height; y++) for (let x = 0; x < image.width; x++) if (image.pixels[(y * image.width + x) * 4 + 3]) {
+      minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+    }
+    const rect = bot.getBoundingClientRect();
+    return { width: (maxX - minX + 1) * rect.width / image.width, height: (maxY - minY + 1) * rect.height / image.height, size: bot.size };
+  });
+  assert.equal(bounds.size, 115);
+  assert.ok(bounds.width >= 54 && bounds.width <= 58, JSON.stringify(bounds));
+  assert.ok(bounds.height >= 63 && bounds.height <= 65.5, '64px target permits antialiased edge rounding: ' + JSON.stringify(bounds));
 });

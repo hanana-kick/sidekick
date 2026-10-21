@@ -38,7 +38,7 @@ test('Studio transfers only edited design to Playground while retaining its own 
   const actual = await page.frameLocator('#site-preview-frame').locator('#bot').evaluate(bot => ({ design: bot.design, size: bot.size, width: bot.getBoundingClientRect().width, height: bot.getBoundingClientRect().height, bodyOrientation: bot.bodyOrientation, zoom: bot.zoom, activity: bot.activity, trackingMode: bot.trackingMode, paused: bot.paused }));
   const expected = JSON.parse(stored);
   assert.deepEqual(actual.design, expected.design); assert.deepEqual(actual.bodyOrientation, { yaw: 0, pitch: 0, roll: 0 });
-  assert.equal(actual.size, 144); assert.equal(actual.width, 144); assert.equal(actual.height, 144); assert.equal(actual.activity, 'idle'); assert.equal(actual.zoom, 1); assert.equal(actual.trackingMode, 'eyes-and-body'); assert.equal(actual.paused, false);
+  assert.equal(actual.size, 115); assert.equal(actual.width, 115); assert.equal(actual.height, 115); assert.equal(actual.activity, 'idle'); assert.equal(actual.zoom, 1); assert.equal(actual.trackingMode, 'eyes-and-body'); assert.equal(actual.paused, false);
   await page.locator('#bot-tools-launcher').click();
   await page.locator('#action-kind').selectOption('expression'); await page.locator('#execute').click();
   assert.equal(await page.evaluate(key => localStorage.getItem(key), key), stored);

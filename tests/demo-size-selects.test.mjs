@@ -5,13 +5,13 @@ import { referenceCSS, compileReferenceAttributes } from '../playground/state-re
 import { createScene } from '../src/core/scene.ts';
 const read = path => readFile(new URL('../' + path, import.meta.url), 'utf8');
 
-test('the page-owned API demo uses 144px without changing renderer defaults', async () => {
-  assert.match(await read('playground/api-demo.js'), /bot\.setAttribute\('size','144'\)/);
+test('the page-owned API demo uses 115px without changing renderer defaults', async () => {
+  assert.match(await read('playground/api-demo.js'), /bot\.setAttribute\('size','115'\)/);
   assert.doesNotMatch(await read('playground/api-demo.css'), /#bot\{[^}]*width:/);
-  assert.match(await read('playground/api-playground.js'), /placement="viewport" size="144"/);
+  assert.match(await read('playground/api-playground.js'), /placement="viewport" size="115"/);
 });
-test('general Guide previews are 144px but lesson-specific and explicit sizes are unchanged', () => {
-  assert.match(referenceCSS('state-emotion'), /#reference-bot\{width:144px;height:144px;margin:0\}/);
+test('general Guide previews are 115px but lesson-specific and explicit sizes are unchanged', () => {
+  assert.match(referenceCSS('state-emotion'), /#reference-bot\{width:115px;height:115px;margin:0\}/);
   assert.match(referenceCSS('state-position'), /width:72px;height:72px/);
   assert.match(referenceCSS('state-behavior'), /width:min\(72px,18vw\)/);
   assert.match(referenceCSS('state-entrance'), /width:min\(72px,18vw\)/);

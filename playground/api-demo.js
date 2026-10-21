@@ -35,7 +35,7 @@ let bot, disposeLifecycle;
 const dispose=()=>{abort.abort();disposeSite?.();disposeLifecycle?.();disposeLifecycle=null;bot?.remove();};
 window.addEventListener('pagehide',event=>{if(!event.persisted)dispose();});
 import('../src/index.ts').then(({createAccessory})=>{
- bot=document.createElement('sidekick-avatar');bot.id='bot';bot.setAttribute('size','144');bot.setAttribute('placement','viewport');bot.setAttribute('interaction','none');bot.setAttribute('aria-label','Sidekick');
+ bot=document.createElement('sidekick-avatar');bot.id='bot';bot.setAttribute('size','115');bot.setAttribute('placement','viewport');bot.setAttribute('interaction','none');bot.setAttribute('aria-label','Sidekick');
  // API validation intentionally requires this realm's plain objects. Clone only
  // serializable scene/actions here; live promises for lifecycle tasks stay here.
  resolveReady({

@@ -74,7 +74,7 @@ test('viewport resize clamps, scrolling keeps fixed coordinates, pointer passes 
   assert.ok(result.scrollY > 0, 'The fixed-position assertion must include actual document scrolling');
   assert.deepEqual(result.rect, { x: 10, y: 240 });
   assert.equal(result.passThrough, true); assert.equal(result.boxTarget, true); assert.equal(result.restoredPassThrough, true);
-  assert.equal(result.nonePointerEvents, 'none'); assert.equal(result.boxPointerEvents, 'auto'); assert.equal(result.width, 180);
+  assert.equal(result.nonePointerEvents, 'none'); assert.equal(result.boxPointerEvents, 'auto'); assert.equal(result.width, 115);
 });
 
 test('actual worker asset swap, pause, play/stop and disconnection settle commands', async t => {
