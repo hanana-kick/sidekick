@@ -1,27 +1,53 @@
-name: Animation visual QA
+name: Verify existing public Pages
 on:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  visual:
+  verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run build:all
-      - run: node node_modules/playwright-core/cli.js install --with-deps chromium ffmpeg
-      - run: xvfb-run -a node --test --test-concurrency=1 tests/animation-continuity-browser.test.mjs tests/presence-continuity-browser.test.mjs
+      - name: Install Chromium for the live deployment check
+        run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - name: Verify the deployed custom domain and project redirect in Chromium
+        run: xvfb-run -a node --test tests/live-pages.test.mjs
         env:
+          SIDEKICK_LIVE_URL: https://sidekick.hananakick.cc/
           SIDEKICK_HEADED: '1'
           SIDEKICK_SCREENSHOTS: artifacts
-      - uses: actions/upload-artifact@v7.0.2
+      - name: Walk through the published Guide on desktop and mobile
+        run: xvfb-run -a node --test --test-name-pattern='visible complete catalog walkthrough|guide progresses|legacy use-case URL|Guide translates' tests/use-cases-browser.test.mjs
+        env:
+          SIDEKICK_USECASES_LIVE_URL: https://sidekick.hananakick.cc
+          SIDEKICK_HEADED: '1'
+          SIDEKICK_SCREENSHOTS: artifacts
+      - name: Verify contextual Guide navigation on the published site
+        run: xvfb-run -a node --test --test-name-pattern='direct reload, source scroll' tests/guide-navigation-browser.test.mjs
+        env:
+          SIDEKICK_GUIDE_LIVE_URL: https://sidekick.hananakick.cc
+          SIDEKICK_HEADED: '1'
+          SIDEKICK_SCREENSHOTS: artifacts
+      - name: Verify published interactive state reference in both frameworks
+        run: xvfb-run -a node --test --test-name-pattern='state pages.*in en|mobile controls' tests/state-reference-browser.test.mjs
+        env:
+          SIDEKICK_STATE_LIVE_URL: https://sidekick.hananakick.cc
+          SIDEKICK_HEADED: '1'
+          SIDEKICK_SCREENSHOTS: artifacts
+      - name: Save live Pages screenshots
         if: always()
+        uses: actions/upload-artifact@v7.0.2
         with:
-          name: animation-visuals
+          name: sidekick-live-pages
           path: artifacts/
+          if-no-files-found: ignore
