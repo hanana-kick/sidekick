@@ -92,7 +92,8 @@ test('lifecycle reference validates public JSON and preserves matching typed Rea
  const props=referenceReactProps(attributes);for(const key of ['presence','task','home'])assert.deepEqual(props[key],valid[key]);
  const html=referenceSource(scene,valid,'element','state-lifecycle'),dom=new JSDOM(html);
  for(const key of ['presence','task','home'])assert.deepEqual(JSON.parse(dom.window.document.querySelector('sidekick-avatar').getAttribute(key)),valid[key]);
- assert.match(html,/sidekick@v0\.16\.0/);dom.window.close();
+ const {version}=JSON.parse(readFileSync(new URL('../package.json',import.meta.url),'utf8'));
+ assert.ok(html.includes(`sidekick@v${version}/`));dom.window.close();
 });
 
 test('behavior demo bounds are explicit, scoped and identical in copied framework source',()=>{

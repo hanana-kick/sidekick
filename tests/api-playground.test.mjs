@@ -360,7 +360,8 @@ test('direct lifecycle preset opens a valid guide return link and app outcomes r
  f.$('execute').click();await new Promise(resolve=>setImmediate(resolve));
  assert.equal(f.bot.home.positioning.target,'#reference-home');assert.equal(f.bot.task,null);
  f.child.document.querySelector('[data-lifecycle-action="wait"]').click();
- assert.equal(f.bot.task.status,'pending');assert.match(f.$('invocation').textContent,/sidekick@v0\.16\.0/);
+ const {version}=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8'));
+ assert.equal(f.bot.task.status,'pending');assert.ok(f.$('invocation').textContent.includes(`sidekick@v${version}/`));
  f.child.document.querySelector('[data-lifecycle-action="success"]').click();await new Promise(resolve=>setImmediate(resolve));
  assert.equal(f.bot.task.status,'success');
  f.child.document.querySelector('[data-lifecycle-action="follow"]').click();assert.equal(f.bot.task.id,2);
