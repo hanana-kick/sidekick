@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
 import {readFileSync} from 'node:fs';
-import {cheaperMatch,installDemoScenarios,scenarioCopy} from '../playground/demo-scenarios.js';
-function setup(t,site,markup,adapter={}){
+import {cheaperMatch,installDemoScenarios,scenarioCopy,scenarioPlacement,captureDemoEngagement} from '../playground/demo-scenarios.js';
+function setup(t,site,markup,adapter={},beforeInstall=()=>false){
  const dom=new JSDOM(`<div id="root">${markup}</div><div id="bot"></div>`,{pretendToBeVisual:true,url:`https://sidekick.test/api-demo.html?site=${site}&sourceGeneration=4`});t.after(()=>dom.window.close());const w=dom.window,root=w.document.querySelector('#root'),bot=w.document.querySelector('#bot'),calls=[];
  const sourceEvents=[];Object.defineProperty(w,'parent',{value:{postMessage:data=>sourceEvents.push(data)}});
  w.matchMedia=()=>({matches:true});let observer;w.IntersectionObserver=class{constructor(cb){this.cb=cb;observer=this;}observe(){}disconnect(){} emit(target){this.cb([{target,isIntersecting:true,intersectionRatio:.7}]);}};
  for(const node of root.querySelectorAll('*'))node.getBoundingClientRect=()=>({width:200,height:100,top:50,bottom:150});
  Object.assign(bot,{moveToElement:async(el,options)=>calls.push(['move',el,options]),say:(text,options)=>calls.push(['say',text,options]),clearSpeech:()=>calls.push(['clear']),cancelMove:()=>{},detachAnchor:()=>calls.push(['detach'])});
- const api=installDemoScenarios({bot,root,site,adapter,window:w});t.after(()=>api.dispose());return{w,root,bot,calls,api,sourceEvents,observe:el=>observer.emit(el)};
+ const initialEngaged=beforeInstall(root,w);const api=installDemoScenarios({bot,root,site,adapter,initialEngaged,window:w});t.after(()=>api.dispose());return{w,root,bot,calls,api,sourceEvents,observe:el=>observer.emit(el)};
 }
 const flush=()=>new Promise(resolve=>setTimeout(resolve,0));
 test('company scroll reaches real sections and speaks only once, with reduced motion',async t=>{
@@ -48,4 +48,138 @@ test('one-shot arrival during movement is queued and released after the cooldown
 });
 test('offscreen completion releases its anchor instead of showing stale speech',async t=>{
  const x=setup(t,'company','<section id="nova-design"></section>');const target=x.root.firstChild;let resolve;x.bot.moveToElement=()=>new Promise(r=>resolve=r);x.observe(target);x.w.dispatchEvent(new x.w.Event('scroll'));target.getBoundingClientRect=()=>({width:200,height:100,top:-200,bottom:-100});resolve();await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);assert.ok(x.calls.some(c=>c[0]==='detach'));
+});
+
+test('leaving a narrated section lets the next visible section respond without the old cooldown',async t=>{
+ const x=setup(t,'company','<section id="nova-design"></section><section id="nova-sound"></section>');
+ const [first,second]=x.root.children;x.observe(first);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
+ first.getBoundingClientRect=()=>({width:200,height:100,top:-200,bottom:-100});
+ x.observe(second);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='say').length,2,'new visible story should not inherit a dismissed story cooldown');
+});
+test('queued shopping advice is revalidated when the saved reference is removed',async t=>{
+ let saved=[1],clock=10000;const products=[{id:1,cat:2,price:89,name:'Saved coat'},{id:2,cat:2,price:64,name:'Coat A'},{id:3,cat:2,price:59,name:'Coat B'}];
+ const x=setup(t,'shop','<div id="muse-product-grid"><article data-product="2"></article><article data-product="3"></article></div>',{getScenarioState:()=>({products,saved})});
+ t.mock.method(Date,'now',()=>clock);const scheduled=new Map();let next=0;x.w.setTimeout=(fn,ms)=>{scheduled.set(++next,{fn,ms});return next;};x.w.clearTimeout=id=>scheduled.delete(id);
+ const [first,second]=x.root.querySelectorAll('article');x.observe(first);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();x.observe(second);await flush();
+ saved=[];clock+=8000;for(const job of [...scheduled.values()])job.fn();await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='say').length,1,'removed saved product cannot support later advice');
+});
+test('cancelled movement does not count as a delivered story',async t=>{
+ const x=setup(t,'company','<section id="nova-design"></section>');x.bot.moveToElement=async()=>({finished:false});x.observe(x.root.firstChild);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='say').length,0,'do not announce arrival after a cancelled move');
+});
+test('removing the saved comparison dismisses currently visible shopping advice',async t=>{
+ let saved=[1];const products=[{id:1,cat:2,price:89,name:'Saved coat'},{id:2,cat:2,price:64,name:'Coat'}];
+ const x=setup(t,'shop','<div id="muse-product-grid"><article data-product="2"></article></div>',{getScenarioState:()=>({products,saved})});
+ x.observe(x.root.querySelector('article'));x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
+ const before=x.calls.filter(c=>c[0]==='clear').length;saved=[];x.root.click();await flush();
+ assert.ok(x.calls.filter(c=>c[0]==='clear').length>before,'an invalidated recommendation must not linger');
+});
+test('community notification arriving behind a modal waits until the dialog closes',async t=>{
+ const x=setup(t,'community','<button data-nav="notifications"></button><header class="th-feed-header"></header><dialog open></dialog>');
+ x.root.dispatchEvent(new x.w.CustomEvent('sidekick-demo-arrival',{detail:{id:7,kind:'mention'}}));await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='say').length,0,'a modal must not consume a hidden notification');
+ const dialog=x.root.querySelector('dialog');dialog.removeAttribute('open');dialog.dispatchEvent(new x.w.Event('close'));await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='say').length,1,'closing the modal delivers the deferred notification');
+});
+test('a cancelled delivery does not discard an independent queued community arrival',async t=>{
+ const x=setup(t,'community','<button data-nav="notifications"></button><header class="th-feed-header"></header>');let resolve;
+ x.bot.moveToElement=()=>new Promise(r=>resolve=r);
+ x.root.dispatchEvent(new x.w.CustomEvent('sidekick-demo-arrival',{detail:{id:1,kind:'post'}}));
+ x.root.dispatchEvent(new x.w.CustomEvent('sidekick-demo-arrival',{detail:{id:2,kind:'mention'}}));
+ x.bot.moveToElement=async()=>({finished:true});resolve({finished:false});await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='say').length,1);assert.match(x.calls.find(c=>c[0]==='say')[1],/mentioned/);
+});
+
+test('company observes the compact semantic target, not a tall enclosing section',async t=>{
+ const x=setup(t,'company','<section id="nova-sound"><div class="nova-mode-tabs"></div></section>');
+ const section=x.root.firstChild,target=section.firstChild;section.getBoundingClientRect=()=>({width:300,height:2000,top:-800,bottom:1200});
+ x.observe(target);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
+ assert.equal(x.calls.find(c=>c[0]==='move')[1],target);
+ assert.equal(x.calls.find(c=>c[0]==='say')[2].dismissible,true);
+});
+test('narrow navigation and shopping placement reserve control clearance from actual box sizes',()=>{
+ for(const viewport of [320,459]){
+  const nav={left:viewport*.4,right:viewport*.6,top:370,bottom:428,width:viewport*.2,height:58};
+  const p=scenarioPlacement('community',nav,115,115,viewport,428);
+  assert.ok(nav.top+p.y+115<=nav.top-16,'bot ends above the bottom navigation');
+  const image={left:0,right:150,top:80,bottom:300,width:150,height:220};
+  const shop=scenarioPlacement('shop',image,115,115,viewport,428);
+  assert.ok(image.top+shop.y>=image.top&&image.top+shop.y+115<=image.bottom,'bot stays in the image, above product actions');
+ }
+ const desktop=scenarioPlacement('community',{left:24,right:220,top:210,bottom:258,width:196,height:48},115,115,1280,800);
+ assert.equal(220-115+desktop.x,232,'desktop bot clears the navigation to its right');
+});
+test('a clipped cheaper picture does not starve the next fully visible recommendation',async t=>{
+ const products=[{id:1,cat:2,price:89,name:'Saved coat'},{id:2,cat:2,price:64,name:'Clipped coat'},{id:3,cat:2,price:59,name:'Visible coat'}];
+ const x=setup(t,'shop','<div id="muse-product-grid"><article data-product="2"><div class="muse-product-picture"></div></article><article data-product="3"><div class="muse-product-picture"></div></article></div>',{getScenarioState:()=>({products,saved:[1]})});
+ const [first,second]=x.root.querySelectorAll('article');
+ first.firstChild.getBoundingClientRect=()=>({width:200,height:450,top:-350,bottom:100});
+ second.firstChild.getBoundingClientRect=()=>({width:200,height:250,top:125,bottom:375});
+ x.observe(first);x.observe(second);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
+ assert.equal(x.calls.find(c=>c[0]==='move')[1],second.firstChild);assert.match(x.calls.find(c=>c[0]==='say')[1],/\$59/);
+});
+test('modal mutations cannot clear explicit manual speech while scenarios are paused',async t=>{
+ const x=setup(t,'community','<button data-nav="notifications"></button><dialog></dialog>');x.api.setPaused(true);
+ x.bot.say('Manual speech',{duration:0});const before=x.calls.filter(c=>c[0]==='clear').length;
+ x.root.querySelector('dialog').setAttribute('open','');await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='clear').length,before);
+});
+test('community starts and returns to its reserved home after speech dismissal',async t=>{
+ const x=setup(t,'community','<div id="th-companion-home"></div><button data-nav="notifications"></button>');const home=x.root.firstChild;
+ assert.equal(x.calls.find(c=>c[0]==='move')[1],home);
+ x.bot.say=()=>{const node=x.w.document.createElement('div');node.dataset.sidekickSpeech='';x.w.document.body.append(node);};
+ x.bot.clearSpeech=()=>x.w.document.querySelector('[data-sidekick-speech]')?.remove();
+ x.root.dispatchEvent(new x.w.CustomEvent('sidekick-demo-arrival',{detail:{id:1,kind:'post'}}));await flush();
+ x.w.document.querySelector('[data-sidekick-speech]').remove();await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[1],home);
+});
+test('queued notification supersedes returning home and manual pause forbids autonomous return',async t=>{
+ const x=setup(t,'community','<div id="th-companion-home"></div><button data-nav="notifications"></button>');const home=x.root.firstChild;
+ x.bot.say=()=>{const node=x.w.document.createElement('div');node.dataset.sidekickSpeech='';x.w.document.body.append(node);};
+ x.bot.clearSpeech=()=>x.w.document.querySelector('[data-sidekick-speech]')?.remove();
+ const arrival=id=>x.root.dispatchEvent(new x.w.CustomEvent('sidekick-demo-arrival',{detail:{id,kind:'post'}}));arrival(1);await flush();arrival(2);
+ x.w.document.querySelector('[data-sidekick-speech]').remove();await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='move'&&c[1]===home).length,1,'next event starts without a detour home');
+ x.api.setPaused(true);const count=x.calls.filter(c=>c[0]==='move').length;await flush();assert.equal(x.calls.filter(c=>c[0]==='move').length,count);
+});
+test('returning to a visible community restores its safe home but not during manual ownership',async t=>{
+ const x=setup(t,'community','<div id="th-companion-home"></div><button data-nav="notifications"></button>');let visibility='visible';
+ Object.defineProperty(x.w.document,'visibilityState',{get:()=>visibility,configurable:true});
+ visibility='hidden';x.w.document.dispatchEvent(new x.w.Event('visibilitychange'));visibility='visible';x.w.document.dispatchEvent(new x.w.Event('visibilitychange'));await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='move'&&c[1]===x.root.firstChild).length,2);
+ x.api.setPaused(true);const count=x.calls.filter(c=>c[0]==='move').length;
+ visibility='hidden';x.w.document.dispatchEvent(new x.w.Event('visibilitychange'));visibility='visible';x.w.document.dispatchEvent(new x.w.Event('visibilitychange'));await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='move').length,count);
+});
+test('visibility recovery during notification motion invalidates its stale completion and runs home once',async t=>{
+ const x=setup(t,'community','<div id="th-companion-home"></div><button data-nav="notifications"></button>');let visibility='visible',resolve;
+ Object.defineProperty(x.w.document,'visibilityState',{get:()=>visibility,configurable:true});
+ x.bot.moveToElement=()=>new Promise(r=>resolve=r);
+ x.root.dispatchEvent(new x.w.CustomEvent('sidekick-demo-arrival',{detail:{id:1,kind:'post'}}));
+ visibility='hidden';x.w.document.dispatchEvent(new x.w.Event('visibilitychange'));
+ x.bot.moveToElement=async(el)=>x.calls.push(['move',el]);visibility='visible';x.w.document.dispatchEvent(new x.w.Event('visibilitychange'));x.w.document.dispatchEvent(new x.w.Event('visibilitychange'));
+ resolve({finished:true});await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);assert.equal(x.calls.filter(c=>c[0]==='move'&&c[1]===x.root.firstChild).length,2);
+ x.api.dispose();const count=x.calls.length;x.w.document.dispatchEvent(new x.w.Event('visibilitychange'));await flush();assert.equal(x.calls.length,count);
+});
+test('expired pending target falls back to community home after dismissal',async t=>{
+ const x=setup(t,'community','<div id="th-companion-home"></div><button data-nav="notifications"></button>');
+ x.bot.say=()=>{const node=x.w.document.createElement('div');node.dataset.sidekickSpeech='';x.w.document.body.append(node);};
+ x.bot.clearSpeech=()=>x.w.document.querySelector('[data-sidekick-speech]')?.remove();
+ const arrival=id=>x.root.dispatchEvent(new x.w.CustomEvent('sidekick-demo-arrival',{detail:{id,kind:'post'}}));arrival(1);await flush();arrival(2);
+ x.root.querySelector('button').remove();x.w.document.querySelector('[data-sidekick-speech]').remove();await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[1],x.root.firstChild);
+});
+
+test('early site click before avatar readiness is retained as intent without replaying a stale target',async t=>{
+ const x=setup(t,'company','<section id="nova-compare"><h2>Compare</h2></section>',{},(root,w)=>{const capture=captureDemoEngagement(root,w);root.click();return capture.take();});
+ x.observe(x.root.firstChild);await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,1);
+});
+test('boot intent capture detaches at readiness and disposal, with no cross-site carryover',t=>{
+ const dom=new JSDOM('<div id="root"></div>');t.after(()=>dom.window.close());const w=dom.window,root=w.document.querySelector('#root');
+ const first=captureDemoEngagement(root,w);assert.equal(first.take(),false);root.click();w.dispatchEvent(new w.Event('scroll'));assert.equal(first.take(),false);
+ const consumed=captureDemoEngagement(root,w);root.click();assert.equal(consumed.take(),true);assert.equal(consumed.take(),false);
+ const abandoned=captureDemoEngagement(root,w);root.click();abandoned.dispose();root.click();assert.equal(abandoned.take(),false);
+ const next=captureDemoEngagement(root,w);assert.equal(next.take(),false,'new site starts without prior intent');
 });

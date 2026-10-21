@@ -1,4 +1,4 @@
-import { installDemoScenarios } from './demo-scenarios.js';
+import { installDemoScenarios, captureDemoEngagement } from './demo-scenarios.js';
 import './api-demo.css';
 import { renderCompany } from './demos/company.js';
 import { renderShop } from './demos/shop.js';
@@ -30,10 +30,11 @@ document.head.append(lifecycleStyle);
 document.title = `${brands[site]} · Sidekick`;
 const on = (node, event, fn) => node.addEventListener(event, fn, {signal:abort.signal});
 root.innerHTML = `<div id="free-space"><div id="demo-content"></div><div id="lifecycle-live"></div><footer class="demo-disclosure"><strong>${brands[site]}</strong><p>${notices[locale]}</p><span>Sidekick · ${new Date().getFullYear()}</span></footer></div>`;
+const engagement=captureDemoEngagement(document.getElementById('demo-content'),window);
 const renderers = { company: renderCompany, shop: renderShop, community: renderCommunity };
 const disposeSite = renderers[site](document.getElementById('demo-content'), { locale, on });
 let bot, disposeLifecycle, scenarios;
-const dispose=()=>{scenarios?.dispose();abort.abort();disposeSite?.();disposeLifecycle?.();disposeLifecycle=null;bot?.remove();};
+const dispose=()=>{engagement.dispose();scenarios?.dispose();abort.abort();disposeSite?.();disposeLifecycle?.();disposeLifecycle=null;bot?.remove();};
 window.addEventListener('pagehide',event=>{if(!event.persisted)dispose();});
 import('../src/index.ts').then(({createAccessory})=>{
  bot=document.createElement('sidekick-avatar');bot.id='bot';bot.setAttribute('size','115');bot.setAttribute('placement','viewport');bot.setAttribute('interaction','none');bot.setAttribute('aria-label','Sidekick');
@@ -41,7 +42,7 @@ import('../src/index.ts').then(({createAccessory})=>{
  // serializable scene/actions here; live promises for lifecycle tasks stay here.
  resolveReady({
   bot,document,window,dispose,
-  startScenarios:()=>{scenarios?.dispose();scenarios=installDemoScenarios({bot,root:document.getElementById('demo-content'),site,locale,adapter:disposeSite,window});},
+  startScenarios:()=>{scenarios?.dispose();scenarios=installDemoScenarios({bot,root:document.getElementById('demo-content'),site,locale,adapter:disposeSite,initialEngaged:engagement.take(),window});},
   pauseScenarios:value=>scenarios?.setPaused(value),
   applySession:scene=>applyStudioSession(bot,structuredClone(scene)),
   execute:action=>executeAction(bot,structuredClone(action),createAccessory),

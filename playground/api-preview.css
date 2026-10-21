@@ -4,3 +4,5 @@
 @media(prefers-reduced-motion:no-preference){#bot-tools-launcher{transition:background .15s}}
 
 .preview-url-bar{align-items:center}.preview-url-bar label{font-size:12px;font-weight:600}.preview-url-bar select{flex:1;min-width:140px;max-width:340px}#preview-surface{isolation:isolate}@media(max-width:760px){.preview-url-bar label{flex-basis:100%}.preview-url-bar select{max-width:none}}
+/* A focused iframe must not scroll beneath a sticky parent header. */
+.app-header{position:relative;top:auto}

@@ -185,3 +185,49 @@ test('wishlist hit targets remain stationary while desktop quick view appears',a
  assert.doesNotMatch(css,/\.muse-product-picture:hover \.muse-heart\{bottom:48px\}/);
  assert.match(css,/\.muse-quick-view\{position:absolute;bottom:0;left:0;right:54px;/);
 });
+
+test('community reactions and votes retain mounted posts and focused controls', async t=>{
+ const f=await mount(t,'community');
+ const article=f.$('[data-post-id="0"]'),image=article.querySelector('img');
+ for(const kind of ['liked','saved','reposted']){
+  const button=article.querySelector(`[data-action="${kind}"]`);button.focus();button.click();
+  assert.equal(f.$('[data-post-id="0"]'),article);
+  assert.equal(article.querySelector('img'),image);
+  assert.equal(f.w.document.activeElement,button);
+  assert.equal(button.getAttribute('aria-pressed'),'true');
+  button.click();assert.equal(button.getAttribute('aria-pressed'),'false');
+ }
+ const poll=f.$('[data-vote="1"]'),pollArticle=poll.closest('.th-post');poll.focus();poll.click();
+ assert.equal(f.$('[data-vote="1"]'),poll);
+ assert.equal(poll.closest('.th-post'),pollArticle);
+ assert.equal(poll.disabled,true);
+ assert.match(poll.textContent,/✓.*46%/);
+ assert.equal(f.$('[data-post-id="0"]'),article);
+});
+
+test('community automatic arrivals retain reading position, focus and existing post nodes', async t=>{
+ const f=await mount(t,'community'),posts=f.$$('.th-post'),reading=posts[4],control=reading.querySelector('[data-action="liked"]');
+ let scroll=500;Object.defineProperty(f.w,'scrollY',{get:()=>scroll});
+ const corrections=[];f.w.scrollBy=options=>{corrections.push(options);scroll+=options.top;};
+ // Model a 120px new post prepended above the visible reading position.
+ for(const post of posts)post.getBoundingClientRect=()=>{const i=[...f.$('#th-feed').children].indexOf(post);const top=i*120-scroll;return {top,bottom:top+120};};
+ control.focus();const before=reading.getBoundingClientRect().top;
+ f.adapter.simulateArrival('post');
+ assert.equal(f.$$('.th-post').length,21);
+ assert.equal(f.w.document.activeElement,control);
+ for(const post of posts)assert.equal(f.$(`[data-post-id="${post.dataset.postId}"]`),post);
+ assert.equal(reading.getBoundingClientRect().top,before);
+ assert.equal(corrections.length,1);assert.equal(corrections[0].top,120);assert.equal(corrections[0].behavior,'instant');
+ assert.equal(f.$('.th-notification-dot').hidden,false);
+ scroll=0;f.adapter.simulateArrival('mention');
+ assert.equal(corrections.length,1,'at the top, new posts remain visible without moving the reader');
+ assert.equal(f.$$('.th-post').length,22);
+});
+test('explicit community feed navigation starts at its destination, unlike local reactions',async t=>{
+ const f=await mount(t,'community');const scrolls=[];f.w.scrollTo=options=>scrolls.push(options);
+ f.$('.th-liked').click();f.$('[data-vote]')?.click();f.adapter.simulateArrival('post');assert.equal(scrolls.length,0,'reactions and arrivals keep reading context');
+ f.$('[data-nav="notifications"]').click();assert.deepEqual(JSON.parse(JSON.stringify(scrolls.at(-1))),{top:0,behavior:'instant'});
+ f.$('[data-nav="home"]').click();f.$('[data-tab="following"]').click();assert.equal(scrolls.length,3);
+ const following=f.$('[data-tab="following"]');following.focus();following.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));
+ assert.equal(scrolls.length,4);assert.equal(f.w.document.activeElement,f.$('[data-tab="forYou"]'));
+});

@@ -441,9 +441,44 @@ for (const deviceScaleFactor of [1, 2]) test(`demo visible ink fits64px at DPR${
 
  test('on-site scrolling, real wishlist and local arrivals drive dialogue without floating controls', {timeout:120000}, async t=>{
  const page=await pageFor(t);assert.equal(await page.locator('.flight-toolbar,#cancel-preview').count(),0);assert.equal(await page.locator('#bot-tools-launcher').evaluate(el=>getComputedStyle(el).position==='fixed'),false);
- let frame=await switchSite(page,'company');await frame.locator('#nova-design').scrollIntoViewIfNeeded();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/materials|listening|Compare|finish/);
- frame=await switchSite(page,'shop');await frame.locator('[data-wish="13"]').click();await frame.locator('[data-product="1"]').scrollIntoViewIfNeeded();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/cheaper!.*less than your saved/);assert.equal(await frame.locator('#muse-wish-count').textContent(),'1');
+ let frame=await switchSite(page,'company');await frame.locator('#nova-design h2').scrollIntoViewIfNeeded();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/materials|listening|Compare|finish/);
+ frame=await switchSite(page,'shop');await frame.locator('[data-wish="13"]').click();await frame.locator('[data-product="1"] .muse-product-picture').scrollIntoViewIfNeeded();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/\$89, \$6 less than your saved style.*Same category; fit may differ/);assert.equal(await frame.locator('#muse-wish-count').textContent(),'1');
  frame=await switchSite(page,'community');await frame.locator('[data-post="4"]').scrollIntoViewIfNeeded();await frame.waitForFunction(()=>document.querySelectorAll('.th-post').length===21);await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/Local demo/);
  await frame.locator('#th-compose-text').fill('A local post for the demo');await frame.locator('#th-publish').click();await frame.waitForFunction(()=>document.querySelector('#th-feed').textContent.includes('Local demo mention:'));await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.textContent.includes('mentioned'),null,{timeout:20000});
  await page.locator('#preview-refresh').click();frame=await frameFor(page,'community');assert.equal(await frame.locator('[data-sidekick-speech]').count(),0);assert.equal(await frame.locator('.th-post').count(),20);
  });
+
+
+test('normal-motion company stories respond after scrolling away without stale narration cooldown', {timeout:60000}, async t=>{
+ const page=await pageFor(t,{reducedMotion:'no-preference',viewport:{width:504,height:800}});
+ const frame=await frameFor(page,'company');
+ await frame.locator('.nova-mode-tabs').scrollIntoViewIfNeeded();
+ await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.textContent.includes('listening modes'));
+ await frame.locator('#nova-compare .nova-heading h2').scrollIntoViewIfNeeded();
+ await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.textContent.includes('Compare the models'),null,{timeout:4000});
+ assert.equal(await frame.locator('#bot').evaluate(bot=>bot.elementAnchor.target.matches('#nova-compare .nova-heading h2')),true);
+ const close=frame.locator('[data-sidekick-speech]').getByRole('button',{name:'Dismiss tip'});
+ await close.click();assert.equal(await frame.locator('[data-sidekick-speech]').count(),0);
+});
+
+test('narrow empty community keeps compose and navigation clear of its message', {timeout:60000}, async t=>{
+ const page=await pageFor(t,{viewport:{width:320,height:700}});
+ const frame=await switchSite(page,'community');
+ await frame.locator('[data-nav="notifications"]').click();
+ const layout=await frame.evaluate(()=>{
+  const rect=el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
+  return {message:rect(document.querySelector('.th-empty h2')),compose:rect(document.querySelector('.th-compose-link')),nav:[...document.querySelectorAll('.th-nav button')].map(rect),width:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,height:innerHeight,bar:rect(document.querySelector(".th-left"))};
+ });
+ const intersects=(a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
+ assert.equal(layout.scrollWidth,layout.width);
+ for(const button of [...layout.nav,layout.compose]){assert.ok(button.left>=0&&button.right<=layout.width);assert.ok(button.top>=layout.bar.top&&button.bottom<=Math.min(layout.bar.bottom,layout.height));}
+ assert.ok(layout.compose.width>=40&&layout.compose.height>=40);
+ assert.equal(intersects(layout.message,layout.compose),false);
+ for(const button of layout.nav){assert.ok(button.width>=40&&button.height>=40);assert.equal(intersects(button,layout.compose),false);}
+ // The action lives in the bottom navigation, not in the empty-state reading area.
+ assert.ok(Math.abs(layout.compose.top-layout.nav[0].top)<=4);
+ assert.ok(Math.abs(layout.compose.bottom-layout.nav[0].bottom)<=4);
+ await frame.locator('.th-compose-link').click();
+ assert.equal(await frame.locator('#th-compose-text').evaluate(el=>el===document.activeElement),true);
+ assert.equal(await frame.locator('#th-feed-title').textContent(),'Home');
+});
