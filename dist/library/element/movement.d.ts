@@ -42,6 +42,8 @@ export interface MovementHost {
     render(point: AvatarPosition): void;
     complete(result: MoveResult): void | Promise<void>;
     progress?(state: MovementState): void;
+    /** Refresh a live endpoint only at an arrival boundary, before success is observable. */
+    refreshTarget?(): void;
     presentation?(presentation: MovementPresentation): void;
     requestFrame(callback: FrameRequestCallback): number;
     cancelFrame(id: number): void;

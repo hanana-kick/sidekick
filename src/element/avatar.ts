@@ -1,3 +1,8 @@
+import { validatePartAnimation } from '../core/part-animation.js';
+import type { PartAnimationClip } from '../core/part-animation.js';
+import { PluginEquipmentController } from './plugin-equipment.js';
+import type { PluginAccessoryOptions, PluginAccessoryReference, PluginEquipResult } from './plugin-equipment.js';
+import type { AccessoryPluginRegistry } from '../core/accessory-plugins.js';
 import { SpeechController } from './speech.js';
 import type { SpeechOptions } from './speech.js';
 import { LifecycleController, validateSidekickPresence, validateSidekickTask, validateSidekickHome } from './lifecycle.js';
@@ -23,7 +28,7 @@ import type { TravelPresentation } from '../core/travel.js';
 import { AvatarMovement, validatePosition, validateMoveOptions } from './movement.js';
 import type { AvatarPlacement, AvatarPosition, MovementBounds, MoveResult, MoveOptions, MovementState } from './movement.js';
 import { ACTIVITIES, createAccessory, createDesign, equipAccessory, finite, parseDesign, patchDesign, removeAccessory } from '../core/design.js';
-import type { AccessoryDesign, Activity, AvatarDesign, DesignPatch, RenderStyle, Vec2 } from '../core/design.js';
+import type { AccessorySlot, AccessoryDesign, Activity, AvatarDesign, DesignPatch, RenderStyle, Vec2 } from '../core/design.js';
 import { parseTrackingMode } from '../core/tracking.js';
 import type { TrackingMode } from '../core/tracking.js';
 import { clamp } from '../core/math.js';
@@ -65,6 +70,72 @@ export class SidekickAvatar extends HTMLElementBase {
   removeEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
   removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions): void;
   removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions): void { if (listener) super.removeEventListener(type, listener, options); }
+  private partAnimationState?: { clip: PartAnimationClip; time: number; anchorTime: number; playing: boolean };
+  /** Independent local clip clock; reading never exposes mutable runtime data. */
+  get partAnimation(): { clip: PartAnimationClip; time: number; anchorTime: number; playing: boolean } | undefined {
+    if (!this.partAnimationState) return undefined;
+    const clock = this.partAnimationClock();
+    return { ...structuredClone(this.partAnimationState), time: this.partAnimationTime(clock), anchorTime: clock };
+  }
+  private partAnimationClock(): number {
+    // elapsed is the authoritative clock: seek updates it synchronously, while
+    // acceptSnapshot only advances it after that seek's revision is acknowledged.
+    return this.elapsed;
+  }
+  private partAnimationTime(clock: number): number {
+    const state = this.partAnimationState;
+    return state ? state.time + (state.playing ? clock - state.anchorTime : 0) : 0;
+  }
+  private syncPartAnimation(): void { this.send({ kind: 'state', state: { partAnimation: structuredClone(this.partAnimationState) } }); }
+  setPartAnimation(input: PartAnimationClip): void {
+    const clip = validatePartAnimation(input);
+    // Target ownership is checked before disturbing the currently playing clip.
+    this.validatePartAnimationTargets(clip);
+    this.partAnimationState = { clip, time: 0, anchorTime: this.partAnimationClock(), playing: true };
+    this.syncPartAnimation();
+  }
+  private validatePartAnimationTargets(clip: PartAnimationClip): void {
+    const known = new Set([...this.configuration.accessories.map(item => item.id), ...this.pluginEquipment.references().map(item => item.id)]);
+    for (const track of clip.tracks) if (typeof track.target === 'object' && !known.has(track.target.accessory)) throw new RangeError(`액세서리 ${track.target.accessory}가 없습니다.`);
+  }
+  clearPartAnimation(): void { this.partAnimationState = undefined; this.syncPartAnimation(); }
+  pausePartAnimation(): void {
+    const state = this.partAnimationState;
+    if (!state || !state.playing) return;
+    const clock = this.partAnimationClock();
+    this.partAnimationState = { ...state, time: this.partAnimationTime(clock), anchorTime: clock, playing: false };
+    this.syncPartAnimation();
+  }
+  playPartAnimation(): void {
+    const state = this.partAnimationState;
+    if (!state || state.playing) return;
+    this.partAnimationState = { ...state, anchorTime: this.partAnimationClock(), playing: true };
+    this.syncPartAnimation();
+  }
+  seekPartAnimation(seconds: number): void {
+    const time = finite(seconds, 0, 86400, 'partAnimation.time');
+    if (!this.partAnimationState) return;
+    this.partAnimationState = { ...this.partAnimationState, time, anchorTime: this.partAnimationClock() };
+    this.syncPartAnimation();
+  }
+  private pluginMotionIds = new Set<string>();
+  private pluginEquipment = new PluginEquipmentController(pluginAccessories => {
+    if (pluginAccessories.some(item => this.configuration.accessories.some(builtin => builtin.id === item.id))) throw new RangeError('Plugin and catalog accessory instance ids must be unique.');
+    this.send({ kind: 'state', state: { pluginAccessories } });
+    const ids = new Set(pluginAccessories.map(item => item.id));
+    const removed = [...this.pluginMotionIds].filter(id => !ids.has(id));
+    this.validator.removeAccessories(removed);
+    for (const id of removed) delete this.currentPose.accessories[id];
+    this.pluginMotionIds = ids;
+  });
+  /** Runtime plugin items are separate from catalog design JSON. Returns metadata only. */
+  get pluginAccessories(): PluginAccessoryReference[] { return this.pluginEquipment.references(); }
+  /** Load and equip atomically; a newer request, removal, or disconnect returns finished:false. */
+  equipPluginAccessory(registry: AccessoryPluginRegistry, pluginId: string, options: PluginAccessoryOptions): Promise<PluginEquipResult> {
+    return this.pluginEquipment.equip(registry, pluginId, options);
+  }
+  /** Reveals any catalog accessory underneath this runtime slot. */
+  removePluginAccessory(slot: AccessorySlot): void { this.pluginEquipment.remove(slot); }
   private speech = new SpeechController(this, () => this.position, () => this.connected && !this.presenceHidden);
   /** Replace the current plain-text dialogue. No audio or HTML parsing. */
   say(text: string, options: SpeechOptions = {}): void { this.speech.say(text, options); }
@@ -388,6 +459,7 @@ export class SidekickAvatar extends HTMLElementBase {
       }
       this.emit('sidekick-move-end', result);
     },
+    refreshTarget: () => { this.anchorRead?.()?.(); },
     progress: state => this.emit('sidekick-move-progress', state),
     presentation: travel => { this.travelPresentation = travel; this.send({ kind: 'state', state: { travel } }); },
     requestFrame: callback => requestAnimationFrame(callback), cancelFrame: id => cancelAnimationFrame(id),
@@ -395,17 +467,18 @@ export class SidekickAvatar extends HTMLElementBase {
   private anchorRevision = 0;
   private anchorState: ElementAnchorState | null = null;
   private anchorCleanup?: () => void;
+  private anchorRead?: () => (() => void) | undefined;
   private anchorSleeping = false;
   /** Logical binding only: no reparenting, CSS positioning, or canvas changes. */
   get elementAnchor(): ElementAnchorState | null { return this.anchorState ? { ...this.anchorState } : null; }
   detachAnchor(): void { this.clearPositioning(); this.releaseAnchor(true); }
-  private releaseAnchor(brake: boolean): void { this.anchorRevision++; this.anchorCleanup?.(); this.anchorCleanup = undefined; this.anchorState = null; this.anchorSleeping = false; this.movement.suspend(false); if (brake) this.movement.stopFollowing(); }
+  private releaseAnchor(brake: boolean): void { this.anchorRevision++; this.anchorCleanup?.(); this.anchorCleanup = undefined; this.anchorRead = undefined; this.anchorState = null; this.anchorSleeping = false; this.movement.suspend(false); if (brake) this.movement.stopFollowing(); }
   private attachAnchor(state: ElementAnchorState, behaviorPlacement?: { side: BehaviorSide; gap: number }): void {
     this.releaseAnchor(false); this.anchorState = state;
-    this.anchorCleanup = observeElementAnchor(this.ownerDocument, () => {
+    const read = (): (() => void) | undefined => {
       if (this.anchorState !== state) return;
-      if (!this.isConnected || !state.target.isConnected || state.target.ownerDocument !== this.ownerDocument) { this.detachAnchor(); return; }
-      try { assertAnchorHierarchy(this, state.target); } catch { this.detachAnchor(); return; }
+      if (!this.isConnected || !state.target.isConnected || state.target.ownerDocument !== this.ownerDocument) { return () => { if (this.anchorState === state) this.cancelMove(); }; }
+      try { assertAnchorHierarchy(this, state.target); } catch { return () => { if (this.anchorState === state) this.cancelMove(); }; }
       // display:none has no layout origin: its zero rectangle must not be added
       // to the current translation repeatedly. Keep the binding for restoration.
       if (!this.getClientRects().length || !state.target.getClientRects().length) {
@@ -424,7 +497,7 @@ export class SidekickAvatar extends HTMLElementBase {
       }
       let point: AvatarPosition;
       try { point = resolveElementTarget(this, this.position, state.target, { anchor: true, x: state.x, y: state.y, alignX: state.alignX, alignY: state.alignY }).position; }
-      catch { this.detachAnchor(); return; }
+      catch { return () => { if (this.anchorState === state) this.cancelMove(); }; }
       point = this.constrainPosition(point, true);
       const goal = { left: rect.left + point.x - this.position.x, top: rect.top + point.y - this.position.y, width: rect.width, height: rect.height };
       const sleeping = !inView(rect) && !inView(goal);
@@ -434,7 +507,9 @@ export class SidekickAvatar extends HTMLElementBase {
         this.movement.suspend(sleeping || this.ownerDocument.hidden);
         this.movement.followTarget(this.constrainPosition(point, true));
       };
-    }, () => this.anchorSleeping);
+    };
+    this.anchorRead = read;
+    this.anchorCleanup = observeElementAnchor(this.ownerDocument, read, () => this.anchorSleeping || this.movement.state.phase === 'idle');
   }
   private positioningTarget: Element | null | undefined;
   private positioningRevision = 0;
@@ -486,7 +561,7 @@ export class SidekickAvatar extends HTMLElementBase {
       if (initial) this.movement.relocate(this.constrainPosition(resolved.position, true));
       else this.lifecyclePositionPromise = this.movement.to(this.constrainPosition(resolved.position, true), options).then(result => { if (result.finished) this.presenceController.recovered(owner); return result; });
       if (!config.follow || this.positioningDeclaration !== config || revision !== this.anchorRevision) return;
-      this.anchorCleanup = observeElementAnchor(this.ownerDocument, () => {
+      const read = (): (() => void) | undefined => {
         if (this.positioningDeclaration !== config || revision !== this.anchorRevision) return;
         try {
           // Keep target identity stable: selector reuse must not silently bind to a replacement node.
@@ -506,12 +581,17 @@ export class SidekickAvatar extends HTMLElementBase {
         } catch (error) {
           return () => { if (revision !== this.anchorRevision) return; this.positioningFailed(error); };
         }
-      }, () => this.anchorSleeping);
+      };
+      this.anchorRead = read;
+      this.anchorCleanup = observeElementAnchor(this.ownerDocument, read, () => this.anchorSleeping);
     } catch (error) { this.positioningFailed(error); }
   }
   private positioningFailed(error: unknown): void {
     const owned = this.lifecyclePositionCurrent?.() ?? false;
-    this.clearPositioning(); this.releaseAnchor(true);
+    this.clearPositioning(); this.releaseAnchor(false);
+    const revision = this.positioningRevision;
+    this.movement.cancel();
+    if (revision !== this.positioningRevision) return;
     if (owned) this.lifecycleController.reportError(error);
     else this.emit('sidekick-error', { message: String(error), attribute: 'positioning' });
   }
@@ -718,7 +798,7 @@ export class SidekickAvatar extends HTMLElementBase {
       const timing = validateMotionOptions(options);
       // Probe without mutating even the validation reducer until ownership checks pass.
       void new MotionTimeline({ left: this.configuration.eyes.left, right: this.configuration.eyes.right }).to(target, { ...timing, duration: 0 });
-      for (const id of Object.keys(target.accessories ?? {})) if (!this.configuration.accessories.some(a => a.id === id)) throw new RangeError(`액세서리 ${id}가 없습니다.`);
+      for (const id of Object.keys(target.accessories ?? {})) if (!this.configuration.accessories.some(a => a.id === id) && !this.pluginEquipment.references().some(a => a.id === id)) throw new RangeError(`액세서리 ${id}가 없습니다.`);
       this.interruptBehavior();
       this.validator.pose = structuredClone(this.currentPose);
       void this.validator.to(target, { ...timing, duration: 0 });
@@ -744,6 +824,7 @@ export class SidekickAvatar extends HTMLElementBase {
   async removeAccessory(id: string): Promise<void> { const next = removeAccessory(this.configuration, id); if (!this.playbackCommand) this.playback.cancelTransition(); this.applyDesign(next); }
   private applyDesign(value: unknown, transition?: DesignTransition, explicitEyes: readonly ('left' | 'right')[] = []): void {
     const next = parseDesign(value), previous = this.configuration;
+    if (next.accessories.some(item => this.pluginEquipment.references().some(plugin => plugin.id === item.id))) throw new RangeError('Plugin and catalog accessory instance ids must be unique.');
     const shapeChanged = next.body.shape !== previous.body.shape;
     const changedEyes = (['left', 'right'] as const).filter(side => explicitEyes.includes(side) || transition?.eyeSides?.includes(side) || next.eyes[side].weights.smile !== previous.eyes[side].weights.smile || next.eyes[side].weights.blink !== previous.eyes[side].weights.blink);
     const immediate = this.immediateMotion();
@@ -973,6 +1054,7 @@ export class SidekickAvatar extends HTMLElementBase {
     this.initializeRenderer();
   }
   disconnectedCallback(): void {
+    this.pluginEquipment.disconnect();
     this.clearSpeech();
     this.lifecycleController.suspend('disconnected');
     this.emotionController.cancel('disconnected');
@@ -1256,7 +1338,7 @@ export class SidekickAvatar extends HTMLElementBase {
   }
   private runtimeState(): RuntimeState {
     const rect = this.getBoundingClientRect();
-    return { renderer: this.rendererPreference, emotionEyeOverrides: { ...this.emotionEyeOverrides }, emotion: { emotion: this.emotionState.emotion, intensity: this.emotionState.intensity }, attention: this.behaviorAttention, travel: this.travelPresentation, design: this.design, bodyOrientation: this.bodyOrientation, zoom: this.zoom, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
+    return { partAnimation: structuredClone(this.partAnimationState), pluginAccessories: this.pluginEquipment.instances(), renderer: this.rendererPreference, emotionEyeOverrides: { ...this.emotionEyeOverrides }, emotion: { emotion: this.emotionState.emotion, intensity: this.emotionState.intensity }, attention: this.behaviorAttention, travel: this.travelPresentation, design: this.design, bodyOrientation: this.bodyOrientation, zoom: this.zoom, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
   }
   private syncState(): void {
     this.send({ kind: 'state', state: { attention: this.behaviorAttention, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze } });

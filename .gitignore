@@ -2,6 +2,7 @@ node_modules/
 dist/*
 !dist/library/
 !dist/browser/
+!dist/plugin-sdk/
 artifacts/
 *.tgz
 .env*

@@ -18,6 +18,7 @@ if (outputIndex !== -1 && !process.argv[outputIndex + 1]) throw new Error('--out
 const output = resolve(outputIndex === -1 ? join(root, 'release') : process.argv[outputIndex + 1]);
 await mkdir(output, { recursive: true });
 const stage = await mkdtemp(join(tmpdir(), 'sidekick-release-'));
+const sdkStage = await mkdtemp(join(tmpdir(), 'sidekick-plugin-sdk-release-'));
 const browserFiles = ['sidekick.js', 'sidekick.iife.js', 'sidekick-react.js', 'sidekick-element.js', 'sidekick-fallback.js', 'sidekick.worker.js'];
 const html = (title, body) => `<!doctype html>\n<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{font:16px system-ui;margin:32px;background:#f1f5f9;color:#0f172a}sidekick-avatar{width:280px;height:280px;display:block}</style><body>${body}</body></html>\n`;
 try {
@@ -30,23 +31,37 @@ try {
   await writeFile(join(stage, 'react.html'), html('Sidekick · React', `<h1>Sidekick · React</h1><div id="root"></div><script type="importmap">{"imports":{"react":"./vendor/react.js","react-dom/client":"./vendor/react-dom-client.js"}}</script><script type="module">import { createElement } from 'react';import { createRoot } from 'react-dom/client';import { SidekickAvatar } from './sidekick-react.js';createRoot(document.getElementById('root')).render(createElement(SidekickAvatar,{shape:'cookie6Sided',bodyColor:'#b7a5ce',headAccessory:'crown',trackingMode:'eyes',interaction:'box','aria-label':'나의 도우미',style:{width:280,height:280}}));</script>`));
   await writeFile(join(stage, 'START-HERE.txt'), `Sidekick ${version}\n\nLicense: SEE LICENSE IN LICENSE. Commercial embedding is allowed; character commercialization is prohibited. Preserve LICENSE and third-party notices.\n\n압축을 푼 파일을 웹사이트의 정적 파일 디렉터리에 그대로 올리세요.\nesm.html, classic.html, react.html은 이미 빌드된 파일을 사용하는 예제입니다.\nfile:// 대신 HTTP(S) 주소로 여세요. 소스 빌드나 npm install은 필요하지 않습니다.\n\nsidekick.js + sidekick.worker.js: ESM, 자동 요소 등록\nsidekick.iife.js + sidekick.worker.js: 일반 script, 전역 Sidekick, 자동 요소 등록\nsidekick-react.js + sidekick-element.js + sidekick-fallback.js + sidekick.worker.js: React 래퍼와 렌더러\nvendor/: React 예제에서만 쓰는 선택적 React/ReactDOM 모듈과 라이선스\n\n전체 속성, props, 이벤트, API는 README.md를 확인하세요.\n라이브러리 코어는 React를 사용하지 않습니다.\n`);
   const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
-  await writeFile(join(stage, 'release.json'), JSON.stringify({ name: manifest.name, version, license: manifest.license, sourceCommit, repository: 'https://github.com/hanana-kick/sidekick', browserFiles, examples: ['esm.html', 'classic.html', 'react.html'], optionalReactPeers: manifest.devDependencies.react }, null, 2) + '\n');
+  const sdkArchiveName = `sidekick-plugin-sdk-${version}.zip`;
+  const sdkManifest = JSON.parse(await readFile(join(root, 'dist/plugin-sdk/package.json'), 'utf8'));
+  if (sdkManifest.name !== '@hanana-kick/sidekick-plugin-sdk' || sdkManifest.version !== version || sdkManifest.license !== manifest.license) {
+    throw new Error('Plugin SDK metadata is stale. Run npm run build:library before packaging a release.');
+  }
+  await writeFile(join(stage, 'release.json'), JSON.stringify({ name: manifest.name, version, license: manifest.license, sourceCommit, repository: 'https://github.com/hanana-kick/sidekick', browserFiles, examples: ['esm.html', 'classic.html', 'react.html'], optionalReactPeers: manifest.devDependencies.react, pluginSdk: { name: sdkManifest.name, archive: sdkArchiveName } }, null, 2) + '\n');
+  await cp(join(root, 'dist/plugin-sdk'), sdkStage, { recursive: true });
+  await writeFile(join(sdkStage, 'release.json'), JSON.stringify({ name: sdkManifest.name, version, license: manifest.license, sourceCommit, repository: 'https://github.com/hanana-kick/sidekick', runtime: { name: manifest.name, version }, formats: ['esm', 'commonjs'], entrypoints: { import: 'index.js', require: 'index.cjs' } }, null, 2) + '\n');
   const epoch = Number(execFileSync('git', ['show', '-s', '--format=%ct', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim());
-  const files = [];
-  async function walk(directory, prefix = '') {
+  async function walk(directory, files, prefix = '') {
     for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
       const name = prefix + entry.name, path = join(directory, entry.name);
-      if (entry.isDirectory()) await walk(path, name + '/');
+      if (entry.isDirectory()) await walk(path, files, name + '/');
       else { files.push(name); await utimes(path, epoch, epoch); }
     }
   }
-  await walk(stage);
+  const files = [], sdkFiles = [];
+  await walk(stage, files);
+  await walk(sdkStage, sdkFiles);
   const archive = join(output, `sidekick-browser-${version}.zip`);
   await rm(archive, { force: true });
   execFileSync('zip', ['-q', '-X', archive, ...files], { cwd: stage });
+  const sdkArchive = join(output, sdkArchiveName);
+  await rm(sdkArchive, { force: true });
+  execFileSync('zip', ['-q', '-X', sdkArchive, ...sdkFiles], { cwd: sdkStage });
   const packed = JSON.parse(execFileSync('npm', ['pack', '--ignore-scripts', '--pack-destination', output, '--json'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }))[0];
-  const assets = [archive, join(output, packed.filename)];
+  const assets = [archive, sdkArchive, join(output, packed.filename)];
   const hashes = await Promise.all(assets.map(async path => `${createHash('sha256').update(await readFile(path)).digest('hex')}  ${basename(path)}`));
   await writeFile(join(output, 'SHA256SUMS'), hashes.join('\n') + '\n');
-  console.log(JSON.stringify({ version, sourceCommit, output, browserFiles: files, assets: assets.map(path => basename(path)), sha256: hashes }, null, 2));
-} finally { await rm(stage, { recursive: true, force: true }); }
+  console.log(JSON.stringify({ version, sourceCommit, output, browserFiles: files, pluginSdkFiles: sdkFiles, assets: assets.map(path => basename(path)), sha256: hashes }, null, 2));
+} finally {
+  await rm(stage, { recursive: true, force: true });
+  await rm(sdkStage, { recursive: true, force: true });
+}

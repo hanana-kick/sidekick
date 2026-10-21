@@ -1,3 +1,4 @@
+import { isAccessoryInstanceId } from './accessory-id.js';
 import { finite } from './design.js';
 import { automaticBlink, createEyeState, expressionPose, parseEyeState, patchEyeState } from './expressions.js';
 const eyeSides = ['left', 'right'];
@@ -95,7 +96,8 @@ export class MotionTimeline {
             return [pose.openness];
         if (channel === 'left' || channel === 'right')
             return [pose.eyes[channel].openness, pose.eyes[channel].smile];
-        return [...(pose.accessories[channel.slice(10)] ?? [0, 0, 0])];
+        const id = channel.slice(10);
+        return [...(Object.hasOwn(pose.accessories, id) ? pose.accessories[id] : [0, 0, 0])];
     }
     write(channel, values) {
         if (channel === 'rotation')
@@ -140,7 +142,7 @@ export class MotionTimeline {
     }
     /** Removed design parts must not be resurrected by an unfinished motion track. */
     removeAccessories(ids) {
-        if (!Array.isArray(ids) || ids.some(id => typeof id !== 'string' || !/^[a-z][a-z0-9-]{0,39}$/.test(id)))
+        if (!Array.isArray(ids) || ids.some(id => !isAccessoryInstanceId(id)))
             throw new TypeError('잘못된 액세서리 id입니다.');
         for (const id of ids) {
             this.stopChannel(`accessory:${id}`);
@@ -177,7 +179,7 @@ export class MotionTimeline {
         }
         const accessories = value.accessories === undefined ? {} : object(value.accessories, 'accessories');
         for (const [id, entry] of Object.entries(accessories)) {
-            if (!/^[a-z][a-z0-9-]{0,39}$/.test(id))
+            if (!isAccessoryInstanceId(id))
                 throw new TypeError('잘못된 액세서리 id입니다.');
             const accessory = object(entry, `accessories.${id}`, ['rotation']);
             next.accessories[id] = vec(accessory.rotation, 3, -Math.PI, Math.PI);

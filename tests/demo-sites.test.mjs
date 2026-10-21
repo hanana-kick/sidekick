@@ -98,7 +98,7 @@ for (const locale of ['en', 'ko', 'ja', 'zh-CN']) {
     assert.equal(f.$$('#cart-items li').length, 0);
     f.$('[data-wish="1"]').click();
     f.$('#muse-saved').click();
-    assert.equal(f.$$('[data-product]').length, 1);
+    assert.equal(f.$$('[data-product]').length, 2, 'manual saved style plus the labeled demo reference');
     assert.equal(f.$('#preview-target'), anchor, 'Filtering must not replace the bot anchor');
     f.$('#muse-all').click();
     const input = f.$('#muse-search'); input.value = 'no-such-product-test';
@@ -174,7 +174,7 @@ for (const locale of ['en', 'ko', 'ja', 'zh-CN']) {
 }
 
  test('real shop wishlist state is exposed to on-site recommendations without inventing prices',async t=>{
- const f=await mount(t,'shop');assert.equal(f.adapter.getScenarioState().saved.length,0);f.$('[data-wish="13"]').click();const state=f.adapter.getScenarioState();assert.deepEqual([...state.saved],[13]);assert.equal(state.products.find(p=>p.id===13).price,95);assert.equal(state.products.find(p=>p.id===1).price,89);assert.equal(cheaperMatch(state.products,[9],0),null,'skirt cannot recommend a tee');assert.equal(cheaperMatch(state.products,[21],9).item.id,9,'skirt editions are comparable');
+ const f=await mount(t,'shop');assert.deepEqual([...f.adapter.getScenarioState().saved],[12]);f.$('[data-wish="12"]').click();f.$('[data-wish="13"]').click();const state=f.adapter.getScenarioState();assert.deepEqual([...state.saved],[13]);assert.equal(state.products.find(p=>p.id===13).price,95);assert.equal(state.products.find(p=>p.id===1).price,89);assert.equal(cheaperMatch(state.products,[9],0),null,'skirt cannot recommend a tee');assert.equal(cheaperMatch(state.products,[21],9).item.id,9,'skirt editions are comparable');
  });
  test('local community arrivals insert real feed posts and visible notifications in every locale',async t=>{
  for(const locale of ['ko','en','ja','zh-CN']){const f=await mount(t,'community',locale);const before=f.$$('.th-post').length;let event;f.root.addEventListener('sidekick-demo-arrival',e=>event=e.detail);f.adapter.simulateArrival('mention');assert.equal(f.$$('.th-post').length,before+1);assert.ok(f.$('#th-feed').textContent.includes('@alexmorgan'));assert.equal(f.$('.th-notification-dot').hidden,false);assert.equal(event.kind,'mention');assert.deepEqual(f.w.sourceEvents.map(e=>e.id),['community-mention']);f.adapter.simulateArrival('post');assert.deepEqual(f.w.sourceEvents.map(e=>e.id),['community-mention','community-post']);}

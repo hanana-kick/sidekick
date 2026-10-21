@@ -15,7 +15,7 @@ export interface SurfaceFrame {
 /** Current rounded height field, independent of mesh topology and frame history. */
 export declare function contourSurfacePoint(contour: ShapeContour, x: number, y: number, front?: boolean): Vec3;
 /** Body deformations are shared by the renderer and attachment/point APIs. */
-export declare function deformBodyPoint(body: BodyDesign, point: Vec3, squash?: number, profileOverride?: ShapeProfile): Vec3;
+export declare function deformBodyPoint(body: BodyDesign, point: Vec3, squash?: number, profileOverride?: Pick<ShapeProfile, 'depth'>): Vec3;
 /** Physical ray intersection, with the same rounded field used by mesh vertices. */
 export declare function bodyPoint(body: BodyDesign, direction: Vec3, squash?: number, contourOverride?: ShapeContour, profileOverride?: ShapeProfile): Vec3;
 export declare function bodyNormal(body: BodyDesign, direction: Vec3, squash?: number, contourOverride?: ShapeContour, profileOverride?: ShapeProfile): Vec3;
@@ -33,6 +33,22 @@ export declare function accessoryChartDiagnostics(contour: ShapeContour): Readon
     phase: number;
     magnitude: number;
 }>;
+/** Generic contained front chart with an independently authored rigid plane. */
+export declare function sampleContainedFrontSurface(body: BodyDesign, mount: {
+    uv: readonly [number, number];
+    offset: number;
+    rotation: Vec3;
+}, squash?: number, contourOverride?: ShapeContour, profileOverride?: Pick<ShapeProfile, 'depth'>): SurfaceFrame;
+/** Generic calibrated chart; contains no catalog accessory selection or geometry. */
+export declare function sampleCalibratedSurface(body: BodyDesign, mount: {
+    uv: readonly [number, number];
+    offset: number;
+    rotation: Vec3;
+}, chart: 'central-front' | 'crown-envelope' | 'perimeter-front', options?: {
+    region?: 'left' | 'right';
+    perimeterInset?: number;
+    containmentClearance?: number;
+}, squash?: number, contourOverride?: ShapeContour, profileOverride?: Pick<ShapeProfile, 'depth'>): SurfaceFrame;
 /**
  * A curated junction, independent of the angular ray used to choose its location.
  * The position follows the current contour's phase-locked perimeter continuously;

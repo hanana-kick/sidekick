@@ -1,0 +1,39 @@
+{
+  "name": "@hanana-kick/sidekick-plugin-sdk",
+  "version": "0.18.0",
+  "description": "Pure, typed authoring helpers for Sidekick accessory plugins. Install from the release ZIP; the avatar runtime is separate.",
+  "type": "module",
+  "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hanana-kick/sidekick.git"
+  },
+  "main": "./index.cjs",
+  "module": "./index.js",
+  "types": "./types/esm/plugin-sdk.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./types/esm/plugin-sdk.d.ts",
+        "default": "./index.js"
+      },
+      "require": {
+        "types": "./types/cjs/plugin-sdk.d.cts",
+        "default": "./index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "files": [
+    "index.js",
+    "index.cjs",
+    "types",
+    "LICENSE",
+    "third_party",
+    "README.md",
+    "examples",
+    "release.json"
+  ]
+}

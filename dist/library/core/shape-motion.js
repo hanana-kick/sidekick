@@ -3,7 +3,24 @@ import { shapeContour } from './contours.js';
 import { buildMorph } from './morph.js';
 import { MATERIAL_SHAPE_NAMES } from './shapes.js';
 import { interpolateShapeProfile, resolveShapeProfile, sameShapeProfile } from './shape-profiles.js';
-const snapshot = (contour, profile) => Object.freeze({ contour, profile });
+const oneHot = (shape) => Object.freeze({ [shape]: 1 });
+function snapshot(contour, profile, weights) {
+    let owned;
+    return Object.freeze({ contour, profile, get shapeWeights() { return owned ??= typeof weights === 'function' ? weights() : weights; } });
+}
+function mixWeights(from, to, progress) {
+    if (progress <= 0)
+        return from;
+    if (progress >= 1)
+        return oneHot(to);
+    const result = {};
+    for (const shape of MATERIAL_SHAPE_NAMES) {
+        const weight = (from[shape] ?? 0) * (1 - progress) + (shape === to ? progress : 0);
+        if (weight > 0)
+            result[shape] = weight;
+    }
+    return Object.freeze(result);
+}
 function catalogShape(value) {
     if (typeof value !== 'string' || !MATERIAL_SHAPE_NAMES.includes(value))
         throw new TypeError('shape: 지원하는 Material 도형 이름이 필요합니다.');
@@ -39,7 +56,7 @@ export class ShapeTimeline {
     constructor(shape = 'square') {
         this.targetShape = catalogShape(shape);
         this.destinationProfile = resolveShapeProfile(this.targetShape);
-        this.current = snapshot(catalogContour(this.targetShape), this.destinationProfile);
+        this.current = snapshot(catalogContour(this.targetShape), this.destinationProfile, oneHot(this.targetShape));
     }
     get active() { return !!this.transition; }
     get contour() { return this.current.contour; }
@@ -56,7 +73,7 @@ export class ShapeTimeline {
         this.cancel();
         this.targetShape = target;
         this.destinationProfile = profile;
-        this.current = snapshot(contour, profile);
+        this.current = snapshot(contour, profile, oneHot(target));
         this.atTarget = true;
     }
     to(shape, options = {}) {
@@ -74,13 +91,13 @@ export class ShapeTimeline {
         this.targetShape = target;
         this.destinationProfile = profile;
         if (!morph) {
-            this.current = snapshot(contour, profile);
+            this.current = snapshot(contour, profile, oneHot(target));
             this.atTarget = true;
             return Promise.resolve({ finished: true });
         }
         this.atTarget = false;
         return new Promise(resolve => {
-            this.transition = { morph, fromProfile: this.current.profile, toProfile: profile, elapsed: 0, duration, smooth: easing === 'smooth', resolve };
+            this.transition = { morph, fromProfile: this.current.profile, fromWeights: this.current.shapeWeights, toShape: target, toProfile: profile, elapsed: 0, duration, smooth: easing === 'smooth', resolve };
         });
     }
     advance(ms) {
@@ -91,7 +108,7 @@ export class ShapeTimeline {
         transition.elapsed = Math.min(transition.duration, transition.elapsed + ms);
         const ratio = transition.elapsed / transition.duration;
         const progress = transition.smooth ? ratio * ratio * (3 - 2 * ratio) : ratio;
-        this.current = snapshot(transition.morph.sample(progress), interpolateShapeProfile(transition.fromProfile, transition.toProfile, progress));
+        this.current = snapshot(transition.morph.sample(progress), interpolateShapeProfile(transition.fromProfile, transition.toProfile, progress), () => mixWeights(transition.fromWeights, transition.toShape, progress));
         if (ratio === 1) {
             this.atTarget = true;
             this.transition = undefined;
@@ -103,7 +120,7 @@ export class ShapeTimeline {
         const transition = this.transition;
         if (!transition)
             return;
-        this.current = snapshot(transition.morph.sample(1), transition.toProfile);
+        this.current = snapshot(transition.morph.sample(1), transition.toProfile, oneHot(transition.toShape));
         this.atTarget = true;
         this.transition = undefined;
         transition.resolve({ finished: true });

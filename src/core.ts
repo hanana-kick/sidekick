@@ -25,3 +25,8 @@ export { EMOTIONS } from './core/emotion.js';
 export type { Emotion, EmotionValue, EmotionOptions, ReactionOptions, EmotionState, EmotionResult } from './core/emotion.js';
 
 export type { SidekickPresence, SidekickTask, SidekickTaskStatus, SidekickTerminalStatus, SidekickReaction, SidekickHome, SidekickRest, SidekickLifecycleDeclaration, SidekickLifecyclePhase, SidekickLifecycleState } from './element/lifecycle.js';
+
+export * from './core/accessory-plugins.js';
+export * from './core/accessory-attachments.js';
+
+export * from './core/part-animation.js';

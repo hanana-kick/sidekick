@@ -1,3 +1,6 @@
+import type { PartAnimationClip } from '../core/part-animation.js';
+import type { PluginAccessoryOptions, PluginAccessoryReference, PluginEquipResult } from './plugin-equipment.js';
+import type { AccessoryPluginRegistry } from '../core/accessory-plugins.js';
 import type { SpeechOptions } from './speech.js';
 import type { SidekickPresence, SidekickTask, SidekickHome, SidekickLifecycleState } from './lifecycle.js';
 import type { Positioning } from './positioning.js';
@@ -10,7 +13,7 @@ import type { EnterOptions, ExitOptions, PresenceResult, PresenceState } from '.
 import type { PlayOptions, AssetTransitionTarget } from './playback.js';
 import type { TravelPresentation } from '../core/travel.js';
 import type { AvatarPlacement, AvatarPosition, MovementBounds, MoveResult, MoveOptions, MovementState } from './movement.js';
-import type { AccessoryDesign, Activity, AvatarDesign, DesignPatch, RenderStyle } from '../core/design.js';
+import type { AccessorySlot, AccessoryDesign, Activity, AvatarDesign, DesignPatch, RenderStyle } from '../core/design.js';
 import type { TrackingMode } from '../core/tracking.js';
 import type { ShapeMotionOptions, ShapeMotionResult } from '../core/shape-motion.js';
 import type { MaterialShapeName } from '../core/shapes.js';
@@ -29,6 +32,31 @@ export declare class SidekickAvatar extends HTMLElementBase {
     removeEventListener<K extends keyof SidekickEventMap>(type: K, listener: (this: SidekickAvatar, event: SidekickEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
     removeEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
     removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions): void;
+    private partAnimationState?;
+    /** Independent local clip clock; reading never exposes mutable runtime data. */
+    get partAnimation(): {
+        clip: PartAnimationClip;
+        time: number;
+        anchorTime: number;
+        playing: boolean;
+    } | undefined;
+    private partAnimationClock;
+    private partAnimationTime;
+    private syncPartAnimation;
+    setPartAnimation(input: PartAnimationClip): void;
+    private validatePartAnimationTargets;
+    clearPartAnimation(): void;
+    pausePartAnimation(): void;
+    playPartAnimation(): void;
+    seekPartAnimation(seconds: number): void;
+    private pluginMotionIds;
+    private pluginEquipment;
+    /** Runtime plugin items are separate from catalog design JSON. Returns metadata only. */
+    get pluginAccessories(): PluginAccessoryReference[];
+    /** Load and equip atomically; a newer request, removal, or disconnect returns finished:false. */
+    equipPluginAccessory(registry: AccessoryPluginRegistry, pluginId: string, options: PluginAccessoryOptions): Promise<PluginEquipResult>;
+    /** Reveals any catalog accessory underneath this runtime slot. */
+    removePluginAccessory(slot: AccessorySlot): void;
     private speech;
     /** Replace the current plain-text dialogue. No audio or HTML parsing. */
     say(text: string, options?: SpeechOptions): void;
@@ -101,6 +129,7 @@ export declare class SidekickAvatar extends HTMLElementBase {
     private anchorRevision;
     private anchorState;
     private anchorCleanup?;
+    private anchorRead?;
     private anchorSleeping;
     /** Logical binding only: no reparenting, CSS positioning, or canvas changes. */
     get elementAnchor(): ElementAnchorState | null;

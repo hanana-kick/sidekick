@@ -11,3 +11,4 @@ export type { BotBehavior, BehaviorTarget, BehaviorSide, BehaviorPhase, Behavior
 export type { Entrance } from './element/entrance.js';
 export { validateEntrance } from './element/entrance.js';
 export type { SpeechOptions } from './element/speech.js';
+export type { PluginAccessoryOptions, PluginAccessoryReference, PluginEquipResult } from './element/plugin-equipment.js';

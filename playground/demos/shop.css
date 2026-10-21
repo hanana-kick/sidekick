@@ -28,3 +28,20 @@ body.shop{background:#fff;color:#171719}.muse{--pink:#e92386;--ink:#171719;--mut
  .muse-hero-image{height:260px}
  .muse-hero-image img{object-position:50% 42%}
 }
+
+/* In-flow onboarding explains the seeded local fixture without a floating overlay. */
+.muse-companion-guide{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.8fr);gap:18px 32px;padding:25px 28px;margin-bottom:36px;border:1px solid #efcddd;background:#fff7fb;border-radius:12px}
+.muse-companion-label{display:block;font-size:10px;font-weight:800;letter-spacing:1.2px;color:#aa205f;margin-bottom:10px}
+.muse-companion-intro h2{font-size:23px;line-height:1.25;letter-spacing:-.5px;margin:0 0 10px}
+.muse-companion-intro p{font-size:13px;line-height:1.7;color:#695963;margin:0}
+.muse-companion-reference{display:flex;align-items:center;gap:13px;min-width:0;background:#fff;border:1px solid #f0dce5;border-radius:9px;padding:12px}
+.muse-companion-reference>img{width:55px;height:72px;flex:0 0 55px;border-radius:5px;object-fit:cover;object-position:50% 30%}
+.muse-companion-reference>div{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
+.muse-companion-reference span{font-size:10px;color:#946678}
+.muse-companion-reference strong{font-size:12px;line-height:1.5;font-weight:600}
+.muse-companion-reference b{font-size:16px;color:#aa205f}
+.muse-companion-remove{flex:0 0 40px;min-width:40px;height:40px;display:grid;place-items:center;padding:0!important;border-radius:50%;color:#775e6b}
+.muse-companion-remove:hover{background:#fff0f7}
+.muse-companion-empty{font-size:13px;line-height:1.7;padding:20px;background:#fff;border:1px dashed #dfb9cc;border-radius:9px;color:#775e6b}
+.muse-companion-caveat{grid-column:1/-1;font-size:10px;line-height:1.6;color:#826c77;margin:0;padding-top:12px;border-top:1px solid #f0dce5}
+@media(max-width:720px){.muse-companion-guide{grid-template-columns:minmax(0,1fr);gap:16px;padding:19px 16px;margin-bottom:28px}.muse-companion-intro h2{font-size:21px}.muse-companion-intro p{font-size:12px}.muse-companion-reference{gap:10px;padding:10px}.muse-companion-reference>img{width:45px;height:61px;flex-basis:45px}.muse-companion-reference strong{font-size:11px}.muse-companion-remove{min-width:40px}}

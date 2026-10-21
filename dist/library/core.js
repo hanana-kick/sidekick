@@ -10,3 +10,6 @@ export { alphaBounds, cropPixels } from './core/pixels.js';
 export { MAX_SCENE_BYTES, createScene, parseScene, serializeScene, migrateScene } from './core/scene.js';
 export { TRACKING_MODES } from './core/tracking.js';
 export { EMOTIONS } from './core/emotion.js';
+export * from './core/accessory-plugins.js';
+export * from './core/accessory-attachments.js';
+export * from './core/part-animation.js';

@@ -90,3 +90,24 @@ test('entrance target-loss error handler can install newer positioning',async()=
  avatar.addEventListener('sidekick-error',()=>{avatar.positioning={target:'viewport',placement:'top-left'};},{once:true}); target.remove(); frame(); await drain();
  assert.equal(avatar.positioning?.target,'viewport'); assert.ok(avatar.anchorCleanup); assert.equal(avatar.entranceCleanup,undefined);
 });
+
+test('declarative follow refreshes a deadline target before initial completion',async()=>{
+ const {avatar,target,layout}=fixture();avatar.acceptedAttributes.set('move-duration','100');avatar.acceptedAttributes.set('move-travel','none');
+ avatar.positioning={target,placement:'center-right'};let settled=false;const pending=avatar.lifecyclePositionPromise.then(r=>{settled=true;return r;});
+ layout.left=400;const start=performance.now();const runAt=time=>{for(const [key,cb]of [...frames])if(frames.delete(key))cb(time);};
+ runAt(start+101);await drain();assert.equal(settled,false);
+ for(let time=start+117;time<start+8000&&avatar.movementState.phase!=='idle';time+=16)runAt(time);
+ const result=await pending;assert.equal(result.finished,true);assert.ok(Math.abs(result.position.x-516)<1e-9);assert.ok(Math.abs(result.position.y-240)<1e-9);
+});
+test('declarative target lost on deadline cancels the original request',async()=>{
+ const {avatar,target,errors}=fixture();avatar.acceptedAttributes.set('move-duration','100');avatar.acceptedAttributes.set('move-travel','none');
+ avatar.positioning={target};const pending=avatar.lifecyclePositionPromise;target.remove();
+ for(const [key,cb]of [...frames])if(frames.delete(key))cb(performance.now()+101);
+ assert.equal((await pending).finished,false);assert.equal(errors.length,1);assert.equal(avatar.positioning,null);
+});
+test('lost-target cancellation progress cannot erase a newer declaration',async()=>{
+ const {avatar,target}=fixture();avatar.acceptedAttributes.set('move-duration','100');avatar.acceptedAttributes.set('move-travel','none');
+ avatar.positioning={target};let replaced=false;
+ avatar.addEventListener('sidekick-move-progress',()=>{if(replaced)return;replaced=true;avatar.positioning={target:'viewport',placement:'top-left'};});
+ target.remove();frame();await drain();assert.equal(avatar.positioning?.target,'viewport');assert.ok(avatar.anchorCleanup);
+});

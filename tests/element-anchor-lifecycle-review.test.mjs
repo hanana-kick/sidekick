@@ -132,3 +132,20 @@ test('hidden target reparented into the avatar detaches before geometry becomes 
   avatar.attachShadow({ mode: 'open' }).append(target);
   frame(); assert.equal(avatar.elementAnchor, null); assert.equal(frames.size, 0);
 });
+
+test('removed live target cancels initial plain request instead of reporting stale arrival', async t => {
+ const {avatar,target}=fixture(t);avatar.paused=false;
+ const result=avatar.moveToElement(target,{anchor:true,duration:1000,travel:'none'});
+ target.remove();frame();
+ assert.equal((await result).finished,false);assert.equal(avatar.elementAnchor,null);
+});
+
+test('movement RAF before anchor RAF cannot resolve against a last-frame stale target',async t=>{
+ const {avatar,target,layout}=fixture(t);avatar.paused=false;
+ let settled=false;const promise=avatar.moveToElement(target,{anchor:true,duration:100,travel:'none'}).then(r=>{settled=true;return r;});
+ layout.x=300;const start=performance.now();
+ const runAt=time=>{for(const [id,callback] of [...frames]){if(frames.delete(id))callback(time);}};
+ runAt(start+101);await Promise.resolve();assert.equal(settled,false,'old endpoint must not resolve before the anchor RAF');
+ for(let time=start+117;time<start+8000&&avatar.movementState.phase!=='idle';time+=16)runAt(time);
+ const result=await promise;assert.equal(result.finished,true);assert.equal(result.position.x,270);assert.equal(result.position.y,110);
+});

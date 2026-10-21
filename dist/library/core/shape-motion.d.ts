@@ -2,11 +2,14 @@ import type { ShapeContour } from './contours.js';
 import type { MotionOptions, MotionResult } from './motion.js';
 import type { MaterialShapeName } from './shapes.js';
 import type { ShapeProfile } from './shape-profiles.js';
+import type { ShapeWeights } from './plugin-attachment.js';
 export type ShapeMotionOptions = MotionOptions;
 export type ShapeMotionResult = MotionResult;
+export type { ShapeWeights } from './plugin-attachment.js';
 export interface ShapeSnapshot {
     readonly contour: ShapeContour;
     readonly profile: ShapeProfile;
+    readonly shapeWeights: ShapeWeights;
 }
 /** Validate before applying accessibility overrides, including immediate/no-op requests. */
 export declare function validateShapeMotionOptions(options?: ShapeMotionOptions): Required<ShapeMotionOptions>;

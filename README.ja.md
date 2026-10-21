@@ -21,22 +21,22 @@ npm install https://github.com/hanana-kick/sidekick.git
 バージョンを固定するには、リリースタグを指定します。
 
 ```sh
-npm install https://github.com/hanana-kick/sidekick.git#v0.17.0
+npm install https://github.com/hanana-kick/sidekick.git#v0.18.0
 ```
 
-ビルド済みの ESM、型宣言、ブラウザーバンドルがリポジトリに含まれているため、**インストール先で Sidekick のソースをビルドする必要はありません。** 依存関係と lockfile を一緒にコミットすれば、チームでも同じバージョンを使えます。パッケージ名は `@hanana-kick/sidekick`、このバージョンは `0.17.0` です。**npm レジストリには公開していないため、名前だけで `npm install @hanana-kick/sidekick` を実行しないでください。**
+ビルド済みの ESM、型宣言、ブラウザーバンドルがリポジトリに含まれているため、**インストール先で Sidekick のソースをビルドする必要はありません。** 依存関係と lockfile を一緒にコミットすれば、チームでも同じバージョンを使えます。パッケージ名は `@hanana-kick/sidekick`、このバージョンは `0.18.0` です。**npm レジストリには公開していないため、名前だけで `npm install @hanana-kick/sidekick` を実行しないでください。**
 
 npm を使わない HTML サイトでは、[GitHub Releases](https://github.com/hanana-kick/sidekick/releases) からビルド済みファイルをダウンロードしてください。ESM と通常の `<script>` 用 JS、専用のレンダリング worker を提供します。このブラウザーコアには React、バンドラー、Node.js、追加の CSS、フォントは不要です。
 
 ### GitHub Release からダウンロード
 
 1. [Releases](https://github.com/hanana-kick/sidekick/releases) を開きます。
-2. 使用するタグの **Assets** から `sidekick-browser-0.17.0.zip` または `hanana-kick-sidekick-0.17.0.tgz` をダウンロードします。別のバージョンでは、タグに一致するファイル名を選んでください。自動生成される **Source code (zip/tar.gz)** はソースアーカイブなので、ブラウザー配布用 ZIP と区別してください。
+2. 使用するタグの **Assets** から `sidekick-browser-0.18.0.zip` または `hanana-kick-sidekick-0.18.0.tgz` をダウンロードします。別のバージョンでは、タグに一致するファイル名を選んでください。自動生成される **Source code (zip/tar.gz)** はソースアーカイブなので、ブラウザー配布用 ZIP と区別してください。
 3. 通常の HTML サイトでは、ブラウザー ZIP を展開して、以下のファイルをサイトの静的ファイルディレクトリにコピーします。同梱の `START-HERE.txt` を読み、`esm.html`、`classic.html`、`react.html` から希望する例を開いてください。例の `/vendor/sidekick/` は**利用するサイトのパス**です。配信先のパスに合わせて変更してください。
 
 | ビルド済みファイル | 用途 | 必要なファイル・依存関係 |
 | --- | --- | --- |
-| `sidekick-browser-0.17.0.zip` | 通常の HTML/React 向けブラウザー配布 | `esm.html`・`classic.html`・`react.html`、以下の JS 6 ファイル、任意の `vendor/`、README・告知を含む |
+| `sidekick-browser-0.18.0.zip` | 通常の HTML/React 向けブラウザー配布 | `esm.html`・`classic.html`・`react.html`、以下の JS 6 ファイル、任意の `vendor/`、README・告知を含む |
 | `sidekick.js` | ブラウザー ESM。`import` と `<script type="module">` を使用 | `sidekick.worker.js` を同じディレクトリに置く |
 | `sidekick.iife.js` | 通常の classic `<script>`。API は `window.Sidekick` | `sidekick.worker.js` を同じディレクトリに置く。`type="module"` は使用しない |
 | `sidekick-react.js` | React 19 用 ESM コンポーネント | `sidekick-element.js`・`sidekick-fallback.js`・`sidekick.worker.js` を同じディレクトリに置き、`react` peer を用意する |
@@ -44,7 +44,7 @@ npm を使わない HTML サイトでは、[GitHub Releases](https://github.com/
 | `sidekick-fallback.js` | worker が使えない場合に React 要素が読み込むレンダラー | 直接 import しない。他のファイルと同じバージョンを使う |
 | `sidekick.worker.js` | OffscreenCanvas 専用 worker | ブラウザーのエントリーファイルの隣に配置する。別の script タグでは読み込まない |
 | `vendor/react.js`, `vendor/react-dom-client.js` | ブラウザー ZIP に含まれる任意の React 19/ReactDOM ESM | 以下のビルド不要の React 例に使用。import map で接続し、React をすでに用意しているアプリでは不要 |
-| `hanana-kick-sidekick-0.17.0.tgz` | 既存の npm ベースのプロジェクトにインストールするパッケージ | ビルド済み ESM・型宣言・ブラウザーバンドル・告知を含む |
+| `hanana-kick-sidekick-0.18.0.tgz` | 既存の npm ベースのプロジェクトにインストールするパッケージ | ビルド済み ESM・型宣言・ブラウザーバンドル・告知を含む |
 | `SHA256SUMS` | ZIP と tarball のダウンロード整合性の確認 | 同じ Release のチェックサムファイル |
 
 ZIP に同梱されている README と第三者ライセンス・出典の告知も保管してください。**GitHub Release のアセットは、ダウンロードしてから自分のサイトで配信してください。** ダウンロード URL はブラウザー JS のホスティング用 URL ではなく、アセットの応答の MIME・CORS の挙動は静的ホスティングとは異なります。以下の例の `src`/`import` には、ダウンロードしたファイルを配信するサイトのパスを使います。
@@ -56,7 +56,7 @@ ZIP に同梱されている README と第三者ライセンス・出典の告�
 Release から取得した tarball を、使用するプロジェクトでインストールします。このコマンドは Sidekick のソースをコンパイルしたり、Studio をビルドしたりしません。
 
 ```sh
-npm install /absolute/path/to/hanana-kick-sidekick-0.17.0.tgz
+npm install /absolute/path/to/hanana-kick-sidekick-0.18.0.tgz
 ```
 
 React 19 が必要なのは React ラッパーを使う場合だけです。Web ページをマウントする `react-dom` も、利用者が同じバージョンで用意します。コアだけを使うプロジェクトには React は不要です。
@@ -125,12 +125,12 @@ bot.setEmotion('neutral');
 
 ## CDN を使ってビルドなしで利用する
 
-現在の CDN 推奨バージョンは **0.17.0** です。以下の URL は GitHub タグにコミットされた**ビルド済み JS** を jsDelivr が配信するため、ソースのビルド、npm のインストール、npm アカウントは不要です。`main`、`latest`、バージョン範囲ではなく、**正確なタグ**を固定してください。以前の `v0.2.7` のファイルは変更していません。0.2.7 も同じ CDN パスからダウンロードできますが、異なるオリジンのページでは worker の生成がブロックされてメインスレッドへフォールバックするため、CDN の新規利用では上記の現在の固定バージョンを使ってください。
+現在の CDN 推奨バージョンは **0.18.0** です。以下の URL は GitHub タグにコミットされた**ビルド済み JS** を jsDelivr が配信するため、ソースのビルド、npm のインストール、npm アカウントは不要です。`main`、`latest`、バージョン範囲ではなく、**正確なタグ**を固定してください。以前の `v0.2.7` のファイルは変更していません。0.2.7 も同じ CDN パスからダウンロードできますが、異なるオリジンのページでは worker の生成がブロックされてメインスレッドへフォールバックするため、CDN の新規利用では上記の現在の固定バージョンを使ってください。
 
 ### 通常の HTML / classic script
 
 ```html
-<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.17.0/dist/browser/sidekick.iife.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.18.0/dist/browser/sidekick.iife.js"></script>
 <sidekick-avatar shape="ghostish" head-accessory="beret"
   eyes-accessory="glasses" neck-accessory="bowTie"
   left-smile="1" right-smile="1"
@@ -142,7 +142,7 @@ bot.setEmotion('neutral');
 ```html
 <sidekick-avatar id="bot" shape="heart"></sidekick-avatar>
 <script type="module">
-  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.17.0/dist/browser/sidekick.js';
+  import { createDesign } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.18.0/dist/browser/sidekick.js';
   console.log(createDesign());
 </script>
 ```
@@ -158,15 +158,15 @@ React と ReactDOM は、同じ 19.3.1 のビルド済み ESM を提供します
 <script type="importmap">
 {
   "imports": {
-    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.17.0/cdn/react-19.3.1/react.js",
-    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.17.0/cdn/react-19.3.1/react-dom-client.js"
+    "react": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.18.0/cdn/react-19.3.1/react.js",
+    "react-dom/client": "https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.18.0/cdn/react-19.3.1/react-dom-client.js"
   }
 }
 </script>
 <script type="module">
   import { createElement } from 'react';
   import { createRoot } from 'react-dom/client';
-  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.17.0/dist/browser/sidekick-react.js';
+  import { SidekickAvatar } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.18.0/dist/browser/sidekick-react.js';
   createRoot(document.getElementById('root')).render(createElement(SidekickAvatar, {
     shape: 'ghostish', headAccessory: 'beret', eyesAccessory: 'glasses',
     neckAccessory: 'bowTie', leftSmile: 1, rightSmile: 1,
@@ -712,7 +712,7 @@ bot.entrance = null;
 
 ボットの表示状態、アプリが実行するタスク、休む場所を宣言します。Sidekick が登場 → 処理中の動作 → 結果への反応 → 慣性移動でホームへ復帰 → 休息をつなぎます。非同期処理はアプリが実行し、状態を明示的に知らせます。Sidekick はタイマーや動作の終了からタスク完了を推測しません。手動の復帰コマンドや座標計算は不要です。
 
-**リリースバージョン：** 以下のライフサイクル例は `v0.17.0` を対象とします。HTML は固定 CDN ブラウザーバンドル、React は対応するパッケージビルドを使用します。セルフホストの場合は、同じバージョンの `dist/browser/` ファイルをまとめて配信し、CDN の import をローカルの `sidekick.js` URL に置き換えてください。
+**リリースバージョン：** 以下のライフサイクル例は `v0.18.0` を対象とします。HTML は固定 CDN ブラウザーバンドル、React は対応するパッケージビルドを使用します。セルフホストの場合は、同じバージョンの `dist/browser/` ファイルをまとめて配信し、CDN の import をローカルの `sidekick.js` URL に置き換えてください。
 
 | HTML JSON / JavaScript プロパティ | React prop | 宣言 |
 | --- | --- | --- |
@@ -745,7 +745,7 @@ bot.entrance = null;
   home='{"positioning":{"target":"viewport","placement":"bottom-right","gap":20},"rest":{"behavior":{"type":"idle"},"emotion":"neutral","trackingMode":"eyes-and-body","bodyOrientation":"front"}}'>
 </sidekick-avatar>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.17.0/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.18.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#lifecycle-bot');
   let latestId = 0;
   document.querySelector('#lifecycle-save').addEventListener('click', async () => {
@@ -1491,7 +1491,7 @@ API playground では「既定の最高速度 · 1350 CSS px/s」が既定で有
 
 ```html
 <script type="module">
-  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.17.0/dist/browser/sidekick.js';
+  import { createAccessory } from 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.18.0/dist/browser/sidekick.js';
   const bot = document.querySelector('#companion');
   // import 평가 뒤에는 이미 등록된 엘리먼트 API를 사용할 수 있습니다.
   await bot.moveTo({ x: 80, y: 240 }, { maxSpeed: 320, acceleration: 900, deceleration: 1200 });
@@ -1528,7 +1528,7 @@ API playground では「既定の最高速度 · 1350 CSS px/s」が既定で有
 <button id="flight-stop" type="button">활동 중단</button>
 <p id="flight-status" aria-live="off">idle</p>
 <script type="module">
-  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.17.0/dist/browser/sidekick.js';
+  import 'https://cdn.jsdelivr.net/gh/hanana-kick/sidekick@v0.18.0/dist/browser/sidekick.js';
   const stage = document.getElementById('flight-stage');
   const bot = document.getElementById('flight-avatar');
   const status = document.getElementById('flight-status');
@@ -1676,6 +1676,7 @@ export function Example() {
 
 - `anchor: false`（既定値）は、呼び出し時点の位置へ一度だけ移動します。その後のスクロール・レイアウトの変化には追従しません。
 - `anchor: true` は、選択した配置点とオフセットを維持し続けます。最初の移動中は同じ移動リクエストの目的地だけを更新し、速度・加速度・Promise を維持します。到着後も同じ最高速度・加速・減速設定で、目標に自然に追従します。目標が突然動いても、キャラクターの座標を瞬間的に合わせることはありません。最初の到着の Promise と移動完了イベントは一度だけ発生し、その後の追従では完了イベントを繰り返しません。停止状態では 0.5 CSS px 以下の誤差を無視します。ネストされたスクロール、サイズ変更、レイアウト変更、CSS/WAAPI transform を反映します。対象が動き続けると、最初の移動完了が遅れる場合があります。キャラクターまたは対象が `display: none` によってレイアウトから外れると、接続を維持したまま追従を一時停止し、再表示されたときに配置を合わせます。
+- `travel: 'none'` の固定目標は指定 duration を維持します。移動中に接続先が動くと、位置・速度・加速度と元の Promise を保って慣性追従へ切り替わります。姿勢演出は無効のまま、元の期限ではなく最新の目標への到着を待ちます。
 - キャラクターが完全に画面外へ出て、配置後の目的地も画面外なら、物理的な移動とレンダリングをアイドル状態にします。現在位置または目的地が再び画面と重なると、慣性を維持して追従を再開し、非表示の間の時間を一度に積分しません。レンダリングは、キャラクター自体が画面と重なったときだけ再開します。アンカー位置の確認は、有効な状態では文書ごとにひとつの RAF にまとめ、すべての接続がアイドルなら 250ms 間隔に下げます。スクロール・サイズ変更は直後の次のフレームで確認し、CSS transform だけで戻る場合も最大約 250ms 後に検知します。非表示のタブでは位置確認も停止します。そのため、完全に画面外にあるときは GPU フレームは止まりますが、復帰を検知するための少量の DOM 測定は残ります。
 - 対応環境では、OffscreenCanvas を転送した専用 worker で WebGL2 を優先し、利用できない場合は Canvas2D で描画します。非表示中のサイズ変更はまとめて次の描画時に適用します。worker 未対応・CSP 制限環境では、同じグラフィックスフォールバックを備えたメインスレッドレンダラーを使います。DOM の位置測定と移動座標の更新はメインスレッドに残ります。
 - キャラクターの親 DOM や CSS positioning は変更しません。absolute/fixed/inline の配置はそのままで、キャラクター自身の移動オフセットだけを更新します。`detachAnchor()` は接続を解除し、進行中の最初の移動は最後の目的地まで継続します。最初の到着後の追従は、現在の慣性から減速して停止します。移動も止めるには、`cancelMove()` を使ってください。
@@ -1754,3 +1755,12 @@ bot.clearSpeech();
 TypeScript: `SpeechOptions` from `@hanana-kick/sidekick/register` or `@hanana-kick/sidekick/react`. Method-only API; no HTML attributes or declarative React speech props.
 
 配置制限: ボットの CSS zoom、祖先の transform（個別の translate/rotate/scale を含む）、perspective、CSS zoom は既存の台詞を置き換える前に TypeError になります。body と html では filter、backdrop-filter、contain、will-change、content-visibility など固定位置の基準を変えるスタイルを使わないでください。ボット自身の transform は使用できます。表示中はこの制限を守り、祖先の配置を変える前に clearSpeech() を呼びます。
+
+
+### Accessory asset plugins
+
+Runtime eager/lazy asset registration, attachment-local meshes and shared WebGL/Canvas rendering: [Accessory plugin API and author example](docs/accessory-plugins.md). Plugin equipment is separate from v7 design/scene JSON.
+
+### プラグイン SDK
+
+アクセサリー制作ツールは `@hanana-kick/sidekick/plugin-sdk` から読み込みます。リリースには ESM/CommonJS/TypeScript 対応のインストール可能な制作パッケージ `sidekick-plugin-sdk-0.18.0.zip` も含まれます。[SDK の導入・検証・ビルドガイド](docs/plugin-sdk.md)で外部プラグインの実例を確認できます。

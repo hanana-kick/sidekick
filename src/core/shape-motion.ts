@@ -8,16 +8,34 @@ import { MATERIAL_SHAPE_NAMES } from './shapes.js';
 import type { MaterialShapeName } from './shapes.js';
 import { interpolateShapeProfile, resolveShapeProfile, sameShapeProfile } from './shape-profiles.js';
 import type { ShapeProfile } from './shape-profiles.js';
+import type { ShapeWeights } from './plugin-attachment.js';
 
 export type ShapeMotionOptions = MotionOptions;
 export type ShapeMotionResult = MotionResult;
 
-export interface ShapeSnapshot { readonly contour: ShapeContour; readonly profile: ShapeProfile }
-const snapshot = (contour: ShapeContour, profile: ShapeProfile): ShapeSnapshot => Object.freeze({ contour, profile });
+export type { ShapeWeights } from './plugin-attachment.js';
+export interface ShapeSnapshot { readonly contour: ShapeContour; readonly profile: ShapeProfile; readonly shapeWeights: ShapeWeights }
+const oneHot = (shape: MaterialShapeName): ShapeWeights => Object.freeze({ [shape]: 1 });
+function snapshot(contour: ShapeContour, profile: ShapeProfile, weights: ShapeWeights | (() => ShapeWeights)): ShapeSnapshot {
+  let owned: ShapeWeights | undefined;
+  return Object.freeze({ contour, profile, get shapeWeights() { return owned ??= typeof weights === 'function' ? weights() : weights; } });
+}
+function mixWeights(from: ShapeWeights, to: MaterialShapeName, progress: number): ShapeWeights {
+  if (progress <= 0) return from;
+  if (progress >= 1) return oneHot(to);
+  const result: Partial<Record<MaterialShapeName, number>> = {};
+  for (const shape of MATERIAL_SHAPE_NAMES) {
+    const weight = (from[shape] ?? 0) * (1 - progress) + (shape === to ? progress : 0);
+    if (weight > 0) result[shape] = weight;
+  }
+  return Object.freeze(result);
+}
 
 interface ShapeTransition {
   morph: ContourMorph;
   fromProfile: ShapeProfile;
+  fromWeights: ShapeWeights;
+  toShape: MaterialShapeName;
   toProfile: ShapeProfile;
   elapsed: number;
   duration: number;
@@ -58,7 +76,7 @@ export class ShapeTimeline {
   constructor(shape: MaterialShapeName = 'square') {
     this.targetShape = catalogShape(shape);
     this.destinationProfile = resolveShapeProfile(this.targetShape);
-    this.current = snapshot(catalogContour(this.targetShape), this.destinationProfile);
+    this.current = snapshot(catalogContour(this.targetShape), this.destinationProfile, oneHot(this.targetShape));
   }
 
   get active(): boolean { return !!this.transition; }
@@ -75,7 +93,7 @@ export class ShapeTimeline {
     const target = catalogShape(shape);
     const contour = catalogContour(target), profile = resolveShapeProfile(target);
     this.cancel();
-    this.targetShape = target; this.destinationProfile = profile; this.current = snapshot(contour, profile); this.atTarget = true;
+    this.targetShape = target; this.destinationProfile = profile; this.current = snapshot(contour, profile, oneHot(target)); this.atTarget = true;
   }
 
   to(shape: MaterialShapeName, options: ShapeMotionOptions = {}): Promise<ShapeMotionResult> {
@@ -89,10 +107,10 @@ export class ShapeTimeline {
     const morph = duration === 0 ? undefined : buildMorph(this.current.contour, contour);
     // All validation and geometry preparation happen before canceling old work.
     this.cancel(); this.targetShape = target; this.destinationProfile = profile;
-    if (!morph) { this.current = snapshot(contour, profile); this.atTarget = true; return Promise.resolve({ finished: true }); }
+    if (!morph) { this.current = snapshot(contour, profile, oneHot(target)); this.atTarget = true; return Promise.resolve({ finished: true }); }
     this.atTarget = false;
     return new Promise(resolve => {
-      this.transition = { morph, fromProfile: this.current.profile, toProfile: profile, elapsed: 0, duration, smooth: easing === 'smooth', resolve };
+      this.transition = { morph, fromProfile: this.current.profile, fromWeights: this.current.shapeWeights, toShape: target, toProfile: profile, elapsed: 0, duration, smooth: easing === 'smooth', resolve };
     });
   }
 
@@ -103,7 +121,7 @@ export class ShapeTimeline {
     transition.elapsed = Math.min(transition.duration, transition.elapsed + ms);
     const ratio = transition.elapsed / transition.duration;
     const progress = transition.smooth ? ratio * ratio * (3 - 2 * ratio) : ratio;
-    this.current = snapshot(transition.morph.sample(progress), interpolateShapeProfile(transition.fromProfile, transition.toProfile, progress));
+    this.current = snapshot(transition.morph.sample(progress), interpolateShapeProfile(transition.fromProfile, transition.toProfile, progress), () => mixWeights(transition.fromWeights, transition.toShape, progress));
     if (ratio === 1) { this.atTarget = true; this.transition = undefined; transition.resolve({ finished: true }); }
   }
 
@@ -111,7 +129,7 @@ export class ShapeTimeline {
   finish(): void {
     const transition = this.transition;
     if (!transition) return;
-    this.current = snapshot(transition.morph.sample(1), transition.toProfile); this.atTarget = true; this.transition = undefined;
+    this.current = snapshot(transition.morph.sample(1), transition.toProfile, oneHot(transition.toShape)); this.atTarget = true; this.transition = undefined;
     transition.resolve({ finished: true });
   }
 

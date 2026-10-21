@@ -1,0 +1,26 @@
+Material Shapes contour data and recipe generator
+Copyright 2024 The Android Open Source Project
+Licensed under the Apache License, Version 2.0. See LICENSE in this directory.
+
+Source: AndroidX Compose MaterialShapes.kt
+Snapshot: 9a589fa61f8661e0cbef9123dcc98d3c1f655fc7
+File blob: 7e02d245662ff48a5dba19ea0d170356256ed93f
+Source SHA-256: 08c29828003344914ee0d6783f213b37caae650175cd004ba321eaf3a7d6e434
+https://github.com/androidx/androidx/blob/9a589fa61f8661e0cbef9123dcc98d3c1f655fc7/compose/material3/material3/src/commonMain/kotlin/androidx/compose/material3/MaterialShapes.kt
+
+Sidekick modifications: translated numeric recipes, repeated/mirrored vertices,
+and 2D transforms to Java; generated normalized cubic coordinates using the
+unmodified official androidx.graphics:graphics-shapes-android:1.1.0 library;
+added TypeScript contour tessellation, direct closed-perimeter morph matching,
+and a constant-thickness shallow 3D extrusion. Morph alignment minimizes
+point travel and merges both contours' vertex breakpoints; there is no ellipse
+waypoint. Interrupted snapshots are bounded by microscopic contour simplification.
+The 3D extrusion and morph correspondence are not AndroidX Morph and are not
+provided or endorsed by Google. Source values are IEEE Float-derived; Sidekick
+runtime uses JavaScript numbers.
+
+Regeneration: node scripts/generate-material-shapes.mjs
+The generator verifies SHA-256 for every downloaded official build dependency
+and the pinned source snapshot. It adds no application runtime dependencies.
+All 35 shape recipes are preserved, including per-vertex corner radii/smoothing,
+mirroring, rotations, and aspect-preserving AndroidX normalized() bounds.

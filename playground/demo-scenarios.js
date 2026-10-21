@@ -3,10 +3,10 @@ import { emitSourceEvent } from './example-source-event.js';
 // Site-owned examples use only local fixture data. No network notifications,
 // recommendation service, tracking, or perpetual animation loop is involved.
 export const scenarioCopy = {
- en:{dismiss:'Dismiss tip',hint:['Scroll through the product stories. Your companion will point out the details.','Save a style with ♡, then browse. Your companion spots cheaper items in the same category.','Browse the feed or publish locally. New posts and mentions are simulated only here.'],company:['Explore the materials and controls.','Try listening modes.','Compare the models here.','Finishes below. Demo-only save.'],cheaper:(a,b)=>`This is $${b.price}, $${a.price-b.price} less than your saved style. Same category; fit may differ.`,post:'Local demo: a new post just arrived in your feed.',mention:'Local demo: Daniel Park mentioned @alexmorgan in a new post.',localPost:'Local demo update: a small walk, a new idea. What did you notice today?',localMention:'Local demo mention: @alexmorgan, thanks for sharing your perspective!'},
- ko:{dismiss:'안내 닫기',hint:['제품 이야기를 스크롤해 보세요. 봇이 각 요소의 특징을 짚어줍니다.','♡로 관심 상품을 담고 둘러보세요. 같은 카테고리의 더 저렴한 상품을 봇이 알려줍니다.','피드를 둘러보거나 글을 써보세요. 새 글과 멘션은 이 페이지에서만 가상으로 발생합니다.'],company:['소재와 조작부 살펴보기','청취 모드를 바꿔보세요.','두 모델 사양 비교하기','아래에서 색상 선택·데모 저장'],cheaper:(a,b)=>`이건 $${b.price}, 관심 상품보다 $${a.price-b.price} 저렴해요! 같은 카테고리지만 핏은 다를 수 있어요.`,post:'로컬 데모: 피드에 새로운 글이 도착했어요.',mention:'로컬 데모: Daniel Park가 새 글에서 @alexmorgan을 멘션했어요.',localPost:'로컬 데모 새 글: 짧은 산책에서 새로운 아이디어를 발견했어요. 오늘 무엇을 발견했나요?',localMention:'로컬 데모 멘션: @alexmorgan, 생각을 나눠주셔서 고마워요!'},
- ja:{dismiss:'案内を閉じる',hint:['製品ストーリーをスクロールすると、ボットが特徴を案内します。','♡で気になる商品を保存して見て回ると、同じカテゴリーの安い商品を案内します。','フィードを閲覧したり投稿してみましょう。新着やメンションはこのページだけのシミュレーションです。'],company:['素材と操作部を見てみよう。','聴き方を切り替えましょう。','二つのモデルを比較。','下で色を選択。デモ内保存。'],cheaper:(a,b)=>`こちらは$${b.price}、保存した商品より$${a.price-b.price}安いです。同じカテゴリーですがフィットは異なる場合があります。`,post:'ローカルデモ：フィードに新しい投稿が届きました。',mention:'ローカルデモ：Daniel Parkが新しい投稿で@alexmorganにメンションしました。',localPost:'ローカルデモの新着：短い散歩で新しいアイデアを見つけました。今日は何を発見しましたか？',localMention:'ローカルデモのメンション：@alexmorgan、考えを共有してくれてありがとう！'},
- 'zh-CN':{dismiss:'关闭提示',hint:['滚动浏览产品故事，机器人会介绍各处细节。','用♡收藏款式后继续浏览，机器人会发现同类别中更便宜的商品。','浏览动态或在本地发帖。新帖和提及只在此页面模拟。'],company:['近距离看看材料和控制细节。','在这里切换聆听模式。','比较这两款型号的参数。','下方选颜色，仅演示内保存。'],cheaper:(a,b)=>`这件$${b.price}，比收藏款便宜$${a.price-b.price}。同一类别，版型可能不同。`,post:'本地演示：动态中收到了一篇新帖子。',mention:'本地演示：Daniel Park在新帖子中提到了@alexmorgan。',localPost:'本地演示新帖：短暂散步带来了新想法。你今天发现了什么？',localMention:'本地演示提及：@alexmorgan，谢谢你分享想法！'}
+ en:{dismiss:'Dismiss tip',hint:['Scroll through the product stories. Your companion will point out the details.','A demo style is already saved. Scroll the catalog to find a cheaper match; use ♡ to change your saved styles.','Browse the feed or publish locally. New posts and mentions are simulated only here.'],company:['Explore the materials and controls.','Try listening modes.','Compare the models here.','Finishes below. Demo-only save.'],cheaper:(a,b)=>`This is $${b.price}, $${a.price-b.price} less than your saved style. Same category; fit may differ.`,post:'Local demo: a new post just arrived in your feed.',mention:'Local demo: Daniel Park mentioned @alexmorgan in a new post.',localPost:'Local demo update: a small walk, a new idea. What did you notice today?',localMention:'Local demo mention: @alexmorgan, thanks for sharing your perspective!'},
+ ko:{dismiss:'안내 닫기',hint:['제품 이야기를 스크롤해 보세요. 봇이 각 요소의 특징을 짚어줍니다.','비교용 데모 상품을 미리 담아두었어요. 상품 목록을 스크롤하면 더 저렴한 상품을 알려줍니다. ♡로 관심 상품을 바꿀 수 있어요.','피드를 둘러보거나 글을 써보세요. 새 글과 멘션은 이 페이지에서만 가상으로 발생합니다.'],company:['소재와 조작부 살펴보기','청취 모드를 바꿔보세요.','두 모델 사양 비교하기','아래에서 색상 선택·데모 저장'],cheaper:(a,b)=>`이건 $${b.price}, 관심 상품보다 $${a.price-b.price} 저렴해요! 같은 카테고리지만 핏은 다를 수 있어요.`,post:'로컬 데모: 피드에 새로운 글이 도착했어요.',mention:'로컬 데모: Daniel Park가 새 글에서 @alexmorgan을 멘션했어요.',localPost:'로컬 데모 새 글: 짧은 산책에서 새로운 아이디어를 발견했어요. 오늘 무엇을 발견했나요?',localMention:'로컬 데모 멘션: @alexmorgan, 생각을 나눠주셔서 고마워요!'},
+ ja:{dismiss:'案内を閉じる',hint:['製品ストーリーをスクロールすると、ボットが特徴を案内します。','比較用のデモ商品を保存済みです。商品一覧をスクロールすると安い商品を案内します。♡で変更できます。','フィードを閲覧したり投稿してみましょう。新着やメンションはこのページだけのシミュレーションです。'],company:['素材と操作部を見てみよう。','聴き方を切り替えましょう。','二つのモデルを比較。','下で色を選択。デモ内保存。'],cheaper:(a,b)=>`こちらは$${b.price}、保存した商品より$${a.price-b.price}安いです。同じカテゴリーですがフィットは異なる場合があります。`,post:'ローカルデモ：フィードに新しい投稿が届きました。',mention:'ローカルデモ：Daniel Parkが新しい投稿で@alexmorganにメンションしました。',localPost:'ローカルデモの新着：短い散歩で新しいアイデアを見つけました。今日は何を発見しましたか？',localMention:'ローカルデモのメンション：@alexmorgan、考えを共有してくれてありがとう！'},
+ 'zh-CN':{dismiss:'关闭提示',hint:['滚动浏览产品故事，机器人会介绍各处细节。','已收藏一件演示商品。滚动商品列表即可发现更便宜的同类商品，也可用♡更改收藏。','浏览动态或在本地发帖。新帖和提及只在此页面模拟。'],company:['近距离看看材料和控制细节。','在这里切换聆听模式。','比较这两款型号的参数。','下方选颜色，仅演示内保存。'],cheaper:(a,b)=>`这件$${b.price}，比收藏款便宜$${a.price-b.price}。同一类别，版型可能不同。`,post:'本地演示：动态中收到了一篇新帖子。',mention:'本地演示：Daniel Park在新帖子中提到了@alexmorgan。',localPost:'本地演示新帖：短暂散步带来了新想法。你今天发现了什么？',localMention:'本地演示提及：@alexmorgan，谢谢你分享想法！'}
 };
 // @source-start shop-match
 export function cheaperMatch(products, saved, candidateId){
@@ -34,8 +34,8 @@ export function scenarioPlacement(site,rect,width,height,viewportWidth,viewportH
 export function captureDemoEngagement(root,win=root.ownerDocument.defaultView){
  let engaged=false;
  const mark=()=>{engaged=true;};
- root.addEventListener('click',mark,true);win.addEventListener('scroll',mark,{passive:true});
- const dispose=()=>{root.removeEventListener('click',mark,true);win.removeEventListener('scroll',mark);engaged=false;};
+ root.addEventListener('click',mark,true);win.addEventListener('scroll',mark,{passive:true,capture:true});
+ const dispose=()=>{root.removeEventListener('click',mark,true);win.removeEventListener('scroll',mark,true);engaged=false;};
  return {take(){const value=engaged;dispose();return value;},dispose};
 }
 export function installDemoScenarios({bot,root,site,locale='en',adapter,initialEngaged=false,window:win=root.ownerDocument.defaultView}){
@@ -97,7 +97,8 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
    if(!entry){abandon();return;}
    if(!available()||!inView(entry.target)){abandon();consider();return;}
    if(company){
-    const current=companyPlan(entry),actual=bot.getBoundingClientRect();
+    validateCompany();if(token!==epoch)return;
+    const current=activeCompanyPlan,actual=bot.getBoundingClientRect();
     if(!current||Math.abs(actual.left-current.host.left)>1||Math.abs(actual.top-current.host.top)>1){clear();return;}
    }
    const placement=company?.placement||(site==='shop'?'auto':site==='community'?'top':anchor.getBoundingClientRect().top>bot.getBoundingClientRect().top?'top':'bottom');
@@ -186,7 +187,7 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
   const host={left,top,width,height,right:left+width,bottom:top+height};
   const speech=p.viewport.width===geometry.viewport.width?p.bubble:measureCompanySpeech(activeEntry.text,doc,geometry.viewport);
   const bubble=speechBox(host,speech,geometry.viewport,p.placement);
-  if(!busy&&clearEnvelope(host,bubble,geometry.viewport,geometry.protectedRects)){p.host=host;p.bubble=bubble;p.viewport=geometry.viewport;return;}
+  if(inView(active)&&clearEnvelope(host,bubble,geometry.viewport,geometry.protectedRects)){p.host=host;p.bubble=bubble;p.viewport=geometry.viewport;return;}
   const key=activeEntry?.key;
   // An interrupted glance is not a consumed story. At most one retry follows a
   // real settled-scroll event, never an idle timer loop or every wheel tick.
@@ -195,11 +196,16 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
  }
  function companyGeometryChanged(){
   if(!available())return;
-  if(companyRest){bot.cancelMove();bot.detachAnchor();companyRest=null;resting=false;}
+  if(companyRest){
+   const geometry=companyGeometry(companyRest.target,win),r=geometry.target;
+   const host={left:r.left+companyRest.x,top:r.top+companyRest.y,width:bot.offsetWidth||115,height:bot.offsetHeight||115};host.right=host.left+host.width;host.bottom=host.top+host.height;
+   if(!inView(companyRest.target)||!inside(host,geometry.viewport)||geometry.protectedRects.some(rect=>overlaps(host,rect,8))){bot.cancelMove();bot.detachAnchor();companyRest=null;resting=false;}
+  }
   validateCompany();companySettling=true;cancelTimer(companySettleTimer);
   companySettleTimer=later(()=>{companySettling=false;consider();},180);
  }
- listen(win,'scroll',()=>{engaged=true;if(site==='company')companyGeometryChanged();else consider();queueArrival();},{passive:true});
+ // Capture nested scrolling too; iframe documents own their own local scheduler.
+ listen(win,'scroll',()=>{engaged=true;if(site==='company')companyGeometryChanged();else consider();queueArrival();},{passive:true,capture:true});
  listen(win,'resize',()=>{if(site==='company')companyGeometryChanged();},{passive:true});
  if(win.visualViewport)for(const event of ['resize','scroll'])listen(win.visualViewport,event,()=>{if(site==='company')companyGeometryChanged();},{passive:true});
  listen(root,'click',()=>{engaged=true;if(site==='shop')later(consider,0);else if(site==='company')later(()=>{validateCompany();consider();},0);});

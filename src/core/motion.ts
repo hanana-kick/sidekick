@@ -1,3 +1,4 @@
+import { isAccessoryInstanceId } from './accessory-id.js';
 import type { Activity, Vec2, Vec3 } from './design.js';
 import { finite } from './design.js';
 import { automaticBlink, createEyeState, expressionPose, parseEyeState, patchEyeState } from './expressions.js';
@@ -94,7 +95,8 @@ export class MotionTimeline {
     if (channel === 'face') return [...pose.face];
     if (channel === 'openness') return [pose.openness];
     if (channel === 'left' || channel === 'right') return [pose.eyes[channel].openness, pose.eyes[channel].smile];
-    return [...(pose.accessories[channel.slice(10)] ?? [0, 0, 0])];
+    const id = channel.slice(10);
+    return [...(Object.hasOwn(pose.accessories, id) ? pose.accessories[id]! : [0, 0, 0])];
   }
   private write(channel: MotionChannel, values: number[]): void {
     if (channel === 'rotation') this.pose.rotation = values as Vec3;
@@ -122,7 +124,7 @@ export class MotionTimeline {
   }
   /** Removed design parts must not be resurrected by an unfinished motion track. */
   removeAccessories(ids: string[]): void {
-    if (!Array.isArray(ids) || ids.some(id => typeof id !== 'string' || !/^[a-z][a-z0-9-]{0,39}$/.test(id))) throw new TypeError('잘못된 액세서리 id입니다.');
+    if (!Array.isArray(ids) || ids.some(id => !isAccessoryInstanceId(id))) throw new TypeError('잘못된 액세서리 id입니다.');
     for (const id of ids) { this.stopChannel(`accessory:${id}`); delete this.pose.accessories[id]; }
   }
   to(target: MotionTarget, options: MotionOptions = {}): Promise<MotionResult> {
@@ -148,7 +150,7 @@ export class MotionTimeline {
     }
     const accessories = value.accessories === undefined ? {} : object(value.accessories, 'accessories');
     for (const [id, entry] of Object.entries(accessories)) {
-      if (!/^[a-z][a-z0-9-]{0,39}$/.test(id)) throw new TypeError('잘못된 액세서리 id입니다.');
+      if (!isAccessoryInstanceId(id)) throw new TypeError('잘못된 액세서리 id입니다.');
       const accessory = object(entry, `accessories.${id}`, ['rotation']);
       next.accessories[id] = vec(accessory.rotation, 3, -Math.PI, Math.PI) as Vec3; channels.push(`accessory:${id}`);
     }

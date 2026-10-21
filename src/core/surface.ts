@@ -16,7 +16,7 @@ export function contourSurfacePoint(contour: ShapeContour, x: number, y: number,
   return [x, y, contourVolumeHeight(contour, x, y) * (front ? 1 : -1)];
 }
 /** Body deformations are shared by the renderer and attachment/point APIs. */
-export function deformBodyPoint(body: BodyDesign, point: Vec3, squash = 1, profileOverride?: ShapeProfile): Vec3 {
+export function deformBodyPoint(body: BodyDesign, point: Vec3, squash = 1, profileOverride?: Pick<ShapeProfile, 'depth'>): Vec3 {
   const [x, y, z] = point, stretch = 1 / Math.sqrt(squash);
   const profile = profileOverride ?? resolveShapeProfile(body.shape);
   return [x * BODY_SIZE[0] * 0.5 * stretch, y * BODY_SIZE[1] * 0.5 * squash, z * profile.depth * 0.5 * stretch];
@@ -190,6 +190,40 @@ function containedFrontPoint(contour: ShapeContour, x: number, y: number, cleara
   for (let i = 0; i < 24; i++) traveled += Math.min(extent - traveled, Math.max(0, contourSignedDistance(contour, dx * traveled, dy * traveled) - clearance));
   return contourSurfacePoint(contour, dx * traveled, dy * traveled);
 }
+/** Generic contained front chart with an independently authored rigid plane. */
+export function sampleContainedFrontSurface(body: BodyDesign, mount: { uv: readonly [number, number]; offset: number; rotation: Vec3 }, squash = 1, contourOverride?: ShapeContour, profileOverride?: Pick<ShapeProfile, 'depth'>): SurfaceFrame {
+  const contour = contourOverride ?? shapeContour({ kind: 'material', name: body.shape });
+  const direction = directionAt({ region: 'face', uv: [...mount.uv], offset: mount.offset });
+  const point = containedFrontPoint(contour, direction[0] / direction[2], direction[1] / direction[2], .012);
+  const orientation = transform([0, 0, 0], mount.rotation), stretch = 1 / Math.sqrt(squash);
+  const normal = normalize([orientation[8]! / stretch, orientation[9]! / squash, orientation[10]! / stretch]);
+  const deformedTangent: Vec3 = [orientation[0]! * stretch, orientation[1]! * squash, orientation[2]! * stretch];
+  const bitangent = normalize(cross(normal, deformedTangent)), tangent = normalize(cross(bitangent, normal));
+  const position = add(deformBodyPoint(body, point, squash, profileOverride), scale(normal, mount.offset));
+  return { position, normal, tangent, bitangent, matrix: frameMatrix(position, tangent, bitangent, normal) };
+}
+/** Generic calibrated chart; contains no catalog accessory selection or geometry. */
+export function sampleCalibratedSurface(body: BodyDesign, mount: { uv: readonly [number, number]; offset: number; rotation: Vec3 }, chart: 'central-front' | 'crown-envelope' | 'perimeter-front', options: { region?: 'left' | 'right'; perimeterInset?: number; containmentClearance?: number } = {}, squash = 1, contourOverride?: ShapeContour, profileOverride?: Pick<ShapeProfile, 'depth'>): SurfaceFrame {
+  const contour = contourOverride ?? shapeContour({ kind: 'material', name: body.shape });
+  const region = chart === 'crown-envelope' ? 'crown' : chart === 'perimeter-front' ? options.region ?? 'left' : 'face';
+  const anchor: Anchor = { region, uv: [...mount.uv], offset: mount.offset }, direction = directionAt(anchor);
+  const canonicalNormal = directionAt({ ...anchor, uv: [0, 0] }), helper: Vec3 = region === 'crown' ? [0, 0, -1] : [0, 1, 0];
+  const baseTangent = normalize(cross(helper, canonicalNormal)), baseBitangent = normalize(cross(canonicalNormal, baseTangent));
+  const orientation = multiply(frameMatrix([0, 0, 0], baseTangent, baseBitangent, canonicalNormal), transform([0, 0, 0], mount.rotation));
+  const stretch = 1 / Math.sqrt(squash), normal = normalize([orientation[8]! / stretch, orientation[9]! / squash, orientation[10]! / stretch]);
+  const bitangent = normalize(cross(normal, [orientation[0]! * stretch, orientation[1]! * squash, orientation[2]! * stretch])), tangent = normalize(cross(bitangent, normal));
+  let point: Vec3;
+  if (chart === 'crown-envelope') point = [mount.uv[0], Math.max(...contour.points.map(p => p[1])) + mount.uv[1], 0];
+  else if (chart === 'perimeter-front') {
+    const perimeter = perimeterMountPoint(contour, direction), inset = options.perimeterInset ?? .96;
+    point = containedFrontPoint(contour, perimeter[0] * inset, perimeter[1] * inset, options.containmentClearance ?? .006);
+  } else {
+    const x = direction[0] / direction[2], y = direction[1] / direction[2], fit = Math.min(1, mountChart(contour).faceRadius / Math.max(Math.hypot(x, y), 1e-12));
+    point = contourSurfacePoint(contour, x * fit, y * fit);
+  }
+  const position = add(deformBodyPoint(body, point, squash, profileOverride), scale(normal, mount.offset));
+  return { position, normal, tangent, bitangent, matrix: frameMatrix(position, tangent, bitangent, normal) };
+}
 /**
  * A curated junction, independent of the angular ray used to choose its location.
  * The position follows the current contour's phase-locked perimeter continuously;
@@ -202,6 +236,7 @@ export function sampleAccessorySurface(body: BodyDesign, accessory: Pick<Resolve
   const profile = profileOverride ?? resolveShapeProfile(body.shape);
   const contour = contourOverride ?? shapeContour({ kind: 'material', name: body.shape });
   const mount = accessoryMountProfile(accessory, profile), anchor = accessoryMountAnchor(accessory, profile), direction = directionAt(anchor);
+  if (anchor.region === 'face' && ['moustache', 'goatee', 'bowTie', 'scarf', 'necklace'].includes(accessory.preset)) return sampleContainedFrontSurface(body, { ...mount, uv: anchor.uv, offset: anchor.offset }, squash, contour, profile);
   const canonicalNormal = directionAt({ ...anchor, uv: [0, 0] });
   const helper: Vec3 = anchor.region === 'crown' ? [0, 0, -1] : [0, 1, 0];
   const baseTangent = normalize(cross(helper, canonicalNormal)), baseBitangent = normalize(cross(canonicalNormal, baseTangent));

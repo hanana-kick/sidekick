@@ -102,7 +102,7 @@ export class AvatarMovement {
                 const distance = Math.hypot(to.x - this.point.x, to.y - this.point.y);
                 this.track = { kind: 'physical', to, start: now, last: now, accumulator: 0,
                     maxSpeed: timing.maxSpeed,
-                    acceleration: timing.acceleration, deceleration: timing.deceleration, initialDistance: Math.max(distance, 1), stopping: false, resolve };
+                    acceleration: timing.acceleration, deceleration: timing.deceleration, initialDistance: Math.max(distance, 1), stopping: false, natural: timing.travel === 'natural', resolve };
                 this.progress = 0;
                 this.phase = Math.hypot(this.velocity.x, this.velocity.y) > 0.1 ? 'flight' : 'takeoff';
                 this.report();
@@ -191,7 +191,16 @@ export class AvatarMovement {
             return;
         }
         if (track?.kind === 'travel') {
-            track.to = to;
+            if (Math.hypot(to.x - track.to.x, to.y - track.to.y) <= 0.01)
+                return;
+            // A moving endpoint is a pursuit, not a new interpolation from the old
+            // origin. Preserve the current derivatives and the original promise.
+            const now = this.host.now();
+            this.track = { kind: 'physical', to, start: now, last: now, accumulator: 0,
+                maxSpeed: this.followTiming.maxSpeed, acceleration: this.followTiming.acceleration,
+                deceleration: this.followTiming.deceleration, initialDistance: Math.max(1, Math.hypot(to.x - this.point.x, to.y - this.point.y)),
+                stopping: false, natural: track.natural, fade: track.natural ? undefined : { start: track.start, duration: Math.min(180, track.duration), presentation: track.presentation }, resolve: track.resolve, silent: track.silent };
+            this.schedule();
             return;
         }
         if (track && !(track.kind === 'settling' && track.finished))
@@ -209,7 +218,7 @@ export class AvatarMovement {
         this.track = { kind: 'physical', to, start: now, last: now, accumulator: 0,
             maxSpeed: this.followTiming.maxSpeed, acceleration: this.followTiming.acceleration,
             deceleration: this.followTiming.deceleration, initialDistance: Math.max(distance, 1),
-            stopping: false, resolve: track?.resolve ?? (() => { }), silent: track?.silent ?? !track };
+            stopping: false, natural: this.followTiming.travel === 'natural', resolve: track?.resolve ?? (() => { }), silent: track?.silent ?? !track };
         this.progress = 0;
         this.phase = 'takeoff';
         this.schedule();
@@ -369,6 +378,14 @@ export class AvatarMovement {
         const track = this.track;
         if (!track)
             return;
+        // The geometry scheduler is deliberately independent and may run after this
+        // RAF. Sample once at the deadline/settle boundary so callback ordering cannot
+        // resolve a request at a target that moved in this very frame.
+        if ((track.kind === 'travel' || (track.kind === 'settling' && track.finished)) && now >= track.start + track.duration) {
+            this.host.refreshTarget?.();
+            if (this.track !== track || this.suspended)
+                return;
+        }
         if (this.host.immediate()) {
             this.finishCurrent();
             return;
@@ -526,8 +543,16 @@ export class AvatarMovement {
         const strength = this.presentation.strength + (targetStrength - this.presentation.strength) * attitudeBlend;
         // Banking changes sign under braking; it is derived from physical acceleration.
         const bank = Math.max(-0.12, Math.min(0.12, -this.acceleration.x / Math.max(track.acceleration, track.deceleration) * 0.12));
-        if (!arrived)
-            this.present({ direction: heading, strength, lift: 0.06 * strength, bank: this.presentation.bank + (bank - this.presentation.bank) * attitudeBlend });
+        if (!arrived) {
+            if (track.natural)
+                this.present({ direction: heading, strength, lift: 0.06 * strength, bank: this.presentation.bank + (bank - this.presentation.bank) * attitudeBlend });
+            else if (track.fade) {
+                const decay = 1 - smooth(clamp((now - track.fade.start) / track.fade.duration)), p = track.fade.presentation;
+                this.present({ direction: [...p.direction], strength: p.strength * decay, lift: p.lift * decay, bank: p.bank * decay });
+            }
+            else
+                this.present(neutral());
+        }
         if (this.track !== track)
             return;
         if (arrived) {

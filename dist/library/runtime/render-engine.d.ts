@@ -62,6 +62,10 @@ export declare class RenderEngine {
     private emotionFrame;
     private orientationTarget;
     private presentationMoving;
+    private readonly movingPartTracks;
+    private partAnimationAvailable;
+    private updatePartAnimationAvailability;
+    private partAnimationMoving;
     private animated;
     private paceIdle;
     private resetPacing;

@@ -1,3 +1,5 @@
+import type { PartAnimationClip } from '../core/part-animation.js';
+import type { PluginAccessoryInstance } from '../element/plugin-equipment.js';
 import type { PresentationSignature } from './presentation.js';
 import type { EmotionValue } from '../core/emotion.js';
 import type { TravelPresentation } from '../core/travel.js';
@@ -12,6 +14,8 @@ import type { PixelBuffer, SnapshotOptions } from '../core/pixels.js';
 /** Private wire format. A generation owns exactly one transferred surface. */
 export const PROTOCOL_VERSION = 1;
 export interface RuntimeState {
+  partAnimation?: { clip: PartAnimationClip; time: number; anchorTime: number; playing: boolean };
+  pluginAccessories?: readonly PluginAccessoryInstance[];
   /** Private recovery selector; a lost/failed WebGL surface is replaced before this is used. */
   renderer?: 'auto' | 'canvas2d';
   emotion?: EmotionValue;

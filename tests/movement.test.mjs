@@ -10,7 +10,7 @@ function fixture(hooks = {}) {
     now: () => now, immediate: () => state.immediate,
     constrain: p => ({ x: Math.max(state.min, Math.min(state.max, p.x)), y: Math.max(state.min, Math.min(state.max, p.y)) }),
     render: p => { points.push(p); hooks.render?.(p); }, complete: r => { events.push(r); return hooks.complete?.(r); },
-    progress: s => { states.push(s); hooks.progress?.(s); }, presentation: p => { presentations.push(p); hooks.presentation?.(p); },
+    refreshTarget: () => hooks.refreshTarget?.(), progress: s => { states.push(s); hooks.progress?.(s); }, presentation: p => { presentations.push(p); hooks.presentation?.(p); },
     requestFrame: callback => { callbacks.set(++frame, callback); return frame; }, cancelFrame: id => callbacks.delete(id),
   });
   return {
@@ -608,4 +608,50 @@ test('detaching silent pursuit brakes rather than snapping and emits no extra co
  const f=fixture();const initial=f.controller.to({x:100,y:100},physics);finish(f);await initial;
  f.controller.followTarget({x:900,y:100});advance(f,f.now+300);const before=f.controller.position;
  f.controller.stopFollowing();assert.ok(f.controller.position.x>=before.x);finish(f);await Promise.resolve();assert.equal(f.events.length,1);assert.ok(f.controller.position.x<900);
+});
+
+test('plain anchored pursuit preserves derivatives and waits for the live destination', async () => {
+ const f=fixture();const promise=f.controller.to({x:600,y:200},{duration:100,travel:'none',...physics});
+ advance(f,80);const before=f.controller.state;
+ f.controller.followTarget({x:100,y:700});
+ assert.deepEqual(f.controller.state,before,'retarget does not teleport or reset derivatives');
+ advance(f,120);await Promise.resolve();assert.equal(f.events.length,0,'old duration is not an arrival deadline');
+ assert.ok(f.controller.state.speed>0);finish(f);assert.deepEqual((await promise).position,{x:100,y:700});
+ assert.ok(f.presentations.every(p=>p.lift===0&&p.bank===0&&p.strength===0),'plain pursuit keeps presentation neutral');
+});
+test('a retargeted legacy plain tween becomes continuous pursuit instead of jumping', async()=>{
+ const f=fixture();const promise=f.controller.to({x:600,y:200},{duration:600,travel:'none'});advance(f,200);
+ const before=f.controller.state;f.controller.followTarget({x:50,y:700});assert.deepEqual(f.controller.state,before);
+ f.at(f.now+1000/60);assert.ok(Math.hypot(f.controller.position.x-before.position.x,f.controller.position.y-before.position.y)<30);
+ finish(f);assert.deepEqual((await promise).position,{x:50,y:700});assert.equal(f.events.length,1);
+});
+test('live pursuit follows repeated reversals without resolving at an abandoned point', async()=>{
+ const f=fixture();const promise=f.controller.to({x:800,y:200},{duration:1000,travel:'none',...physics});
+ for(let i=0;i<12;i++){advance(f,f.now+60);const before=f.controller.state;f.controller.followTarget({x:i%2?800:100,y:300+i*10});assert.deepEqual(f.controller.state,before);}
+ assert.equal(f.events.length,0);f.controller.followTarget({x:500,y:500});finish(f);assert.deepEqual((await promise).position,{x:500,y:500});
+});
+
+test('target changing on the exact old deadline is refreshed before success',async()=>{
+ let goal={x:600,y:200},reads=0;const f=fixture({refreshTarget(){reads++;f.controller.followTarget(goal);}});
+ const promise=f.controller.to(goal,{duration:600,travel:'none'});advance(f,580);
+ const before=f.controller.state;goal={x:100,y:700};f.at(600);
+ assert.deepEqual(f.controller.state,before,'deadline refresh preserves derivatives and position');assert.equal(f.events.length,0);assert.equal(reads,1);
+ finish(f);assert.deepEqual((await promise).position,goal);assert.equal(f.events.length,1);
+});
+test('settle-boundary target change keeps the same initial promise until latest arrival',async()=>{
+ let goal={x:100,y:100},reads=0;const f=fixture({refreshTarget(){reads++;f.controller.followTarget(goal);}});
+ const promise=f.controller.to(goal);while(f.controller.state.phase!=='settling')f.at(f.now+16);
+ goal={x:800,y:700};advance(f,f.now+200);await Promise.resolve();assert.equal(f.events.length,0);assert.ok(reads>0);
+ finish(f);assert.deepEqual((await promise).position,goal);assert.equal(f.events.length,1);
+});
+test('arrival-boundary target loss resolves cancelled and respects a newer move',async()=>{
+ let lose=false;const f=fixture({refreshTarget(){if(lose)f.controller.cancel(true);}});
+ const pending=f.controller.to({x:300,y:100},{duration:100,travel:'none'});advance(f,80);lose=true;f.at(100);
+ assert.equal((await pending).finished,false);assert.equal(f.events.length,1);assert.equal(f.callbacks.size,0);
+});
+test('retargeting a plain interruption preserves its existing flight-attitude fade',async()=>{
+ const f=fixture();const old=f.controller.to({x:900,y:100});advance(f,300);
+ const plainMove=f.controller.to({x:200,y:200},{duration:600,travel:'none'});assert.equal((await old).finished,false);advance(f,340);
+ const p=f.presentations.at(-1);assert.ok(p.lift>0);f.controller.followTarget({x:100,y:600});f.at(341);
+ const next=f.presentations.at(-1);assert.ok(next.lift>0&&next.lift<=p.lift,'no one-frame neutral pop');advance(f,500);assert.equal(f.presentations.at(-1).lift,0,'original 180ms fade deadline is preserved');finish(f);assert.equal((await plainMove).finished,true);
 });

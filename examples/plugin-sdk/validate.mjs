@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import plugin, { badgeAnimation } from './badge.js';
+import { validateAccessoryPluginGeometry, validatePartAnimation, samplePartAnimation } from '@hanana-kick/sidekick-plugin-sdk';
+const mesh = validateAccessoryPluginGeometry(await plugin.createMesh());
+assert.equal(plugin.apiVersion, 1);
+assert.equal(plugin.id, 'starter/badge');
+assert.equal(mesh.indices.length, 6);
+const clip = validatePartAnimation(badgeAnimation);
+assert.deepEqual(samplePartAnimation(clip, 1).accessories['starter-badge'].rotation, [0, 0, .15]);
+console.log('Starter mesh and independent animation validated.');

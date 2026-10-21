@@ -1,3 +1,5 @@
+import type { PartAnimationClip, PartAnimationTrack } from '../core/part-animation.js';
+import { samplePartAnimation } from '../core/part-animation.js';
 import { resolveEmotionFrame, emotionHasMotion } from '../core/emotion.js';
 import type { EmotionFrame } from '../core/emotion.js';
 import { travelPose, travelActivity } from '../core/travel.js';
@@ -99,7 +101,7 @@ export class RenderEngine {
     try {
       canvas.addEventListener('webglcontextlost', this.contextLost);
       this.renderer.resize(initial.width, initial.height, initial.dpr);
-      this.updateTracking();
+      this.updateTracking(); this.updatePartAnimationAvailability();
       this.render(true); this.wake();
     } catch (error) {
       // The bridge cannot own this instance until construction succeeds. Release
@@ -174,6 +176,10 @@ export class RenderEngine {
           || (command.state.reduced !== undefined && command.state.reduced !== this.state.reduced)
           || (command.state.time !== undefined && command.state.time !== this.state.time)) this.resetPacing();
         if (command.state.activity !== undefined) this.activityBlend.set(command.state.activity, (command.state.paused ?? this.state.paused) || (command.state.reduced ?? this.state.reduced));
+        if (Object.hasOwn(command.state, 'pluginAccessories')) {
+          const next = command.state.pluginAccessories ?? [];
+          this.timeline.removeAccessories((this.state.pluginAccessories ?? []).filter(item => !next.some(other => other.id === item.id)).map(item => item.id));
+        }
         Object.assign(this.state, command.state);
         if (!this.state.active || wasActive !== this.state.active) this.stop();
         if (this.state.paused || this.state.reduced) {
@@ -219,6 +225,7 @@ export class RenderEngine {
       }
       case 'dispose': this.dispose(); return;
     }
+    if (command.kind === 'design' || command.kind === 'persist-design' || (command.kind === 'state' && (Object.hasOwn(command.state, 'partAnimation') || Object.hasOwn(command.state, 'pluginAccessories')))) this.updatePartAnimationAvailability();
     this.dirty = true; this.wake();
     // Immediate commands acknowledge their pose even when the surface is hidden.
     this.notify({ kind: 'frame', snapshot: this.snapshot });
@@ -236,12 +243,33 @@ export class RenderEngine {
   private emotionFrame(): EmotionFrame { const [smile, blink, eyeWeight, bob, roll, pitch, x, y, squash] = this.emotion.values; return { smile: smile!, blink: blink!, eyeWeight: eyeWeight!, bob: bob!, roll: roll!, pitch: pitch!, gaze: [x!, y!], squash: squash! }; }
   private orientationTarget(): number[] { const o = this.state.bodyOrientation; return [o.yaw, o.pitch, o.roll]; }
   private presentationMoving(): boolean { return this.emotionEyeControl.active || this.emotion.moving(this.emotionTarget()) || (!this.state.reduced && emotionHasMotion(this.state.emotion ?? { emotion: 'neutral', intensity: 1 })) || this.orientation.moving(this.orientationTarget()) || this.attention.moving([this.state.attention ? 1 : 0]); }
+  private readonly movingPartTracks = new WeakMap<PartAnimationClip, PartAnimationTrack[]>();
+  private partAnimationAvailable = false;
+  private updatePartAnimationAvailability(): void {
+    const part = this.state.partAnimation;
+    if (!part) { this.partAnimationAvailable = false; return; }
+    let tracks = this.movingPartTracks.get(part.clip);
+    if (!tracks) {
+      tracks = part.clip.tracks.filter(track => {
+        const first = track.keyframes[0]!.value;
+        return track.keyframes.some(key => typeof first === 'number' ? key.value !== first : Array.isArray(key.value) && key.value.some((value, i) => value !== first[i]));
+      });
+      this.movingPartTracks.set(part.clip, tracks);
+    }
+    const plugins = this.state.pluginAccessories ?? [];
+    const ids = new Set([...plugins.map(item => item.id), ...this.state.design.accessories.filter(item => !plugins.some(plugin => plugin.slot === item.slot)).map(item => item.id)]);
+    this.partAnimationAvailable = tracks.some(track => typeof track.target !== 'object' || ids.has(track.target.accessory));
+  }
+  private partAnimationMoving(): boolean {
+    const part = this.state.partAnimation;
+    return this.partAnimationAvailable && !!part?.playing && !this.state.reduced && (part.clip.loop === true || part.time + this.state.time - part.anchorTime < part.clip.duration);
+  }
   private animated(): boolean {
     if (this.state.paused) return this.tracking.settling;
-    return this.renderer.animating || this.presentationMoving() || this.activityBlend.active || this.timeline.active || this.shape.active || this.gazeMoving() || this.tracking.active || (!this.state.reduced && this.state.activity !== 'still');
+    return this.partAnimationMoving() || this.renderer.animating || this.presentationMoving() || this.activityBlend.active || this.timeline.active || this.shape.active || this.gazeMoving() || this.tracking.active || (!this.state.reduced && this.state.activity !== 'still');
   }
   private paceIdle(): boolean {
-    return !this.dirty && !this.renderer.animating && !this.presentationMoving() && this.state.activity === 'idle' && !this.state.paused && !this.state.reduced && !this.activityBlend.active && !this.timeline.active && !this.shape.active && !this.gazeMoving() && !this.tracking.active;
+    return !this.dirty && !this.partAnimationMoving() && !this.renderer.animating && !this.presentationMoving() && this.state.activity === 'idle' && !this.state.paused && !this.state.reduced && !this.activityBlend.active && !this.timeline.active && !this.shape.active && !this.gazeMoving() && !this.tracking.active;
   }
   private resetPacing(): void { this.idleDrawElapsed = 0; this.rendererDelta = 0; }
   private presentationHeld = false;
@@ -301,13 +329,18 @@ export class RenderEngine {
       smile: pose.eyes[side].smile + (emotion.smile - pose.eyes[side].smile) * emotion.eyeWeight * this.emotionEyeControl.pose.eyes[side].openness,
       openness: pose.eyes[side].openness + (1 - emotion.blink - pose.eyes[side].openness) * emotion.eyeWeight * this.emotionEyeControl.pose.eyes[side].openness,
     }])) as typeof pose.eyes;
+    const clip = this.state.partAnimation;
+    const partAnimation = clip ? samplePartAnimation(clip.clip, clip.time + (clip.playing && !this.state.reduced ? this.state.time - clip.anchorTime : 0)) : undefined;
+    if (partAnimation?.bodyRotation) pose.rotation = partAnimation.bodyRotation;
+    if (partAnimation?.face) pose.face = partAnimation.face;
+    for (const side of ['left', 'right'] as const) if (partAnimation?.eyes?.[side]) pose.eyes[side] = partAnimation.eyes[side]!;
     this.renderedRotation = [...pose.rotation];
     const activityFrame = travelActivity(this.activityBlend.sample(this.state.time, this.state.reduced), travel);
     activityFrame.bob += emotion.bob; activityFrame.roll += emotion.roll; activityFrame.squash *= emotion.squash;
     activityFrame.gaze = activityFrame.gaze.map((value, i) => (value + emotion.gaze[i]!) * (1 - this.attention.values[0]!)) as Vec2;
     const [yaw, pitch, roll] = this.orientation.values;
     const started = performance.now();
-    this.renderer.render(this.state.design, { pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, activity: this.state.activity, instant: this.state.paused || this.state.reduced, equipmentImmediate: this.equipmentImmediate, activityFrame, travel, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', bodyOrientation: { yaw: yaw!, pitch: pitch!, roll: roll! }, zoom: this.state.zoom });
+    this.renderer.render(this.state.design, { partAnimation, pluginAccessories: this.state.pluginAccessories, pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, shapeWeights: this.state.pluginAccessories?.some(item => item.asset.attachment) ? shape.shapeWeights : undefined, activity: this.state.activity, instant: this.state.paused || this.state.reduced, equipmentImmediate: this.equipmentImmediate, activityFrame, travel, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', bodyOrientation: { yaw: yaw!, pitch: pitch!, roll: roll! }, zoom: this.state.zoom });
     const duration = performance.now() - started;
     this.renderCpu.lastMs = duration; this.renderCpu.totalMs += duration; this.renderCpu.maxMs = Math.max(this.renderCpu.maxMs, duration);
     this.equipmentImmediate = false; this.dirty = false; this.frames++; this.resetPacing();

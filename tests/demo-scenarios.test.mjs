@@ -331,3 +331,21 @@ test('constrained centered Compare defers without consumption then recovers at i
  const heading=x.root.querySelector('h2');x.observe(heading);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);assert.deepEqual(x.sourceEvents,[]);
  normal=true;x.w.dispatchEvent(new x.w.Event('scroll'));await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,1);assert.deepEqual(x.sourceEvents.map(e=>e.id),['nova-compare']);
 });
+
+test('safe company scroll during pursuit retains one move and speaks at the latest anchor',async t=>{
+ const x=setup(t,'company','<section id="nova-sound"><div class="nova-mode-tabs"></div></section>');
+ const target=x.root.querySelector('.nova-mode-tabs');let y=50,finish,options,moves=0;
+ target.getBoundingClientRect=()=>({left:100,top:y,right:300,bottom:y+100,width:200,height:100});
+ const original=x.bot.moveToElement;
+ x.bot.moveToElement=(el,opt)=>{moves++;options=opt;return new Promise(resolve=>{finish=async()=>{await original(el,opt);resolve({finished:true});};});};
+ x.observe(target);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
+ for(const delta of [1,2,3,2,1]){y=50+delta;x.w.dispatchEvent(new x.w.Event('scroll'));await flush();}
+ assert.equal(moves,1,'scroll cannot restart an in-flight pursuit');assert.equal(x.calls.filter(c=>c[0]==='say').length,0);
+ await finish();await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,1);assert.equal(x.calls.filter(c=>c[0]==='detach').length,0);
+});
+test('nested scroll engages the example without a window scroll or click',async t=>{
+ const products=[{id:1,cat:'tops',price:18},{id:2,cat:'tops',price:12}];
+ const x=setup(t,'shop','<div id="muse-product-grid"><article data-product="2"></article></div>',{getScenarioState:()=>({products,saved:[1]})});
+ x.observe(x.root.querySelector('article'));await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);
+ x.root.dispatchEvent(new x.w.Event('scroll',{bubbles:false}));await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,1);
+});

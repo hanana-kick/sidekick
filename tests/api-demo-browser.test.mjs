@@ -478,7 +478,7 @@ for (const deviceScaleFactor of [1, 2]) test(`demo visible ink fits64px at DPR${
  test('on-site scrolling, real wishlist and local arrivals drive dialogue without floating controls', {timeout:120000}, async t=>{
  const page=await pageFor(t);assert.equal(await page.locator('.flight-toolbar,#cancel-preview').count(),0);assert.equal(await page.locator('#bot-tools-launcher').evaluate(el=>getComputedStyle(el).position==='fixed'),false);
  let frame=await switchSite(page,'company');await frame.locator('a[href="#nova-design"]').first().click();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/materials|listening|Compare|finish/);
- frame=await switchSite(page,'shop');await frame.locator('[data-wish="13"]').click();await frame.locator('[data-product="1"] .muse-product-picture').scrollIntoViewIfNeeded();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/\$89, \$6 less than your saved style.*Same category; fit may differ/);assert.equal(await frame.locator('#muse-wish-count').textContent(),'1');
+ frame=await switchSite(page,'shop');await frame.locator('.muse-companion-remove').click();await frame.locator('[data-wish="13"]').click();await frame.locator('[data-product="1"] .muse-product-picture').scrollIntoViewIfNeeded();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/\$89, \$6 less than your saved style.*Same category; fit may differ/);assert.equal(await frame.locator('#muse-wish-count').textContent(),'1');
  frame=await switchSite(page,'community');await frame.locator('[data-post="4"]').scrollIntoViewIfNeeded();await frame.waitForFunction(()=>document.querySelectorAll('.th-post').length===21);await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/Local demo/);
  await frame.locator('#th-compose-text').fill('A local post for the demo');await frame.locator('#th-publish').click();await frame.waitForFunction(()=>document.querySelector('#th-feed').textContent.includes('Local demo mention:'));await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.textContent.includes('mentioned'),null,{timeout:20000});
  await page.locator('#preview-refresh').click();frame=await frameFor(page,'community');assert.equal(await frame.locator('[data-sidekick-speech]').count(),0);assert.equal(await frame.locator('.th-post').count(),20);
@@ -558,4 +558,34 @@ for(const locale of ['en','ko','ja','zh-CN'])for(const width of [320,505])test(`
   if(selector.includes('config-image')){await frame.locator('[data-finish="1"]').click();assert.equal(await frame.locator('[data-finish="1"]').getAttribute('aria-pressed'),'true');}
  }
  });
+});
+
+test('shop first visit is scroll-only with a clearly labeled reference in each locale', {timeout:120000}, async t=>{
+ const page=await pageFor(t,{viewport:{width:900,height:800}});
+ for(const locale of ['en','ko','ja','zh-CN']){
+  await page.goto(`${base}/api-playground.html?lang=${locale}`);await frameFor(page,'company');const frame=await switchSite(page,'shop');
+  await frame.locator('#muse-companion-instruction').scrollIntoViewIfNeeded();
+  assert.match(await frame.locator('[data-reference-product="12"]').textContent(),/\$18/);
+  await frame.locator('[data-product="0"] .muse-product-picture').scrollIntoViewIfNeeded();
+  await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.querySelector('.message')?.textContent.includes('$12'));
+  const text=await frame.locator('[data-sidekick-speech] .message').textContent();assert.match(text,/\$12/);assert.match(text,/\$6/);
+  assert.equal(await frame.locator('dialog[open]').count(),0);assert.equal(await frame.locator('#muse-wish-count').textContent(),'1');
+ }
+});
+
+test('live plain anchor retargets during nested scroll without stale arrival',{timeout:30000},async t=>{
+ const page=await pageFor(t,{reducedMotion:'no-preference'}),frame=await frameFor(page,'company');
+ const result=await frame.evaluate(async()=>{
+  const api=await window.sidekickDemoReady;api.pauseScenarios(true);const bot=api.bot;bot.cancelMove();bot.detachAnchor();bot.movementBounds='none';
+  const pane=document.createElement('div');pane.style.cssText='position:fixed;left:140px;top:100px;width:300px;height:300px;overflow:auto;z-index:20';
+  pane.innerHTML='<div style="height:1400px;position:relative"><div id="moving-test-target" style="position:absolute;left:80px;top:180px;width:115px;height:115px"></div></div>';document.body.append(pane);const target=pane.querySelector('#moving-test-target');
+  await bot.moveTo({x:10,y:50},{duration:0,travel:'none'});let count=0;const events=[];const listener=e=>{count++;events.push(e.detail);};bot.addEventListener('sidekick-move-end',listener);
+  const start=performance.now();const moving=bot.moveToElement(target,{anchor:true,duration:550,travel:'none'});
+  await new Promise(r=>setTimeout(r,140));pane.scrollTop=120;
+  await new Promise(r=>setTimeout(r,140));pane.scrollTop=30;
+  await new Promise(r=>setTimeout(r,140));target.style.left='150px';target.style.top='220px';
+  const value=await moving,elapsed=performance.now()-start,b=bot.getBoundingClientRect(),r=target.getBoundingClientRect();
+  const snapshot={value,elapsed,count,error:Math.hypot(b.left-r.left,b.top-r.top),graphics:bot.diagnostics.graphics};bot.removeEventListener('sidekick-move-end',listener);bot.detachAnchor();pane.remove();return snapshot;
+ });
+ assert.equal(result.value.finished,true);assert.equal(result.count,1);assert.ok(result.error<1,JSON.stringify(result));assert.ok(result.elapsed>550,'moving destination must not finish at the abandoned tween deadline');
 });

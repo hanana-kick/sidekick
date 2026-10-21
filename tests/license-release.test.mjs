@@ -8,11 +8,11 @@ import { fileURLToPath } from 'node:url';
 
 // Test the actual release builder in a disposable clean repository, not just its
 // source strings. Never changes the working checkout, remote, tags or registry.
-test('browser ZIP and npm archive carry identical authoritative license and unchanged third-party notices', t => {
+test('browser ZIP, plugin SDK ZIP and npm archive carry identical authoritative license and unchanged third-party notices', t => {
   const root = fileURLToPath(new URL('..', import.meta.url));
   const fixture = mkdtempSync(join(tmpdir(), 'sidekick-license-release-'));
   t.after(() => rmSync(fixture, { recursive: true, force: true }));
-  for (const file of ['LICENSE', '.gitignore', 'package.json', 'README.md', 'README.en.md', 'README.ja.md', 'README.zh-CN.md', 'dist/library', 'dist/browser', 'third_party', 'scripts/package-release.mjs', 'scripts/build-react-peers.mjs']) {
+  for (const file of ['LICENSE', '.gitignore', 'package.json', 'README.md', 'README.en.md', 'README.ja.md', 'README.zh-CN.md', 'dist/library', 'dist/browser', 'dist/plugin-sdk', 'third_party', 'scripts/package-release.mjs', 'scripts/build-react-peers.mjs']) {
     cpSync(join(root, file), join(fixture, file), { recursive: true });
   }
   symlinkSync(join(root, 'node_modules'), join(fixture, 'node_modules'), 'junction');
@@ -23,11 +23,17 @@ test('browser ZIP and npm archive carry identical authoritative license and unch
   const result = JSON.parse(run(process.execPath, ['scripts/package-release.mjs']));
   const archive = join(fixture, 'release', `sidekick-browser-${result.version}.zip`);
   const zipRead = file => run('unzip', ['-p', archive, file]);
+  const sdkArchive = join(fixture, 'release', `sidekick-plugin-sdk-${result.version}.zip`);
+  const sdkRead = file => run('unzip', ['-p', sdkArchive, file]);
   assert.equal(zipRead('LICENSE'), readFileSync(join(root, 'LICENSE'), 'utf8'));
   assert.equal(JSON.parse(zipRead('release.json')).license, 'SEE LICENSE IN LICENSE');
+  assert.equal(sdkRead('LICENSE'), zipRead('LICENSE'));
+  assert.equal(JSON.parse(sdkRead('release.json')).license, 'SEE LICENSE IN LICENSE');
+  assert.equal(JSON.parse(sdkRead('package.json')).license, 'SEE LICENSE IN LICENSE');
   assert.match(zipRead('START-HERE.txt'), /Preserve LICENSE and third-party notices/);
   for (const file of ['third_party/material-shapes/LICENSE', 'third_party/material-shapes/NOTICE']) {
     assert.equal(zipRead(file), readFileSync(join(root, file), 'utf8'));
+    assert.equal(sdkRead(file), zipRead(file));
   }
   for (const name of ['react', 'react-dom', 'scheduler']) assert.match(zipRead(`vendor/${name}-LICENSE.txt`), /MIT License/);
   const tarball = join(fixture, 'release', result.assets.find(file => file.endsWith('.tgz')));

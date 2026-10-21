@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { resolve, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildBrowser } from './build-browser.mjs';
+import { buildPluginSdk } from './build-plugin-sdk.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const checking = process.argv.includes('--check');
@@ -23,17 +24,18 @@ try {
   if (!checking) rmSync(output, { recursive: true, force: true });
   execFileSync(process.execPath, [resolve(root, 'node_modules/typescript/bin/tsc'), '-p', resolve(root, 'tsconfig.library.json'), '--outDir', output], { cwd: root, stdio: 'inherit' });
   await buildBrowser({ libraryDirectory: output, outputDirectory: join(outputRoot, 'browser') });
+  await buildPluginSdk({ libraryDirectory: output, outputDirectory: join(outputRoot, 'plugin-sdk') });
   if (checking) {
     const committed = resolve(root, 'dist');
-    const generated = ['library', 'browser'].flatMap(directory => files(join(outputRoot, directory)).map(path => relative(outputRoot, path)));
+    const generated = ['library', 'browser', 'plugin-sdk'].flatMap(directory => files(join(outputRoot, directory)).map(path => relative(outputRoot, path)));
     let existing = [];
-    try { existing = ['library', 'browser'].flatMap(directory => files(join(committed, directory)).map(path => relative(committed, path))); } catch { /* Report missing artifacts as stale. */ }
+    try { existing = ['library', 'browser', 'plugin-sdk'].flatMap(directory => files(join(committed, directory)).map(path => relative(committed, path))); } catch { /* Report missing artifacts as stale. */ }
     const changed = [...new Set([...generated, ...existing])].filter(path => {
       try { return !readFileSync(join(outputRoot, path)).equals(readFileSync(join(committed, path))); } catch { return true; }
     });
-    if (changed.length) throw new Error(`dist/library or dist/browser is stale. Run npm run build:library and commit the result.\n${changed.join('\n')}`);
-    console.log(`Library and browser artifacts match source (${generated.length} files).`);
-  } else console.log(`Built ${files(output).length} library modules/declarations and ${files(join(outputRoot, 'browser')).length} prebuilt browser files.`);
+    if (changed.length) throw new Error(`dist/library, dist/browser or dist/plugin-sdk is stale. Run npm run build:library and commit the result.\n${changed.join('\n')}`);
+    console.log(`Library, browser and plugin SDK artifacts match source (${generated.length} files).`);
+  } else console.log(`Built ${files(output).length} library modules/declarations, ${files(join(outputRoot, 'browser')).length} prebuilt browser files and ${files(join(outputRoot, 'plugin-sdk')).length} plugin SDK files.`);
 } finally {
   if (temporary) rmSync(temporary, { recursive: true, force: true });
 }

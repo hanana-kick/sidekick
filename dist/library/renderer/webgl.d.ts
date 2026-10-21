@@ -1,3 +1,6 @@
+import type { PartAnimationSample } from '../core/part-animation.js';
+import type { ShapeWeights } from '../core/shape-motion.js';
+import type { PluginAccessoryInstance } from '../element/plugin-equipment.js';
 import type { TravelPresentation } from '../core/travel.js';
 import type { Activity, AvatarDesign, RenderStyle } from '../core/design.js';
 import type { ActivityFrame, Pose } from '../core/motion.js';
@@ -6,6 +9,8 @@ import type { ShapeProfile } from '../core/shape-profiles.js';
 import type { ShapeContour } from '../core/contours.js';
 import type { RendererOptions } from './render-backend.js';
 export interface RenderState {
+    partAnimation?: PartAnimationSample;
+    pluginAccessories?: readonly PluginAccessoryInstance[];
     pose: Pose;
     activity: Activity;
     time: number;
@@ -25,11 +30,13 @@ export interface RenderState {
     eyeMotion?: Record<'left' | 'right', boolean>;
     contour?: ShapeContour;
     profile?: ShapeProfile;
+    shapeWeights?: ShapeWeights;
 }
 /** Shared geometry and animation, presented through WebGL2 or Canvas2D. */
 export declare class AvatarRenderer {
     readonly canvas: HTMLCanvasElement | OffscreenCanvas;
     private backend;
+    private pluginMeshes;
     get gl(): WebGL2RenderingContext | undefined;
     get graphics(): 'webgl2' | 'canvas2d';
     private meshes;

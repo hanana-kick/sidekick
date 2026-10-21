@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sidekick SDK catalog comparison</title>
+<style>body{font:16px system-ui;background:#eef1f5;color:#1b2433;margin:32px}main{display:flex;gap:24px;flex-wrap:wrap}section{background:white;border-radius:20px;padding:20px}sidekick-avatar{display:block;width:280px;height:280px}button{padding:10px 16px;margin:6px;border-radius:10px;border:1px solid #bac4d1;background:white}pre{white-space:pre-wrap}</style>
+<h1>SDK catalog comparison</h1><p>Left: unchanged built-in assets. Right: independently authored external plugins.</p>
+<main><section><h2>Built-in</h2><sidekick-avatar id="reference" activity="still" tracking-mode="off"></sidekick-avatar></section><section><h2>Public SDK plugins</h2><sidekick-avatar id="external" activity="still" tracking-mode="off"></sidekick-avatar></section></main>
+<button id="load">Load / re-equip</button><button id="shape">Morph body</button><button id="play">Play both</button><button id="pause">Pause clips</button><button id="seek">Seek 0.75</button><button id="remove">Remove plugins</button><button id="reconnect">Reconnect plugin bot</button><pre id="status">Loading…</pre>
+<script type="importmap">{"imports":{"@hanana-kick/sidekick-plugin-sdk":"../dist/plugin-sdk/index.js"}}</script>
+<script type="module">
+import * as api from '../dist/src/auto.js';
+import { allSlotsAnimation } from '../dist/plugin-sdk/examples/catalog/all-slots-animation.js';
+const reference=document.querySelector('#reference'),external=document.querySelector('#external'),status=document.querySelector('#status');
+await Promise.all([reference,external].map(bot=>bot.ready?Promise.resolve():new Promise(resolve=>bot.addEventListener('sidekick-ready',resolve,{once:true}))));
+const registry=new api.AccessoryPluginRegistry();let loads=0,shapeIndex=0;const shapes=['circle','heart','boom','square'];
+const specs=[['catalog/halo','halo','head','halo'],['catalog/glasses','glasses','eyes','glasses'],['catalog/moustache','moustache','mouth','moustache'],['catalog/bow-tie','bowTie','neck','bow-tie'],['catalog/earring-left','earring','leftEar','earring-left'],['catalog/earring-right','earring','rightEar','earring-right']];
+for(const [id,,,name] of specs)registry.registerLazy(id,async()=>{loads++;if(name.startsWith('earring-')){const module=await import('../dist/plugin-sdk/examples/catalog/earring.js');return name.endsWith('left')?module.leftEarring:module.rightEarring}return import(`../dist/plugin-sdk/examples/catalog/${name}.js`)});
+const report=action=>status.textContent=JSON.stringify({action,loads,shape:shapes[shapeIndex],equipment:external.pluginAccessories,animation:external.partAnimation,backend:external.diagnostics.backend,graphics:external.diagnostics.graphics},null,2);
+async function equip(){await Promise.all(specs.map(([id,preset,slot,name])=>external.equipPluginAccessory(registry,id,{slot,id:`plugin-${name}`,color:api.createAccessory(preset,{slot}).color})));report('equipped')}
+await reference.setDesign(api.createDesign({body:{shape:'circle'},accessories:specs.map(([,preset,slot,name])=>api.createAccessory(preset,{slot,id:`reference-${name}`}))}));
+await external.setDesign(api.createDesign({body:{shape:'circle'},accessories:[]}));await equip();
+const referenceClip=structuredClone(allSlotsAnimation);for(const track of referenceClip.tracks)if(typeof track.target==='object')track.target.accessory=track.target.accessory.replace('plugin-','reference-');
+function clips(){reference.setPartAnimation(referenceClip);external.setPartAnimation(allSlotsAnimation)}
+document.querySelector('#load').onclick=()=>equip().catch(e=>status.textContent=String(e));
+document.querySelector('#shape').onclick=()=>{shapeIndex=(shapeIndex+1)%shapes.length;reference.setShape(shapes[shapeIndex]);external.setShape(shapes[shapeIndex]);report('morph')};
+document.querySelector('#play').onclick=()=>{clips();report('playing')};
+document.querySelector('#pause').onclick=()=>{reference.pausePartAnimation();external.pausePartAnimation();report('paused')};
+document.querySelector('#seek').onclick=()=>{if(!external.partAnimation)clips();for(const bot of[reference,external]){bot.pausePartAnimation();bot.seekPartAnimation(.75)}report('seek')};
+document.querySelector('#remove').onclick=()=>{for(const [,,slot] of specs)external.removePluginAccessory(slot);report('removed')};
+document.querySelector('#reconnect').onclick=()=>{const parent=external.parentElement;external.remove();parent.append(external);external.addEventListener('sidekick-ready',()=>report('reconnected'),{once:true})};
+</script></html>
