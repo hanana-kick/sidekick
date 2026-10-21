@@ -7,6 +7,11 @@ on:
         type: choice
         options: [pilot, full]
         default: pilot
+      graphics:
+        description: Full matrix subset; pilot always uses Canvas
+        type: choice
+        options: [all, canvas, swiftshader]
+        default: all
 permissions:
   contents: read
 jobs:
@@ -17,7 +22,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(inputs.plan == 'full' && '{"include":[{"backend":"main","graphics":"canvas"},{"backend":"worker","graphics":"canvas"},{"backend":"main","graphics":"swiftshader"},{"backend":"worker","graphics":"swiftshader"}]}' || '{"include":[{"backend":"main","graphics":"canvas"}]}') }}
+      matrix: ${{ fromJSON(inputs.plan == 'full' && (inputs.graphics == 'canvas' && '{"include":[{"backend":"main","graphics":"canvas"},{"backend":"worker","graphics":"canvas"}]}' || inputs.graphics == 'swiftshader' && '{"include":[{"backend":"main","graphics":"swiftshader"},{"backend":"worker","graphics":"swiftshader"}]}' || '{"include":[{"backend":"main","graphics":"canvas"},{"backend":"worker","graphics":"canvas"},{"backend":"main","graphics":"swiftshader"},{"backend":"worker","graphics":"swiftshader"}]}') || '{"include":[{"backend":"main","graphics":"canvas"}]}') }}
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.1.0
@@ -26,7 +31,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node node_modules/playwright-core/cli.js install --with-deps chromium
-      - run: node --test scripts/ci-cpu/owned-process-cpu.test.mjs
+      - run: node --test scripts/ci-cpu/*.test.mjs
       - run: node scripts/ci-cpu/prepare.mjs
       - name: Measure owned sandboxed browser process tree
         run: node scripts/ci-cpu/run.mjs
