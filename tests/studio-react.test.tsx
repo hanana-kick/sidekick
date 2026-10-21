@@ -530,19 +530,19 @@ test('discarded camera scenes fail atomically and saved originals can be reset s
 });
 
 
-test('full Studio scene transfers to Playground and reload without writing temporary commands back', async t => {
+test('Studio keeps its full local preview while Playground receives only design', async t => {
   const f = await fixture(t);
   const scene = createScene({ design: createDesign({ body: { shape: 'heart', color: '#123456' }, accessories: [createAccessory('crown', 'crown')], eyes: { color: '#654321', left: { weights: { smile: .8, blink: .2 } }, right: { weights: { smile: .3, blink: .1 } } } }), bodyOrientation: { yaw: 31, pitch: 12, roll: -8 }, zoom: 1.7, activity: 'thinking', trackingMode: 'off', paused: true, interaction: 'box', gaze: { x: .3, y: -.2 }, time: 1.2, motion: { face: { uv: [.1, .2] } } });
   await act(async () => { assert.equal(f.controller.importJSON(serializeScene(scene)), true); });
   const loaded = loadStudioSession(f.storage);
-  assert.equal(loaded.source, 'saved'); assert.deepEqual(loaded.scene, scene);
+  assert.equal(loaded.source, 'saved'); assert.deepEqual(loaded.scene, createScene({ design: scene.design, interaction: 'box' }));
   const fresh = new StudioController(f.storage), other = new MockAvatar();
   await act(async () => { fresh.bindAvatar(other); });
   assert.deepEqual(fresh.exportScene(), scene); assert.deepEqual(other.bodyOrientation, scene.bodyOrientation); assert.equal(other.zoom, scene.zoom);
   const saved = f.storage.values.get(STUDIO_SESSION_KEY);
   const playground = new MockAvatar();
   await applyStudioSession(playground, loaded.scene);
-  assert.deepEqual(playground.design, scene.design); assert.equal(playground.activity, 'thinking'); assert.equal(playground.trackingMode, 'off');
+  assert.deepEqual(playground.design, scene.design); assert.equal(playground.activity, 'idle'); assert.equal(playground.trackingMode, 'eyes-and-body'); assert.equal(playground.zoom, 1); assert.equal(playground.paused, false);
   playground.setActivity('celebrating'); playground.design = createDesign();
   assert.equal(f.storage.values.get(STUDIO_SESSION_KEY), saved);
 });

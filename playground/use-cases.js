@@ -210,7 +210,7 @@ async function activate(id, runRequested = false) {
  const resume=()=>{entry.stopped=false;entry.started=true;entry.workflow?.stop();if(entry.layout){$('demo-app').dataset.side=entry.layout.side;$('demo-app').style.setProperty('--behavior-gap',`${entry.layout.gap}px`);}if(entry.ready){bot.stopBehavior();botDeclare(entry,entry.declaration);if(entry.applicationEmotion)bot.setEmotion(entry.applicationEmotion);if(emotionFlowById(item.id))runEmotionAction(bot,entry.emotionAction);}entry.workflow?.start();};
  entry.resume=resume;
  $('demo-app').append(bot);
- try{if(!bot.ready)await ready;if(token!==generation)return;await applyStudioSession(bot,session.scene);if(token!==generation)return;bot.interaction='none';bot.zoom=session.scene.zoom;entry.ready=true;bot.setAttribute('data-configured','');
+ try{if(!bot.ready)await ready;if(token!==generation)return;await applyStudioSession(bot,session.scene);if(token!==generation)return;bot.interaction='none';entry.ready=true;bot.setAttribute('data-configured','');
  if(entry.stopped){setText('run-status','중단 · 다시 실행할 수 있습니다');}else if(exerciseMode&&!runRequested&&!entry.started){setText('run-status','준비');}else resume();
  if(context?.scroll&&!exerciseMode)window.scrollTo({top:context.scroll,behavior:'instant'});}
  catch(error){if(token===generation){setText('run-status',error.message);if(!entry.stopped&&(!exerciseMode||runRequested||entry.started))resume();}}

@@ -1,4 +1,4 @@
-import { studioSceneAttributes, seedStudioSession } from '../playground/studio-session.ts';
+import { studioSceneAttributes, seedStudioPreviewSession } from '../playground/studio-session.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -49,7 +49,7 @@ test('numeric control seeds satisfy native HTML step constraints',()=>{
 
 test('saved scene seed is complete before a preview element is inserted',()=>{
  const saved=createScene({design:createDesign({body:{shape:'heart',color:'#123456'}}),zoom:1.4,bodyOrientation:{yaw:23,pitch:12,roll:4}});
- const dom=new JSDOM();try{const element=dom.window.document.createElement('sidekick-avatar');seedStudioSession(element,saved);assert.equal(element.isConnected,false);assert.deepEqual(JSON.parse(element.getAttribute('design')),saved.design);assert.equal(element.getAttribute('zoom'),'1.4');assert.equal(element.getAttribute('body-yaw'),'23');assert.deepEqual(studioSceneAttributes(saved),compileReferenceAttributes(saved,{}));}finally{dom.window.close();}
+ const dom=new JSDOM();try{const element=dom.window.document.createElement('sidekick-avatar');seedStudioPreviewSession(element,saved);assert.equal(element.isConnected,false);assert.deepEqual(JSON.parse(element.getAttribute('design')),saved.design);assert.equal(element.getAttribute('zoom'),'1.4');assert.equal(element.getAttribute('body-yaw'),'23');assert.deepEqual(studioSceneAttributes(saved),compileReferenceAttributes(saved,{}));}finally{dom.window.close();}
 });
 
 test('standalone state pages and target-based pages emit matching preview layouts',()=>{

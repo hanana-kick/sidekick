@@ -1,0 +1,167 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile, stat } from 'node:fs/promises';
+import { JSDOM } from 'jsdom';
+
+const siteExports = { company: 'renderCompany', shop: 'renderShop', community: 'renderCommunity' };
+async function mount(t, site, locale = 'en') {
+  const dom = new JSDOM('<!doctype html><body><div id="demo-content"></div></body>', {
+    url: `https://sidekick.test/api-demo.html?site=${site}&lang=${locale}`, runScripts: 'outside-only', pretendToBeVisual: true,
+  });
+  const w = dom.window;
+  w.document.body.className = site;
+  w.HTMLElement.prototype.scrollIntoView = function () {};
+  w.scrollTo = () => {};
+  w.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+  w.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  w.HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new w.Event('close')); };
+  const source = (await readFile(new URL(`../playground/demos/${site}.js`, import.meta.url), 'utf8'))
+    .replace(/^import\s+['"][^'"]+\.css['"];?\s*$/gm, '')
+    .replace(/import\.meta\.env\.BASE_URL/g, "'./'")
+    .replace(/import\.meta\.url/g, "'https://sidekick.test/playground/demos/module.js'")
+    .replace(/export\s+(?=(?:function|const|let|class)\b)/g, '');
+  w.eval(`${source}\nwindow.renderTestSite = ${siteExports[site]};`);
+  const abort = new w.AbortController();
+  const on = (node, event, fn) => node.addEventListener(event, fn, { signal: abort.signal });
+  const root = w.document.getElementById('demo-content');
+  const dispose = w.renderTestSite(root, { locale, on });
+  t.after(() => { abort.abort(); dispose?.(); dom.window.close(); });
+  return { w, root, $: selector => root.querySelector(selector), $$: selector => [...root.querySelectorAll(selector)] };
+}
+
+for (const site of Object.keys(siteExports)) {
+  test(`${site} renders substantial localized content and stable integration targets in all four locales`, async t => {
+    const headings = [];
+    for (const locale of ['en', 'ko', 'ja', 'zh-CN']) {
+      const f = await mount(t, site, locale);
+      assert.equal(f.$$('h1').length, 1, `${site}/${locale} has one primary heading`);
+      headings.push(f.$('h1').textContent.trim());
+      assert.ok(f.$('#preview-target'), `${site}/${locale} has an anchor target`);
+      assert.ok(f.$$('button, a, input').length >= 15, `${site}/${locale} has complete controls`);
+      assert.ok(f.root.textContent.length > (locale === 'en' ? 1800 : 900), `${site}/${locale} has substantive content`);
+      assert.ok(f.$$('img').length >= 3, `${site}/${locale} includes imagery`);
+      for (const image of f.$$('img')) {
+        assert.notEqual(image.getAttribute('alt'), null, 'Every image has alt semantics');
+        assert.equal(new URL(image.src).origin, 'https://sidekick.test', 'No runtime third-party image request');
+        const pathname = new URL(image.src).pathname;
+        const asset = pathname.includes('/demo-assets/') ? pathname.slice(pathname.indexOf('/demo-assets/')) : null;
+        if (asset) assert.ok((await stat(new URL(`../public${asset}`, import.meta.url))).isFile(), `Asset exists: ${asset}`);
+      }
+    }
+    assert.equal(new Set(headings).size, 4, `${site} primary heading is translated, not silently English`);
+  });
+}
+
+export { mount };
+
+for (const locale of ['en', 'ko', 'ja', 'zh-CN']) {
+  test(`NOVA product configuration, accessible sound tabs, comparison and contact stay local (${locale})`, async t => {
+    const f = await mount(t, 'company', locale);
+    const original = f.$('#nova-finish-image').src;
+    f.$('[data-finish="1"]').click();
+    assert.notEqual(f.$('#nova-finish-image').src, original);
+    assert.equal(f.$('[data-finish="1"]').getAttribute('aria-pressed'), 'true');
+    f.$('#nova-save-config').click();
+    assert.ok(f.$('#nova-config-result').textContent.length > 10);
+    const firstMode = f.$('#nova-mode-panel').textContent;
+    f.$('[data-sound-mode="1"]').click();
+    assert.notEqual(f.$('#nova-mode-panel').textContent, firstMode);
+    f.$('[data-sound-mode="1"]').dispatchEvent(new f.w.KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    assert.equal(f.$('[data-sound-mode="2"]').getAttribute('aria-selected'), 'true');
+    assert.equal(f.w.document.activeElement, f.$('[data-sound-mode="2"]'));
+    f.$('[data-model="1"]').click();
+    assert.match(f.$('#nova-model-result').textContent, /NOVA Buds/);
+    f.$('#contact-demo').click();
+    assert.ok(f.$('#contact-result').textContent.trim());
+    assert.equal(f.$$('details').length, 4);
+  });
+
+  test(`MUSE catalog, favorites, search, product options and cart work repeatedly (${locale})`, async t => {
+    const f = await mount(t, 'shop', locale);
+    assert.equal(f.$$('[data-product]').length, 24);
+    const anchor = f.$('#preview-target');
+    f.$('[data-add="0"]').click();
+    assert.equal(f.$$('#cart-items li').length, 1);
+    assert.equal(f.$('#cart-total').textContent, '$12');
+    f.$('[data-increment]').click();
+    assert.equal(f.$('#cart-total').textContent, '$24');
+    f.$('[data-decrement]').click();
+    assert.equal(f.$('#cart-total').textContent, '$12');
+    f.$('[data-remove]').click();
+    assert.equal(f.$$('#cart-items li').length, 0);
+    f.$('[data-wish="1"]').click();
+    f.$('#muse-saved').click();
+    assert.equal(f.$$('[data-product]').length, 1);
+    assert.equal(f.$('#preview-target'), anchor, 'Filtering must not replace the bot anchor');
+    f.$('#muse-all').click();
+    const input = f.$('#muse-search'); input.value = 'no-such-product-test';
+    input.dispatchEvent(new f.w.Event('input', { bubbles: true }));
+    assert.equal(f.$$('[data-product]').length, 0);
+    assert.equal(f.$('.muse-no-results').hidden, false);
+    f.$('[data-reset]').click();
+    assert.equal(f.$$('[data-product]').length, 24);
+    f.$('#muse-sort').value = '1'; f.$('#muse-sort').dispatchEvent(new f.w.Event('change', { bubbles: true }));
+    const prices = f.$$('.muse-product .muse-price strong').map(n => Number(n.textContent.replace('$', '')));
+    assert.deepEqual(prices, [...prices].sort((a, b) => a - b));
+    f.$('[data-detail="0"]').click();
+    assert.equal(f.$('#muse-dialog').open, true);
+    f.$('[data-size="L"]').click(); f.$('[data-color="1"]').click();
+    const description = f.$('#muse-detail-panel').textContent;
+    f.$('[data-detail-tab="2"]').click();
+    assert.notEqual(f.$('#muse-detail-panel').textContent, description);
+    f.$('[data-detail-add]').click();
+    assert.equal(f.$('#muse-dialog').open, false);
+    assert.match(f.$('#cart-items').textContent, /L/);
+    f.$('[data-decrement]').click();
+    assert.equal(f.$$('#cart-items li').length, 0);
+  });
+
+  test(`THREAD feed, details, safe composition, engagement, polls and profiles stay local (${locale})`, async t => {
+    const f = await mount(t, 'community', locale);
+    assert.equal(f.$$('.th-post').length, 20);
+    for (const control of f.$$('.th-nav [data-nav], .th-compose-link, .th-my-profile')) assert.ok(control.getAttribute('aria-label'), 'Collapsed icon navigation retains an accessible name');
+    f.$('[data-post="0"]').click();
+    assert.equal(f.$('#th-detail').open, true);
+    const first = f.$('#post-body').textContent;
+    f.$('#reply-draft').value = '<img src=x onerror=alert(1)> Local reply';
+    f.$('#reply-preview-button').click();
+    assert.match(f.$('#reply-preview').textContent, /<img src=x/);
+    assert.equal(f.$$('#reply-preview img').length, 0);
+    const seededReplies = f.$$('#th-detail-replies article').length;
+    assert.equal(seededReplies, 3);
+    f.$('#th-add-reply').click();
+    assert.equal(f.$$('#th-detail-replies article').length, 4);
+    assert.match(f.$('#th-detail-replies').textContent, /<img src=x/);
+    assert.equal(f.$$('#th-detail-replies img').length, 0);
+    f.$('#th-detail [data-close]').click();
+    f.$('[data-open-post="3"]').click();
+    assert.equal(f.$('#th-detail').open, true);
+    assert.notEqual(f.$('#post-body').textContent, first);
+    f.$('#th-detail [data-close]').click();
+    f.$('[data-action="liked"][data-id="0"]').click();
+    assert.equal(f.$('[data-action="liked"][data-id="0"]').getAttribute('aria-pressed'), 'true');
+    f.$('[data-action="saved"][data-id="0"]').click();
+    f.$('[data-nav="saved"]').click();
+    assert.equal(f.$$('.th-post').length, 1);
+    f.$('[data-nav="home"]').click();
+    const text = f.$('#th-compose-text'); text.value = '<svg onload=alert(1)> A new local post';
+    text.dispatchEvent(new f.w.Event('input', { bubbles: true }));
+    assert.equal(f.$('#th-publish').disabled, false);
+    assert.equal(f.$('#th-publish').type, 'button', 'Local composer must work without sandbox allow-forms');
+    f.$('#th-publish').click();
+    assert.equal(f.$$('.th-post').length, 21);
+    assert.match(f.$('.th-post-body').textContent, /<svg onload/);
+    assert.equal(f.$$('.th-post-body svg').length, 0);
+    const poll = f.$('[data-vote]'); poll.click();
+    assert.equal(f.$('[data-vote]').disabled, true);
+    assert.match(f.$('.th-poll').textContent, /%/);
+    const follow = f.$('[data-follow]'), id = follow.dataset.follow;
+    follow.click();
+    assert.equal(f.$(`[data-follow="${id}"]`).getAttribute('aria-pressed'), 'true');
+    f.$('[data-profile="-1"]').click(); f.$('[data-edit]').click();
+    f.$('#th-profile-form [name="name"]').value = 'Local Tester';
+    assert.equal(f.$('#th-profile-save').type, 'button');
+    f.$('#th-profile-save').click();
+    assert.equal(f.$('.th-self-name').textContent, 'Local Tester');
+  });
+}

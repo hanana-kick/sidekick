@@ -78,7 +78,8 @@ const numeric = id => {
   return Number(input.value);
 };
 const viewportPoint = point => ({ x: number(Math.max(0, Math.min(Math.max(0, (demoWindow?.innerWidth ?? 0) - (bot?.offsetWidth ?? 0)), point.x))), y: number(Math.max(0, Math.min(Math.max(0, (demoWindow?.innerHeight ?? 0) - (bot?.offsetHeight ?? 0)), point.y))) });
-const center = () => viewportPoint({ x: ((demoWindow?.innerWidth ?? 0) - (bot?.offsetWidth ?? 0)) / 2, y: ((demoWindow?.innerHeight ?? 0) - (bot?.offsetHeight ?? 0)) / 2 });
+// A page-owned initial position keeps product headlines clear; Studio supplies design only.
+const initialPreviewPoint = () => viewportPoint({ x: (demoWindow?.innerWidth ?? 0) - (bot?.offsetWidth ?? 0) - 16, y: (demoWindow?.innerHeight ?? 0) - (bot?.offsetHeight ?? 0) - 16 });
 for (const value of Object.keys(MATERIAL_SHAPE_LABELS)) {
   const option = document.createElement('option'); option.value = value; option.dataset.apiI18n = `shape.${value}`; option.textContent = t(`shape.${value}`); $('shape').append(option);
 }
@@ -328,7 +329,7 @@ async function connectDemo(runtime) {
     for (const axis of ['yaw', 'pitch', 'roll']) $('body-' + axis).value = String(studioSession.scene.bodyOrientation[axis]);
     $('zoom').value = String(studioSession.scene.zoom);
   }
-  const point = center(); void runtime.moveTo(point, { duration: 0, travel: 'none' });
+  const point = initialPreviewPoint(); void runtime.moveTo(point, { duration: 0, travel: 'none' });
   if (!initializedOnce) {
     $('target-x').value = String(point.x); $('target-y').value = String(point.y); $('entrance-x').value = String(point.x); $('entrance-y').value = String(point.y);
   }

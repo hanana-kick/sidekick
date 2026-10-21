@@ -19,14 +19,14 @@ async function open(t) {
   return page;
 }
 const key = 'sidekick.studio.scene.v3';
-test('Studio JSON and subsequent edit reach Playground with complete scene; temporary commands do not write back', async t => {
+test('Studio transfers only edited design to Playground while retaining its own complete preview', async t => {
   const page = await open(t);
   await page.locator('#json-tab').click();
   const scene = JSON.parse(await page.locator('#design-json').inputValue());
   scene.design.body.shape = 'heart'; scene.design.body.color = '#123456'; scene.design.eyes.color = '#234567';
   scene.design.eyes.left.weights = { smile: .8, blink: .1 }; scene.design.eyes.right.weights = { smile: .2, blink: .3 };
   scene.design.accessories[0].color = '#345678';
-  scene.bodyOrientation = { yaw: 31, pitch: 12, roll: -8 }; scene.zoom = 1.7; scene.activity = 'thinking'; scene.trackingMode = 'off'; scene.paused = true;
+  scene.bodyOrientation = { yaw: 31, pitch: 12, roll: -8 }; scene.zoom = 3; scene.activity = 'thinking'; scene.trackingMode = 'off'; scene.paused = true;
   await page.locator('#design-json').fill(JSON.stringify(scene)); await page.locator('#import-json').click();
   await page.locator('#appearance-tab').click();
   await page.locator('#body-color').evaluate(input => { input.value = '#abcdef'; input.dispatchEvent(new Event('input', { bubbles: true })); });
@@ -35,10 +35,10 @@ test('Studio JSON and subsequent edit reach Playground with complete scene; temp
   await page.locator('#api-playground-link').click();
   await apiDemoFrame(page);
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('준비되었습니다'));
-  const actual = await page.frameLocator('#site-preview-frame').locator('#bot').evaluate(bot => ({ design: bot.design, bodyOrientation: bot.bodyOrientation, zoom: bot.zoom, activity: bot.activity, trackingMode: bot.trackingMode, paused: bot.paused }));
+  const actual = await page.frameLocator('#site-preview-frame').locator('#bot').evaluate(bot => ({ design: bot.design, size: bot.size, width: bot.getBoundingClientRect().width, height: bot.getBoundingClientRect().height, bodyOrientation: bot.bodyOrientation, zoom: bot.zoom, activity: bot.activity, trackingMode: bot.trackingMode, paused: bot.paused }));
   const expected = JSON.parse(stored);
-  assert.deepEqual(actual.design, expected.design); assert.deepEqual(actual.bodyOrientation, expected.bodyOrientation);
-  assert.equal(actual.activity, expected.activity); assert.equal(actual.zoom, expected.zoom); assert.equal(actual.trackingMode, expected.trackingMode); assert.equal(actual.paused, expected.paused);
+  assert.deepEqual(actual.design, expected.design); assert.deepEqual(actual.bodyOrientation, { yaw: 0, pitch: 0, roll: 0 });
+  assert.equal(actual.size, 200); assert.equal(actual.width, 180); assert.equal(actual.height, 180); assert.equal(actual.activity, 'idle'); assert.equal(actual.zoom, 1); assert.equal(actual.trackingMode, 'eyes-and-body'); assert.equal(actual.paused, false);
   await page.locator('#bot-tools-launcher').click();
   await page.locator('#action-kind').selectOption('expression'); await page.locator('#execute').click();
   assert.equal(await page.evaluate(key => localStorage.getItem(key), key), stored);
@@ -46,6 +46,8 @@ test('Studio JSON and subsequent edit reach Playground with complete scene; temp
   assert.deepEqual(await page.frameLocator('#site-preview-frame').locator('#bot').evaluate(bot => bot.design), expected.design);
   await page.locator('.product-nav a').first().click(); await page.waitForFunction(() => document.getElementById('flat')?.ready);
   assert.deepEqual(await page.locator('#flat').evaluate(bot => bot.bodyOrientation), expected.bodyOrientation);
+  assert.equal(await page.locator('#flat').evaluate(bot => bot.zoom), 3);
+  assert.equal(await page.locator('#flat').evaluate(bot => bot.paused), true);
 });
 
 test('shared original avatar, header dimensions and menu typography match at desktop and mobile sizes', async t => {
@@ -75,4 +77,37 @@ test('invalid Studio scene is preserved and explained in Playground', async t =>
   await page.goto(`${base}/api-playground.html`); await apiDemoFrame(page);
   assert.match(await page.locator('#studio-session-status').textContent(), /원본은 보존/);
   assert.equal(await page.evaluate(key => localStorage.getItem(key), key), raw);
+});
+
+
+test('Guide defaults and explicit context stay independent of Studio preview, across reload and locale changes', async t => {
+  const page = await open(t);
+  async function guideSnapshot(query = '?lang=en') {
+    await page.goto(`${base}/guide.html${query}#state-facing`);
+    await page.waitForSelector('[data-state-reference][data-configured]');
+    const frame = page.frames().find(frame => frame.url().includes('/state-preview.html'));
+    assert.ok(frame);
+    return frame.locator('#reference-bot').evaluate(bot => ({ design: bot.design, size: bot.size, zoom: bot.zoom, bodyOrientation: bot.bodyOrientation, activity: bot.activity, paused: bot.paused, trackingMode: bot.trackingMode }));
+  }
+  const baseline = await guideSnapshot();
+  await page.goto(base); await page.waitForFunction(() => document.getElementById('flat')?.ready);
+  await page.locator('#json-tab').click();
+  const scene = JSON.parse(await page.locator('#design-json').inputValue());
+  scene.design.body.shape = 'heart'; scene.design.body.color = '#123456';
+  scene.zoom = 3; scene.bodyOrientation = { yaw: 170, pitch: 80, roll: 120 };
+  scene.activity = 'thinking'; scene.trackingMode = 'off'; scene.paused = true;
+  scene.gaze = { x: 1, y: -1 }; scene.time = 43200; scene.motion = { face: { uv: [.4, -.4] } };
+  await page.locator('#design-json').fill(JSON.stringify(scene)); await page.locator('#import-json').click();
+  const stored = await page.evaluate(key => localStorage.getItem(key), key);
+  for (const query of ['?lang=en', '?lang=ko', '?lang=en']) {
+    const actual = await guideSnapshot(query);
+    assert.deepEqual(actual, { ...baseline, design: scene.design });
+    assert.equal(await page.evaluate(key => localStorage.getItem(key), key), stored);
+  }
+  const state = encodeURIComponent(JSON.stringify({ id: 'state-facing', values: { size: 160, zoom: .75, 'body-yaw': 22, 'tracking-mode': 'eyes' } }));
+  const own = await guideSnapshot(`?lang=en&state=${state}`);
+  assert.equal(own.size, 160); assert.equal(own.zoom, .75); assert.equal(own.bodyOrientation.yaw, 22); assert.equal(own.trackingMode, 'eyes');
+  assert.deepEqual(own.design, scene.design);
+  assert.deepEqual(await guideSnapshot(`?lang=ko&state=${state}`), own);
+  assert.equal(await page.evaluate(key => localStorage.getItem(key), key), stored);
 });

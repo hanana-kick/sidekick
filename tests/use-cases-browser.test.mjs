@@ -66,9 +66,9 @@ for(const viewport of [{width:1280,height:900},{width:390,height:844},{width:320
  }
  await page.locator('#declaration-code').scrollIntoViewIfNeeded();assert.match(await page.locator('#declaration-code').textContent(),/bot.behavior =/);
 });
-test('mobile keyboard contents and persisted Studio avatar survive route switches',async t=>{
+test('mobile Guide inherits Studio design but keeps its own zoom across route switches',async t=>{
  const page=await setup(t,{width:390,height:844});await page.evaluate(async()=>{const {createScene,createDesign}=await import('/browser/sidekick.js');localStorage.setItem('sidekick.studio.scene.v3',JSON.stringify(createScene({zoom:1.35,design:createDesign({body:{shape:'heart',color:'#123456'}})})));});await page.reload();await page.waitForSelector('#demo-bot[data-configured]');
- assert.equal(await page.locator('#demo-bot').evaluate(b=>b.design.body.shape),'heart');assert.equal(await page.locator('#demo-bot').evaluate(b=>b.zoom),1.35);if(process.env.SIDEKICK_SCREENSHOTS){const out=process.env.SIDEKICK_SCREENSHOTS;await mkdir(out,{recursive:true});await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));await page.screenshot({path:`${out}/guide-stored-studio-zoom-mobile.png`,fullPage:true});}
+ assert.equal(await page.locator('#demo-bot').evaluate(b=>b.design.body.shape),'heart');assert.equal(await page.locator('#demo-bot').evaluate(b=>b.zoom),1);if(process.env.SIDEKICK_SCREENSHOTS){const out=process.env.SIDEKICK_SCREENSHOTS;await mkdir(out,{recursive:true});await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));await page.screenshot({path:`${out}/guide-isolated-studio-design-mobile.png`,fullPage:true});}
  await page.locator('#toc-toggle').focus();await page.keyboard.press('Enter');assert.equal(await page.locator('#toc-toggle').getAttribute('aria-expanded'),'true');
  await choose(page,'success');assert.equal(await page.locator('#toc-toggle').getAttribute('aria-expanded'),'false');assert.equal(await page.locator('#demo-bot').evaluate(b=>b.design.body.color),'#123456');
  await page.locator('#app-save').click();assert.match(await page.locator('#save-result').textContent(),/저장/);

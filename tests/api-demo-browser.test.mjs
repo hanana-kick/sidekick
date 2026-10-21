@@ -103,6 +103,44 @@ test('three demos contain their own bot and real target; the parent has controls
         && bot.ownerDocument.defaultView === window;
     }), true, 'bot and all action targets belong to the child document');
     assert.equal(await frame.locator('vite-error-overlay').count(), 0);
+    const initialPlacement = await frame.locator('#bot').evaluate(bot => ({ actual: bot.position, expected: {
+      x: Math.max(0, innerWidth - bot.offsetWidth - 16), y: Math.max(0, innerHeight - bot.offsetHeight - 16),
+    }}));
+    assert.ok(Math.abs(initialPlacement.actual.x - initialPlacement.expected.x) < 1 && Math.abs(initialPlacement.actual.y - initialPlacement.expected.y) < 1, 'Page-owned corner placement leaves the hero headline clear');
+  }
+});
+
+test('each example is a complete long-form surface with local loaded imagery and distinct structure', { timeout: 90000 }, async t => {
+  const page = await pageFor(t);
+  for (const site of ['company', 'shop', 'community']) {
+    const frame = await switchSite(page, site);
+    const structure = await frame.evaluate(() => ({
+      scroll: document.documentElement.scrollHeight,
+      viewport: innerHeight,
+      words: document.getElementById('demo-content').textContent.trim().split(/\s+/).length,
+      h1: document.querySelector('h1')?.textContent,
+      images: [...document.querySelectorAll('#demo-content img')].map(image => ({ src: image.src, alt: image.getAttribute('alt') })),
+      controls: document.querySelectorAll('#demo-content button, #demo-content a, #demo-content input').length,
+    }));
+    assert.ok(structure.scroll > structure.viewport * 3, `${site} has at least three screens of substantive content`);
+    assert.ok(structure.words > 250, `${site} has real editorial/catalog/community depth`);
+    assert.ok(structure.controls > 15, `${site} has realistic navigable interactions`);
+    assert.ok(structure.images.length >= 3, `${site} has authored visual content`);
+    for (const image of structure.images) {
+      assert.equal(new URL(image.src).origin, new URL(base).origin, `${site} images are locally served`);
+      assert.notEqual(image.alt, null, `${site} image includes alt semantics`);
+    }
+    // Decode all authored images, including lazy images below the fold.
+    const failedImages = await frame.evaluate(async () => {
+      const images = [...document.querySelectorAll('#demo-content img')];
+      return (await Promise.all(images.map(async image => {
+        image.loading = 'eager';
+        try { await image.decode(); return image.naturalWidth > 0 ? null : image.src; }
+        catch { return image.src; }
+      }))).filter(Boolean);
+    });
+    assert.deepEqual(failedImages, [], `${site} has no broken image assets`);
+    assert.ok((await frame.locator('.demo-disclosure').textContent()).includes('Fictional demo'));
   }
 });
 
@@ -117,15 +155,27 @@ test('fictional site actions update local mock content without network submissio
   await frame.locator('[data-add="0"]').click();
   assert.equal(await frame.locator('#cart-items li').count(), 1);
   assert.ok((await frame.locator('#cart-total').textContent()).includes('12'));
-  await frame.locator('#cart-items li button').click();
+  await frame.locator('#cart-items [data-remove]').click();
   assert.equal(await frame.locator('#cart-items li').count(), 0);
   frame = await switchSite(page, 'community');
+  await frame.locator('[data-post="0"]').click();
   const firstTitle = await frame.locator('#post-title').textContent();
+  await frame.locator('#th-detail [data-close]').click();
   await frame.locator('[data-post="1"]').click();
   assert.notEqual(await frame.locator('#post-title').textContent(), firstTitle);
   await frame.locator('#reply-draft').fill('A local preview only.');
   await frame.locator('#reply-preview-button').click();
   assert.match(await frame.locator('#reply-preview').textContent(), /A local preview only\./);
+  await frame.locator('#th-detail [data-close]').click();
+  await frame.locator('#th-compose-text').fill('A published local post.');
+  await frame.locator('#th-publish').click();
+  assert.equal(await frame.locator('#th-compose-text').inputValue(), '');
+  assert.match(await frame.locator('.th-post-body').first().textContent(), /A published local post\./);
+  await frame.locator('.th-my-profile').click();
+  await frame.locator('[data-edit]').click();
+  await frame.locator('#th-profile-form [name="name"]').fill('Local QA');
+  await frame.locator('#th-profile-save').click();
+  assert.equal(await frame.locator('.th-self-name').textContent(), 'Local QA');
   assert.deepEqual(submissions, []);
 });
 

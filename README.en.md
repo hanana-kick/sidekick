@@ -1224,7 +1224,7 @@ A modern browser supporting Custom Elements and Canvas2D is required; WebGL2 is 
 
 ## Studio and development
 
-The global Guide selector chooses Custom Element or React for examples and parameter names. Bot state pages include settable fields, accepted values, defaults, a live preview and its complete source. Enable a field to override it; disabled fields retain the Studio scene. Preview changes do not overwrite saved Studio values.
+The global Guide selector chooses Custom Element or React for examples and parameter names. Bot state pages include settable fields, accepted values, defaults, a live preview and its complete source. Enable a field to override it; design comes from Studio while other disabled fields use the destination page’s defaults. Preview changes do not overwrite saved Studio values.
 
 Studio is a separate editor built with **React 19, Vite 8, Tailwind CSS 4, and actual shadcn/ui Radix/Nova components**, using Slate color tokens. Sites consuming the core do not receive these UI dependencies. The following commands are for source development and require Node.js 24 LTS. `.nvmrc` and CI both select Node.js 24, and `package.json` uses `devEngines` to validate source development. This requirement applies only to build/development tooling; browser/CDN consumers do not need Node.js.
 
@@ -1606,7 +1606,7 @@ In the [API playground](https://sidekick.hananakick.cc/api-playground.html), sel
 
 One small transparent canvas moves across the full page with `placement="viewport"`; no fullscreen canvas is created. Coordinates are CSS pixels from the viewport top-left, without adding page scroll height. Clicking/tapping empty space moves the bot center there. Selected tasks, inputs, and configuration code remain intact; actual click-movement/stop calls can be inspected/copied separately as the last executed code. Switching task types and back preserves each task's inputs. Buttons, forms, links, code selection, and scrolling do not trigger movement. Pointer events pass through the bot so it does not block page controls.
 
-Saved Studio design and scene settings are read in the same browser and origin. Temporary playground commands do not overwrite Studio data. Invalid data or unavailable browser storage shows guidance and a default bot without deleting the original. Use Studio JSON export/import to transfer to another browser/device.
+Only the saved bot design is shared from Studio in the same browser and origin. Size, zoom, orientation, activity, tracking, pause and other preview settings remain independent on each page; explicit Guide context still applies. Studio itself continues to save and restore its complete scene. Temporary playground commands do not overwrite Studio data. Invalid data or unavailable browser storage shows guidance and a default bot without deleting the original. Use Studio JSON export/import to transfer to another browser/device.
 
 ### Natural entry and exit
 

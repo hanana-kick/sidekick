@@ -1,4 +1,4 @@
-import { STUDIO_SESSION_KEY, loadStudioSession, applyStudioSession, defaultStudioDesign } from './studio-session.js';
+import { STUDIO_SESSION_KEY, loadStudioPreviewSession, applyStudioPreviewSession, defaultStudioDesign } from './studio-session.js';
 export { defaultStudioDesign } from './studio-session.js';
 import { createAccessory, equipAccessory, migrateDesign, patchDesign, serializeDesign, ACCESSORY_PRESETS, ACCESSORY_SLOTS_BY_PRESET, ACCESSORY_LABELS } from '../src/core/design.js';
 import type { AccessoryPreset, AccessorySlot, Activity, AvatarDesign, DesignPatch } from '../src/core/design.js';
@@ -70,7 +70,7 @@ export class StudioController {
         catch (error) { recovery = { raw, key, error: errorMessage(error) }; }
       }
     } catch { storageError = true; }
-    const saved = loadStudioSession(storage);
+    const saved = loadStudioPreviewSession(storage);
     if (saved.invalid) recovery = saved.invalid;
     if (saved.source === 'saved') { design = saved.scene.design; recovery = undefined; }
     this.state = {
@@ -103,7 +103,7 @@ export class StudioController {
     avatar.addEventListener('sidekick-error', failed);
     if (!this.initialized.has(avatar)) {
       this.applyingSession = true;
-      try { this.watch(applyStudioSession(avatar, this.scene())); } finally { this.applyingSession = false; }
+      try { this.watch(applyStudioPreviewSession(avatar, this.scene())); } finally { this.applyingSession = false; }
       this.initialized.add(avatar);
       if (!this.state.recovery) this.persist();
     }

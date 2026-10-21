@@ -1,4 +1,4 @@
-import { seedStudioSession } from './studio-session.js';
+import { seedStudioPreviewSession } from './studio-session.js';
 import { getSiteLocale, subscribeSiteLocale, localizedSiteHref } from './site-i18n.js';
 import { studioText, studioLabel, studioFormat, studioShapeLabel, studioAccessoryLabel, studioMessage } from './studio-locales.js';
 import { mountSiteHeader } from './shared-header.js';
@@ -52,7 +52,7 @@ const AvatarPreview = memo(function AvatarPreview({ controller }: { controller: 
   useSyncExternalStore(subscribeSiteLocale, getSiteLocale, getSiteLocale);
   const ref = useRef<SidekickAvatar | null>(null);
   const initial = useRef(controller.exportScene());
-  useLayoutEffect(() => { if (!ref.current) return; seedStudioSession(ref.current, initial.current); return controller.bindAvatar(ref.current); }, [controller]);
+  useLayoutEffect(() => { if (!ref.current) return; seedStudioPreviewSession(ref.current, initial.current); return controller.bindAvatar(ref.current); }, [controller]);
   return createElement('sidekick-avatar', { design: initial.current.design, ref, id: 'flat', 'render-style': 'flat', interaction: 'box', 'aria-label': studioText("캐릭터 미리보기, 드래그로 몸체 방향 조절") });
 });
 
