@@ -94,6 +94,7 @@ test('three demos contain their own bot and real target; the parent has controls
     assert.equal(await page.locator('sidekick-avatar:not(.brand-avatar)').count(), 0);
     assert.equal(await page.locator('#site-preview-frame').count(), 1);
     assert.equal(await frame.locator('sidekick-avatar').count(), 1);
+    assert.deepEqual(await frame.locator('#bot').evaluate(bot => ({ size: bot.size, width: bot.offsetWidth, height: bot.offsetHeight })), { size: 144, width: 144, height: 144 });
     assert.equal(await frame.locator('h1').count(), 1);
     assert.ok((await frame.locator('h1').textContent()).trim());
     assert.equal(await frame.evaluate(() => {
@@ -107,6 +108,9 @@ test('three demos contain their own bot and real target; the parent has controls
       x: Math.max(0, innerWidth - bot.offsetWidth - 16), y: Math.max(0, innerHeight - bot.offsetHeight - 16),
     }}));
     assert.ok(Math.abs(initialPlacement.actual.x - initialPlacement.expected.x) < 1 && Math.abs(initialPlacement.actual.y - initialPlacement.expected.y) < 1, 'Page-owned corner placement leaves the hero headline clear');
+    await frame.locator('#bot').evaluate(bot => { bot.size = 231; });
+    assert.equal(await frame.locator('#bot').evaluate(bot => bot.offsetWidth), 231, 'explicit size remains authoritative');
+    await frame.locator('#bot').evaluate(bot => { bot.size = 144; });
   }
 });
 
@@ -362,4 +366,52 @@ test('all locales and narrow viewports retain usable controls and iframe bounds 
       await page.screenshot({ path: `${process.env.SIDEKICK_SCREENSHOTS}/api-demo-${site}.png` });
     }
   }
+});
+
+
+test('shared select gutters preserve native options, keyboard input and narrow header labels', { timeout: 90000 }, async t => {
+  const page = await pageFor(t, { viewport: { width: 320, height: 640 } });
+  for (const route of ['/api-playground.html', '/guide.html', '/']) {
+    await page.goto(`${base}${route}?lang=en`);
+    await page.locator('#site-framework').waitFor();
+    await page.evaluate(() => document.fonts.ready);
+    const measurements = await page.locator('.app-header select').evaluateAll(selects => selects.map(select => {
+      const css = getComputedStyle(select), rect = select.getBoundingClientRect();
+      const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d'); ctx.font = css.font;
+      return { width: rect.width, end: parseFloat(css.paddingInlineEnd), start: parseFloat(css.paddingInlineStart), text: ctx.measureText(select.selectedOptions[0].textContent).width, arrow: css.backgroundImage, x: rect.x, right: rect.right, options: select.options.length };
+    }));
+    for (const item of measurements) {
+      assert.equal(item.end, 28); assert.equal(item.start, 8); assert.match(item.arrow, /svg/);
+      assert.ok(item.text + item.start + item.end + 2 <= item.width + 1, 'selected label fits beside inset arrow');
+      assert.ok(item.x >= 0 && item.right <= 320); assert.ok(item.options >= 2);
+    }
+  }
+  await page.goto(`${base}/api-playground.html?lang=en`); await frameFor(page);
+  await page.locator('#bot-tools-launcher').click();
+  const action = page.locator('#action-kind'); await action.focus();
+  await page.keyboard.press('Home'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Tab');
+  assert.equal(await action.inputValue(), 'anchor');
+  assert.equal(await action.evaluate(el => getComputedStyle(el).paddingInlineEnd), '36px');
+  await action.evaluate(el => { el.dir = 'rtl'; });
+  assert.match(await action.evaluate(el => getComputedStyle(el).backgroundPosition), /^12px/);
+  await page.emulateMedia({ forcedColors: 'active' });
+  assert.equal(await action.evaluate(el => getComputedStyle(el).appearance), 'auto');
+  assert.equal(await action.evaluate(el => getComputedStyle(el).backgroundImage), 'none');
+});
+
+
+test('embedded shop sorting uses the same inset native chevron and preserves options', { timeout: 60000 }, async t => {
+  const page = await pageFor(t, { viewport: { width: 390, height: 844 } });
+  const frame = await switchSite(page, 'shop');
+  const sort = frame.locator('#muse-sort');
+  await sort.selectOption('2');
+  const actual = await sort.evaluate(select => {
+    const css = getComputedStyle(select), rect = select.getBoundingClientRect();
+    return { appearance: css.appearance, start: css.paddingInlineStart, end: css.paddingInlineEnd, image: css.backgroundImage, text: select.selectedOptions[0].textContent, left: rect.left, right: rect.right, viewport: innerWidth };
+  });
+  assert.equal(actual.appearance, 'none'); assert.equal(actual.start, '12px'); assert.equal(actual.end, '36px');
+  assert.match(actual.image, /svg/); assert.equal(actual.text, 'Price: high to low');
+  assert.ok(actual.left >= 0 && actual.right <= actual.viewport, 'sort remains within narrow shop viewport');
+  await sort.focus(); await page.keyboard.press('Home'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Tab');
+  assert.equal(await sort.inputValue(), '1');
 });
