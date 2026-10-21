@@ -308,6 +308,29 @@ test('lifecycle example resolves targets and application work in the selected ch
   assert.equal(await (await frameFor(page)).locator('#bot').evaluate(bot => bot.task), null);
 });
 
+test('shop localized content fits 320px and 390px without truncating labels', { timeout: 120000 }, async t => {
+  const page = await pageFor(t);
+  for (const width of [320, 390]) {
+    for (const locale of ['ko', 'ja', 'zh-CN', 'en']) {
+      // Test the demo document itself at an exact CSS viewport width, independent
+      // of the parent preview's inset. Real Chromium layout, not JSDOM geometry.
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto(`${base}/api-demo.html?site=shop&lang=${locale}`);
+      await page.locator('.muse-product').first().waitFor();
+      await page.evaluate(() => document.fonts.ready);
+      const layout = await page.evaluate(() => ({
+        viewport: innerWidth, scrollWidth: document.documentElement.scrollWidth,
+        overflow: [...document.querySelectorAll('.muse *')].filter(el => {
+          const rect = el.getBoundingClientRect();
+          return rect.width && rect.right > innerWidth + 1 && !el.closest('.muse-nav,.muse-categories');
+        }).slice(0, 12).map(el => ({tag: el.tagName, class: el.className, text: el.textContent.slice(0, 90), right: el.getBoundingClientRect().right})),
+      }));
+      assert.ok(layout.scrollWidth <= width + 1, `${locale}/${width}: ${JSON.stringify(layout)}`);
+      assert.equal(await page.locator('.muse-product').count(), 24);
+    }
+  }
+});
+
 test('all locales and narrow viewports retain usable controls and iframe bounds after resize', { timeout: 120000 }, async t => {
   const page = await pageFor(t, { viewport: { width: 360, height: 800 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
   for (const locale of ['ko', 'ja', 'zh-CN', 'en']) {

@@ -5,7 +5,7 @@ import {readFile,mkdir} from 'node:fs/promises';
 import {chromium} from 'playwright-core';
 import ts from 'typescript';
 import {createAppServer} from '../scripts/serve.mjs';
-import {forceCanvasForPage} from './helpers/force-no-webgl.mjs';
+import {forceCanvasForPage,closePageAfterCanvasRoutes} from './helpers/force-no-webgl.mjs';
 let browser,server,base;
 const canvasAudits=new WeakMap();
 async function newReferencePage(options){const page=await browser.newPage(options);if(forceCanvas)canvasAudits.set(page,await forceCanvasForPage(page));return page;}
@@ -51,7 +51,7 @@ for(const viewport of [{width:320,height:320},{width:360,height:480}])for(const 
   assert.equal(await panel.getByRole('button',{name:'Do not allow',exact:true}).evaluate(el=>document.activeElement===el),true,'reopened panel supports keyboard refusal');
   await page.keyboard.press('Enter');await panel.waitFor({state:'hidden'});
   assert.deepEqual(requests,[],'close/refusal never loads analytics');
- }finally{await page.close();}
+ }finally{await closePageAfterCanvasRoutes(page);}
 });
 for(const locale of ['ko','en','zh-CN','ja'])for(const mode of ['element','react'])test(`seven state pages edit selected ${mode} source and actual renderer in ${locale}`,{timeout:120000},async()=>{
  const page=await newReferencePage({viewport:{width:1280,height:900},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -67,7 +67,7 @@ for(const locale of ['ko','en','zh-CN','ja'])for(const mode of ['element','react
    await page.locator('#guide-source-return').click();await frameFor(page);assert.equal(new URL(page.url()).hash,'#'+id);assert.equal(await page.locator(`[data-state-enable="${key}"]`).isChecked(),true);
   }
   assert.deepEqual(errors,[]);
- }finally{await page.close();}
+ }finally{await closePageAfterCanvasRoutes(page);}
 });
 test('mobile controls, JSON rejection, reset, locale switch and navigation retain independent state',async()=>{
  const page=await newReferencePage({viewport:{width:320,height:480},reducedMotion:'reduce'});
@@ -81,7 +81,7 @@ test('mobile controls, JSON rejection, reset, locale switch and navigation retai
   assert.ok(await page.locator('.state-lab iframe').evaluate(el=>el.getBoundingClientRect().height>=240));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   if(process.env.SIDEKICK_SCREENSHOTS){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await page.screenshot({path:process.env.SIDEKICK_SCREENSHOTS+'/state-reference-320.png'});await page.setViewportSize({width:1280,height:900});await page.locator('.state-lab').evaluate(el=>window.scrollTo(0,scrollY+el.getBoundingClientRect().top-90));await page.waitForTimeout(100);await page.screenshot({path:process.env.SIDEKICK_SCREENSHOTS+'/state-reference-desktop.png'});}
   await page.locator('[data-state-text="reset"]').click();assert.equal(await page.locator('[data-state-enable="shape"]').isChecked(),false);
- }finally{await page.close();}
+ }finally{await closePageAfterCanvasRoutes(page);}
 });
 test('actual copied Custom Element and React source replay matching Studio configuration',async()=>{
  const page=await newReferencePage({viewport:{width:900,height:700},reducedMotion:'reduce'});
@@ -99,9 +99,9 @@ test('actual copied Custom Element and React source replay matching Studio confi
      for(const name of ['react','react-dom-client'])await replay.route(`${base}/${name}.js`,async route=>route.fulfill({contentType:'text/javascript',body:await readFile(new URL(`../cdn/react-19.3.1/${name}.js`,import.meta.url),'utf8')}));
     }
     await replay.route(`${base}/state-replay.html`,route=>route.fulfill({contentType:'text/html',body:html}));await replay.goto(`${base}/state-replay.html`);await replay.waitForFunction(()=>document.querySelector('#reference-bot')?.ready);await assertGraphics(replay);const actual=await snapshot(replay);assert.deepEqual(actual,expected);
-   }finally{await replay.close();}
+   }finally{await closePageAfterCanvasRoutes(replay);}
   }
- }finally{await page.close();}
+ }finally{await closePageAfterCanvasRoutes(page);}
 });
 
 async function entranceSettled(frame, declaration) {
@@ -155,7 +155,7 @@ for(const locale of ['ko','en','zh-CN','ja'])for(const mode of ['element','react
   assert.equal(await page.evaluate(()=>localStorage.getItem('sidekick.studio.scene.v3')),JSON.stringify(scene));
   await page.locator('[data-state-try]').click();await frameFor(page);assert.equal(await page.inputValue('[data-entrance-control="source"]'),'element');
   assert.deepEqual(errors,[]);
- }finally{await page.close();}
+ }finally{await closePageAfterCanvasRoutes(page);}
 });
 
 test('copied entrance examples replay the exact source declaration and canvas geometry', {timeout:120000},async()=>{
@@ -178,9 +178,9 @@ test('copied entrance examples replay the exact source declaration and canvas ge
     await replay.route(`${base}/entrance-replay.html`,route=>route.fulfill({contentType:'text/html',body:html}));await replay.goto(`${base}/entrance-replay.html`);
     const actual=await entranceSettled(replay,declaration);await assertGraphics(replay);assertEntranceGeometry(actual);assert.deepEqual(actual.design,expected.design);assert.deepEqual(actual.entrance,expected.entrance);
     for(const axis of ['left','top','width','height'])assert.ok(Math.abs(actual.box[axis]-expected.box[axis])<1,axis+' matches the copied preview');
-   }finally{await replay.close();}
+   }finally{await closePageAfterCanvasRoutes(replay);}
   }
- }finally{await page.close();}
+ }finally{await closePageAfterCanvasRoutes(page);}
 });
 test('reference workspace aligns headings and preview at desktop and narrow widths', {timeout:120000}, async()=>{
  const page=await newReferencePage({reducedMotion:'reduce'});
@@ -197,7 +197,7 @@ test('reference workspace aligns headings and preview at desktop and narrow widt
    assert.equal(await page.locator('.state-lab-preview [data-state-source]').count(),1,'source belongs to the preview');
    if(process.env.SIDEKICK_SCREENSHOTS&&locale==='ko'){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.locator('.state-lab').evaluate(el=>window.scrollTo(0,scrollY+el.getBoundingClientRect().top-100));await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/state-alignment-${width}.png`});}
   }
- }finally{await page.close();}
+ }finally{await closePageAfterCanvasRoutes(page);}
 });
 
 test('positioning controls generate matching CE and React placements without coordinate arithmetic',{timeout:120000},async()=>{
@@ -219,7 +219,7 @@ test('positioning controls generate matching CE and React placements without coo
     const source=await page.locator('[data-state-source]').textContent();assert.match(source,/positioning/);assert.match(source,new RegExp(String(gap)));assert.match(source,new RegExp(placement));
    }
   }
- }}finally{await page.close();}
+ }}finally{await closePageAfterCanvasRoutes(page);}
 });
 
 // Every meaningful discrete behavior/side/target choice, including omitted defaults.
@@ -272,7 +272,7 @@ for(const mode of ['element','react'])for(const width of [320,1280])test(`behavi
   await page.locator('[data-state-text="reset"]').click();await frameFor(page);
   assert.equal(await frame.locator('#reference-bot').evaluate(bot=>bot.placement),'viewport');
   if(process.env.SIDEKICK_SCREENSHOTS){await mkdir(process.env.SIDEKICK_SCREENSHOTS,{recursive:true});await page.locator('.state-lab iframe').scrollIntoViewIfNeeded();await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/behavior-bounds-${mode}-${width}.png`});}
- }finally{await page.close();}
+ }finally{await closePageAfterCanvasRoutes(page);}
 });
 
 test('behavior copied CE/React source keeps all four sides and review in a narrow viewport',{timeout:120000},async()=>{
@@ -296,9 +296,9 @@ test('behavior copied CE/React source keeps all four sides and review in a narro
     await replay.waitForFunction(()=>document.querySelector('#reference-bot')?.ready&&document.querySelector('#reference-bot').behaviorState.status==='completed');await assertGraphics(replay);
     const actual=await replay.locator('#reference-bot').evaluate(bot=>{const b=bot.getBoundingClientRect();return {box:{left:b.left,top:b.top,right:b.right,bottom:b.bottom,viewportWidth:innerWidth,viewportHeight:innerHeight},state:bot.behaviorState,placement:bot.placement,bounds:bot.movementBounds};});
     assertBehaviorBox(actual.box,mode+' copied '+JSON.stringify(declaration));assert.equal(actual.placement,'viewport');assert.equal(actual.bounds,'viewport');assert.equal(actual.state.completedItems,declaration.type==='review'?3:1);
-   }finally{await replay.close();}
+   }finally{await closePageAfterCanvasRoutes(replay);}
   }
- }}finally{await page.close();}
+ }}finally{await closePageAfterCanvasRoutes(page);}
 });
 
 for(const mode of ['element','react'])test(`behavior normal-motion paths, interruption and resize: ${mode}`,{timeout:120000},async()=>{
@@ -326,7 +326,7 @@ for(const mode of ['element','react'])test(`behavior normal-motion paths, interr
   await edit(page,'behavior',JSON.stringify({type:'wait',target:'#missing-target',timeout:0}));
   await frame.waitForFunction(()=>document.querySelector('#reference-bot').behaviorState.status==='error');
   assertBehaviorBox(await frame.evaluate(()=>window.behaviorRect()),'missing target leaves bot visible');
- }finally{await page.close();}
+ }finally{await closePageAfterCanvasRoutes(page);}
 });
 
 for(const mode of ['element','react'])for(const width of [320,1280])test(`explicit size preserves active behavior anchoring: ${mode}, ${width}px`,{timeout:120000},async()=>{
@@ -349,7 +349,7 @@ for(const mode of ['element','react'])for(const width of [320,1280])test(`explic
    }
   }
   await frame.locator('#reference-bot').evaluate(bot=>{bot.size=null;bot.stopBehavior();});
- }finally{await page.close();}
+ }finally{await closePageAfterCanvasRoutes(page);}
 });
 
 // Existing coverage starts at two viewport widths and performs one late shrink.
@@ -421,7 +421,7 @@ for(const mode of ['element','react'])test(`live viewport shrink, grow and heigh
   const result=await frame.evaluate(async()=>{document.querySelector('#reference-bot').paused=true;return await window.viewportMove;});
   assert.equal(result.finished,true,'resize does not cancel the original move; explicit pause finishes it');
   assertBehaviorBox(await frame.evaluate(()=>window.behaviorRect()),'finished resized move');
- }finally{await page.close();}
+ }finally{await closePageAfterCanvasRoutes(page);}
 });
 for(const mode of ['element','react'])test(`live viewport and consecutive size changes preserve wait/follow anchors: ${mode}`,{timeout:120000},async()=>{
  const page=await newReferencePage({viewport:{width:1000,height:800},deviceScaleFactor:2,reducedMotion:'no-preference'});
@@ -439,7 +439,7 @@ for(const mode of ['element','react'])test(`live viewport and consecutive size c
     assert.equal(await frame.locator('#reference-bot').evaluate(bot=>bot.behaviorState.id),id,'resize must not restart behavior');
    }
   }
- }finally{await page.close();}
+ }finally{await closePageAfterCanvasRoutes(page);}
 });
 
 for(const mode of ['element','react'])test(`offscreen Guide policy finishes a move and does not replay it on return: ${mode}`,{timeout:120000},async()=>{
@@ -471,5 +471,5 @@ for(const mode of ['element','react'])test(`offscreen Guide policy finishes a mo
   await frame.waitForFunction(()=>document.querySelector('#reference-bot').paused===false);
   const resumed=await frame.locator('#reference-bot').evaluate(bot=>({phase:bot.movementState.phase,position:bot.position}));
   assert.equal(resumed.phase,'idle');assert.deepEqual(resumed.position,result.position,'visibility restoration does not restart completed movement');
- }finally{await page.close();}
+ }finally{await closePageAfterCanvasRoutes(page);}
 });

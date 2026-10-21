@@ -533,3 +533,12 @@ test('original avatar brand inherits the shared responsive logo dimensions', asy
   const css = await readFile(new URL('../playground/shared-header.css', import.meta.url), 'utf8');
   for (const size of [44, 36, 28]) assert.ok(css.includes(`width: ${size}px; height: ${size}px;`), `${size}px original logo size`);
 });
+
+
+test('reduced-motion demo CSS never introduces asynchronous host geometry transitions', async () => {
+  const css = await readFile(new URL('../playground/api-demo.css', import.meta.url), 'utf8');
+  const rule = css.match(/@media\(prefers-reduced-motion:reduce\)\{([^}]+)\}/)?.[1];
+  assert.ok(rule, 'The authored demo retains an explicit reduced-motion rule');
+  assert.match(rule, /scroll-behavior:auto!important/);
+  assert.match(rule, /transition-duration:0s!important/, 'A nonzero universal duration activates transition-property:all on avatar translate, so move completion would precede layout');
+});

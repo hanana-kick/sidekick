@@ -56,3 +56,12 @@ export async function forceCanvasForPage(page) {
     },
   };
 }
+
+/** browser.newPage owns its context. Finish response reads/fulfills before
+ * page.close disposes that context's APIRequestContext and response bodies.
+ * Waiting (not ignoreErrors) keeps real route failures visible to the test.
+ */
+export async function closePageAfterCanvasRoutes(page) {
+  try { await page.context().unrouteAll({ behavior: 'wait' }); }
+  finally { await page.close(); }
+}

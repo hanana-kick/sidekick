@@ -34,8 +34,9 @@ for (const reducedMotion of ['no-preference', 'reduce']) test(`bounded canvas mo
     const second = bot.moveTo(destination, { duration: 100 });
     const firstResult = await first, secondResult = await second;
     const final = await bot.capturePixelsAsync(); const rect = bot.getBoundingClientRect();
-    return { firstResult, secondResult, current, events, destination, rect: { x: rect.x, y: rect.y }, size: [initial.width, initial.height, final.width, final.height], generation: [generation, bot.diagnostics.generation], sameCanvas: canvas === bot.shadowRoot.querySelector('canvas'), bodyOrientation: bot.bodyOrientation, zoom: bot.zoom, color: bot.design.body.color, reduced };
+    return { firstResult, secondResult, current, events, destination, rect: { x: rect.x, y: rect.y }, size: [initial.width, initial.height, final.width, final.height], generation: [generation, bot.diagnostics.generation], sameCanvas: canvas === bot.shadowRoot.querySelector('canvas'), bodyOrientation: bot.bodyOrientation, zoom: bot.zoom, color: bot.design.body.color, transitionDuration: getComputedStyle(bot).transitionDuration, reduced };
   }, reducedMotion === 'reduce');
+  if (reducedMotion === 'reduce') assert.ok(result.transitionDuration.split(',').every(value => parseFloat(value) === 0), 'Reduced motion must not create CSS transitions on avatar geometry');
   assert.equal(result.firstResult.finished, reducedMotion === 'reduce'); assert.equal(result.secondResult.finished, true);
   assert.deepEqual(result.rect, result.destination); assert.deepEqual(result.size.slice(0, 2), result.size.slice(2)); assert.equal(result.sameCanvas, true); assert.equal(result.generation[0], result.generation[1]);
   assert.equal(result.events.length, 2); assert.equal(result.color, '#ffcc37');

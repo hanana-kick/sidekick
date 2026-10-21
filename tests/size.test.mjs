@@ -169,6 +169,8 @@ test('forced Canvas entrypoint inventory routes every state reference page inclu
   assert.deepEqual(discovered.sort(), [...files].sort(), 'new forced Canvas entrypoints must join the shared setup inventory');
   for (const name of files) {
     const text = await readFile(new URL(`./${name}-browser.test.mjs`, import.meta.url), 'utf8');
+    assert.match(text, /closePageAfterCanvasRoutes/, `${name} drains worker response handlers before owned-context disposal`);
+    assert.doesNotMatch(text, /(?:page|replay)\.close\(/, `${name} cannot bypass the route drain at teardown`);
     assert.match(text, /forceCanvasForPage/, `${name} uses the shared fixture, not browser flags alone`);
     // All entrypoints create their pages in one setup wrapper (or one test loop)
     // so adding an uninstrumented replay/new tab fails this source inventory.
@@ -177,4 +179,43 @@ test('forced Canvas entrypoint inventory routes every state reference page inclu
   }
   const reference = await readFile(new URL('./state-reference-browser.test.mjs', import.meta.url), 'utf8');
   assert.equal((reference.match(/await assertGraphics\(replay\)/g) ?? []).length, 3, 'all three copied-source replay families verify graphics and denial after readiness');
+});
+
+
+for (const pendingStage of ['fetch', 'text', 'fulfill']) test(`forced Canvas teardown drains pending ${pendingStage} before response disposal`, async () => {
+  const { forceCanvasForPage, closePageAfterCanvasRoutes } = await import('./helpers/force-no-webgl.mjs');
+  let handler, active, disposed = false, entered, release;
+  const started = new Promise(resolve => { entered = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  const events = [];
+  const stage = async name => {
+    events.push(name);
+    if (name === pendingStage) { entered(); await gate; }
+    assert.equal(disposed, false, `${name} must finish before APIRequestContext disposal`);
+  };
+  const context = {
+    route: async (_match, fn) => { handler = fn; },
+    unrouteAll: async options => { assert.deepEqual(options, { behavior: 'wait' }); events.push('drain'); await active; },
+  };
+  const page = { addInitScript: async () => {}, context: () => context, close: async () => { disposed = true; events.push('close'); } };
+  await forceCanvasForPage(page);
+  const response = { text: async () => { await stage('text'); return '/* worker */'; } };
+  active = handler({ fetch: async () => { await stage('fetch'); return response; }, fulfill: async value => { assert.ok(value.body.endsWith('/* worker */')); await stage('fulfill'); } });
+  await started;
+  const closing = closePageAfterCanvasRoutes(page);
+  await Promise.resolve();
+  assert.equal(disposed, false, 'Starting teardown must not invalidate an in-flight response');
+  release(); await closing; await active;
+  assert.equal(events.at(-1), 'close');
+  assert.equal(disposed, true);
+});
+
+test('forced Canvas teardown propagates drain errors while still closing the page', async () => {
+  const { closePageAfterCanvasRoutes } = await import('./helpers/force-no-webgl.mjs');
+  for (const message of ['worker fetch failed', 'apiResponse.text: Response has been disposed']) {
+    const error = new Error(message); let closed = false;
+    const page = { context: () => ({ unrouteAll: async options => { assert.equal(options.behavior, 'wait'); throw error; } }), close: async () => { closed = true; } };
+    await assert.rejects(closePageAfterCanvasRoutes(page), actual => actual === error);
+    assert.equal(closed, true, 'Failure must not leak the owned browser context');
+  }
 });

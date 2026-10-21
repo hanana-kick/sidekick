@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {existsSync} from 'node:fs';
 import {chromium} from 'playwright-core';
 import {createAppServer} from '../scripts/serve.mjs';
-import {forceCanvasForPage} from './helpers/force-no-webgl.mjs';
+import {forceCanvasForPage,closePageAfterCanvasRoutes} from './helpers/force-no-webgl.mjs';
 let browser,server,origin;
 before(async()=>{
  server=createAppServer();await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));origin=`http://127.0.0.1:${server.address().port}`;
@@ -12,7 +12,7 @@ before(async()=>{
 });
 after(async()=>{await browser?.close();if(server)await new Promise(resolve=>server.close(resolve));});
 for(const worker of [true,false])test(`WebGL disabled: ${worker?'worker':'no-worker main'} preserves first frame, alpha, snapshots and idle lifecycle`,async t=>{
- const page=await browser.newPage({viewport:{width:800,height:600}}),errors=[];page.on('pageerror',error=>errors.push(error.message));t.after(()=>page.close());
+ const page=await browser.newPage({viewport:{width:800,height:600}}),errors=[];page.on('pageerror',error=>errors.push(error.message));t.after(()=>closePageAfterCanvasRoutes(page));
  const canvasAudit=await forceCanvasForPage(page);
  if(!worker)await page.addInitScript(()=>{window.Worker=undefined;});
  await page.route(`${origin}/canvas-fallback.html`,route=>route.fulfill({contentType:'text/html',body:'<!doctype html><style>sidekick-avatar{display:block;width:180px;height:180px}</style><sidekick-avatar id="bot" paused activity="still" tracking-mode="off" shape="puffy" body-color="#ff0000"></sidekick-avatar><script type="module" src="/src/auto.js"></script>'}));

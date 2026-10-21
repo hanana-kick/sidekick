@@ -528,14 +528,37 @@ test('main fallback tracking releases global listeners while offscreen or WebGL 
   await page.waitForFunction(() => window.listenerAudit(document.getElementById('bare')).globalPointer === 0);
   await page.locator('#bare').evaluate(element => { element.style.position = ''; element.style.top = ''; });
   await page.waitForFunction(() => window.listenerAudit(document.getElementById('bare')).globalPointer === 1);
-  const supported = await page.locator('#bare').evaluate(element => {
-    window.trackingContext = element.shadowRoot.querySelector('canvas').getContext('webgl2').getExtension('WEBGL_lose_context');
-    window.trackingContext?.loseContext(); return !!window.trackingContext;
+  const initial = await page.locator('#bare').evaluate(element => {
+    const canvas = element.shadowRoot.querySelector('canvas'), gl = canvas.getContext('webgl2');
+    const audit = window.trackingLossAudit = { canvas, generation: element.diagnostics.generation, losses: 0, errors: [], ready: [] };
+    canvas.addEventListener('webglcontextlost', () => { audit.losses++; });
+    const state = () => ({ ready: element.ready, pointer: window.listenerAudit(element).globalPointer,
+      exit: window.listenerAudit(element).globalTrackingExit });
+    element.addEventListener('sidekick-error', event => audit.errors.push({ ...event.detail, ...state() }));
+    element.addEventListener('sidekick-ready', () => audit.ready.push({ ...state(), graphics: element.diagnostics.graphics }));
+    const extension = gl.getExtension('WEBGL_lose_context');
+    const result = { supported: !!extension, graphics: element.diagnostics.graphics };
+    extension?.loseContext(); return result;
   });
-  assert.equal(supported, true);
-  await page.waitForFunction(() => !document.getElementById('bare').ready && window.listenerAudit(document.getElementById('bare')).globalPointer === 0);
-  await page.waitForTimeout(100); await page.evaluate(() => window.trackingContext.restoreContext());
-  await page.waitForFunction(() => document.getElementById('bare').ready && window.listenerAudit(document.getElementById('bare')).globalPointer === 1);
+  assert.deepEqual(initial, { supported: true, graphics: 'webgl2' });
+  // Recovery can finish between polling frames. Record listener release in the
+  // synchronous error event, then wait for the durable recovered state instead.
+  // Do not restore the retired WebGL context: recovery must work without it.
+  await page.waitForFunction(() => {
+    const element = document.getElementById('bare');
+    return element.ready && element.diagnostics.generation > window.trackingLossAudit.generation;
+  });
+  const result = await page.locator('#bare').evaluate(element => {
+    const audit = window.trackingLossAudit;
+    return { losses: audit.losses, errors: audit.errors, ready: audit.ready,
+      replaced: element.shadowRoot.querySelector('canvas') !== audit.canvas,
+      generationDelta: element.diagnostics.generation - audit.generation,
+      pointer: window.listenerAudit(element).globalPointer, exit: window.listenerAudit(element).globalTrackingExit };
+  });
+  assert.equal(result.losses, 1); assert.equal(result.replaced, true); assert.equal(result.generationDelta, 1);
+  assert.deepEqual(result.errors, [{ message: 'WebGL context lost', recoverable: true, ready: false, pointer: 0, exit: 0 }]);
+  assert.deepEqual(result.ready, [{ ready: true, pointer: 1, exit: 2, graphics: 'canvas2d' }]);
+  assert.equal(result.pointer, 1); assert.equal(result.exit, 2);
 });
 
 test('orbit drag controls bodyOrientation without competing with tracking, which resumes after pointer release', async t => {

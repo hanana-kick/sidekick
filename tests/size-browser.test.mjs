@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { createAppServer } from '../scripts/serve.mjs';
-import { forceCanvasForPage } from './helpers/force-no-webgl.mjs';
+import { forceCanvasForPage, closePageAfterCanvasRoutes } from './helpers/force-no-webgl.mjs';
 let browser, server, origin;
 const forceCanvas = process.env.SIDEKICK_FORCE_CANVAS2D === '1';
 before(async () => {
@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
 for (const backend of ['main', 'worker']) for (const dpr of [1, 2]) test(`size controls real host/canvas at DPR ${dpr} (${backend}), then restores live CSS`, async t => {
-  const page = await browser.newPage({ deviceScaleFactor: dpr, reducedMotion: 'reduce' }); t.after(() => page.close());
+  const page = await browser.newPage({ deviceScaleFactor: dpr, reducedMotion: 'reduce' }); t.after(() => closePageAfterCanvasRoutes(page));
   const canvasAudit = forceCanvas ? await forceCanvasForPage(page) : null;
   if (backend === 'main') await page.addInitScript(() => { window.Worker = undefined; });
   await page.route('**/size-fixture.html', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' }));

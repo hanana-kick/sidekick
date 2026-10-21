@@ -4,7 +4,7 @@ import { accessSync, constants } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
 import { createAppServer } from '../scripts/serve.mjs';
-import { forceCanvasForPage } from './helpers/force-no-webgl.mjs';
+import { forceCanvasForPage, closePageAfterCanvasRoutes } from './helpers/force-no-webgl.mjs';
 
 const forceCanvas = process.env.SIDEKICK_FORCE_CANVAS2D === '1';
 const canvasAudits = new WeakMap();
@@ -29,7 +29,7 @@ async function pageFor(t, options = {}) {
   const canvasAudit = forceCanvas ? await forceCanvasForPage(page) : null;
   if (canvasAudit) canvasAudits.set(page, canvasAudit);
   const errors = []; page.on('pageerror', error => errors.push(error.message));
-  t.after(async () => { await page.close(); assert.deepEqual(errors, []); });
+  t.after(async () => { await closePageAfterCanvasRoutes(page); assert.deepEqual(errors, []); });
   await page.goto(`${base}/api-playground.html`);
   await page.waitForFunction(() => document.querySelector('#site-preview-frame')?.contentDocument?.querySelector('#bot[data-configured]')?.ready && document.getElementById('invocation').textContent.includes('moveTo'));
   if (canvasAudit) {

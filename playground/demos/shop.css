@@ -5,3 +5,26 @@ body.shop{background:#fff;color:#171719}.muse{--pink:#e92386;--ink:#171719;--mut
 @media(prefers-reduced-motion:reduce){.muse *{transition:none!important;scroll-behavior:auto!important}}
 /* A deeper action pink gives white button labels 5:1 contrast. */
 .muse-button{background:#d21e78!important;border-color:#d21e78!important}
+/* Localized copy must be allowed to shrink inside fractional grid tracks.
+   Keep every label readable rather than hiding page overflow or truncating it. */
+.muse{overflow-wrap:anywhere}
+.muse-hero-copy,.muse-edit-copy,.muse-collection-grid>article,.muse-brand-grid>button,.muse-bag-section>*{min-width:0}
+.muse-hero-copy>*{max-width:100%}
+.muse-section-heading>*,.muse-sort>*{min-width:0}
+@media(max-width:720px){
+ .muse-hero,.muse-collection-grid,.muse-brand-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .muse-hero h1,.muse-hero p,.muse-edit-copy h2,.muse-collection-grid h3,.muse-section-heading h2,.muse-bag-intro h2,.muse-closing h2{word-break:normal}
+ .muse-brand-name{white-space:normal;text-align:center}
+ .muse-brand-grid button>span:last-child{gap:8px;max-width:100%}
+ .muse-filter-tabs{gap:16px;flex-wrap:wrap}
+ .muse-price{flex-wrap:wrap}
+}
+@media(max-width:420px){
+ .muse-hero{grid-template-columns:minmax(0,1fr)}
+ .muse-hero-copy{min-height:0;padding:28px 22px}
+ .muse-hero h1{font-size:38px;line-height:1.12;letter-spacing:-1.5px}
+ .muse-hero p{font-size:13px;margin:16px 0}
+ .muse-season{margin-top:20px}
+ .muse-hero-image{height:260px}
+ .muse-hero-image img{object-position:50% 42%}
+}
