@@ -9,3 +9,6 @@ artifacts/
 *.log
 .DS_Store
 release/
+
+# Generated isolated CPU experiment worktrees
+.ci-runtime/

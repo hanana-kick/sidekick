@@ -1,0 +1,13 @@
+import {execFileSync} from 'node:child_process';import {readFile,mkdir,writeFile,cp,rm} from 'node:fs/promises';import {createHash} from 'node:crypto';import {build} from 'esbuild';
+const manifest=JSON.parse(await readFile('scripts/ci-cpu/manifest.json','utf8'));
+const sha=b=>createHash('sha256').update(b).digest('hex');
+for(const [path,hash] of Object.entries(manifest.baselineFiles))if(sha(await readFile(path))!==hash)throw Error('Baseline source mismatch: '+path);
+await rm('.ci-runtime',{recursive:true,force:true});
+await mkdir('.ci-runtime/baseline',{recursive:true});await mkdir('.ci-runtime/candidate',{recursive:true});
+await cp('tsconfig.json','.ci-runtime/candidate/tsconfig.json');
+await cp('src','.ci-runtime/baseline/src',{recursive:true});await cp('src','.ci-runtime/candidate/src',{recursive:true});
+const patch=await readFile('scripts/ci-cpu/atomic.patch');if(sha(patch)!==manifest.patchSha256)throw Error('Patch digest mismatch');
+execFileSync('git',['apply','--directory=.ci-runtime/candidate','scripts/ci-cpu/atomic.patch']);
+for(const [path,hash] of Object.entries(manifest.candidateFiles))if(sha(await readFile('.ci-runtime/candidate/'+path))!==hash)throw Error('Candidate mismatch: '+path);
+await build({entryPoints:{main:'scripts/ci-cpu/page.mjs',worker:'.ci-runtime/candidate/experiments/atomic-surface/worker.ts','baseline-worker':'.ci-runtime/baseline/src/runtime/render-worker.ts'},bundle:true,format:'esm',outdir:'artifacts/ci-cpu/site',target:'es2022'});
+await writeFile('artifacts/ci-cpu/site/index.html','<!doctype html><meta charset="utf-8"><title>Owned CPU experiment</title><style>body{margin:0;background:#ddd}canvas{display:block}</style><script type="module" src="./main.js"></script>');

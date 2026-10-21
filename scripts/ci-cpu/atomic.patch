@@ -1,0 +1,860 @@
+diff --git a/experiments/atomic-surface/README.md b/experiments/atomic-surface/README.md
+new file mode 100644
+index 0000000..1b51748
+--- /dev/null
++++ b/experiments/atomic-surface/README.md
+@@ -0,0 +1,31 @@
++# Atomic tight-surface experiment
++
++Unpublished performance prerequisite for the planned frontal world-Z API. The flight API draft remains frozen separately. This experiment is not enabled by package registration or production entrypoints.
++
++## Render and presentation contracts
++
++`TightSurfaceRenderer` records one frame's draw passes, measures referenced geometry, and allocates a grow-only16px-aligned crop inside the unchanged virtual framebuffer. WebGL keeps the original projection and full virtual viewport, offset by the integer crop. Canvas retains the original full-frame vertex coordinates and global pixel sample positions; only pixel/depth storage, clearing and image copying use the crop. Existing DPR, backing-size limits, antialiasing, MSAA and runtime cadence are not reduced.
++
++A private OffscreenCanvas is never implicitly displayed. The source transfers one ImageBitmap with generation, frame ID, command revision, rendered snapshot, crop and applied CSS dimensions. Only one transferred frame is outstanding. While main is busy, rendering may continue but no additional bitmap is created; the next matching acknowledgement transfers the latest complete frame. Paused/static rendering does not repeat transfers.
++
++Main owns every received bitmap until `transferFromImageBitmap` consumes it or `close()` drops it. Stale generations, duplicate/out-of-order frames, replacement, invalid metadata and teardown are handled explicitly. Crop CSS, backing dimensions and matching bitmap are committed in one RAF callback. Observable frame snapshots advance only after that transaction. Complete events are held until their rendered frame is presented.
++
++Metadata is latched at actual rendered-frame boundaries. Applied CSS dimensions are captured in the renderer adapter's resize call, not when a command arrives. Hidden resize commands cannot relabel an older bitmap. Synchronous rendering for asynchronous PNG encoding is latched before subsequent commands can change state.
++
++`transferToImageBitmap` clears its source. Fresh capture therefore forces a render and reads it before transfer. The adapter exposes virtual full dimensions and expands crop bytes without resampling, preserving full-frame bottom-up premultiplied captures and PNG exports. Synchronous worker capture reconstructs the last presented bitmap; synchronous local capture can render fresh pixels.
++
++## Current validation and limitations
++
++Focused tests cover exact expanded Canvas pixels across shapes, accessories/fades, size160/320/640/1024, DPR1/2/3, aspect ratios, zoom, queued draw failures, ownership/drop/disposal, hidden resize metadata and async transfer failure. Actual browser worker/main checks are a separate gate.
++
++The first independent Node ABBA measurement did **not** show a CPU improvement: tight rendering was roughly equal or slightly slower. Reduced backing area is not evidence of reduced CPU usage. Matched real-browser/process CPU trials including bitmap transfer and presentation remain required. GPU savings are unverified and are not claimed.
++
++Known acceptance gaps include crop-aware full interaction boxes, entrance/occluder clipping, full recovery/visibility regression coverage, and the previous GPU experiment's non-identical edge pixels in some cases. Do not publish this experiment or claim the canvas-performance problem is solved until these are resolved and CPU improvement is independently demonstrated.
++
++## Run
++
++    node experiments/atomic-surface/build.mjs
++    node --import tsx --test tests/atomic-presenter.test.ts tests/atomic-producer.test.ts tests/atomic-bridge.test.ts tests/render-surface.test.ts tests/canvas-tight-surface.test.ts
++    npx tsc -p experiments/atomic-surface/tsconfig.json
++
++Serve dist and open `/atomic-surface/index.html`. The visible harness compares baseline, atomic worker and atomic main fallback. It is a correctness harness, not a single-instance CPU benchmark. The independent benchmark uses matched single-instance windows and reports renderer, process CPU and presentation costs separately.
+diff --git a/experiments/atomic-surface/bridge.ts b/experiments/atomic-surface/bridge.ts
+new file mode 100644
+index 0000000..59073ad
+--- /dev/null
++++ b/experiments/atomic-surface/bridge.ts
+@@ -0,0 +1,76 @@
++import type { RenderBridge,BridgeCallbacks } from '../../src/runtime/render-bridge.js';
++import type { RuntimeCommand,RuntimeEvent,RuntimeSnapshot,RuntimeState } from '../../src/runtime/protocol.js';
++import { AtomicPresenter } from './presenter.js';
++import type { AtomicFrame,AtomicRequest,AtomicResponse } from './protocol.js';
++import type { AtomicProducer } from './producer.js';
++export class AtomicSurfaceBridge implements RenderBridge {
++ readonly transferred=false;revision=0;
++ readonly backend:'worker'|'main';
++ private worker?:Worker;private producer?:AtomicProducer;private disposed=false;
++ private queued:AtomicRequest[]=[];private ready?:{snapshot:RuntimeSnapshot;revision:number};private readySent=false;
++ private frame=0;private events:{event:RuntimeEvent;revision:number}[]=[];private presenter:AtomicPresenter;
++ private timeout?:ReturnType<typeof setTimeout>;private surface?:AtomicFrame['surface'];
++ readonly metrics={bitmapMs:0,created:0,maxInFlight:0};
++ get presentationStats(){return{...this.presenter.stats,...this.metrics,surface:this.surface?{...this.surface}:undefined};}
++ constructor(canvas:HTMLCanvasElement,readonly generation:number,private readonly callbacks:BridgeCallbacks,worker:boolean){
++  this.backend=worker?'worker':'main';
++  this.presenter=new AtomicPresenter(canvas,generation,{request:cb=>requestAnimationFrame(cb),cancel:id=>cancelAnimationFrame(id),acknowledge:frame=>this.post({kind:'ack',generation:frame.generation,frameId:frame.frameId}),presented:frame=>this.presented(frame),failed:error=>this.fail(error)});
++ }
++ start(state:RuntimeState):void{
++  this.timeout=setTimeout(()=>this.fail(new Error('Atomic renderer startup timed out')),10000);
++  const init:AtomicRequest={kind:'init',generation:this.generation,state};
++  if(this.backend==='worker'){
++   this.worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});
++   this.worker.addEventListener('message',this.message);this.worker.addEventListener('error',this.error);this.worker.addEventListener('messageerror',this.decodeError);
++   this.post(init);
++  }else{
++   this.queued.push(init);
++   void import('./producer.js').then(({AtomicProducer})=>{if(this.disposed)return;this.producer=new AtomicProducer(message=>this.receive(message));const queued=this.queued;this.queued=[];queued.forEach(message=>this.producer!.receive(message));}).catch(error=>this.fail(error instanceof Error?error:new Error(String(error))));
++  }
++ }
++ send(command:RuntimeCommand):void{if(!this.disposed)this.post({kind:'command',generation:this.generation,revision:++this.revision,command});}
++ private post(message:AtomicRequest):void{
++  if(this.disposed)return;
++  try{if(this.worker)this.worker.postMessage(message);else if(this.producer)this.producer.receive(message);else this.queued.push(message);}catch(error){this.fail(error instanceof Error?error:new Error(String(error)));}
++ }
++ private message=({data}:MessageEvent<AtomicResponse>):void=>this.receive(data);
++ private receive(data:AtomicResponse):void{
++  if(data.kind==='bitmap'){
++   if(this.disposed||data.generation!==this.generation){data.bitmap.close();return;}
++   this.metrics.bitmapMs+=data.metrics.bitmapMs;this.metrics.created=data.metrics.created;this.metrics.maxInFlight=data.metrics.maxInFlight;
++   this.presenter.accept(data);return;
++  }
++  if(this.disposed||data.generation!==this.generation)return;
++  if(data.kind==='failure'){this.fail(new Error(data.message),data.rendererFallback);return;}
++  if(data.kind==='ready'){this.ready={snapshot:data.snapshot,revision:data.revision};return;}
++  if(data.revision>this.revision)return;
++  const event=data.event;
++  // Observable frame state advances only with its atomically presented bitmap.
++  if(event.kind==='frame')return;
++  if(event.kind==='error'){this.callbacks.event(event,data.revision);return;}
++  if(event.kind==='complete'&&event.snapshot.frames>this.frame){this.events.push({event,revision:data.revision});return;}
++  this.callbacks.event(event,data.revision);
++ }
++ private presented(frame:AtomicFrame):void{
++  this.frame=frame.snapshot.frames;this.surface={...frame.surface};
++  if(!this.readySent&&this.ready){this.readySent=true;clearTimeout(this.timeout);this.timeout=undefined;this.callbacks.ready(frame.snapshot,frame.revision);}
++  this.callbacks.event({kind:'frame',snapshot:frame.snapshot},frame.revision);
++  const pending=this.events;this.events=[];
++  for(const item of pending){if('snapshot'in item.event&&item.event.snapshot.frames>this.frame)this.events.push(item);else this.callbacks.event(item.event,item.revision);}
++ }
++ capture(){return this.backend==='main'&&this.producer?this.producer.capture():this.presenter.capture();}
++ /** Explicit experiment-only transport injection; never claims actual GPU context loss. */
++ simulateWorkerFailureForTest():void{if(this.backend!=='worker'||this.disposed)throw new Error('An active atomic worker is required.');this.fail(new Error('Simulated atomic worker transport failure (QA only).'));}
++ private error=(event:ErrorEvent):void=>{event.preventDefault();this.fail(new Error(event.message||'Atomic worker failed.'));};
++ private decodeError=():void=>this.fail(new Error('Atomic worker message could not be decoded.'));
++ private fail(error:Error,fallback=false):void{if(this.disposed)return;this.dispose();this.callbacks.failed(error,fallback);}
++ dispose():void{
++  if(this.disposed)return;
++  // Mark disposed first: closing a pending bitmap must not request another source frame.
++  this.disposed=true;this.presenter.dispose();clearTimeout(this.timeout);this.timeout=undefined;
++  // Keep the message sink on the terminated worker to close any already-queued bitmap.
++  // The worker/listener cycle becomes collectible after those queued events drain.
++  this.worker?.removeEventListener('error',this.error);this.worker?.removeEventListener('messageerror',this.decodeError);this.worker?.terminate();this.worker=undefined;
++  this.producer?.dispose();this.producer=undefined;this.queued=[];this.events=[];
++ }
++}
+diff --git a/experiments/atomic-surface/build.mjs b/experiments/atomic-surface/build.mjs
+new file mode 100644
+index 0000000..d200f81
+--- /dev/null
++++ b/experiments/atomic-surface/build.mjs
+@@ -0,0 +1,4 @@
++import {build} from 'esbuild';import{mkdir,copyFile}from'node:fs/promises';
++await mkdir('dist/atomic-surface',{recursive:true});
++await build({entryPoints:{main:'experiments/atomic-surface/main.ts',worker:'experiments/atomic-surface/worker.ts','render-worker':'src/runtime/render-worker.ts'},bundle:true,format:'esm',outdir:'dist/atomic-surface',target:'es2022'});
++await copyFile('experiments/atomic-surface/index.html','dist/atomic-surface/index.html');
+diff --git a/experiments/atomic-surface/element.ts b/experiments/atomic-surface/element.ts
+new file mode 100644
+index 0000000..08b1b3d
+--- /dev/null
++++ b/experiments/atomic-surface/element.ts
+@@ -0,0 +1,41 @@
++import { SidekickAvatar } from '../../src/element/avatar.js';
++import type { BridgeCallbacks,RenderBridge } from '../../src/runtime/render-bridge.js';
++import { AtomicSurfaceBridge } from './bridge.js';
++/** Isolated opt-in test element, never registered by the package. */
++export class AtomicSurfaceAvatar extends SidekickAvatar {
++ private fullHostSurface?: HTMLDivElement;
++ private observedCanvas?: HTMLCanvasElement;
++ private surfaceObserver?: MutationObserver;
++ private ensureFullHostSurface(canvas:HTMLCanvasElement):HTMLDivElement {
++  let surface=this.fullHostSurface;
++  if(!surface){
++   surface=this.ownerDocument.createElement('div');surface.dataset.atomicFullHost='';surface.setAttribute('aria-hidden','true');
++   Object.assign(surface.style,{position:'absolute',inset:'0',pointerEvents:'var(--sidekick-pointer-events,none)',touchAction:'var(--sidekick-touch-action,auto)'});
++   canvas.before(surface);this.fullHostSurface=surface;
++  }
++  if(canvas.parentElement!==surface)surface.append(canvas);
++  if(this.observedCanvas!==canvas||!this.surfaceObserver){
++   this.surfaceObserver?.disconnect();this.observedCanvas=canvas;
++   const sync=()=>{surface!.hidden=canvas.hidden||!this.isConnected;};sync();
++   this.surfaceObserver=new MutationObserver(sync);this.surfaceObserver.observe(canvas,{attributes:true,attributeFilter:['hidden']});
++  }
++  return surface;
++ }
++ protected override interactionSurface(canvas:HTMLCanvasElement):HTMLElement{return this.ensureFullHostSurface(canvas);}
++ protected override entranceSurface(canvas:HTMLCanvasElement):HTMLElement{return this.ensureFullHostSurface(canvas);}
++ override disconnectedCallback():void{
++  super.disconnectedCallback();this.surfaceObserver?.disconnect();this.surfaceObserver=undefined;this.observedCanvas=undefined;
++  if(this.fullHostSurface)this.fullHostSurface.hidden=true;
++ }
++ private atomicBridge?:AtomicSurfaceBridge;
++ get atomicMetrics(){return this.atomicBridge?.presentationStats;}
++ simulateWorkerFailureForTest():void{if(!this.atomicBridge)throw new Error('Atomic bridge is not ready.');this.atomicBridge.simulateWorkerFailureForTest();}
++ override capturePixels(){
++  if(this.atomicBridge?.backend==='worker'){if(!this.ready)throw new Error('Avatar is not ready.');return this.atomicBridge.capture();}
++  return super.capturePixels();
++ }
++ protected override createRenderBridge(canvas:HTMLCanvasElement,generation:number,callbacks:BridgeCallbacks,worker:boolean):RenderBridge{
++  return this.atomicBridge=new AtomicSurfaceBridge(canvas,generation,callbacks,worker&&!this.hasAttribute('force-main'));
++ }
++}
++
+diff --git a/experiments/atomic-surface/index.html b/experiments/atomic-surface/index.html
+new file mode 100644
+index 0000000..a5f2bfd
+--- /dev/null
++++ b/experiments/atomic-surface/index.html
+@@ -0,0 +1,3 @@
++<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Atomic surface experiment</title><style>
++*{box-sizing:border-box}body{margin:0;background:#f5f7fa;font:15px system-ui;color:#222b3b}main{max-width:1100px;margin:26px auto;padding:0 24px}h1{font-size:25px;margin:8px 0}p{line-height:1.5;color:#5c6678}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card{background:white;border:1px solid #dce1e9;border-radius:12px;padding:16px;min-width:0}.stage{height:220px;overflow:auto;display:grid;place-items:center;background-image:linear-gradient(#edf0f480 1px,transparent 1px),linear-gradient(90deg,#edf0f480 1px,transparent 1px);background-size:16px 16px}.card h2{font-size:16px;margin:0 0 12px}button,select{font:inherit;background:white;border:1px solid #c7d0de;border-radius:8px;padding:9px 12px;margin-right:6px}pre{white-space:pre-wrap;font:12px/1.5 ui-monospace,monospace;background:white;padding:14px;border:1px solid #dce1e9;border-radius:10px;overflow-wrap:anywhere}#output{min-height:70px}.tag{font-size:12px;color:#805b17;background:#fff0c9;border-radius:5px;padding:4px 7px}@media(max-width:700px){.grid{grid-template-columns:1fr}}
++</style><main><span class="tag">Isolated performance prerequisite · unpublished</span><h1>Matched bitmap + crop, one presentation transaction</h1><p>Baseline versus the atomic surface transport. Both backends use tight pixel-aligned storage, while retaining the full-frame coordinate system and quality policy. This browser can verify CPU behavior but cannot establish GPU savings.</p><div class="grid"><section class="card"><h2>Baseline</h2><div class="stage"><sidekick-avatar size="160" shape="puffy" activity="still" paused interaction="box"></sidekick-avatar></div></section><section class="card"><h2>Atomic worker</h2><div class="stage"><sidekick-atomic-experiment size="160" shape="puffy" activity="still" paused interaction="box"></sidekick-atomic-experiment></div></section><section class="card"><h2>Atomic main fallback</h2><div class="stage"><sidekick-atomic-experiment force-main size="160" shape="puffy" activity="still" paused interaction="box"></sidekick-atomic-experiment></div></section></div><p><button id="checks">Run visible checks</button><button id="animate">Animate</button><button id="pause">Pause</button><label>Size <select id="size"><option>160</option><option>320</option><option>640</option><option>1024</option></select></label></p><div id="activations">Visible bot activations: 0</div><pre id="output" role="status">Starting…</pre><pre id="diagnostics"></pre><p>Acceptance remains gated on matched CPU improvement, pixel parity, crop-aware interaction and entrance clipping, recovery and capture contracts. GPU savings remain unverified. This experiment does not enable the feature for existing users.</p></main><script type="module" src="./main.js"></script></html>
+diff --git a/experiments/atomic-surface/main.ts b/experiments/atomic-surface/main.ts
+new file mode 100644
+index 0000000..a590234
+--- /dev/null
++++ b/experiments/atomic-surface/main.ts
+@@ -0,0 +1,30 @@
++import {defineSidekick,SidekickAvatar} from '../../src/element/avatar.js';
++import {AtomicSurfaceAvatar} from './element.js';
++defineSidekick();customElements.define('sidekick-atomic-experiment',AtomicSurfaceAvatar);
++const nodes=[...document.querySelectorAll<SidekickAvatar>('sidekick-avatar,sidekick-atomic-experiment')];
++const output=document.querySelector<HTMLElement>('#output')!,diagnostics=document.querySelector<HTMLElement>('#diagnostics')!;
++const ready=(bot:SidekickAvatar)=>bot.ready?Promise.resolve():new Promise<void>((resolve,reject)=>{bot.addEventListener('sidekick-ready',()=>resolve(),{once:true});setTimeout(()=>reject(new Error('Ready timeout')),12000);});
++function report(){diagnostics.textContent=nodes.map((bot,i)=>`${['Baseline','Atomic worker','Atomic main'][i]}: ${bot.diagnostics.backend}/${bot.diagnostics.graphics} · ${JSON.stringify((bot as AtomicSurfaceAvatar).atomicMetrics??{})}`).join('\n');}
++function check(condition:boolean,name:string,lines:string[]){lines.push(`${condition?'PASS':'FAIL'} ${name}`);}
++async function checks(){
++ const lines:string[]=[];output.textContent='Running visible checks…';
++ try{
++  await Promise.all(nodes.map(ready));nodes.forEach(bot=>{bot.mouseTracking=false;bot.resetTracking();bot.resetBodyOrientation();bot.lookAt({space:'view',x:0,y:0});bot.paused=true;bot.setActivity('still');bot.seek(0);});
++  const images=await Promise.all(nodes.map(bot=>bot.capturePixelsAsync()));
++  for(let i=1;i<images.length;i++){const image=images[i]!,base=images[0]!;check(image.width===base.width&&image.height===base.height,`mode${i} full capture dimensions`,lines);let mismatch=0;for(let j=0;j<image.pixels.length;j++)if(image.pixels[j]!==base.pixels[j])mismatch++;check(mismatch===0,`mode${i} exact fresh Canvas pixels (${mismatch} differing channels)`,lines);}
++  for(let i=1;i<nodes.length;i++){const bot=nodes[i]!;const sync=bot.capturePixels();check(sync.width===images[i]!.width&&sync.height===images[i]!.height,`mode${i} synchronous capture dimensions`,lines);check((await bot.snapshot()).size>0,`mode${i} PNG export`,lines);}
++  await new Promise(resolve=>setTimeout(resolve,150));const before=nodes.slice(1).map(bot=>(bot as AtomicSurfaceAvatar).atomicMetrics?.created);
++  await new Promise(resolve=>setTimeout(resolve,250));
++  nodes.slice(1).forEach((bot,i)=>{const m=(bot as AtomicSurfaceAvatar).atomicMetrics;check(m?.created===before[i],`mode${i+1} paused transfer loop stopped`,lines);check(m?.maxInFlight===1&&m.maxPending===1,`mode${i+1} bounded bitmap ownership`,lines);});
++  const beforePosition=nodes[1]!.position;await nodes[1]!.moveTo({x:12,y:8},{duration:0,travel:'none'});check(nodes[1]!.position.x===12&&nodes[1]!.position.y===8,'legacy XY movement',lines);await nodes[1]!.moveTo(beforePosition,{duration:0,travel:'none'});
++  const candidate=nodes[1]!,parent=candidate.parentElement!;candidate.remove();parent.append(candidate);await ready(candidate);check(candidate.ready,'disconnect/reconnect recovery',lines);
++ }catch(error){lines.push(`FAIL ${error instanceof Error?error.message:String(error)}`);}
++ const pass=lines.filter(line=>line.startsWith('PASS')).length,fail=lines.filter(line=>line.startsWith('FAIL')).length;
++ output.textContent=`${pass} PASS / ${fail} FAIL\n${lines.join('\n')}`;report();
++}
++document.querySelector('#checks')!.addEventListener('click',()=>void checks());
++document.querySelector('#animate')!.addEventListener('click',()=>{nodes.forEach(bot=>{bot.paused=false;bot.setActivity('idle');});output.textContent='Animating all three through their normal runtime cadence.';setTimeout(report,500);});
++document.querySelector('#pause')!.addEventListener('click',()=>{nodes.forEach(bot=>{bot.paused=true;bot.seek(0);});output.textContent='Paused. No repeat bitmap transfers should remain.';setTimeout(report,500);});
++document.querySelector('#size')!.addEventListener('change',event=>{const size=Number((event.target as HTMLSelectElement).value);nodes.forEach(bot=>bot.size=size);output.textContent=`Requested ${size}px. Existing DPR and backing caps are unchanged.`;setTimeout(report,500);});
++let activations=0;nodes.forEach(bot=>bot.addEventListener('sidekick-activate',()=>{document.querySelector('#activations')!.textContent=`Visible bot activations: ${++activations}`;}));
++Promise.all(nodes.map(ready)).then(()=>{output.textContent='Ready. Run visible checks.';report();}).catch(error=>{output.textContent=String(error);report();});
+diff --git a/experiments/atomic-surface/presenter.ts b/experiments/atomic-surface/presenter.ts
+new file mode 100644
+index 0000000..a65dbe2
+--- /dev/null
++++ b/experiments/atomic-surface/presenter.ts
+@@ -0,0 +1,56 @@
++import { surfaceLayout } from '../../src/renderer/render-surface.js';
++import type { AtomicFrame } from './protocol.js';
++import type { PixelBuffer } from '../../src/core/pixels.js';
++export interface PresenterHost {
++ request(callback:FrameRequestCallback):number;cancel(id:number):void;
++ acknowledge(frame:AtomicFrame):void;presented(frame:AtomicFrame):void;failed(error:Error):void;
++}
++/** Owns every received bitmap until transferFromImageBitmap consumes it or close drops it. */
++export class AtomicPresenter {
++ private pending?:AtomicFrame;private scheduled=0;private disposed=false;private lastFrame=0;private revision=-1;
++ private context:ImageBitmapRenderingContext;
++ private current?:AtomicFrame;
++ readonly stats={received:0,presented:0,dropped:0,closed:0,maxPending:0,presentationMs:0};
++ constructor(private readonly canvas:HTMLCanvasElement,readonly generation:number,private readonly host:PresenterHost){
++  const context=canvas.getContext('bitmaprenderer');if(!context)throw new Error('Atomic bitmap presentation is unavailable.');this.context=context;
++ }
++ accept(frame:AtomicFrame):void{
++  this.stats.received++;
++  if(this.disposed||frame.generation!==this.generation||frame.frameId<=this.lastFrame||frame.revision<this.revision){this.drop(frame);return;}
++  const s=frame.surface;
++  if(![s.x,s.y,s.width,s.height,s.fullWidth,s.fullHeight].every(Number.isInteger)||s.x<0||s.y<0||s.width<1||s.height<1||s.x+s.width>s.fullWidth||s.y+s.height>s.fullHeight||frame.bitmap.width!==s.width||frame.bitmap.height!==s.height||!Number.isFinite(frame.cssWidth)||!Number.isFinite(frame.cssHeight)||frame.cssWidth<=0||frame.cssHeight<=0){this.drop(frame);this.host.failed(new Error('Invalid atomic surface metadata.'));return;}
++  if(this.pending){if(frame.frameId<=this.pending.frameId){this.drop(frame);return;}this.drop(this.pending);}
++  this.pending=frame;this.stats.maxPending=Math.max(this.stats.maxPending,1);
++  if(!this.scheduled)this.scheduled=this.host.request(this.present);
++ }
++ private drop(frame:AtomicFrame):void{frame.bitmap.close();this.stats.closed++;this.stats.dropped++;this.host.acknowledge(frame);}
++ private present=():void=>{
++  this.scheduled=0;const frame=this.pending;this.pending=undefined;if(!frame)return;
++  if(this.disposed){this.drop(frame);return;}
++  const start=performance.now();
++  try{
++   const layout=surfaceLayout(frame.surface,frame.cssWidth,frame.cssHeight);
++   // Both DOM geometry and bitmap change inside one animation-frame callback.
++   // The browser cannot paint an intermediate JS statement.
++   Object.assign(this.canvas.style,{position:'absolute',left:`${layout.left}px`,top:`${layout.top}px`,width:`${layout.width}px`,height:`${layout.height}px`});
++   if(this.canvas.width!==frame.surface.width)this.canvas.width=frame.surface.width;
++   if(this.canvas.height!==frame.surface.height)this.canvas.height=frame.surface.height;
++   this.context.transferFromImageBitmap(frame.bitmap);
++   this.current=frame;this.lastFrame=frame.frameId;this.revision=frame.revision;this.stats.presented++;this.stats.presentationMs+=performance.now()-start;
++   this.host.presented(frame);
++  }catch(error){frame.bitmap.close();this.stats.closed++;this.host.failed(error instanceof Error?error:new Error(String(error)));}
++  finally{this.host.acknowledge(frame);}
++ };
++ /** Reconstitute legacy full-frame bottom-up premultiplied capture from the displayed crop. */
++ capture():PixelBuffer{
++  const frame=this.current;if(!frame)throw new Error('No atomic frame has been presented.');
++  const {surface:s}=frame,output=this.canvas.ownerDocument.createElement('canvas');output.width=s.fullWidth;output.height=s.fullHeight;
++  const ctx=output.getContext('2d',{willReadFrequently:true});if(!ctx)throw new Error('Capture unavailable.');
++  ctx.drawImage(this.canvas,s.x,s.fullHeight-s.y-s.height,s.width,s.height);
++  const rgba=ctx.getImageData(0,0,s.fullWidth,s.fullHeight).data,pixels=new Uint8Array(rgba.length),stride=s.fullWidth*4;
++  for(let y=0;y<s.fullHeight;y++)pixels.set(rgba.subarray(y*stride,(y+1)*stride),(s.fullHeight-1-y)*stride);
++  for(let i=0;i<pixels.length;i+=4)if(pixels[i+3]!<255)for(let c=0;c<3;c++)pixels[i+c]=Math.round(pixels[i+c]!*pixels[i+3]!/255);
++  return{width:s.fullWidth,height:s.fullHeight,pixels};
++ }
++ dispose():void{if(this.disposed)return;this.disposed=true;if(this.scheduled)this.host.cancel(this.scheduled);this.scheduled=0;if(this.pending)this.drop(this.pending);this.pending=undefined;this.current=undefined;}
++}
+diff --git a/experiments/atomic-surface/producer.ts b/experiments/atomic-surface/producer.ts
+new file mode 100644
+index 0000000..807d015
+--- /dev/null
++++ b/experiments/atomic-surface/producer.ts
+@@ -0,0 +1,74 @@
++import { RenderEngine } from '../../src/runtime/render-engine.js';
++import type { RuntimeRenderer } from '../../src/runtime/render-engine.js';
++import type { RuntimeEvent, RuntimeSnapshot } from '../../src/runtime/protocol.js';
++import { TightSurfaceRenderer } from '../../src/renderer/experimental-tight-surface.js';
++import type { RenderSurface } from '../../src/renderer/render-surface.js';
++import { expandSurfacePixels } from '../../src/renderer/render-surface.js';
++import type { AtomicRequest,AtomicResponse } from './protocol.js';
++/** Private source surface, never implicitly displayed by the browser. One bitmap in flight. */
++export class AtomicProducer {
++ private engine?:RenderEngine;private renderer?:TightSurfaceRenderer;private canvas?:OffscreenCanvas;
++ private generation=0;private revision=0;private frameId=0;private inFlight=0;private sentRender=0;private latest?:RuntimeSnapshot;private cssWidth=1;private cssHeight=1;private disposed=false;
++ private created=0;private latestRevision=0;private latestWidth=1;private latestHeight=1;private latestSurface?:RenderSurface;
++ constructor(private readonly post:(message:AtomicResponse,transfer?:Transferable[])=>void){}
++ receive(message:AtomicRequest):void{
++  if(this.disposed)return;
++  try{
++   if(message.kind==='init'){
++    if(this.engine||this.generation)throw new Error('Atomic source already initialized.');
++    this.generation=message.generation;this.cssWidth=message.state.width;this.cssHeight=message.state.height;
++    const canvas=this.canvas=new OffscreenCanvas(1,1),renderer=this.renderer=new TightSurfaceRenderer(canvas,{renderer:message.state.renderer});
++    const virtualCanvas=new Proxy(canvas,{get(target,key){if(key==='width')return renderer.surface?.fullWidth??target.width;if(key==='height')return renderer.surface?.fullHeight??target.height;const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;}});
++    const adapter:RuntimeRenderer={canvas:virtualCanvas,get animating(){return renderer.animating;},get graphics(){return renderer.graphics;},get stats(){return renderer.stats;},resize:(w,h,d)=>{renderer.resize(w,h,d);this.cssWidth=w;this.cssHeight=h;},render:(design,state)=>renderer.render(design,state),readPixels:()=>{const bytes=renderer.readPixels(),surface=renderer.surface;return surface?expandSurfacePixels(bytes,surface):bytes;},dispose:()=>renderer.dispose()};
++    this.engine=new RenderEngine(canvas,message.state,(event,revision=0)=>this.event(event,revision),undefined,adapter);
++    this.remember(this.engine.snapshot,0);
++    this.post({kind:'ready',generation:this.generation,revision:0,snapshot:this.engine.snapshot});this.present();return;
++   }
++   if(message.generation!==this.generation||!this.engine)return;
++   if(message.kind==='dispose'){this.dispose();return;}
++   if(message.kind==='ack'){
++    if(message.frameId!==this.inFlight)return;
++    this.inFlight=0;this.present();return;
++   }
++   if(message.revision<=this.revision)return;
++   this.revision=message.revision;
++   // The main-thread atomic transaction is the presentation proof. The implicit
++   // placeholder hash/hold handshake must not wait for a nonexistent placeholder.
++   const command=message.command.kind==='present'?{...message.command,verifySurface:false}:message.command;
++   this.engine.command(command,message.revision);
++   if(command.kind==='dispose'){this.dispose();return;}
++   // Snapshot encoding emits asynchronously; latch its synchronous render now.
++   this.remember(this.engine.snapshot,message.revision);this.present();
++  }catch(error){this.fail(error);}
++ }
++ private event(event:RuntimeEvent,revision:number):void{
++  if(this.disposed)return;
++  try{
++  if('snapshot'in event)this.remember(event.snapshot,revision);
++  this.post({kind:'event',generation:this.generation,revision,event},event.kind==='pixels'?[event.image.pixels.buffer as ArrayBuffer]:[]);
++  // Capture events are emitted only after readback, before transfer clears source.
++  if(event.kind!=='error')this.present();
++  }catch(error){this.fail(error);}
++ }
++ private fail(error:unknown):void{
++  if(this.disposed)return;
++  const rendererFallback=this.renderer?.graphics==='webgl2'||(error instanceof Error&&error.name==='RendererInitializationError');
++  try{this.post({kind:'failure',generation:this.generation,message:error instanceof Error?error.message:String(error),rendererFallback});}catch{/* Transport is already unusable. */}
++  this.dispose();
++ }
++ private remember(snapshot:RuntimeSnapshot,revision:number):void{
++  if(this.latest&&snapshot.frames<=this.latest.frames)return;
++  const surface=this.renderer?.surface;if(!surface)return;
++  this.latest=snapshot;this.latestRevision=revision;this.latestWidth=this.cssWidth;this.latestHeight=this.cssHeight;this.latestSurface={...surface};
++ }
++ private present():void{
++  const snapshot=this.latest,surface=this.latestSurface;
++  if(this.disposed||this.inFlight||!snapshot||snapshot.frames<=this.sentRender||!surface||!this.canvas)return;
++  const start=performance.now(),bitmap=this.canvas.transferToImageBitmap(),bitmapMs=performance.now()-start;
++  const frameId=++this.frameId;this.created++;this.inFlight=frameId;this.sentRender=snapshot.frames;
++  try{this.post({kind:'bitmap',generation:this.generation,revision:this.latestRevision,frameId,bitmap,surface:{...surface},cssWidth:this.latestWidth,cssHeight:this.latestHeight,snapshot,metrics:{bitmapMs,created:this.created,maxInFlight:1}},[bitmap]);}
++  catch(error){bitmap.close();this.inFlight=0;throw error;}
++ }
++ capture(){if(!this.engine)throw new Error('Atomic source is not ready.');const image=this.engine.capture();this.remember(this.engine.snapshot,this.revision);this.present();return image;}
++ dispose():void{if(this.disposed)return;this.disposed=true;if(this.engine)this.engine.dispose();else this.renderer?.dispose();this.engine=undefined;this.renderer=undefined;this.canvas=undefined;this.latest=undefined;this.inFlight=0;}
++}
+diff --git a/experiments/atomic-surface/protocol.ts b/experiments/atomic-surface/protocol.ts
+new file mode 100644
+index 0000000..11cd598
+--- /dev/null
++++ b/experiments/atomic-surface/protocol.ts
+@@ -0,0 +1,16 @@
++import type { RuntimeCommand, RuntimeEvent, RuntimeSnapshot, RuntimeState } from '../../src/runtime/protocol.js';
++import type { RenderSurface } from '../../src/renderer/render-surface.js';
++export type AtomicRequest =
++ | {kind:'init';generation:number;state:RuntimeState}
++ | {kind:'command';generation:number;revision:number;command:RuntimeCommand}
++ | {kind:'ack';generation:number;frameId:number}
++ | {kind:'dispose';generation:number};
++export interface AtomicFrame {
++ kind:'bitmap';generation:number;revision:number;frameId:number;bitmap:ImageBitmap;
++ surface:RenderSurface;cssWidth:number;cssHeight:number;snapshot:RuntimeSnapshot;
++ metrics:{bitmapMs:number;created:number;maxInFlight:number};
++}
++export type AtomicResponse = AtomicFrame
++ | {kind:'ready';generation:number;revision:number;snapshot:RuntimeSnapshot}
++ | {kind:'event';generation:number;revision:number;event:RuntimeEvent}
++ | {kind:'failure';generation:number;message:string;rendererFallback?:boolean};
+diff --git a/experiments/atomic-surface/tsconfig.json b/experiments/atomic-surface/tsconfig.json
+new file mode 100644
+index 0000000..15bdebd
+--- /dev/null
++++ b/experiments/atomic-surface/tsconfig.json
+@@ -0,0 +1 @@
++{"extends":"../../tsconfig.json","compilerOptions":{"noEmit":true,"rootDir":"../.."},"include":["*.ts","../../src/**/*.ts"],"exclude":[]}
+diff --git a/experiments/atomic-surface/worker.ts b/experiments/atomic-surface/worker.ts
+new file mode 100644
+index 0000000..961f818
+--- /dev/null
++++ b/experiments/atomic-surface/worker.ts
+@@ -0,0 +1,5 @@
++import { AtomicProducer } from './producer.js';
++import type { AtomicRequest,AtomicResponse } from './protocol.js';
++const scope=globalThis as unknown as {onmessage:((event:MessageEvent<AtomicRequest>)=>void)|null;postMessage(message:AtomicResponse,transfer?:Transferable[]):void};
++const producer=new AtomicProducer((message,transfer)=>scope.postMessage(message,transfer));
++scope.onmessage=({data})=>producer.receive(data);
+diff --git a/src/element/avatar.ts b/src/element/avatar.ts
+index 67ad143..d7fdec0 100644
+--- a/src/element/avatar.ts
++++ b/src/element/avatar.ts
+@@ -39,7 +39,7 @@ import type { MotionOptions, MotionResult, MotionTarget, Pose } from '../core/mo
+ import { validateSnapshotOptions } from '../core/pixels.js';
+ import type { SnapshotOptions } from '../core/pixels.js';
+ import { LocalRenderBridge, WorkerRenderBridge, supportsRenderWorker } from '../runtime/render-bridge.js';
+-import type { RenderBridge } from '../runtime/render-bridge.js';
++import type { RenderBridge, BridgeCallbacks } from '../runtime/render-bridge.js';
+ import { presentationSignature, matchesPresentation } from '../runtime/presentation.js';
+ import type { PresentationSignature } from '../runtime/presentation.js';
+ import type { DesignTransition, RuntimeCommand, RuntimeEvent, RuntimeSnapshot, RuntimeState } from '../runtime/protocol.js';
+@@ -529,7 +529,7 @@ export class SidekickAvatar extends HTMLElementBase {
+   private resumeEntranceBehavior(): void {
+     if (this.pendingBehavior !== undefined && this.ready && this.connected && this.presenceState !== 'entering') { const next = this.pendingBehavior; this.desiredBehavior = null; this.behavior = next; }
+   }
+-  private clearEntrance(): void { this.entranceCleanup?.(); this.entranceCleanup = undefined; this.refreshEntranceClip = undefined; this.canvas?.style?.removeProperty('clip-path'); }
++  private clearEntrance(): void { this.entranceCleanup?.(); this.entranceCleanup = undefined; this.refreshEntranceClip = undefined; if (this.canvas) this.entranceSurface(this.canvas).style.removeProperty('clip-path'); }
+   private startEntrance(continueFlight = false): void {
+     const config = this.entranceDeclaration;
+     if (!config || this.entranceApplied || !this.connected || !this.canvas) return;
+@@ -561,10 +561,10 @@ export class SidekickAvatar extends HTMLElementBase {
+       const local = (point: AvatarPosition): AvatarPosition => ({ x: point.x - offset.x, y: point.y - offset.y });
+       if (target) {
+         const occluder = target;
+-        const refresh = (): void => { if (this.canvas) this.canvas.style.clipPath = entranceClip(this.getBoundingClientRect(), occluder.getBoundingClientRect()); };
++        const refresh = (): void => { if (this.canvas) this.entranceSurface(this.canvas).style.clipPath = entranceClip(this.getBoundingClientRect(), occluder.getBoundingClientRect()); };
+         this.refreshEntranceClip = refresh;
+         // Stage under the mask synchronously before exposing the configured frame.
+-        this.canvas.style.clipPath = 'inset(100%)';
++        this.entranceSurface(this.canvas).style.clipPath = 'inset(100%)';
+       }
+       this.entranceCleanup = observeElementAnchor(this.ownerDocument, () => {
+         if (revision !== this.entranceRevision) return;
+@@ -591,7 +591,7 @@ export class SidekickAvatar extends HTMLElementBase {
+         return result;
+       });
+       if (revision !== this.entranceRevision || !this.connected) return;
+-      if (target) this.canvas.style.clipPath = entranceClip(this.getBoundingClientRect(), target.getBoundingClientRect());
++      if (target) this.entranceSurface(this.canvas).style.clipPath = entranceClip(this.getBoundingClientRect(), target.getBoundingClientRect());
+     } catch (error) { if (revision !== this.entranceRevision) return; this.clearEntrance(); this.discardInvalidPositioning(); this.emit('sidekick-error', { message: error instanceof Error ? error.message : String(error), attribute: 'entrance' }); this.resumeEntranceBehavior(); }
+   }
+   private presenceHidden = false;
+@@ -1134,10 +1134,14 @@ export class SidekickAvatar extends HTMLElementBase {
+     };
+     const attemptWorker = !forceMain && this.rendererPreference !== 'canvas2d' && supportsRenderWorker(this.canvas);
+     try {
+-      this.bridge = attemptWorker ? new WorkerRenderBridge(this.canvas, generation, callbacks) : new LocalRenderBridge(this.canvas, generation, callbacks);
++      this.bridge = this.createRenderBridge(this.canvas, generation, callbacks, attemptWorker);
+       this.bridge.start(this.runtimeState()); this.transferred ||= this.bridge?.transferred ?? false;
+     } catch (error) { this.runtimeFailure(error instanceof Error ? error : new Error(String(error)), generation, attemptWorker); }
+   }
++  /** Internal experiment seam; the default bridge and public API remain unchanged. */
++  protected createRenderBridge(canvas: HTMLCanvasElement, generation: number, callbacks: BridgeCallbacks, worker: boolean): RenderBridge {
++    return worker ? new WorkerRenderBridge(canvas, generation, callbacks) : new LocalRenderBridge(canvas, generation, callbacks);
++  }
+   private startupFrame = 0;
+   private startupDeadline?: ReturnType<typeof setTimeout>;
+   private cancelStartupPresentation(): void {
+@@ -1251,18 +1255,26 @@ export class SidekickAvatar extends HTMLElementBase {
+     this.send({ kind: 'state', state: { attention: this.behaviorAttention, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze } });
+     if (this.paused || this.reduced) { this.currentPose.gaze = [...this.gazeTarget]; this.poseRevision = this.bridge?.revision ?? 0; }
+   }
++  /** Internal presentation hooks. Ordinary avatars keep canvas-local input/masks. */
++  protected interactionSurface(canvas: HTMLCanvasElement): HTMLElement { return canvas; }
++  protected entranceSurface(canvas: HTMLCanvasElement): HTMLElement { return canvas; }
++  private boundInteractionSurface?: HTMLElement;
+   private attachCanvasListeners(): void {
+-    this.canvas!.addEventListener('pointerdown', this.onPointerDown); this.canvas!.addEventListener('pointermove', this.onPointerMove);
+-    this.canvas!.addEventListener('pointerup', this.onPointerUp); this.canvas!.addEventListener('pointercancel', this.onPointerCancel);
+-    this.canvas!.addEventListener('wheel', this.onWheel, { passive: false });
+-    this.canvas!.addEventListener('lostpointercapture', this.onLostPointerCapture);
++    const surface = this.interactionSurface(this.canvas!);
++    this.boundInteractionSurface = surface;
++    surface.addEventListener('pointerdown', this.onPointerDown); surface.addEventListener('pointermove', this.onPointerMove);
++    surface.addEventListener('pointerup', this.onPointerUp); surface.addEventListener('pointercancel', this.onPointerCancel);
++    surface.addEventListener('wheel', this.onWheel, { passive: false });
++    surface.addEventListener('lostpointercapture', this.onLostPointerCapture);
+     this.canvas!.addEventListener('webglcontextrestored', this.onContextRestored);
+   }
+   private detachCanvasListeners(): void {
+-    this.canvas?.removeEventListener('pointerdown', this.onPointerDown); this.canvas?.removeEventListener('pointermove', this.onPointerMove);
+-    this.canvas?.removeEventListener('pointerup', this.onPointerUp); this.canvas?.removeEventListener('pointercancel', this.onPointerCancel);
+-    this.canvas?.removeEventListener('wheel', this.onWheel);
+-    this.canvas?.removeEventListener('lostpointercapture', this.onLostPointerCapture);
++    const surface = this.boundInteractionSurface;
++    surface?.removeEventListener('pointerdown', this.onPointerDown); surface?.removeEventListener('pointermove', this.onPointerMove);
++    surface?.removeEventListener('pointerup', this.onPointerUp); surface?.removeEventListener('pointercancel', this.onPointerCancel);
++    surface?.removeEventListener('wheel', this.onWheel);
++    surface?.removeEventListener('lostpointercapture', this.onLostPointerCapture);
++    this.boundInteractionSurface = undefined;
+     this.canvas?.removeEventListener('webglcontextrestored', this.onContextRestored);
+   }
+   private replaceCanvas(): void {
+@@ -1346,7 +1358,7 @@ export class SidekickAvatar extends HTMLElementBase {
+   private clearDrag(): void {
+     this.pendingDrag = undefined; this.pendingZoom = undefined; this.pendingPinchDistance = undefined; this.drag = undefined; this.pinch = undefined;
+     const ids = [...this.pointers.keys()]; this.pointers.clear();
+-    for (const id of ids) if (this.canvas?.hasPointerCapture(id)) this.canvas.releasePointerCapture(id);
++    for (const id of ids) if (this.boundInteractionSurface?.hasPointerCapture(id)) this.boundInteractionSurface.releasePointerCapture(id);
+     if (this.wheelTimer !== undefined) clearTimeout(this.wheelTimer);
+     this.wheelTimer = undefined; this.wheelGesture = false;
+     this.restoreManualTracking();
+@@ -1390,7 +1402,7 @@ export class SidekickAvatar extends HTMLElementBase {
+     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, type: event.pointerType ?? 'mouse' });
+     this.rebasePointers(!first);
+     if (first) this.resetTracking();
+-    this.canvas!.setPointerCapture(event.pointerId);
++    this.boundInteractionSurface!.setPointerCapture(event.pointerId);
+   };
+   private onPointerMove = (event: PointerEvent): void => {
+     const point = this.pointers.get(event.pointerId); if (!point) return;
+@@ -1412,7 +1424,7 @@ export class SidekickAvatar extends HTMLElementBase {
+     const activate = this.pointers.size === 1 && this.drag && !this.drag.moved;
+     // Remove before releasing: lostpointercapture may dispatch synchronously.
+     this.pointers.delete(event.pointerId); this.rebasePointers();
+-    if (this.canvas?.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
++    if (this.boundInteractionSurface?.hasPointerCapture(event.pointerId)) this.boundInteractionSurface.releasePointerCapture(event.pointerId);
+     if (activate) this.emit('sidekick-activate', {});
+     if (!this.pointers.size) this.restoreManualTracking();
+   };
+diff --git a/src/renderer/experimental-tight-surface.ts b/src/renderer/experimental-tight-surface.ts
+new file mode 100644
+index 0000000..d6aa70e
+--- /dev/null
++++ b/src/renderer/experimental-tight-surface.ts
+@@ -0,0 +1,111 @@
++import { clamp } from '../core/math.js';
++import type { Mat4 } from '../core/math.js';
++import type { AvatarDesign } from '../core/design.js';
++import type { Geometry } from './geometry.js';
++import type { Mesh, RenderBackend, RendererOptions } from './render-backend.js';
++import type { SoftwareEyes } from './software-rasterizer.js';
++import { AvatarRenderer } from './webgl.js';
++import type { RenderState } from './webgl.js';
++import { growSurface, projectedVertexBounds } from './render-surface.js';
++import type { Bounds2, RenderSurface } from './render-surface.js';
++
++/** Experimental direct-module entry only; never imported by production entrypoints.
++ * Callers must place the cropped canvas using surface metadata. No element/worker integration.
++ */
++export class TightSurfaceRenderer extends AvatarRenderer {
++  private tight?: TightSurfaceBackend;
++  constructor(canvas: HTMLCanvasElement | OffscreenCanvas, options: RendererOptions = {}) {
++    super(canvas, options);
++    {
++      this.tight = new TightSurfaceBackend(canvas, this.backend);
++      this.backend = this.tight;
++      this.displayAspect = canvas.width / canvas.height;
++    }
++  }
++  get surface(): RenderSurface | undefined {
++    return this.tight ? this.tight.surface : { x: 0, y: 0, width: this.canvas.width, height: this.canvas.height, fullWidth: this.canvas.width, fullHeight: this.canvas.height };
++  }
++  override resize(width: number, height: number, dpr = 1): void {
++    if (!this.tight) { super.resize(width, height, dpr); return; }
++    const cssWidth = Math.max(1, width), cssHeight = Math.max(1, height);
++    const scale = Math.min(clamp(dpr, 1, 2), this.tight.maxDimension / Math.max(cssWidth, cssHeight));
++    this.displayAspect = cssWidth / cssHeight;
++    this.tight.resize(Math.max(1, Math.round(cssWidth * scale)), Math.max(1, Math.round(cssHeight * scale)));
++  }
++  override render(input: AvatarDesign, state: RenderState): void {
++    try { super.render(input, state); }
++    catch (error) {
++      // Only deferred WebGL has CPU caches ahead of unsubmitted draw/update commands.
++      this.tight?.finishFailedFrame();
++      throw error;
++    }
++  }
++}
++
++/** Borrowed geometry, matrices and eye values must stay immutable through end().
++ * Current AvatarRenderer call sites obey this. Do not pool inputs between draws
++ * without frame snapshots: recorded bounds and commands must describe the same data.
++ */
++class TightSurfaceBackend implements RenderBackend {
++  get kind(): 'webgl2' | 'canvas2d' { return this.underlying.kind; }
++  private commands?: (() => void)[];
++  private bounds: Bounds2 = [Infinity, Infinity, -Infinity, -Infinity];
++  private projection?: Mat4;
++  private drawIndices = new WeakMap<Uint16Array, Map<string, Uint16Array>>();
++  private fullWidth: number;
++  private fullHeight: number;
++  surface?: RenderSurface;
++  constructor(private canvas: HTMLCanvasElement | OffscreenCanvas, private underlying: RenderBackend) {
++    this.fullWidth = canvas.width; this.fullHeight = canvas.height;
++  }
++  get gl(): WebGL2RenderingContext | undefined { return this.underlying.gl; }
++  get maxDimension(): number { return this.underlying.maxDimension; }
++  get lost(): boolean { return this.underlying.lost; }
++  resize(width: number, height: number): void {
++    if (width !== this.fullWidth || height !== this.fullHeight) this.surface = undefined;
++    this.fullWidth = width; this.fullHeight = height;
++    // Allocate only the final crop in end(), not a temporary full-size surface.
++  }
++  upload(data: Geometry): Mesh { return this.underlying.upload(data); }
++  update(mesh: Mesh, data: Geometry, indices: boolean, reuseVertices: boolean): void {
++    if (indices) this.drawIndices.delete(data.indices);
++    const update = (): void => this.underlying.update(mesh, data, indices, reuseVertices);
++    if (this.commands) this.commands.push(update); else update();
++  }
++  deleteMesh(mesh: Mesh): void { this.underlying.deleteMesh(mesh); }
++  begin(projection: Mat4): void {
++    this.projection = projection; this.commands = [];
++    this.bounds = [Infinity, Infinity, -Infinity, -Infinity];
++  }
++  eyes(eyes?: SoftwareEyes): void { this.commands!.push(() => this.underlying.eyes(eyes)); }
++  opacity(value: number): void { this.commands!.push(() => this.underlying.opacity(value)); }
++  draw(mesh: Mesh, model: Mat4, color: string, count: number, indexOffset: number): void {
++    // Topology is stable between geometry updates. Deduplicate once, rather than
++    // allocate a Set or project the same shared vertex for every triangle/frame.
++    let ranges = this.drawIndices.get(mesh.data.indices);
++    if (!ranges) { ranges = new Map(); this.drawIndices.set(mesh.data.indices, ranges); }
++    const key = `${indexOffset}:${count}`;
++    let indices = ranges.get(key);
++    if (!indices) { indices = Uint16Array.from(new Set(mesh.data.indices.subarray(indexOffset, indexOffset + count))); ranges.set(key, indices); }
++    const bounds = projectedVertexBounds(mesh.data.vertices, indices, 0, indices.length, model, this.projection!, this.fullWidth, this.fullHeight);
++    this.bounds[0] = Math.min(this.bounds[0], bounds[0]); this.bounds[1] = Math.min(this.bounds[1], bounds[1]);
++    this.bounds[2] = Math.max(this.bounds[2], bounds[2]); this.bounds[3] = Math.max(this.bounds[3], bounds[3]);
++    this.commands!.push(() => this.underlying.draw(mesh, model, color, count, indexOffset));
++  }
++  finishFailedFrame(): void { if (this.kind === 'webgl2' && this.commands) this.end(); else this.commands = undefined; }
++  end(): void {
++    const commands = this.commands; this.commands = undefined;
++    if (!commands) return;
++    this.surface = growSurface(this.surface, this.bounds, this.fullWidth, this.fullHeight);
++    if (this.canvas.width !== this.surface.width) this.canvas.width = this.surface.width;
++    if (this.canvas.height !== this.surface.height) this.canvas.height = this.surface.height;
++    this.underlying.setViewport?.({ x: this.surface.x, y: this.fullHeight - this.surface.y - this.surface.height, width: this.fullWidth, height: this.fullHeight });
++    this.underlying.begin(this.projection!);
++    this.gl?.viewport(-this.surface.x, -this.surface.y, this.fullWidth, this.fullHeight);
++    for (const command of commands) command();
++    this.underlying.end();
++  }
++  readPixels(): Uint8Array { return this.underlying.readPixels(); }
++  dispose(): void { this.commands = undefined; this.underlying.dispose(); }
++  initializationError(cause: unknown): Error { return this.underlying.initializationError(cause); }
++}
+diff --git a/src/renderer/render-backend.ts b/src/renderer/render-backend.ts
+index 69f8f29..7751ed3 100644
+--- a/src/renderer/render-backend.ts
++++ b/src/renderer/render-backend.ts
+@@ -2,7 +2,7 @@ import type { Mat4 } from '../core/math.js';
+ import type { Geometry } from './geometry.js';
+ import { vertexSource, fragmentSource } from './webgl-shaders.js';
+ import { SoftwareRasterizer } from './software-rasterizer.js';
+-import type { SoftwareEyes } from './software-rasterizer.js';
++import type { SoftwareEyes, SoftwareViewport } from './software-rasterizer.js';
+ 
+ export interface Mesh { count: number; data: Geometry }
+ export interface RendererOptions { renderer?: 'auto' | 'canvas2d' }
+@@ -18,6 +18,7 @@ export interface RenderBackend {
+   upload(data: Geometry): Mesh;
+   update(mesh: Mesh, data: Geometry, indices: boolean, reuseVertices: boolean): void;
+   deleteMesh(mesh: Mesh): void;
++  setViewport?(viewport: SoftwareViewport): void;
+   begin(projection: Mat4): void;
+   eyes(eyes?: SoftwareEyes): void;
+   opacity(value: number): void;
+@@ -125,6 +126,7 @@ class CanvasBackend implements RenderBackend {
+   readonly lost = false;
+   private context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+   private rasterizer = new SoftwareRasterizer();
++  private viewport?: SoftwareViewport;
+   private projection!: Mat4;
+   private eyeState?: SoftwareEyes;
+   private alpha = 1;
+@@ -137,7 +139,8 @@ class CanvasBackend implements RenderBackend {
+   upload(data: Geometry): Mesh { return { data, count: data.indices.length }; }
+   update(_mesh: Mesh, _data: Geometry, _indices: boolean, _reuseVertices: boolean): void { /* Shared scene owns CPU geometry. */ }
+   deleteMesh(_mesh: Mesh): void { /* No GPU allocation. */ }
+-  begin(projection: Mat4): void { this.projection = projection; this.rasterizer.clear(this.canvas.width, this.canvas.height); }
++  setViewport(viewport: SoftwareViewport): void { this.viewport = viewport; }
++  begin(projection: Mat4): void { this.projection = projection; this.rasterizer.clear(this.canvas.width, this.canvas.height, this.viewport); }
+   eyes(eyes?: SoftwareEyes): void { this.eyeState = eyes; }
+   opacity(value: number): void { this.alpha = value; }
+   draw(mesh: Mesh, model: Mat4, color: string, count: number, indexOffset: number): void { this.rasterizer.draw(mesh.data, model, this.projection, color, count, indexOffset, this.alpha, this.eyeState); }
+diff --git a/src/renderer/render-surface.ts b/src/renderer/render-surface.ts
+new file mode 100644
+index 0000000..7080f79
+--- /dev/null
++++ b/src/renderer/render-surface.ts
+@@ -0,0 +1,87 @@
++import type { Mat4 } from '../core/math.js';
++
++/** Integer backing-pixel crop; y is measured from the bottom, as in WebGL. */
++export interface RenderSurface { x: number; y: number; width: number; height: number; fullWidth: number; fullHeight: number }
++export type Bounds3 = readonly [number, number, number, number, number, number];
++export type Bounds2 = [number, number, number, number];
++export function vertexBounds(vertices: Float32Array): Bounds3 {
++  const bounds = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
++  for (let i = 0; i < vertices.length; i += 6) for (let axis = 0; axis < 3; axis++) {
++    bounds[axis] = Math.min(bounds[axis]!, vertices[i + axis]!);
++    bounds[axis + 3] = Math.max(bounds[axis + 3]!, vertices[i + axis]!);
++  }
++  return bounds as unknown as Bounds3;
++}
++/** Conservative affine bounds. Never changes shader projection or model matrices. */
++export function projectedBounds(bounds: Bounds3, model: Mat4, projection: Mat4, width: number, height: number): Bounds2 {
++  const result: Bounds2 = [Infinity, Infinity, -Infinity, -Infinity];
++  for (let corner = 0; corner < 8; corner++) {
++    const x = bounds[corner & 1 ? 3 : 0], y = bounds[corner & 2 ? 4 : 1], z = bounds[corner & 4 ? 5 : 2];
++    const wx = model[0]! * x + model[4]! * y + model[8]! * z + model[12]!;
++    const wy = model[1]! * x + model[5]! * y + model[9]! * z + model[13]!;
++    const wz = model[2]! * x + model[6]! * y + model[10]! * z + model[14]!;
++    const ww = model[3]! * x + model[7]! * y + model[11]! * z + model[15]!;
++    const cx = projection[0]! * wx + projection[4]! * wy + projection[8]! * wz + projection[12]! * ww;
++    const cy = projection[1]! * wx + projection[5]! * wy + projection[9]! * wz + projection[13]! * ww;
++    const cw = projection[3]! * wx + projection[7]! * wy + projection[11]! * wz + projection[15]! * ww;
++    // Unknown/projective matrices do not justify cropping. Current renderer is affine.
++    if (cw !== 1 || !Number.isFinite(cx) || !Number.isFinite(cy)) return [0, 0, width, height];
++    const px = (cx + 1) * width / 2, py = (cy + 1) * height / 2;
++    result[0] = Math.min(result[0], px); result[1] = Math.min(result[1], py);
++    result[2] = Math.max(result[2], px); result[3] = Math.max(result[3], py);
++  }
++  return result;
++}
++/** Grow-only within a resize epoch, avoiding per-frame allocation/size oscillation. */
++export function growSurface(previous: RenderSurface | undefined, bounds: Bounds2, fullWidth: number, fullHeight: number): RenderSurface {
++  // Two backing pixels protect coverage and derivative helper quads. Tile alignment
++  // adds slack and preserves the even-pixel 2x2 derivative-quad phase at the origin.
++  const tile = 16, guard = 2;
++  const low = (value: number, max: number): number => Math.min(Math.floor((max - 1) / tile) * tile, Math.max(0, Math.floor((value - guard) / tile) * tile));
++  const high = (value: number, max: number): number => Math.max(1, Math.min(max, Math.ceil((value + guard) / tile) * tile));
++  let x = low(bounds[0], fullWidth), y = low(bounds[1], fullHeight);
++  let right = high(bounds[2], fullWidth), top = high(bounds[3], fullHeight);
++  if (!bounds.every(Number.isFinite) || right <= x || top <= y) { x = y = 0; right = fullWidth; top = fullHeight; }
++  if (previous && previous.fullWidth === fullWidth && previous.fullHeight === fullHeight) {
++    x = Math.min(x, previous.x); y = Math.min(y, previous.y);
++    right = Math.max(right, previous.x + previous.width); top = Math.max(top, previous.y + previous.height);
++  }
++  return { x, y, width: right - x, height: top - y, fullWidth, fullHeight };
++}
++/** Reconstitute the baseline bottom-up RGBA layout for correctness comparisons. */
++export function expandSurfacePixels(pixels: Uint8Array, surface: RenderSurface): Uint8Array {
++  const result = new Uint8Array(surface.fullWidth * surface.fullHeight * 4);
++  for (let row = 0; row < surface.height; row++) result.set(pixels.subarray(row * surface.width * 4, (row + 1) * surface.width * 4), ((surface.y + row) * surface.fullWidth + surface.x) * 4);
++  return result;
++}
++
++/** Crop placement in the original host's CSS coordinates, independent of DPR rounding. */
++export function surfaceLayout(surface: RenderSurface, cssWidth: number, cssHeight: number): { left: number; top: number; width: number; height: number } {
++  const sx = cssWidth / surface.fullWidth, sy = cssHeight / surface.fullHeight;
++  return { left: surface.x * sx, top: (surface.fullHeight - surface.y - surface.height) * sy, width: surface.width * sx, height: surface.height * sy };
++}
++
++/** Tight bounds of the actually submitted indexed triangles, including outgoing
++ * accessories. Keep matrix multiplication order identical to the shader. A
++ * near-plane crossing is not safe to crop from vertex extrema: retain full frame.
++ */
++export function projectedVertexBounds(vertices: Float32Array, indices: Uint16Array, indexOffset: number, count: number, model: Mat4, projection: Mat4, width: number, height: number): Bounds2 {
++  const result: Bounds2 = [Infinity, Infinity, -Infinity, -Infinity];
++  for (let i = indexOffset; i < indexOffset + count; i++) {
++    const index = indices[i]!;
++    const offset = index * 6, x = vertices[offset]!, y = vertices[offset + 1]!, z = vertices[offset + 2]!;
++    const wx = model[0]! * x + model[4]! * y + model[8]! * z + model[12]!;
++    const wy = model[1]! * x + model[5]! * y + model[9]! * z + model[13]!;
++    const wz = model[2]! * x + model[6]! * y + model[10]! * z + model[14]!;
++    const ww = model[3]! * x + model[7]! * y + model[11]! * z + model[15]!;
++    const cx = projection[0]! * wx + projection[4]! * wy + projection[8]! * wz + projection[12]! * ww;
++    const cy = projection[1]! * wx + projection[5]! * wy + projection[9]! * wz + projection[13]! * ww;
++    const cz = projection[2]! * wx + projection[6]! * wy + projection[10]! * wz + projection[14]! * ww;
++    const cw = projection[3]! * wx + projection[7]! * wy + projection[11]! * wz + projection[15]! * ww;
++    if ((!Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(cz) || !Number.isFinite(cw)) || cw <= 0 || cz < -cw) return [0,0,width,height];
++    const px = (cx / cw + 1) * width / 2, py = (cy / cw + 1) * height / 2;
++    result[0] = Math.min(result[0], px); result[1] = Math.min(result[1], py);
++    result[2] = Math.max(result[2], px); result[3] = Math.max(result[3], py);
++  }
++  return result;
++}
+diff --git a/src/renderer/software-rasterizer.ts b/src/renderer/software-rasterizer.ts
+index 10a6813..d431a59 100644
+--- a/src/renderer/software-rasterizer.ts
++++ b/src/renderer/software-rasterizer.ts
+@@ -2,6 +2,8 @@ import { multiply } from '../core/math.js';
+ import type { Mat4 } from '../core/math.js';
+ import type { Geometry } from './geometry.js';
+ 
++export interface SoftwareViewport { x: number; y: number; width: number; height: number }
++
+ /** The same body-local eye uniforms used by the WebGL fragment shader. */
+ export interface SoftwareEyes {
+   color: readonly number[];
+@@ -44,9 +46,13 @@ export class SoftwareRasterizer {
+   pixels = new Uint8ClampedArray(0);
+   private depth = new Float64Array(0);
+   private rgba = new Float32Array(0);
++  private viewport: SoftwareViewport = { x: 0, y: 0, width: 0, height: 0 };
+   private projected = new Float64Array(0);
+-  clear(width: number, height: number): void {
++  clear(width: number, height: number, viewport?: SoftwareViewport): void {
+     if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) throw new RangeError('Raster dimensions must be positive integers.');
++    const view = viewport ?? { x: 0, y: 0, width, height };
++    if (![view.x,view.y,view.width,view.height].every(Number.isInteger) || view.x < 0 || view.y < 0 || view.x + width > view.width || view.y + height > view.height) throw new RangeError('Raster viewport must contain the crop.');
++    this.viewport = view;
+     if (width !== this.width || height !== this.height) {
+       this.width = width; this.height = height;
+       this.pixels = new Uint8ClampedArray(width * height * 4);
+@@ -60,12 +66,12 @@ export class SoftwareRasterizer {
+     const vertices = geometry.vertices, indices = geometry.indices, matrix = multiply(projection, model);
+     const vertexCount = vertices.length / 6;
+     if (this.projected.length < vertexCount * 3) this.projected = new Float64Array(vertexCount * 3);
+-    const points = this.projected;
++    const points = this.projected, viewport = this.viewport;
+     for (let v = 0; v < vertexCount; v++) {
+       const i = v * 6, o = v * 3, x = vertices[i]!, y = vertices[i + 1]!, z = vertices[i + 2]!;
+       const w = matrix[3]! * x + matrix[7]! * y + matrix[11]! * z + matrix[15]!;
+-      points[o] = ((matrix[0]! * x + matrix[4]! * y + matrix[8]! * z + matrix[12]!) / w + 1) * this.width * .5;
+-      points[o + 1] = (1 - (matrix[1]! * x + matrix[5]! * y + matrix[9]! * z + matrix[13]!) / w) * this.height * .5;
++      points[o] = ((matrix[0]! * x + matrix[4]! * y + matrix[8]! * z + matrix[12]!) / w + 1) * viewport.width * .5;
++      points[o + 1] = (1 - (matrix[1]! * x + matrix[5]! * y + matrix[9]! * z + matrix[13]!) / w) * viewport.height * .5;
+       points[o + 2] = ((matrix[2]! * x + matrix[6]! * y + matrix[10]! * z + matrix[14]!) / w + 1) * .5;
+     }
+     const value = parseInt(hex.slice(1), 16), red = ((value >> 16) & 255) / 255, green = ((value >> 8) & 255) / 255, blue = (value & 255) / 255;
+@@ -89,8 +95,8 @@ export class SoftwareRasterizer {
+       const area = edge(ax, ay, bx, by, cx, cy);
+       // WebGL CCW front faces become clockwise after the top-down Y conversion.
+       if (!(area < -1e-12)) continue;
+-      const minX = Math.max(0, Math.ceil(Math.min(ax, bx, cx) - .5)), maxX = Math.min(this.width - 1, Math.floor(Math.max(ax, bx, cx) - .5));
+-      const minY = Math.max(0, Math.ceil(Math.min(ay, by, cy) - .5)), maxY = Math.min(this.height - 1, Math.floor(Math.max(ay, by, cy) - .5));
++      const minX = Math.max(viewport.x, Math.ceil(Math.min(ax, bx, cx) - .5)), maxX = Math.min(viewport.x + this.width - 1, Math.floor(Math.max(ax, bx, cx) - .5));
++      const minY = Math.max(viewport.y, Math.ceil(Math.min(ay, by, cy) - .5)), maxY = Math.min(viewport.y + this.height - 1, Math.floor(Math.max(ay, by, cy) - .5));
+       if (minX > maxX || minY > maxY) continue;
+       const ab = topLeft(ax, ay, bx, by), bc = topLeft(bx, by, cx, cy), ca = topLeft(cx, cy, ax, ay);
+       const za = points[a + 2]!, zb = points[b + 2]!, zc = points[c + 2]!;
+@@ -105,7 +111,7 @@ export class SoftwareRasterizer {
+       for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) {
+         const e0 = edge(bx, by, cx, cy, x + .5, y + .5), e1 = edge(cx, cy, ax, ay, x + .5, y + .5), e2 = edge(ax, ay, bx, by, x + .5, y + .5);
+         if (e0 > 0 || (e0 === 0 && !bc) || e1 > 0 || (e1 === 0 && !ca) || e2 > 0 || (e2 === 0 && !ab)) continue;
+-        const wa = e0 / area, wb = e1 / area, wc = e2 / area, z = wa * za + wb * zb + wc * zc, pixel = y * this.width + x;
++        const wa = e0 / area, wb = e1 / area, wc = e2 / area, z = wa * za + wb * zb + wc * zc, pixel = (y - viewport.y) * this.width + x - viewport.x;
+         if (z < 0 || z > 1 || z >= this.depth[pixel]!) continue;
+         this.depth[pixel] = z;
+         let r = red, g = green, bl = blue;
+diff --git a/src/renderer/webgl.ts b/src/renderer/webgl.ts
+index bea6dad..d3092ba 100644
+--- a/src/renderer/webgl.ts
++++ b/src/renderer/webgl.ts
+@@ -46,7 +46,7 @@ export interface RenderState {
+ }
+ /** Shared geometry and animation, presented through WebGL2 or Canvas2D. */
+ export class AvatarRenderer {
+-  private backend: RenderBackend;
++  protected backend: RenderBackend;
+   get gl(): WebGL2RenderingContext | undefined { return this.backend.gl; }
+   get graphics(): 'webgl2' | 'canvas2d' { return this.backend.kind; }
+   private meshes: Record<'body' | 'beret' | 'glasses' | 'halo', Mesh>;
+@@ -67,7 +67,7 @@ export class AvatarRenderer {
+   private drawCount = 0;
+   private blinkGate = new EyeBlinkGate();
+   private equipment = new AccessoryTransition<ResolvedAccessoryDesign>();
+-  private displayAspect?: number;
++  protected displayAspect?: number;
+   private inputSignature = '';
+   private resolvedInput?: ReturnType<typeof resolveDesign>;
+   constructor(readonly canvas: HTMLCanvasElement | OffscreenCanvas, options: RendererOptions = {}) {
