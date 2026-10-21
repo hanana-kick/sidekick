@@ -5,6 +5,7 @@ import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
 import { createAppServer } from '../scripts/serve.mjs';
 import { installDemoWorkerAudit } from './helpers/demo-worker-audit.mjs';
+import { measureCompanySpeech } from '../playground/company-presentation.js';
 
 // Use a fresh owned browser with its sandbox enabled. No user profile or CDP attachment.
 let browser, launcher, server, base;
@@ -90,13 +91,16 @@ async function snapshot(frame) {
 async function withPlacementDiagnostics(page, name, run) {
   try { await run(); }
   catch (error) {
-    const geometry = await page.evaluate(() => {
+    const geometry = await page.evaluate(({measureSource}) => {
       const rect = el => { if (!el) return null; const r = el.getBoundingClientRect(); return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}; };
       const frame = document.querySelector('#site-preview-frame'), child = frame?.contentDocument;
+      const viewport=child?{width:child.defaultView.visualViewport?.width||child.defaultView.innerWidth,height:child.defaultView.visualViewport?.height||child.defaultView.innerHeight,left:child.defaultView.visualViewport?.offsetLeft||0,top:child.defaultView.visualViewport?.offsetTop||0}:null;
+      const measure=Function(`return (${measureSource})`)();
+      const sizing=child?['Try the listening modes here.','Try listening modes.','Compare the models here.'].map(text=>({text,...measure(text,child,viewport)})):[];
       return {parent:{scrollX,scrollY,width:innerWidth,height:innerHeight},frame:rect(frame),
-        child:child ? {scrollX:child.defaultView.scrollX,scrollY:child.defaultView.scrollY,width:child.defaultView.innerWidth,height:child.defaultView.innerHeight,
-          nav:[...child.querySelectorAll('.th-nav button,.th-compose-link')].map(el=>({label:el.getAttribute('aria-label'),...rect(el)})),home:rect(child.querySelector('#th-companion-home')),bot:rect(child.querySelector('#bot'))} : null};
-    }).catch(diagnosticError => ({diagnosticError:diagnosticError.message}));
+        child:child ? {viewport,sizing,scrollX:child.defaultView.scrollX,scrollY:child.defaultView.scrollY,width:child.defaultView.innerWidth,height:child.defaultView.innerHeight,
+          nav:[...child.querySelectorAll('.th-nav button,.th-compose-link')].map(el=>({label:el.getAttribute('aria-label'),...rect(el)})),home:rect(child.querySelector('#th-companion-home')),bot:rect(child.querySelector('#bot')),speech:rect(child.querySelector('[data-sidekick-speech]')?.shadowRoot?.querySelector('.bubble')),company:[...child.querySelectorAll('#nova-design h2,.nova-mode-tabs,#nova-compare .nova-heading h2,.nova-finishes>div')].map(rect)} : null};
+    },{measureSource:measureCompanySpeech.toString()}).catch(diagnosticError => ({diagnosticError:diagnosticError.message}));
     if (process.env.SIDEKICK_SCREENSHOTS) {
       await mkdir(process.env.SIDEKICK_SCREENSHOTS, {recursive:true});
       await page.screenshot({path:`${process.env.SIDEKICK_SCREENSHOTS}/${name}-failure.png`}).catch(()=>{});
@@ -473,7 +477,7 @@ for (const deviceScaleFactor of [1, 2]) test(`demo visible ink fits64px at DPR${
 
  test('on-site scrolling, real wishlist and local arrivals drive dialogue without floating controls', {timeout:120000}, async t=>{
  const page=await pageFor(t);assert.equal(await page.locator('.flight-toolbar,#cancel-preview').count(),0);assert.equal(await page.locator('#bot-tools-launcher').evaluate(el=>getComputedStyle(el).position==='fixed'),false);
- let frame=await switchSite(page,'company');await frame.locator('#nova-design h2').scrollIntoViewIfNeeded();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/materials|listening|Compare|finish/);
+ let frame=await switchSite(page,'company');await frame.locator('a[href="#nova-design"]').first().click();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/materials|listening|Compare|finish/);
  frame=await switchSite(page,'shop');await frame.locator('[data-wish="13"]').click();await frame.locator('[data-product="1"] .muse-product-picture').scrollIntoViewIfNeeded();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/\$89, \$6 less than your saved style.*Same category; fit may differ/);assert.equal(await frame.locator('#muse-wish-count').textContent(),'1');
  frame=await switchSite(page,'community');await frame.locator('[data-post="4"]').scrollIntoViewIfNeeded();await frame.waitForFunction(()=>document.querySelectorAll('.th-post').length===21);await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/Local demo/);
  await frame.locator('#th-compose-text').fill('A local post for the demo');await frame.locator('#th-publish').click();await frame.waitForFunction(()=>document.querySelector('#th-feed').textContent.includes('Local demo mention:'));await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.textContent.includes('mentioned'),null,{timeout:20000});
@@ -486,7 +490,7 @@ test('normal-motion company stories respond after scrolling away without stale n
  const frame=await frameFor(page,'company');
  await frame.locator('.nova-mode-tabs').scrollIntoViewIfNeeded();
  await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.textContent.includes('listening modes'));
- await frame.locator('#nova-compare .nova-heading h2').scrollIntoViewIfNeeded();
+ await frame.locator('a[href="#nova-compare"]').first().click();
  await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.textContent.includes('Compare the models'),null,{timeout:4000});
  assert.equal(await frame.locator('#bot').evaluate(bot=>bot.elementAnchor.target.matches('#nova-compare .nova-heading h2')),true);
  const close=frame.locator('[data-sidekick-speech]').getByRole('button',{name:'Dismiss tip'});
@@ -522,5 +526,36 @@ test('narrow empty community keeps compose and navigation clear of its message',
  await frame.locator('.th-compose-link').click();
  assert.equal(await frame.locator('#th-compose-text').evaluate(el=>el===document.activeElement),true);
  assert.equal(await frame.locator('#th-feed-title').textContent(),'Home');
+ });
+});
+
+for(const locale of ['en','ko','ja','zh-CN'])for(const width of [320,505])test(`company speech envelope keeps real controls clear ${locale}/${width}`,{timeout:90000},async t=>{
+ const page=await pageFor(t,{viewport:{width,height:761}});
+ await withPlacementDiagnostics(page, `company-envelope-${locale}-${width}`, async()=>{
+ await page.goto(`${base}/api-playground.html?lang=${locale}`);
+ const selectors=['#nova-design>img','#nova-sound .nova-mode-tabs','#nova-compare .nova-heading h2','#nova-configure .nova-config-image'];
+ for(const selector of selectors){
+  await page.locator('#preview-refresh').click();const frame=await frameFor(page,'company');
+  await page.locator('#preview-surface').scrollIntoViewIfNeeded();
+  if(locale==='en'&&width===320&&selector.includes('mode-tabs'))console.log('English narrow speech sizing',await frame.evaluate(measureSource=>{
+   const viewport={width:visualViewport?.width||innerWidth,height:visualViewport?.height||innerHeight};const measure=Function(`return (${measureSource})`)();
+   return {viewport,font:getComputedStyle(document.body).font,replicas:['Try the listening modes here.','Try listening modes.'].map(text=>({text,...measure(text,document,viewport)}))};
+  },measureCompanySpeech.toString()));
+  if(selector.includes('mode-tabs'))await frame.locator(selector).scrollIntoViewIfNeeded();else await frame.locator(`a[href="${selector.split(' ')[0].replace('>img','')}"]`).first().click();
+  await frame.locator('[data-sidekick-speech]').waitFor();
+  const result=await frame.evaluate(({selector,measureSource})=>{
+   const bot=document.querySelector('#bot'),bubble=document.querySelector('[data-sidekick-speech]').shadowRoot.querySelector('.bubble'),target=document.querySelector(selector),section=target.closest('section');
+   const rect=el=>{const r=el.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height};};
+   const viewport={left:visualViewport?.offsetLeft||0,top:visualViewport?.offsetTop||0,width:visualViewport?.width||innerWidth,height:visualViewport?.height||innerHeight};viewport.right=viewport.left+viewport.width;viewport.bottom=viewport.top+viewport.height;
+   const measured=Function(`return (${measureSource})`)()(bubble.querySelector('.message').textContent,document,viewport);
+   const boxes=[rect(bot),rect(bubble)];const overlaps=(a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
+   const protectedBoxes=[...document.querySelector('.nova-site').querySelectorAll('h1,h2,h3,p,button,a,input,select,textarea,[role="tablist"],.nova-finishes>div')].map(rect).filter(r=>r.width>1&&r.height>1&&overlaps(r,viewport));
+   return {boxes,measured,viewport,inside:boxes.every(r=>r.left>=viewport.left+8&&r.top>=viewport.top+8&&r.right<=viewport.right-8&&r.bottom<=viewport.bottom-8),overlap:boxes.some(b=>protectedBoxes.some(r=>overlaps(b,r))),focus:document.activeElement?.outerHTML};
+  },{selector,measureSource:measureCompanySpeech.toString()});
+  assert.ok(Math.abs(result.measured.width-result.boxes[1].width)<1&&Math.abs(result.measured.height-result.boxes[1].height)<1,'Non-live sizing matches actual speech portal');
+  assert.equal(result.inside,true,JSON.stringify({selector,result}));assert.equal(result.overlap,false,JSON.stringify({selector,result}));
+  if(selector.includes('mode-tabs'))for(const mode of ['0','1','2']){await frame.locator(`[data-sound-mode="${mode}"][role="tab"]`).click();assert.equal(await frame.locator(`[data-sound-mode="${mode}"][role="tab"]`).getAttribute('aria-selected'),'true');}
+  if(selector.includes('config-image')){await frame.locator('[data-finish="1"]').click();assert.equal(await frame.locator('[data-finish="1"]').getAttribute('aria-pressed'),'true');}
+ }
  });
 });

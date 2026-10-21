@@ -231,3 +231,12 @@ test('explicit community feed navigation starts at its destination, unlike local
  const following=f.$('[data-tab="following"]');following.focus();following.dispatchEvent(new f.w.KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));
  assert.equal(scrolls.length,4);assert.equal(f.w.document.activeElement,f.$('[data-tab="forYou"]'));
 });
+
+test('community short desktop rail keeps actions unsqueezed with a scroll fallback, without changing mobile',async()=>{
+ const css=await readFile(new URL('../playground/demos/community.css',import.meta.url),'utf8');
+ assert.match(css,/@media\(min-width:601px\)\{\s*\.th-left\{[^}]*overflow-y:auto;[^}]*overscroll-behavior-y:contain;[^}]*scroll-padding-block:8px/);
+ assert.match(css,/\.th-left>\*\{flex-shrink:0\}/);
+ assert.match(css,/@media\(min-width:601px\) and \(max-height:500px\)/);
+ assert.match(css,/\.th-nav button\{min-height:44px;padding:8px 12px\}/);
+ assert.match(css,/\.th-compose-link\{height:44px;min-height:44px;margin-top:8px\}/);
+});
