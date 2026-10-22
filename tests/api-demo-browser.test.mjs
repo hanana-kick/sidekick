@@ -99,7 +99,7 @@ async function withPlacementDiagnostics(page, name, run) {
       const sizing=child?['Try the listening modes here.','Try listening modes.','Compare the models here.'].map(text=>({text,...measure(text,child,viewport)})):[];
       return {parent:{scrollX,scrollY,width:innerWidth,height:innerHeight},frame:rect(frame),
         child:child ? {viewport,sizing,scrollX:child.defaultView.scrollX,scrollY:child.defaultView.scrollY,width:child.defaultView.innerWidth,height:child.defaultView.innerHeight,
-          nav:[...child.querySelectorAll('.th-nav button,.th-compose-link')].map(el=>({label:el.getAttribute('aria-label'),...rect(el)})),home:rect(child.querySelector('#th-companion-home')),bot:rect(child.querySelector('#bot')),speech:rect(child.querySelector('[data-sidekick-speech]')?.shadowRoot?.querySelector('.bubble')),company:[...child.querySelectorAll('#nova-design h2,.nova-mode-tabs,#nova-compare .nova-heading h2,.nova-finishes>div')].map(rect)} : null};
+          nav:[...child.querySelectorAll('.th-nav button,.th-compose-link')].map(el=>({label:el.getAttribute('aria-label'),...rect(el)})),home:rect(child.querySelector('#th-companion-home')),bot:rect(child.querySelector('#bot')),speech:rect(child.querySelector('[data-sidekick-speech]')?.shadowRoot?.querySelector('.bubble')),company:[...child.querySelectorAll('#nova-design h2,.nova-mode-tabs,#nova-compare .nova-heading h2,.nova-finishes>div')].map(el=>({section:el.closest('section')?.id,...rect(el)})),guides:[...child.querySelectorAll('.nova-site .demo-intent')].map(el=>({section:el.closest('section')?.id,display:child.defaultView.getComputedStyle(el).display,...rect(el)})),shop:[...child.querySelectorAll('[data-product="0"] .muse-price,[data-product="0"] .muse-product-picture')].map(el=>({className:el.className,...rect(el)}))} : null};
     },{measureSource:measureCompanySpeech.toString()}).catch(diagnosticError => ({diagnosticError:diagnosticError.message}));
     if (process.env.SIDEKICK_SCREENSHOTS) {
       await mkdir(process.env.SIDEKICK_SCREENSHOTS, {recursive:true});
@@ -487,6 +487,7 @@ for (const deviceScaleFactor of [1, 2]) test(`demo visible ink fits64px at DPR${
 
 test('normal-motion company stories respond after scrolling away without stale narration cooldown', {timeout:60000}, async t=>{
  const page=await pageFor(t,{reducedMotion:'no-preference',viewport:{width:504,height:800}});
+ await withPlacementDiagnostics(page,'company-normal-motion-reentry',async()=>{
  const frame=await frameFor(page,'company');
  await frame.locator('.nova-mode-tabs').scrollIntoViewIfNeeded();
  await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.textContent.includes('listening modes'));
@@ -495,6 +496,7 @@ test('normal-motion company stories respond after scrolling away without stale n
  assert.equal(await frame.locator('#bot').evaluate(bot=>bot.elementAnchor.target.matches('#nova-compare .nova-heading h2')),true);
  const close=frame.locator('[data-sidekick-speech]').getByRole('button',{name:'Dismiss tip'});
  await close.click();assert.equal(await frame.locator('[data-sidekick-speech]').count(),0);
+ });
 });
 
 for(const locale of ['en','ko','ja','zh-CN'])for(const width of [320,505])test(`narrow empty community keeps compose and navigation clear of its message ${locale}/${width}`, {timeout:60000}, async t=>{
@@ -506,7 +508,9 @@ for(const locale of ['en','ko','ja','zh-CN'])for(const width of [320,505])test(`
  // preview into view before interacting with its child-viewport-fixed navigation.
  await page.locator('#preview-surface').scrollIntoViewIfNeeded();
  const preview=await page.locator('#site-preview-frame').boundingBox();
- assert.ok(preview && preview.y>=0 && preview.y+preview.height<=700, `Preview is fully visible: ${JSON.stringify(preview)}`);
+ // scrollIntoView uses integer scroll offsets but the flex layout is fractional.
+ // Only this outer-frame visibility check tolerates one CSS pixel of rounding.
+ assert.ok(preview && preview.y>=0 && preview.y+preview.height<=701, `Preview is fully visible (within 1px scroll rounding): ${JSON.stringify(preview)}`);
  const notifications=frame.locator('[data-nav="notifications"]');
  const target=await notifications.boundingBox();
  assert.ok(target && target.x>=0 && target.x+target.width<=width && target.y>=0 && target.y+target.height<=700, `Notifications is clickable in the parent viewport: ${JSON.stringify(target)}`);
@@ -546,6 +550,16 @@ for(const locale of ['en','ko','ja','zh-CN'])for(const width of [320,505])test(`
    return {viewport,font:getComputedStyle(document.body).font,replicas:['Try the listening modes here.','Try listening modes.'].map(text=>({text,...measure(text,document,viewport)}))};
   },measureCompanySpeech.toString()));
   if(selector.includes('mode-tabs'))await frame.locator(selector).scrollIntoViewIfNeeded();else await frame.locator(`a[href="${selector.split(' ')[0].replace('>img','')}"]`).first().click();
+  assert.equal(await frame.locator('#nova-design .demo-intent').evaluate(node=>getComputedStyle(node).display),'block','Authored company root receives compact guidance');
+  if(selector==='#nova-design>img'){
+   const heading=await frame.locator('#nova-design h2').evaluate(node=>{
+    const bounds=node.getBoundingClientRect(),walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT),lines=[];let text;
+    while(text=walker.nextNode()){const range=document.createRange();range.selectNodeContents(text);for(const rect of range.getClientRects())if(rect.width)lines.push({left:rect.left,right:rect.right});}
+    return {left:bounds.left,right:bounds.right,width:document.documentElement.clientWidth,lines};
+   });
+   assert.ok(heading.lines.length>0,'Display heading has measurable text');
+   assert.ok(heading.lines.every(line=>line.left>=Math.max(0,heading.left)-1&&line.right<=Math.min(heading.width,heading.right)+1),`Display words remain inside the narrow heading: ${JSON.stringify(heading)}`);
+  }
   await frame.locator('[data-sidekick-speech]').waitFor();
   const result=await frame.evaluate(({selector,measureSource})=>{
    const bot=document.querySelector('#bot'),bubble=document.querySelector('[data-sidekick-speech]').shadowRoot.querySelector('.bubble'),target=document.querySelector(selector),section=target.closest('section');
@@ -567,13 +581,21 @@ for(const locale of ['en','ko','ja','zh-CN'])for(const width of [320,505])test(`
 test('shop first visit is scroll-only with a clearly labeled reference in each locale', {timeout:120000}, async t=>{
  const page=await pageFor(t,{viewport:{width:900,height:800}});
  for(const locale of ['en','ko','ja','zh-CN']){
+  await withPlacementDiagnostics(page,`shop-first-visit-${locale}`,async()=>{
   await page.goto(`${base}/api-playground.html?lang=${locale}`);await frameFor(page,'company');const frame=await switchSite(page,'shop');
   await frame.locator('#muse-companion-instruction').scrollIntoViewIfNeeded();
   assert.match(await frame.locator('[data-reference-product="12"]').textContent(),/\$18/);
-  await frame.locator('[data-product="0"] .muse-price').evaluate(price=>price.scrollIntoView({block:'center',behavior:'instant'}));
+  await frame.locator('[data-product="0"] .muse-price').evaluate(price=>{
+   // Reveal the actual price while retaining its picture, not center the price
+   // so high that a short iframe has no safe space left for the companion.
+   price.scrollIntoView({block:'end',behavior:'instant'});price.ownerDocument.defaultView.scrollBy({top:32,behavior:'instant'});
+  });
+  const context=await frame.locator('[data-product="0"]').evaluate(card=>{const picture=card.querySelector('.muse-product-picture').getBoundingClientRect(),price=card.querySelector('.muse-price').getBoundingClientRect();return {price:{top:price.top,bottom:price.bottom},height:innerHeight,pictureSpace:Math.min(innerHeight-12,picture.bottom)-Math.max(12,picture.top),required:document.querySelector('#bot').offsetHeight+16};});
+  assert.ok(context.price.top>=32&&context.price.bottom<=context.height-24&&context.pictureSpace>=context.required,`Real price and its product image are eligible (${locale}): ${JSON.stringify(context)}`);
   await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.querySelector('.message')?.textContent.includes('$12'));
   const text=await frame.locator('[data-sidekick-speech] .message').textContent();assert.match(text,/\$12/);assert.match(text,/\$6/);
   assert.equal(await frame.locator('dialog[open]').count(),0);assert.equal(await frame.locator('#muse-wish-count').textContent(),'1');
+  });
  }
 });
 

@@ -1,4 +1,5 @@
 import { emitSourceEvent } from '../playground/example-source-event.js';
+import { installIntentCues } from '../playground/demo-intent.js';
 import { scenarioCopy, cheaperMatch } from '../playground/demo-scenarios.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -248,4 +249,15 @@ test('simulated community alerts link to the actual arriving post in every local
   assert.equal(Number(row.dataset.openPost),arrival.id);assert.match(row.textContent,/Daniel Park/);assert.match(row.textContent,/@alexmorgan/);
   row.click();assert.equal(f.$('#th-detail').open,true);assert.match(f.$('#post-title').textContent+f.$('#post-body').textContent,/@alexmorgan/);
  }
+});
+
+test('company narrow display heading scales with its iframe and can wrap unusually long words',async()=>{
+ const css=await readFile(new URL('../playground/demos/company.css',import.meta.url),'utf8');assert.match(css,/@media\(max-width:360px\)\{\.nova-macro h2\{[^}]*font-size:clamp\(28px,10vw,36px\);[^}]*overflow-wrap:anywhere/);
+});
+
+test('actual company root receives the compact inline guidance style',async t=>{
+ const f=await mount(t,'company');const style=f.w.document.createElement('style');style.textContent=await readFile(new URL('../playground/api-demo.css',import.meta.url),'utf8');f.w.document.head.append(style);const cues=installIntentCues({root:f.root,site:'company',locale:'en'});t.after(()=>cues.dispose());
+ assert.equal(f.root.id,'demo-content');assert.equal(f.root.classList.contains('nova-site'),true);
+ for(const guide of f.$$('.demo-intent')){const css=f.w.getComputedStyle(guide);assert.equal(css.display,'block');assert.equal(css.paddingTop,'0px');assert.equal(css.paddingBottom,'0px');assert.equal(css.borderTopWidth,'0px');}
+ assert.equal(f.$$('.demo-intent').length,4);
 });

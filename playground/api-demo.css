@@ -19,6 +19,6 @@
 @media(forced-colors:active){#demo-content [data-demo-target]{outline-color:Highlight}}
 
 /* Company guidance replaces its lead copy, so it must not consume a second card. */
-#demo-content .nova-site .demo-intent{display:block;margin:18px auto 0;padding:0;border:0;font-size:13px;line-height:1.55}
-#demo-content .nova-site .demo-intent strong::after{content:": "}
+#demo-content.nova-site .demo-intent{display:block;margin:18px auto 0;padding:0;border:0;font-size:13px;line-height:1.55}
+#demo-content.nova-site .demo-intent strong::after{content:": "}
 @media(max-width:640px){#demo-content .nova-compare-products{margin-top:16px}#demo-content .th-main:has(>.demo-intent) .th-empty{padding:20px 24px 32px}#demo-content .th-main:has(>.demo-intent) .th-empty>svg{width:28px;height:28px}#demo-content .th-main:has(>.demo-intent) .th-empty h2{margin-top:8px}}

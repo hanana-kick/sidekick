@@ -500,3 +500,25 @@ test('community input and keyboard rendering refresh empty-state guidance withou
  feed.innerHTML='<div class="th-empty"><p>No followed authors</p></div>';x.root.querySelector('.th-tabs button').dispatchEvent(new x.w.KeyboardEvent('keydown',{bubbles:true,key:'ArrowRight'}));assert.equal(guide.hidden,true);assert.equal(x.calls.filter(c=>c[0]==='move'||c[0]==='say').length,0);
  x.api.dispose();const original=guide.hidden;feed.innerHTML='<article>After disposal</article>';x.root.querySelector('input').dispatchEvent(new x.w.Event('input',{bubbles:true}));assert.equal(guide.hidden,original);
 });
+
+
+test('authored narrow Compare images leave room for the complete safe presentation envelope',async()=>{
+ const {planCompanyPresentation,clearEnvelope}=await import('../playground/company-presentation.js');
+ const css=readFileSync(new URL('../playground/demos/company.css',import.meta.url),'utf8');
+ const imageHeight=Number(css.match(/\.nova-compare-products img\{height:(\d+)px\}/)?.[1]);
+ assert.ok(Number.isFinite(imageHeight),'Responsive image height is explicit');
+ const box=(left,top,width,height)=>({left,top,width,height,right:left+width,bottom:top+height});
+ // Real 320/505 parent-view measurements. Product titles follow the image;
+ // the old 150px image leaves 167px, less than 115px host + 47px speech + 10px gap.
+ for(const sample of [
+  {width:279,target:box(24,60.09375,216,69.09375),guide:box(24,147.1875,216,60.421875),imageTop:223.609375,imageWidth:100,secondX:140,titleHeight:69},
+  {width:464,target:box(24,84.53125,401,82.0625),guide:box(46.03125,184.59375,356.921875,40.28125),imageTop:240.875,imageWidth:192.5,secondX:232.5,titleHeight:34.5},
+ ]){
+  const {width,target,guide,imageTop,imageWidth,secondX,titleHeight}=sample,viewport=box(0,0,width,428);
+  const geometry=height=>({target,viewport,host:{width:115,height:115},speech:{width:Math.min(280,width-16),height:47},protectedRects:[box(0,0,width,50),target,guide,...[24,secondX].map(x=>box(x,imageTop+height+17,imageWidth,titleHeight))],visuals:[24,secondX].map(x=>box(x,imageTop,imageWidth,height))});
+  assert.equal(planCompanyPresentation(geometry(150)),null,'Measured old strip cannot safely hold speech');
+  const actual=geometry(imageHeight),plan=planCompanyPresentation(actual);
+  assert.ok(plan,`Responsive product visual supports speech at ${width}px child width`);
+  assert.ok(clearEnvelope(plan.host,plan.bubble,viewport,actual.protectedRects),'Text and control collision margins remain intact');
+ }
+});
