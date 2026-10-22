@@ -1,4 +1,4 @@
-name: Animation visual QA
+name: Demo browser correction probe
 on:
   workflow_dispatch:
 permissions:
@@ -6,7 +6,7 @@ permissions:
 jobs:
   visual:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.1.0
@@ -15,13 +15,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:all
-      - run: node node_modules/playwright-core/cli.js install --with-deps chromium ffmpeg
-      - run: xvfb-run -a node --test --test-concurrency=1 tests/animation-continuity-browser.test.mjs tests/presence-continuity-browser.test.mjs
+      - run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - name: Run affected API demo browser contracts
+        shell: bash
+        run: |
+          mkdir -p artifacts/probe
+          xvfb-run -a node --max-old-space-size=512 --test --test-concurrency=1 --test-name-pattern='on-site scrolling|normal-motion company|narrow empty community|company speech envelope|shop first visit' tests/api-demo-browser.test.mjs 2>&1 | tee artifacts/probe/test.log
         env:
-          SIDEKICK_HEADED: '1'
-          SIDEKICK_SCREENSHOTS: artifacts
+          SIDEKICK_SCREENSHOTS: artifacts/probe
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
-          name: animation-visuals
+          name: demo-browser-correction-probe
           path: artifacts/
