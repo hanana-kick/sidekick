@@ -478,7 +478,7 @@ for (const deviceScaleFactor of [1, 2]) test(`demo visible ink fits64px at DPR${
  test('on-site scrolling, real wishlist and local arrivals drive dialogue without floating controls', {timeout:120000}, async t=>{
  const page=await pageFor(t);assert.equal(await page.locator('.flight-toolbar,#cancel-preview').count(),0);assert.equal(await page.locator('#bot-tools-launcher').evaluate(el=>getComputedStyle(el).position==='fixed'),false);
  let frame=await switchSite(page,'company');await frame.locator('a[href="#nova-design"]').first().click();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/materials|listening|Compare|finish/);
- frame=await switchSite(page,'shop');await frame.locator('.muse-companion-remove').click();await frame.locator('[data-wish="13"]').click();await frame.locator('[data-product="1"] .muse-product-picture').scrollIntoViewIfNeeded();await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/\$89, \$6 less than your saved style.*Same category; fit may differ/);assert.equal(await frame.locator('#muse-wish-count').textContent(),'1');
+ frame=await switchSite(page,'shop');await frame.locator('.muse-companion-remove').click();await frame.locator('[data-wish="13"]').click();await frame.locator('[data-product="1"] .muse-price').evaluate(price=>price.scrollIntoView({block:'center',behavior:'instant'}));await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/\$89, \$6 less than your saved style.*Same category; fit may differ/);assert.equal(await frame.locator('#muse-wish-count').textContent(),'1');
  frame=await switchSite(page,'community');await frame.locator('[data-post="4"]').scrollIntoViewIfNeeded();await frame.waitForFunction(()=>document.querySelectorAll('.th-post').length===21);await frame.locator('[data-sidekick-speech] .message').waitFor();assert.match(await frame.locator('[data-sidekick-speech] .message').textContent(),/Local demo/);
  await frame.locator('#th-compose-text').fill('A local post for the demo');await frame.locator('#th-publish').click();await frame.waitForFunction(()=>document.querySelector('#th-feed').textContent.includes('Local demo mention:'));await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.textContent.includes('mentioned'),null,{timeout:20000});
  await page.locator('#preview-refresh').click();frame=await frameFor(page,'community');assert.equal(await frame.locator('[data-sidekick-speech]').count(),0);assert.equal(await frame.locator('.th-post').count(),20);
@@ -497,9 +497,10 @@ test('normal-motion company stories respond after scrolling away without stale n
  await close.click();assert.equal(await frame.locator('[data-sidekick-speech]').count(),0);
 });
 
-test('narrow empty community keeps compose and navigation clear of its message', {timeout:60000}, async t=>{
- const page=await pageFor(t,{viewport:{width:320,height:700}});
- await withPlacementDiagnostics(page, 'community-empty-navigation', async () => {
+for(const locale of ['en','ko','ja','zh-CN'])for(const width of [320,505])test(`narrow empty community keeps compose and navigation clear of its message ${locale}/${width}`, {timeout:60000}, async t=>{
+ const page=await pageFor(t,{viewport:{width,height:700}});
+ await page.goto(`${base}/api-playground.html?lang=${locale}`);
+ await withPlacementDiagnostics(page, `community-empty-navigation-${locale}-${width}`, async () => {
  const frame=await switchSite(page,'community');
  // Selecting a site leaves the preview below the parent fold. Scroll the actual
  // preview into view before interacting with its child-viewport-fixed navigation.
@@ -508,24 +509,27 @@ test('narrow empty community keeps compose and navigation clear of its message',
  assert.ok(preview && preview.y>=0 && preview.y+preview.height<=700, `Preview is fully visible: ${JSON.stringify(preview)}`);
  const notifications=frame.locator('[data-nav="notifications"]');
  const target=await notifications.boundingBox();
- assert.ok(target && target.x>=0 && target.x+target.width<=320 && target.y>=0 && target.y+target.height<=700, `Notifications is clickable in the parent viewport: ${JSON.stringify(target)}`);
+ assert.ok(target && target.x>=0 && target.x+target.width<=width && target.y>=0 && target.y+target.height<=700, `Notifications is clickable in the parent viewport: ${JSON.stringify(target)}`);
  await notifications.click();
  const layout=await frame.evaluate(()=>{
   const rect=el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
-  return {message:rect(document.querySelector('.th-empty h2')),compose:rect(document.querySelector('.th-compose-link')),nav:[...document.querySelectorAll('.th-nav button')].map(rect),width:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,height:innerHeight,bar:rect(document.querySelector(".th-left"))};
+  return {message:rect(document.querySelector('.th-empty h2')),explanation:rect(document.querySelector('.th-empty p')),compose:rect(document.querySelector('.th-compose-link')),nav:[...document.querySelectorAll('.th-nav button')].map(rect),width:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,height:innerHeight,bar:rect(document.querySelector(".th-left"))};
  });
  const intersects=(a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
  assert.equal(layout.scrollWidth,layout.width);
  for(const button of [...layout.nav,layout.compose]){assert.ok(button.left>=0&&button.right<=layout.width);assert.ok(button.top>=layout.bar.top&&button.bottom<=Math.min(layout.bar.bottom,layout.height));}
  assert.ok(layout.compose.width>=40&&layout.compose.height>=40);
  assert.equal(intersects(layout.message,layout.compose),false);
+ assert.ok(layout.explanation.bottom<=layout.bar.top, `The full empty-state guidance stays above navigation: ${JSON.stringify(layout)}`);
+ assert.equal(await frame.locator('.th-main > [data-demo-intent]').isVisible(),false);
  for(const button of layout.nav){assert.ok(button.width>=40&&button.height>=40);assert.equal(intersects(button,layout.compose),false);}
  // The action lives in the bottom navigation, not in the empty-state reading area.
  assert.ok(Math.abs(layout.compose.top-layout.nav[0].top)<=4);
  assert.ok(Math.abs(layout.compose.bottom-layout.nav[0].bottom)<=4);
+ const home=await frame.locator('[data-nav="home"]').textContent();
  await frame.locator('.th-compose-link').click();
  assert.equal(await frame.locator('#th-compose-text').evaluate(el=>el===document.activeElement),true);
- assert.equal(await frame.locator('#th-feed-title').textContent(),'Home');
+ assert.equal(await frame.locator('#th-feed-title').textContent(),home.trim());
  });
 });
 
@@ -566,7 +570,7 @@ test('shop first visit is scroll-only with a clearly labeled reference in each l
   await page.goto(`${base}/api-playground.html?lang=${locale}`);await frameFor(page,'company');const frame=await switchSite(page,'shop');
   await frame.locator('#muse-companion-instruction').scrollIntoViewIfNeeded();
   assert.match(await frame.locator('[data-reference-product="12"]').textContent(),/\$18/);
-  await frame.locator('[data-product="0"] .muse-product-picture').scrollIntoViewIfNeeded();
+  await frame.locator('[data-product="0"] .muse-price').evaluate(price=>price.scrollIntoView({block:'center',behavior:'instant'}));
   await frame.waitForFunction(()=>document.querySelector('[data-sidekick-speech]')?.shadowRoot?.querySelector('.message')?.textContent.includes('$12'));
   const text=await frame.locator('[data-sidekick-speech] .message').textContent();assert.match(text,/\$12/);assert.match(text,/\$6/);
   assert.equal(await frame.locator('dialog[open]').count(),0);assert.equal(await frame.locator('#muse-wish-count').textContent(),'1');

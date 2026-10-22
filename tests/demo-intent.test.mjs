@@ -45,3 +45,19 @@ test('empty Notifications describes the alert capability without inventing a row
  const {root,cues}=setup(t,'community','<main class="th-main"><header class="th-feed-header"></header><div class="th-tabs"></div><div id="th-feed"></div><button class="active" data-nav="notifications">Notifications</button></main>');cues.refreshCommunity();
  assert.equal(root.querySelector('.th-notification-link'),null);assert.equal(root.querySelector('[data-demo-intent] span').textContent,'New-post and mention alerts link to their demo conversations.');
 });
+
+for(const locale of ['en','ko','ja','zh-CN'])test(`company ${locale} reuses lead-copy space and restores the original nodes on disposal`,t=>{
+ const dom=new JSDOM('<div id="root"><section id="nova-design"><img><div><h2>Design</h2><p>Original detail</p></div></section><section id="nova-sound"><div class="nova-sound-controls"><div id="nova-mode-panel"><p>Dynamic mode description</p></div><p class="nova-fineprint">Original audio disclaimer</p></div></section><section id="nova-compare"><div class="nova-heading"><h2>Compare</h2><p>Original lead</p></div></section><section id="nova-configure"><div class="nova-config-info"><h2>Finish</h2><p>Original lead</p><fieldset class="nova-finishes"></fieldset></div></section></div>');t.after(()=>dom.window.close());
+ const root=dom.window.document.querySelector('#root'),original=[...root.querySelectorAll('p')],cues=installIntentCues({root,site:'company',locale});
+ assert.equal(root.querySelectorAll('p').length,original.length,'guidance must not add a second tall block');assert.equal(root.querySelector('#nova-mode-panel p'),original[1],'dynamic mode copy stays untouched');assert.equal(root.querySelectorAll('[data-demo-intent]').length,4);
+ cues.dispose();assert.deepEqual([...root.querySelectorAll('p')],original,'original node identity and order survive disposal');
+});
+
+test('empty community reuses its explanation rather than stacking guidance above the mobile navigation',t=>{
+ const {root,cues}=setup(t,'community','<main class="th-main"><header class="th-feed-header"></header><div class="th-tabs"></div><div id="th-feed"><div class="th-empty"><h2>All caught up</h2><p>Original explanation</p></div></div><button class="active" data-nav="notifications">Notifications</button></main>');const guide=root.querySelector('[data-demo-intent]'),paragraph=root.querySelector('.th-empty p');cues.refreshCommunity();assert.equal(guide.hidden,true);assert.equal(paragraph.textContent,cues.copy.read);
+ root.querySelector('.th-empty').remove();cues.refreshCommunity();assert.equal(guide.hidden,false);assert.equal(guide.querySelector('span').textContent,cues.copy.read);
+});
+
+for(const locale of ['en','ko','ja','zh-CN'])test(`empty community restores its authored explanation on dispose (${locale})`,t=>{
+ const {root,cues}=setup(t,'community','<main class="th-main"><div class="th-tabs"></div><div class="th-empty"><p>Original explanation</p></div><button class="active" data-nav="notifications">Notifications</button></main>',locale);const paragraph=root.querySelector('.th-empty p');cues.refreshCommunity();assert.equal(paragraph.textContent,intentCopy[locale].read);cues.dispose();assert.equal(paragraph.textContent,'Original explanation');
+});

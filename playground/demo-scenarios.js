@@ -66,7 +66,13 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
   return clip;
  }
  const inView=(el,complete=false)=>{if(!el?.isConnected)return false;const r=el.getBoundingClientRect(),c=clippingBox(el);c.top=Math.max(32,c.top);c.bottom=Math.min(win.innerHeight-24,c.bottom);return r.width>0&&r.height>0&&(complete?r.left>=c.left&&r.right<=c.right&&r.top>=c.top&&r.bottom<=c.bottom:Math.min(r.right,c.right)>Math.max(r.left,c.left)&&Math.min(r.bottom,c.bottom)>Math.max(r.top,c.top));};
- function geometryFor(target){const geometry=companyGeometry(target,win),clip=clippingBox(target),v=geometry.viewport;const left=Math.max(v.left,clip.left),top=Math.max(v.top,clip.top),right=Math.min(v.right,clip.right),bottom=Math.min(v.bottom,clip.bottom);return {...geometry,viewport:{left,top,right,bottom,width:Math.max(0,right-left),height:Math.max(0,bottom-top)}};}
+ function geometryFor(target){
+  const geometry=companyGeometry(target,win),clip=clippingBox(target);
+  // The image can be clipped by its section, but the viewport-level bot and
+  // speech portal are not its descendants. Constrain visuals, not their viewport.
+  const visuals=geometry.visuals.map(v=>{const left=Math.max(v.left,clip.left),top=Math.max(v.top,clip.top),right=Math.min(v.right,clip.right),bottom=Math.min(v.bottom,clip.bottom);return {left,top,right,bottom,width:right-left,height:bottom-top};}).filter(v=>v.width>0&&v.height>0);
+  return {...geometry,visuals};
+ }
 
  const clear=()=>{cues.reset();companySettling=false;cancelTimer(companySettleTimer);const wasActive=busy||active||resting;epoch++;busy=false;pending=null;active=null;activeEntry=null;companyRest=null;activeCompanyPlan=null;companyDeliveredAt=0;deliveredAt=0;resting=false;speechNode=null;cooldown=0;bot.clearSpeech?.();if(wasActive){bot.cancelMove();bot.detachAnchor();}cancelTimer(releaseTimer);cancelTimer(pendingTimer);};
  const scrollIntent=createScrollIntent({now:()=>win.performance.now(),setTimer:later,clearTimer:cancelTimer,onFast(){
@@ -276,6 +282,7 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
  listen(win,'scroll',event=>{if(!available())return;engaged=true;sampleScroll(event);invalidateScrolledTarget();if(site==='company')companyGeometryChanged();queueArrival();},{passive:true,capture:true});
  listen(win,'resize',()=>{if(!available())return;scrollIntent.prime(win,win.scrollX,win.scrollY);scrollIntent.geometry();invalidateScrolledTarget();if(site==='company')companyGeometryChanged();},{passive:true});
  if(win.visualViewport)for(const event of ['resize','scroll'])listen(win.visualViewport,event,()=>{if(!available())return;scrollIntent.geometry();invalidateScrolledTarget();if(site==='company')companyGeometryChanged();},{passive:true});
+ if(site==='community'){cues.refreshCommunity();for(const event of ['input','keydown'])listen(root,event,()=>cues.refreshCommunity());}
  listen(root,'click',()=>{cues.refreshCommunity();engaged=true;if(site==='shop')later(consider,0);else if(site==='company')later(()=>{validateCompany();consider();},0);});
  // @source-start community-notice
  listen(root,'sidekick-demo-arrival',event=>{if(!available())return;const target=root.querySelector('[data-nav="notifications"]')||root.querySelector('.th-feed-header');void present({key:'arrival-'+event.detail.id,sourceId:event.detail.kind==='mention'?'community-mention-present':'community-post-present',target:inView(target)?target:root.querySelector('.th-feed-header'),intent:event.detail.kind==='mention'?cues.copy.mention:cues.copy.post,text:event.detail.kind==='mention'?t.mention:t.post});});

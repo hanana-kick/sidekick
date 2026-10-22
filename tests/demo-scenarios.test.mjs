@@ -483,3 +483,20 @@ test('shop restores at a new useful offer without flying through unrelated produ
  const card=x.w.document.createElement('article');card.className='muse-product';card.dataset.product='3';card.getBoundingClientRect=()=>movingRect(100,50,200,300);x.root.querySelector('#muse-product-grid').append(card);
  x.clock.scroll(1000);x.clock.advance(180);await flush();assert.equal(x.bot.presence,null);assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[1],card);assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[2].duration,0);assert.equal(x.calls.filter(c=>c[0]==='say').length,2);assert.match(x.calls.filter(c=>c[0]==='say').at(-1)[1],/\$10/);assert.equal(x.sourceEvents.length,2);
 });
+
+test('a clipped company image does not clip the independent viewport speech envelope',async t=>{
+ let clock;const x=setup(t,'company','<section id="nova-design" class="nova-macro" style="overflow:clip"><img><div><h2>Title</h2></div></section>',{},(root,w)=>{
+  clock=controlledClock(t,w);Object.defineProperty(w,'innerWidth',{value:264,configurable:true});Object.defineProperty(w,'innerHeight',{value:428,configurable:true});
+  root.querySelector('section').getBoundingClientRect=()=>movingRect(0,20,264,760);root.querySelector('img').getBoundingClientRect=()=>movingRect(0,20,264,516);
+  root.querySelector('h2').getBoundingClientRect=()=>movingRect(26,223,212,238);root.querySelector('section>div').getBoundingClientRect=()=>movingRect(26,223,212,400);
+  const native=w.HTMLElement.prototype.getBoundingClientRect;w.HTMLElement.prototype.getBoundingClientRect=function(){return this.hasAttribute('data-company-speech-sizer')?movingRect(0,0,248,68):native.call(this);};
+ });
+ clock.scroll(0);clock.advance(180);await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,1);assert.deepEqual(x.sourceEvents.map(e=>e.id),['nova-design']);
+});
+
+test('community input and keyboard rendering refresh empty-state guidance without adding movement',t=>{
+ const x=setup(t,'community','<main class="th-main"><div class="th-tabs"><button>Following</button></div><input data-search><div id="th-feed"><div class="th-empty"><p>Original</p></div></div><button class="active" data-nav="notifications">Notifications</button></main>');const guide=x.root.querySelector('[data-demo-intent]'),feed=x.root.querySelector('#th-feed');assert.equal(guide.hidden,true);
+ x.root.querySelector('[data-nav]').classList.remove('active');feed.innerHTML='<article>Matching post</article>';x.root.querySelector('input').dispatchEvent(new x.w.Event('input',{bubbles:true}));assert.equal(guide.hidden,false);
+ feed.innerHTML='<div class="th-empty"><p>No followed authors</p></div>';x.root.querySelector('.th-tabs button').dispatchEvent(new x.w.KeyboardEvent('keydown',{bubbles:true,key:'ArrowRight'}));assert.equal(guide.hidden,true);assert.equal(x.calls.filter(c=>c[0]==='move'||c[0]==='say').length,0);
+ x.api.dispose();const original=guide.hidden;feed.innerHTML='<article>After disposal</article>';x.root.querySelector('input').dispatchEvent(new x.w.Event('input',{bubbles:true}));assert.equal(guide.hidden,original);
+});
