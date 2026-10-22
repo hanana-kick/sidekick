@@ -52,7 +52,7 @@ export function renderCommunity(root,{locale='en',on=(n,e,f)=>n.addEventListener
   const reading=win.scrollY>0?[...all('#th-feed > .th-post')].find(node=>{const r=node.getBoundingClientRect();return r.bottom>52&&r.top<win.innerHeight;}):null;
   const readingTop=reading?.getBoundingClientRect().top;
   const id=-100000-(++arrivalId);posts.unshift({id,person:0,body:kind==='mention'?scenarioText.localMention:scenarioText.localPost,likes:0,reposts:0,replies:0});
-  addNotification(kind==='mention'?scenarioText.mention:scenarioText.post);renderFeed();
+  addNotification({text:kind==='mention'?scenarioText.mention:scenarioText.post,id,author:people[0][0],excerpt:posts[0].body});renderFeed();
   if(reading?.isConnected){const delta=reading.getBoundingClientRect().top-readingTop;if(delta)win.scrollBy({top:delta,behavior:'instant'});}
   root.dispatchEvent(new root.ownerDocument.defaultView.CustomEvent('sidekick-demo-arrival',{detail:{kind,id}}));
   emitSourceEvent(kind==='mention'?'community-mention':'community-post',root.ownerDocument.defaultView);
@@ -89,7 +89,7 @@ export function renderCommunity(root,{locale='en',on=(n,e,f)=>n.addEventListener
   q('.th-feed-header h1').textContent=t[view]||t.home;
   q('.th-tabs').hidden=view!=='home';q('#th-feed').setAttribute('role',view==='home'?'tabpanel':'region');q('#th-feed').setAttribute('aria-labelledby',view==='home'?`th-tab-${tab}`:'th-feed-title');q('.th-compose').hidden=view!=='home';
   q('#th-filter-summary').hidden=!query;if(query)q('#th-filter-summary').innerHTML=`<strong>${esc(query)}</strong><button data-clear>${t.clear} ×</button>`;
-  if(view==='notifications'||!filtered.length){q('#th-feed').innerHTML=view==='notifications'?(notifications.length?notifications.map(n=>`<div class="th-notification">${icon('bell')}<p>${esc(n)}</p></div>`).join(''):`<div class="th-empty">${icon('bell')}<h2>${t.allCaught}</h2><p>${t.allCaughtText}</p></div>`):`<div class="th-empty">${icon(view==='saved'?'bookmark':'search')}<h2>${t.empty}</h2><p>${t.emptyText}</p></div>`;}
+  if(view==='notifications'||!filtered.length){q('#th-feed').innerHTML=view==='notifications'?(notifications.length?notifications.map(n=>typeof n==='string'?`<div class="th-notification">${icon('bell')}<p>${esc(n)}</p></div>`:`<button class="th-notification th-notification-link" data-open-post="${n.id}">${icon('bell')}<span><strong>${esc(n.author)}</strong><span>${esc(n.text)}</span><span class="th-notification-excerpt">${esc(n.excerpt)}</span><b>${t.readMore} ↗</b></span></button>`).join(''):`<div class="th-empty">${icon('bell')}<h2>${t.allCaught}</h2><p>${t.allCaughtText}</p></div>`):`<div class="th-empty">${icon(view==='saved'?'bookmark':'search')}<h2>${t.empty}</h2><p>${t.emptyText}</p></div>`;}
   else reconcilePosts(filtered);
   all('[data-nav]').forEach(n=>n.classList.toggle('active',n.dataset.nav===view));
   all('[data-tab]').forEach(n=>{n.setAttribute('aria-selected',String(n.dataset.tab===tab));n.tabIndex=n.dataset.tab===tab?0:-1;});

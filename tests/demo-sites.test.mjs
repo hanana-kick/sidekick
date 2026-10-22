@@ -240,3 +240,12 @@ test('community short desktop rail keeps actions unsqueezed with a scroll fallba
  assert.match(css,/\.th-nav button\{min-height:44px;padding:8px 12px\}/);
  assert.match(css,/\.th-compose-link\{height:44px;min-height:44px;margin-top:8px\}/);
 });
+
+test('simulated community alerts link to the actual arriving post in every locale',async t=>{
+ for(const locale of ['ko','en','ja','zh-CN']){
+  const f=await mount(t,'community',locale);let arrival;f.root.addEventListener('sidekick-demo-arrival',e=>arrival=e.detail);
+  f.adapter.simulateArrival('mention');f.$('[data-nav="notifications"]').click();const row=f.$('.th-notification-link');
+  assert.equal(Number(row.dataset.openPost),arrival.id);assert.match(row.textContent,/Daniel Park/);assert.match(row.textContent,/@alexmorgan/);
+  row.click();assert.equal(f.$('#th-detail').open,true);assert.match(f.$('#post-title').textContent+f.$('#post-body').textContent,/@alexmorgan/);
+ }
+});

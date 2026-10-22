@@ -1,3 +1,5 @@
+import scrollIntent from './demo-scroll-intent.js?raw';
+import demoIntent from './demo-intent.js?raw';
 import html from '../api-demo.html?raw';
 import runtime from './api-demo.js?raw';
 import sharedCSS from './api-demo.css?raw';
@@ -12,6 +14,6 @@ const sites = {
 export async function loadExampleSource(site) {
  if (!sites[site]) throw new Error('Unknown example');
  const [js, css] = await sites[site]();
- return [ ['api-demo.html', html], [`playground/demos/${site}.js`, js.default], [`playground/demos/${site}.css`, css.default], ['playground/demo-scenarios.js', scenarios], ['playground/company-presentation.js', companyPresentation], ['playground/api-demo.js', runtime], ['playground/api-demo.css', sharedCSS] ].map(([path, text]) => ({ path, text, ranges: sourceRanges(text) }));
+ return [ ['api-demo.html', html], [`playground/demos/${site}.js`, js.default], [`playground/demos/${site}.css`, css.default], ['playground/demo-scenarios.js', scenarios], ['playground/demo-intent.js', demoIntent], ['playground/demo-scroll-intent.js', scrollIntent], ['playground/company-presentation.js', companyPresentation], ['playground/api-demo.js', runtime], ['playground/api-demo.css', sharedCSS] ].map(([path, text]) => ({ path, text, ranges: sourceRanges(text) }));
 }
 export { eventRanges } from './example-source-map.js';

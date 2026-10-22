@@ -34,3 +34,5 @@ body.community{background:#fff;color:#101419;font-family:Arial,'Noto Sans',syste
  .th-compose-link{height:44px;min-height:44px;margin-top:8px}
  .th-my-profile{padding-top:4px;padding-bottom:4px}
 }
+
+.th-notification-link{width:100%;text-align:left;color:inherit;background:none;border:0;border-bottom:1px solid var(--th-line);cursor:pointer}.th-notification-link>span{display:grid;gap:6px;min-width:0;line-height:1.5}.th-notification-link .th-notification-excerpt{font-size:14px;color:#536471}.th-notification-link b{font-size:13px;color:#087dcc}.th-notification-link:hover{background:#f7f9fb}

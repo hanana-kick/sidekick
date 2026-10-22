@@ -6,3 +6,14 @@
 #lifecycle-live:empty{display:none}#lifecycle-live{margin:24px;padding:20px;border:1px solid var(--line)}#bot{z-index:20}#bot:not([data-configured]){opacity:0}#free-space{min-height:100vh}
 @media(max-width:650px){.demo-disclosure{align-items:flex-start;flex-direction:column;gap:8px;padding:24px}#lifecycle-live{margin:20px 16px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:0s!important}}
+/* In-flow context survives short speech. The target outline never changes layout. */
+#demo-content .demo-intent{display:flex;flex-direction:column;gap:5px;font:400 13px/1.55 system-ui,sans-serif;letter-spacing:normal;text-align:left;color:#535866;max-width:48ch;margin:18px 0;padding:12px 0;border-top:1px solid #d8dde5}
+#demo-content .demo-intent[hidden]{display:none}
+#demo-content .demo-intent strong{font:650 11px/1.5 system-ui,sans-serif;letter-spacing:.04em;color:#626c7e}
+#demo-content [data-demo-target]{outline:2px solid #b38b16;outline-offset:5px}
+#demo-content .demo-intent[data-phase]{border-top-color:#b38b16}
+#demo-content .muse-product-info .demo-intent{font-size:12px;margin:10px 0 0;max-width:none}
+#demo-content .th-main>.demo-intent{max-width:none;margin:0;padding:14px 18px;background:#f7f9fb;border-top:0;border-bottom:1px solid #e7ebee}
+#demo-content .nova-macro .demo-intent{color:#c7cbd2;border-color:#626873}
+#demo-content .nova-macro .demo-intent strong{color:#d7c484}
+@media(forced-colors:active){#demo-content [data-demo-target]{outline-color:Highlight}}

@@ -14,6 +14,8 @@ function setup(t,site,markup,adapter={},beforeInstall=()=>false){
  const nativeRect=w.HTMLElement.prototype.getBoundingClientRect;
  w.HTMLElement.prototype.getBoundingClientRect=function(){return this.hasAttribute('data-company-speech-sizer')?rect(0,0,Math.min(280,w.innerWidth-16),47):nativeRect.call(this);};
  let botRect=rect(700,600,115,115);bot.getBoundingClientRect=()=>botRect;
+ let presence=null;Object.defineProperty(bot,'presence',{get:()=>presence,set:value=>{presence=value;calls.push(['presence',value]);}});
+ Object.defineProperty(bot,'position',{get:()=>({x:botRect.left,y:botRect.top})});bot.moveTo=async(point,options)=>{calls.push(['restore',point,options]);botRect=rect(point.x,point.y,115,115);};
  Object.assign(bot,{moveToElement:async(el,options)=>{calls.push(['move',el,options]);if(site==='company'){const r=el.getBoundingClientRect();botRect=rect(r.left+options.x,r.top+options.y,115,115);}},say:(text,options)=>{calls.push(['say',text,options]);if(site==='company'){const portal=w.document.createElement('div');portal.dataset.sidekickSpeech='';const shadow=portal.attachShadow({mode:'open'}),bubble=w.document.createElement('div');bubble.className='bubble';bubble.getBoundingClientRect=()=>speechBox(botRect,{width:Math.min(280,w.innerWidth-16),height:47},rect(0,0,w.innerWidth,w.innerHeight),options.placement);shadow.append(bubble);w.document.body.append(portal);}},clearSpeech:()=>{calls.push(['clear']);w.document.querySelector('[data-sidekick-speech]')?.remove();},cancelMove:()=>{},detachAnchor:()=>calls.push(['detach'])});
  const initialEngaged=beforeInstall(root,w);const api=installDemoScenarios({bot,root,site,adapter,initialEngaged,window:w});t.after(()=>api.dispose());return{w,root,bot,calls,api,sourceEvents,observe:el=>observer.emit(el)};
 }
@@ -67,7 +69,7 @@ test('queued shopping advice is revalidated when the saved reference is removed'
  let saved=[1],clock=10000;const products=[{id:1,cat:2,price:89,name:'Saved coat'},{id:2,cat:2,price:64,name:'Coat A'},{id:3,cat:2,price:59,name:'Coat B'}];
  const x=setup(t,'shop','<div id="muse-product-grid"><article data-product="2"></article><article data-product="3"></article></div>',{getScenarioState:()=>({products,saved})});
  t.mock.method(Date,'now',()=>clock);const scheduled=new Map();let next=0;x.w.setTimeout=(fn,ms)=>{scheduled.set(++next,{fn,ms});return next;};x.w.clearTimeout=id=>scheduled.delete(id);
- const [first,second]=x.root.querySelectorAll('article');x.observe(first);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();x.observe(second);await flush();
+ const [first,second]=x.root.querySelectorAll('article');x.observe(first);x.w.dispatchEvent(new x.w.Event('scroll'));for(const job of [...scheduled.values()])if(job.ms===180)job.fn();await flush();x.observe(second);await flush();
  saved=[];clock+=8000;for(const job of [...scheduled.values()])job.fn();await flush();
  assert.equal(x.calls.filter(c=>c[0]==='say').length,1,'removed saved product cannot support later advice');
 });
@@ -121,8 +123,8 @@ test('a clipped cheaper picture does not starve the next fully visible recommend
  const products=[{id:1,cat:2,price:89,name:'Saved coat'},{id:2,cat:2,price:64,name:'Clipped coat'},{id:3,cat:2,price:59,name:'Visible coat'}];
  const x=setup(t,'shop','<div id="muse-product-grid"><article data-product="2"><div class="muse-product-picture"></div></article><article data-product="3"><div class="muse-product-picture"></div></article></div>',{getScenarioState:()=>({products,saved:[1]})});
  const [first,second]=x.root.querySelectorAll('article');
- first.firstChild.getBoundingClientRect=()=>({width:200,height:450,top:-350,bottom:100});
- second.firstChild.getBoundingClientRect=()=>({width:200,height:250,top:125,bottom:375});
+ first.firstChild.getBoundingClientRect=()=>({left:100,right:300,width:200,height:450,top:-350,bottom:100});
+ second.firstChild.getBoundingClientRect=()=>({left:100,right:300,width:200,height:250,top:125,bottom:375});
  x.observe(first);x.observe(second);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
  assert.equal(x.calls.find(c=>c[0]==='move')[1],second.firstChild);assert.match(x.calls.find(c=>c[0]==='say')[1],/\$59/);
 });
@@ -348,4 +350,136 @@ test('nested scroll engages the example without a window scroll or click',async 
  const x=setup(t,'shop','<div id="muse-product-grid"><article data-product="2"></article></div>',{getScenarioState:()=>({products,saved:[1]})});
  x.observe(x.root.querySelector('article'));await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);
  x.root.dispatchEvent(new x.w.Event('scroll',{bubbles:false}));await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,1);
+});
+
+test('shop waits for the actual price, not merely a product picture, before moving',async t=>{
+ const products=[{id:1,cat:2,price:18,name:'Saved tee'},{id:2,cat:2,price:12,name:'Other tee'}];
+ const x=setup(t,'shop','<div id="muse-product-grid"><article class="muse-product" data-product="2"><div class="muse-product-info"><div class="muse-price">$12</div></div></article></div>',{getScenarioState:()=>({products,saved:[1]})});
+ const target=x.root.querySelector('article'),price=x.root.querySelector('.muse-price');price.getBoundingClientRect=()=>({left:100,top:1000,width:100,height:24,right:200,bottom:1024});
+ x.observe(target);x.w.dispatchEvent(new x.w.Event('scroll'));await flush();assert.equal(x.calls.filter(c=>c[0]==='move').length,0);assert.match(target.querySelector('[data-demo-intent]').textContent,/\$6 less.*\$18.*\$12.*Saved tee.*Other tee/);
+ price.getBoundingClientRect=()=>({left:100,top:200,width:100,height:24,right:200,bottom:224});x.w.scrollY=100;x.w.dispatchEvent(new x.w.Event('scroll'));await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,1);
+});
+
+// These cases use real policy durations and actual offsets, unlike the quick
+// legacy fixture above. No browser frame loop or wall-clock timing is assumed.
+function controlledClock(t,w){
+ let time=0,id=0;const jobs=new Map();
+ t.mock.method(Date,'now',()=>10000+time);t.mock.method(w.performance,'now',()=>time);
+ w.setTimeout=(fn,ms=0)=>{jobs.set(++id,{fn,due:time+ms,ms});return id;};w.clearTimeout=id=>jobs.delete(id);
+ return {jobs,advance(ms){const end=time+ms;let guard=0;while(true){const next=[...jobs].filter(([,j])=>j.due<=end).sort((a,b)=>a[1].due-b[1].due)[0];if(!next)break;assert.ok(++guard<1000,'event-driven timers must terminate');jobs.delete(next[0]);time=next[1].due;next[1].fn();}time=end;},scroll(y,ms=16,target=w){this.advance(ms);if(target===w)w.scrollY=y;else target.scrollTop=y;target.dispatchEvent(new w.Event('scroll'));}};
+}
+const movingRect=(left,top,width=200,height=100)=>({left,top,width,height,right:left+width,bottom:top+height});
+test('rapid company bursts skip passed sections and deliver only the settled current section',async t=>{
+ let clock;const ids=['nova-design','nova-sound','nova-compare'];
+ const x=setup(t,'company',ids.map(id=>`<section id="${id}"></section>`).join(''),{},(root,w)=>{clock=controlledClock(t,w);[...root.children].forEach((el,i)=>el.getBoundingClientRect=()=>movingRect(300,80+i*800-w.scrollY));});
+ clock.scroll(40);clock.scroll(760);clock.scroll(1560);await flush();assert.equal(x.calls.filter(c=>c[0]==='move').length,0);assert.deepEqual(x.sourceEvents,[]);
+ clock.advance(179);await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);
+ clock.advance(1);await flush();assert.deepEqual(x.sourceEvents.map(e=>e.id),['nova-compare']);assert.equal(x.calls.filter(c=>c[0]==='say').length,1);
+ x.observe(x.root.firstChild);await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,1,'late observer callback cannot revive a passed section');
+});
+test('rapid company motion cancellation suppresses stale completion even when its envelope remains safe',async t=>{
+ let clock;const x=setup(t,'company','<section id="nova-design"></section>',{},(root,w)=>{clock=controlledClock(t,w);});
+ const original=x.bot.moveToElement;let finish;x.bot.moveToElement=(el,options)=>new Promise(resolve=>{finish=async()=>{await original(el,options);resolve({finished:true});};});
+ clock.scroll(0);clock.advance(180);await flush();assert.ok(finish);
+ clock.scroll(300);await finish();await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);assert.deepEqual(x.sourceEvents,[]);assert.equal(x.calls.filter(c=>c[0]==='detach').length,1);
+ x.bot.moveToElement=original;clock.advance(180);await flush();assert.deepEqual(x.sourceEvents.map(e=>e.id),['nova-design']);
+});
+test('shop large jump and reversal choose the current price-visible product, not observer insertion order',async t=>{
+ let clock;const products=[1,2,3,4].map(id=>({id,cat:'tops',price:20-id*2,name:'Top '+id}));
+ const x=setup(t,'shop','<div id="muse-product-grid">'+[2,3,4].map(id=>`<article class="muse-product" data-product="${id}"><div class="muse-product-picture"></div><div class="muse-product-info"><div class="muse-price"></div></div></article>`).join('')+'</div>',{getScenarioState:()=>({products,saved:[1]})},(root,w)=>{
+  clock=controlledClock(t,w);[...root.querySelectorAll('article')].forEach((el,i)=>{const top=()=>i*800-w.scrollY;el.getBoundingClientRect=()=>movingRect(100,top(),200,350);el.querySelector('.muse-product-picture').getBoundingClientRect=()=>movingRect(100,top(),200,250);el.querySelector('.muse-price').getBoundingClientRect=()=>movingRect(100,top()+260,200,25);});
+ });
+ const cards=[...x.root.querySelectorAll('article')];cards.forEach(x.observe);
+ clock.scroll(100);clock.scroll(1500);clock.scroll(700);await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);
+ clock.advance(180);await flush();const move=x.calls.find(c=>c[0]==='move');assert.equal(move[1],cards[1].querySelector('.muse-product-picture'));assert.match(x.calls.find(c=>c[0]==='say')[1],/\$14/);assert.equal(x.sourceEvents.length,1);
+ x.observe(cards[2]);await flush();assert.equal(x.sourceEvents.length,1);
+});
+test('community coalesces presentation during a flick, retains records and resolves the replacement navigation target',async t=>{
+ let clock;const x=setup(t,'community','<button data-nav="notifications"></button><header class="th-feed-header"></header>',{},(root,w)=>{clock=controlledClock(t,w);});
+ const original=x.bot.moveToElement;let finish;x.bot.moveToElement=()=>new Promise(resolve=>{finish=resolve;});
+ const arrive=(id,kind)=>{const record=x.w.document.createElement('article');record.id='record-'+id;x.root.append(record);x.root.dispatchEvent(new x.w.CustomEvent('sidekick-demo-arrival',{detail:{id,kind}}));};
+ arrive('A','mention');clock.scroll(400);arrive('B','mention');arrive('C','post');
+ const old=x.root.querySelector('[data-nav]'),fresh=old.cloneNode();fresh.getBoundingClientRect=()=>movingRect(100,50);old.replaceWith(fresh);finish({finished:true});await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);
+ x.bot.moveToElement=original;clock.advance(180);await flush();assert.equal(x.calls.find(c=>c[0]==='move')[1],fresh);assert.deepEqual(x.sourceEvents.map(e=>e.id),['community-post-present']);assert.equal(x.root.querySelectorAll('[id^="record-"]').length,3);
+});
+test('nested scroll bursts defer company presentation even when window scroll offset is unchanged',async t=>{
+ let clock;const x=setup(t,'company','<div id="nested"><section id="nova-design"></section></div>',{},(root,w)=>{clock=controlledClock(t,w);});const nested=x.root.firstChild;
+ clock.scroll(0,0,nested);clock.scroll(80,16,nested);clock.scroll(320,16,nested);await flush();assert.equal(x.w.scrollY,0);assert.equal(x.calls.filter(c=>c[0]==='say').length,0);
+ clock.advance(180);await flush();assert.deepEqual(x.sourceEvents.map(e=>e.id),['nova-design']);
+});
+test('resize during a burst renews geometry dwell without delivering early',async t=>{
+ let clock;const x=setup(t,'company','<section id="nova-design"></section>',{},(root,w)=>{clock=controlledClock(t,w);});clock.scroll(300);clock.advance(100);x.w.dispatchEvent(new x.w.Event('resize'));clock.advance(179);await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);clock.advance(1);await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,1);
+});
+test('paused and disposed scroll timers cannot detach manual control or deliver stale advice',async t=>{
+ let clock;const x=setup(t,'company','<section id="nova-design"></section>',{},(root,w)=>{clock=controlledClock(t,w);});clock.scroll(500);const stale=[...clock.jobs.values()].map(j=>j.fn);x.api.setPaused(true);const before=x.calls.length;for(const fn of stale)fn();clock.scroll(900);await flush();assert.equal(x.calls.length,before);assert.deepEqual(x.sourceEvents,[]);x.api.dispose();const disposed=x.calls.length;for(const fn of stale)fn();await flush();assert.equal(x.calls.length,disposed);
+});
+test('shop final viewport with removed reference stays quiet and does not poll',async t=>{
+ let clock,saved=[1];const x=setup(t,'shop','<div id="muse-product-grid"><article class="muse-product" data-product="2"></article></div>',{getScenarioState:()=>({products:[{id:1,cat:'tops',price:18},{id:2,cat:'tops',price:12}],saved})},(root,w)=>{clock=controlledClock(t,w);});clock.scroll(500);saved=[];clock.advance(180);await flush();assert.equal(x.calls.filter(c=>c[0]==='move').length,0);assert.equal(clock.jobs.size,0);assert.deepEqual(x.sourceEvents,[]);
+});
+for(const site of ['company','shop','community'])test(`${site} waits through a fast inertial tail and settles once without waiting for every pixel to stop`,async t=>{
+ let clock;const markup={company:'<section id="nova-design"></section>',shop:'<div id="muse-product-grid"><article class="muse-product" data-product="2"></article></div>',community:'<button data-nav="notifications"></button><header class="th-feed-header"></header>'}[site];
+ const x=setup(t,site,markup,{getScenarioState:()=>({products:[{id:1,cat:'tops',price:18},{id:2,cat:'tops',price:12}],saved:[1]})},(root,w)=>{clock=controlledClock(t,w);});
+ let y=300;clock.scroll(y);if(site==='community')x.root.dispatchEvent(new x.w.CustomEvent('sidekick-demo-arrival',{detail:{id:'tail',kind:'mention'}}));
+ for(const delta of [64,32,16,8,4,2]){clock.scroll(y+=delta);await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);}
+ for(let i=0;i<24;i++){clock.scroll(++y);await flush();}
+ assert.equal(x.calls.filter(c=>c[0]==='say').length,1);assert.equal(x.sourceEvents.length,1);clock.advance(180);await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,1);
+});
+test('community target replacement during ordinary motion restarts at the new anchor before speaking',async t=>{
+ const x=setup(t,'community','<button data-nav="notifications"></button><header class="th-feed-header"></header>');let finish;const original=x.bot.moveToElement;x.bot.moveToElement=()=>new Promise(resolve=>{finish=resolve;});x.root.dispatchEvent(new x.w.CustomEvent('sidekick-demo-arrival',{detail:{id:'replace',kind:'mention'}}));
+ const old=x.root.querySelector('[data-nav]'),fresh=old.cloneNode();fresh.getBoundingClientRect=()=>movingRect(100,50);old.replaceWith(fresh);x.bot.moveToElement=original;finish({finished:true});await flush();
+ assert.equal(x.calls.find(c=>c[0]==='move')[1],fresh);assert.equal(x.calls.filter(c=>c[0]==='say').length,1);assert.equal(fresh.dataset.demoTarget,'result');assert.equal(old.hasAttribute('data-demo-target'),false);assert.equal(x.sourceEvents.length,1);
+});
+for(const site of ['company','shop'])test(`${site} rejects a viewport-visible target clipped outside a nested scroller`,async t=>{
+ let clock;const contents=site==='company'?'<section id="nova-design"></section>':'<article class="muse-product" data-product="2"></article>';
+ const x=setup(t,site,`<div id="muse-product-grid"><div id="clip" style="overflow-x:auto;overflow-y:auto">${contents}</div></div>`,{getScenarioState:()=>({products:[{id:1,cat:'tops',price:18},{id:2,cat:'tops',price:12}],saved:[1]})},(root,w)=>{clock=controlledClock(t,w);root.querySelector('#clip').getBoundingClientRect=()=>movingRect(100,300,250,200);});
+ clock.scroll(300);clock.advance(180);await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);assert.deepEqual(x.sourceEvents,[]);
+});
+test('shop requires the complete price inside the current viewport before presenting',async t=>{
+ let clock;const x=setup(t,'shop','<div id="muse-product-grid"><article class="muse-product" data-product="2"><div class="muse-price"></div></article></div>',{getScenarioState:()=>({products:[{id:1,cat:'tops',price:18},{id:2,cat:'tops',price:12}],saved:[1]})},(root,w)=>{clock=controlledClock(t,w);root.querySelector('.muse-price').getBoundingClientRect=()=>movingRect(100,w.innerHeight-30,100,25);});clock.scroll(200);clock.advance(180);await flush();assert.equal(x.calls.filter(c=>c[0]==='say').length,0);
+});
+test('latest community intent survives temporarily missing targets during a rapid gesture',async t=>{
+ let clock;const x=setup(t,'community','<button data-nav="notifications"></button><header class="th-feed-header"></header>',{},(root,w)=>{clock=controlledClock(t,w);});clock.scroll(300);const arrive=(id,kind)=>x.root.dispatchEvent(new x.w.CustomEvent('sidekick-demo-arrival',{detail:{id,kind}}));arrive('older','mention');const nav=x.root.querySelector('[data-nav]');x.root.querySelector('.th-feed-header').remove();nav.remove();arrive('latest','post');x.root.append(nav);clock.advance(180);await flush();assert.deepEqual(x.sourceEvents.map(e=>e.id),['community-post-present']);
+});
+test('community restores its quiet home only after settlement and yields it to a pending notice',async t=>{
+ let clock;const x=setup(t,'community','<button data-nav="notifications"></button><header class="th-feed-header"></header><aside id="th-companion-home"></aside>',{},(root,w)=>{clock=controlledClock(t,w);});await flush();const home=x.root.querySelector('#th-companion-home');assert.equal(x.calls.filter(c=>c[0]==='move').length,1);clock.scroll(300);assert.equal(x.calls.filter(c=>c[0]==='move').length,1);clock.advance(180);await flush();assert.equal(x.calls.filter(c=>c[0]==='move').length,2);assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[1],home);assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[2].duration,0);
+ clock.scroll(700);x.root.dispatchEvent(new x.w.CustomEvent('sidekick-demo-arrival',{detail:{id:'notice',kind:'mention'}}));clock.advance(180);await flush();assert.equal(x.calls.filter(c=>c[0]==='move').length,3);assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[1],x.root.querySelector('[data-nav]'));assert.equal(x.sourceEvents.length,1);
+});
+test('a slow company scroll performs one owned geometry validation, not duplicate ancestor reads',async t=>{
+ let clock;const x=setup(t,'company','<section id="nova-design"></section>',{},(root,w)=>{clock=controlledClock(t,w);});x.bot.moveToElement=()=>new Promise(()=>{});clock.scroll(0);clock.advance(180);await flush();
+ let reads=0;const original=x.w.getComputedStyle.bind(x.w);t.mock.method(x.w,'getComputedStyle',(...args)=>{if(args[0]===x.root)reads++;return original(...args);});clock.scroll(1);
+ assert.equal(reads,2,'one clipping read for the planned envelope and one for current target visibility');assert.deepEqual(x.sourceEvents,[]);
+});
+
+function restingShop(t){
+ let clock;const x=setup(t,'shop','<div id="muse-product-grid"><article class="muse-product" data-product="2"><div class="muse-price"></div></article></div>',{getScenarioState:()=>({products:[{id:1,cat:'tops',price:18},{id:2,cat:'tops',price:12},{id:3,cat:'tops',price:10}],saved:[1]})},(root,w)=>{clock=controlledClock(t,w);});
+ const card=x.root.querySelector('article'),price=card.firstChild;
+ const visible=value=>{card.getBoundingClientRect=()=>movingRect(100,value?50:-500,200,300);price.getBoundingClientRect=()=>movingRect(100,value?350:-200,120,25);};visible(true);
+ return {...x,clock,visible};
+}
+test('shop settles away from an active offer into one owned hide and returns silently to the known match',async t=>{
+ const x=restingShop(t);x.w.matchMedia=()=>({matches:false});x.clock.scroll(0);x.clock.advance(180);await flush();assert.equal(x.calls.find(c=>c[0]==='move')[2].duration,550);assert.equal(x.sourceEvents.length,1);x.clock.advance(2000);
+ x.visible(false);x.clock.scroll(500);assert.equal(x.bot.presence,null,'stop in place throughout the flick');x.clock.advance(179);assert.equal(x.bot.presence,null);x.clock.advance(1);await flush();assert.deepEqual(x.bot.presence,{visible:false});
+ for(let i=1;i<=24;i++)x.clock.scroll(500+i);await flush();assert.equal(x.calls.filter(c=>c[0]==='presence'&&c[1]?.visible===false).length,1,'tiny tails do not restart the fade');
+ x.visible(true);x.clock.scroll(0);x.clock.advance(180);await flush();assert.equal(x.bot.presence,null);assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[2].duration,0);assert.equal(x.calls.filter(c=>c[0]==='say').length,1,'known comparison does not narrate again');assert.equal(x.sourceEvents.length,1,'quiet reattachment is not a new narrated source action');assert.equal(x.root.querySelector('[data-demo-target]'),null);
+ x.visible(false);x.clock.scroll(500);x.clock.advance(180);await flush();assert.equal(x.calls.filter(c=>c[0]==='presence'&&c[1]?.visible===false).length,2,'a later distinct departure can hide again');
+});
+for(const action of ['pause','dispose'])test(`shop ${action} synchronously restores only its own hide before manual control`,async t=>{
+ const x=restingShop(t);x.clock.scroll(0);x.clock.advance(180);await flush();x.visible(false);x.clock.scroll(500);x.clock.advance(180);await flush();assert.deepEqual(x.bot.presence,{visible:false});const position=x.bot.position;
+ if(action==='pause')x.api.setPaused(true);else x.api.dispose();assert.equal(x.bot.presence,null);assert.deepEqual(x.calls.find(c=>c[0]==='restore').slice(1),[position,{duration:0,travel:'none'}]);
+ x.bot.presence={visible:false};const writes=x.calls.length;x.clock.advance(10000);await flush();assert.equal(x.calls.length,writes,'stale callbacks cannot override the new owner');assert.deepEqual(x.bot.presence,{visible:false});
+});
+test('shop does not reveal an explicit externally hidden companion or hide before its first presentation',async t=>{
+ const x=restingShop(t);x.visible(false);x.clock.scroll(500);x.clock.advance(180);await flush();assert.equal(x.bot.presence,null);
+ x.bot.presence={visible:false};x.visible(true);x.clock.scroll(0);x.clock.advance(180);await flush();assert.equal(x.calls.filter(c=>c[0]==='move').length,0);assert.equal(x.sourceEvents.length,0);x.api.setPaused(true);assert.deepEqual(x.bot.presence,{visible:false});assert.equal(x.calls.filter(c=>c[0]==='restore').length,0);
+});
+
+test('shop handoff preserves an outside presence change instead of restoring stale state',async t=>{
+ const x=restingShop(t);x.clock.scroll(0);x.clock.advance(180);await flush();x.visible(false);x.clock.scroll(500);x.clock.advance(180);await flush();
+ x.bot.presence={visible:true};x.api.setPaused(true);assert.deepEqual(x.bot.presence,{visible:true});assert.equal(x.calls.filter(c=>c[0]==='restore').length,0);
+});
+
+test('shop restores at a new useful offer without flying through unrelated products',async t=>{
+ const x=restingShop(t);x.w.matchMedia=()=>({matches:false});x.clock.scroll(0);x.clock.advance(180);await flush();x.visible(false);x.clock.scroll(500);x.clock.advance(180);await flush();
+ const card=x.w.document.createElement('article');card.className='muse-product';card.dataset.product='3';card.getBoundingClientRect=()=>movingRect(100,50,200,300);x.root.querySelector('#muse-product-grid').append(card);
+ x.clock.scroll(1000);x.clock.advance(180);await flush();assert.equal(x.bot.presence,null);assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[1],card);assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[2].duration,0);assert.equal(x.calls.filter(c=>c[0]==='say').length,2);assert.match(x.calls.filter(c=>c[0]==='say').at(-1)[1],/\$10/);assert.equal(x.sourceEvents.length,2);
 });
