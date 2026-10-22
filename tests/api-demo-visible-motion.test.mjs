@@ -32,7 +32,19 @@ after(async () => {
 async function demo(t,site,viewport={width:1100,height:720}){
  const page=await browser.newPage({viewport,reducedMotion:'no-preference'});t.after(()=>page.close());
  await page.goto(`${base}/api-demo.html?site=${site}&lang=en`);
- await page.evaluate(async()=>{const api=await window.sidekickDemoReady;document.body.append(api.bot);await new Promise(resolve=>api.bot.ready?resolve():api.bot.addEventListener('sidekick-ready',resolve,{once:true}));await api.moveTo({x:440,y:420},{duration:0,travel:'none'});api.bot.setAttribute('data-configured','');api.startScenarios();});
+ const initial=await page.evaluate(async()=>{
+  const api=await window.sidekickDemoReady,bot=api.bot;document.body.append(bot);
+  await new Promise(resolve=>bot.ready?resolve():bot.addEventListener('sidekick-ready',resolve,{once:true}));
+  // A desktop-sized seed is not a valid mobile precondition: innerWidth can
+  // include a classic scrollbar while visualViewport.width excludes it.
+  const v=visualViewport,viewport={left:v?.offsetLeft||0,top:v?.offsetTop||0,width:v?.width||innerWidth,height:v?.height||innerHeight};
+  await api.moveTo({x:viewport.left+Math.max(0,Math.min(440,viewport.width-bot.offsetWidth-16)),y:viewport.top+Math.max(0,Math.min(420,viewport.height-bot.offsetHeight-16))},{duration:0,travel:'none'});
+  bot.setAttribute('data-configured','');const r=bot.getBoundingClientRect();
+  return {viewport,host:{left:r.left,top:r.top,right:r.right,bottom:r.bottom},anchor:bot.elementAnchor!==null};
+ });
+ assert.equal(initial.anchor,false,'fixture starts with no autonomous anchor');
+ assert.ok(initial.host.left>=initial.viewport.left&&initial.host.top>=initial.viewport.top&&initial.host.right<=initial.viewport.left+initial.viewport.width&&initial.host.bottom<=initial.viewport.top+initial.viewport.height,`fixture must start fully inside the actual viewport before scenario ownership: ${JSON.stringify(initial)}`);
+ await page.evaluate(async()=>{(await window.sidekickDemoReady).startScenarios();});
  return page;
 }
 async function assertContinuous(page,target){

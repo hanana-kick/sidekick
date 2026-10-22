@@ -46,7 +46,10 @@ test('viewport resize clamps, scrolling keeps fixed coordinates, pointer passes 
   const page = await pageFor(t, { reducedMotion: 'reduce' });
   // Close shell controls while testing pointer hit testing inside the demo.
   await page.locator('#bot-tools-close').click();
-  await (await apiDemoFrame(page)).evaluate(async () => { const bot = document.getElementById('bot'); await bot.moveTo({ x: 10000, y: 10000 }); });
+  // Closing the editor resumes automatic demo following. This case isolates
+  // the library's fixed-position/pointer contract, so explicitly own movement
+  // through the demo's public manual-override lifecycle before issuing commands.
+  await (await apiDemoFrame(page)).evaluate(async () => { const api=await window.sidekickDemoReady;api.pauseScenarios(true);await api.bot.moveTo({ x: 10000, y: 10000 }); });
   await page.setViewportSize({ width: 390, height: 700 });
   await (await apiDemoFrame(page)).waitForFunction(() => {
     const bot = document.getElementById('bot');
@@ -66,12 +69,13 @@ test('viewport resize clamps, scrolling keeps fixed coordinates, pointer passes 
     const restoredTarget = document.elementFromPoint(point.x, point.y);
     return { clamped, max, viewport, scrollY, rect: { x: rect.x, y: rect.y }, passThrough: !!target && target !== bot,
       boxTarget: interactiveTarget === bot, restoredPassThrough: restoredTarget === target,
-      nonePointerEvents, boxPointerEvents, width: bot.offsetWidth };
+      nonePointerEvents, boxPointerEvents, width: bot.offsetWidth, anchored:bot.elementAnchor!==null };
   });
   assert.deepEqual(result.clamped, result.max);
   assert.ok(result.viewport.width < 390 && result.viewport.height < 700, 'Bounds must come from the child viewport, not the shell');
   assert.ok(result.max.x > 0 && result.max.y >= 240, 'The resized demo must still fit the test avatar and hit-test point');
   assert.ok(result.scrollY > 0, 'The fixed-position assertion must include actual document scrolling');
+  assert.equal(result.anchored,false,'manual movement isolation must not own a scenario anchor');
   assert.deepEqual(result.rect, { x: 10, y: 240 });
   assert.equal(result.passThrough, true); assert.equal(result.boxTarget, true); assert.equal(result.restoredPassThrough, true);
   assert.equal(result.nonePointerEvents, 'none'); assert.equal(result.boxPointerEvents, 'auto'); assert.equal(result.width, 115);
