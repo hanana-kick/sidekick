@@ -1,4 +1,5 @@
 import { companyGeometry, measureCompanySpeech, planCompanyPresentation, actualCompanyClear, clearEnvelope, speechBox, planCompanyRest, inside, overlaps } from './company-presentation.js';
+import { createCompanionFollow } from './demo-companion-follow.js';
 import { createScrollIntent } from './demo-scroll-intent.js';
 import { installIntentCues } from './demo-intent.js';
 import { emitSourceEvent } from './example-source-event.js';
@@ -43,16 +44,18 @@ export function captureDemoEngagement(root,win=root.ownerDocument.defaultView){
 export function installDemoScenarios({bot,root,site,locale='en',adapter,initialEngaged=false,window:win=root.ownerDocument.defaultView}){
  const doc=root.ownerDocument,t=scenarioCopy[locale]||scenarioCopy.en,seen=new Set(),visible=new Set();
  const cues=installIntentCues({root,site,locale});
+ const companion=createCompanionFollow({bot,doc,win});
  let disposed=false,paused=false,engaged=initialEngaged,busy=false,epoch=0,active=null,activeEntry=null,resting=false,speechNode=null,pending=null,cooldown=0,arrivalTimer=0,mentionTimer=0,releaseTimer=0,pendingTimer=0;
- let companyRest=null,deliveredAt=0,shopPresented=false,shopPresence=null;const interrupted=new Set();
+ let companyRest=null,deliveredAt=0,shopPresented=false;const interrupted=new Set();
  let activeCompanyPlan=null,companyDeliveredAt=0,companySettling=false,companySettleTimer=0;const companyRetried=new Set();
  const removers=[],timers=new Set();
+ let scrollFrame=0,scrollDelta=0;let scrollSources=new WeakMap();scrollSources.set(win,{x:win.scrollX,y:win.scrollY});
  const later=(fn,ms)=>{const id=win.setTimeout(()=>{timers.delete(id);fn();},ms);timers.add(id);return id;};
  const cancelTimer=id=>{win.clearTimeout(id);timers.delete(id);};
  const listen=(target,event,fn,options)=>{target.addEventListener(event,fn,options);removers.push(()=>target.removeEventListener(event,fn,options));};
  const companyTarget=id=>{const section=root.querySelector('#'+id);const selector={'nova-design':'img,h2','nova-sound':'.nova-mode-tabs','nova-compare':'.nova-heading h2','nova-configure':'.nova-config-image,.nova-finishes>div'}[id];return section?.querySelector(selector)||section;};
  const modalOpen=()=>Boolean(root.querySelector('dialog[open]'));
- const available=()=>!disposed&&!paused&&doc.visibilityState!=='hidden'&&bot.isConnected&&(site!=='shop'||shopPresence||bot.presence?.visible!==false);
+ const available=()=>!disposed&&!paused&&doc.visibilityState!=='hidden'&&bot.isConnected&&bot.presence?.visible!==false;
  // Fresh clipping prevents stale observer membership from reviving content in
  // an overflow scroller. Reads occur only for real scenario/geometry events.
  function clippingBox(el){
@@ -74,42 +77,27 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
   return {...geometry,visuals};
  }
 
- const clear=()=>{cues.reset();companySettling=false;cancelTimer(companySettleTimer);const wasActive=busy||active||resting;epoch++;busy=false;pending=null;active=null;activeEntry=null;companyRest=null;activeCompanyPlan=null;companyDeliveredAt=0;deliveredAt=0;resting=false;speechNode=null;cooldown=0;bot.clearSpeech?.();if(wasActive){bot.cancelMove();bot.detachAnchor();}cancelTimer(releaseTimer);cancelTimer(pendingTimer);};
+ const clear=(preserveMotion=false)=>{if(!preserveMotion){if(scrollFrame)win.cancelAnimationFrame(scrollFrame);scrollFrame=0;scrollDelta=0;scrollSources=new WeakMap();scrollSources.set(win,{x:win.scrollX,y:win.scrollY});}cues.reset();companySettling=false;cancelTimer(companySettleTimer);const wasActive=busy||active||resting||companion.active;epoch++;busy=false;pending=null;active=null;activeEntry=null;companyRest=null;activeCompanyPlan=null;companyDeliveredAt=0;deliveredAt=0;resting=false;speechNode=null;cooldown=0;bot.clearSpeech?.();if(!preserveMotion){companion.release();if(wasActive){bot.cancelMove();bot.detachAnchor();}}cancelTimer(releaseTimer);cancelTimer(pendingTimer);};
  const scrollIntent=createScrollIntent({now:()=>win.performance.now(),setTimer:later,clearTimer:cancelTimer,onFast(){
   if(!available())return;
   const retries=site==='company'?companyRetried:interrupted;
   if(activeEntry&&deliveredAt&&Date.now()-deliveredAt<1500&&!retries.has(activeEntry.key)){seen.delete(activeEntry.key);retries.add(activeEntry.key);}
   const notice=site==='community'?(pending||(!seen.has(activeEntry?.key)?activeEntry:null)):null;
-  clear();pending=notice;
- },onSettle(){if(!available())return;companySettling=false;cancelTimer(companySettleTimer);if(site==='community'){const next=pending;pending=null;if(next)void present(next);if(!active)returnHome();}else{pending=null;cancelTimer(pendingTimer);consider();}}});
+  clear(true);pending=notice;
+ },onSettle(){if(!available())return;companion.settle();companySettling=false;cancelTimer(companySettleTimer);if(site==='community'){const next=pending;pending=null;if(next)void present(next);if(!active)returnHome();}else{pending=null;cancelTimer(pendingTimer);consider();}}});
  scrollIntent.prime(win,win.scrollX,win.scrollY);
  function sampleScroll(event){const target=event.target;const source=target&&target!==doc&&target!==win&&target!==doc.documentElement&&target!==doc.body?target:win;scrollIntent.sample(source,source===win?win.scrollX:source.scrollLeft||0,source===win?win.scrollY:source.scrollTop||0,win.innerHeight);}
  // Company validates once in companyGeometryChanged(), including its rest state.
  function invalidateScrolledTarget(){if(!active||site==='company')return;if(!inView(active)||(site==='shop'&&!currentEntry(activeEntry)))clear();}
  function returnHome(){
   const home=site==='community'&&root.querySelector('#th-companion-home');
-  if(!home||!available()||scrollIntent.blocked()||modalOpen()||busy||pending||resting)return;
+  if(!home||companion.active||!available()||scrollIntent.blocked()||modalOpen()||busy||pending||resting)return;
   resting=true;
   void bot.moveToElement(home,{alignX:'left',alignY:'top',anchor:true,duration:win.matchMedia('(prefers-reduced-motion: reduce)').matches?0:550,travel:'none'}).catch(()=>{});
  }
- // A stopped companion over a different product implies a false recommendation.
- // Fade in place only after settlement; keep the hide latched through tiny tails.
- function parkShop(){
-  if(site!=='shop'||!shopPresented||shopPresence||!available()||scrollIntent.blocked()||modalOpen()||busy||active||pending||bot.presence?.visible===false)return;
-  shopPresence={previous:bot.presence??null};bot.presence={visible:false};
- }
- function releaseShopPresence(reveal=false){
-  if(!shopPresence)return false;
-  const owned=shopPresence;shopPresence=null;
-  if(bot.presence?.visible!==false)return false; // An outside owner already changed it.
-  bot.presence=owned.previous;
-  // Clearing a declaration alone does not reveal the existing hidden renderer.
-  // Manual control gets its original, unmoved position back before taking over.
-  if(reveal&&bot.isConnected)void bot.moveTo(bot.position,{duration:0,travel:'none'}).catch(()=>{});
-  return true;
- }
+ function parkShop(){if(site==='shop'&&available()&&!modalOpen()&&!busy&&!active&&!pending)companion.follow();}
  function finishPresentation(){
-  cancelTimer(releaseTimer);cues.reset();bot.clearSpeech();bot.detachAnchor();active=null;activeEntry=null;speechNode=null;cooldown=0;
+  cancelTimer(releaseTimer);cues.reset();bot.clearSpeech();companion.release();bot.detachAnchor();active=null;activeEntry=null;speechNode=null;cooldown=0;
   const next=pending;pending=null;cancelTimer(pendingTimer);
   const valid=next&&currentEntry(next);
   if(valid&&!seen.has(valid.key)&&inView(valid.target))void present(valid);else returnHome();
@@ -140,15 +128,12 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
   if(!entry.quiet)cues.begin(entry);
   const company=site==='company'?companyPlan(entry):null;
   if(site==='company'&&!company){cues.reset();return;} // Retry only on later real geometry/engagement events.
-  busy=true;resting=false;companyRest=null;active=entry.target;activeEntry=entry;activeCompanyPlan=company;const token=++epoch;
+  companion.release();busy=true;resting=false;companyRest=null;active=entry.target;activeEntry=entry;activeCompanyPlan=company;const token=++epoch;
   try{
    // @source-start present
-   // A false declaration may still be fading. Only an actually hidden
-   // renderer can relocate atomically without a visible discontinuity.
-   const hiddenRestore=Boolean(shopPresence&&bot.presence?.visible===false&&bot.presenceState==='hidden');
-   const anchor=entry.anchor||entry.target;releaseShopPresence();
+   const anchor=entry.anchor||entry.target;
    if(site==='shop')shopPresented=true;
-   const result=await bot.moveToElement(anchor,{...(company?.offset||scenarioPlacement(site,anchor.getBoundingClientRect(),bot.offsetWidth||115,bot.offsetHeight||115,win.innerWidth,win.innerHeight)),anchor:true,duration:hiddenRestore||win.matchMedia('(prefers-reduced-motion: reduce)').matches?0:550,travel:'none'});
+   const result=await bot.moveToElement(anchor,{...(company?.offset||scenarioPlacement(site,anchor.getBoundingClientRect(),bot.offsetWidth||115,bot.offsetHeight||115,win.innerWidth,win.innerHeight)),anchor:true,duration:win.matchMedia('(prefers-reduced-motion: reduce)').matches?0:550,travel:'natural',maxSpeed:700,acceleration:1800,deceleration:2200});
    if(token!==epoch)return;
    if(result?.finished===false){abandon();return;}
    if(scrollIntent.fast()){abandon();return;}
@@ -178,7 +163,7 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
   finally{if(token===epoch){busy=false;if(pending){cancelTimer(pendingTimer);pendingTimer=later(()=>{const next=pending;pending=null;if(next)void present(next);},Math.max(0,cooldown-Date.now()));}}}
  }
  function parkCompany(){
-  if(site!=='company'||!available()||scrollIntent.blocked()||busy||active||modalOpen())return;
+  if(site!=='company'||companion.active||!available()||scrollIntent.blocked()||busy||active||modalOpen())return;
   for(const id of ['nova-design','nova-sound','nova-compare','nova-configure']){
    const target=companyTarget(id);if(!target)continue;
    const geometry=geometryFor(target),actual=bot.getBoundingClientRect();
@@ -282,9 +267,23 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
   companySettleTimer=later(()=>{companySettling=false;consider();},180);
  }
  // Capture nested scrolling too; iframe documents own their own local scheduler.
- listen(win,'scroll',event=>{if(!available())return;engaged=true;sampleScroll(event);invalidateScrolledTarget();if(site==='company')companyGeometryChanged();queueArrival();},{passive:true,capture:true});
- listen(win,'resize',()=>{if(!available())return;scrollIntent.prime(win,win.scrollX,win.scrollY);scrollIntent.geometry();invalidateScrolledTarget();if(site==='company')companyGeometryChanged();},{passive:true});
- if(win.visualViewport)for(const event of ['resize','scroll'])listen(win.visualViewport,event,()=>{if(!available())return;scrollIntent.geometry();invalidateScrolledTarget();if(site==='company')companyGeometryChanged();},{passive:true});
+ listen(win,'scroll',event=>{
+  if(!available()||modalOpen())return;
+  if(event.target!==win&&event.target!==doc&&!root.contains(event.target))return;
+  const target=event.target,source=target&&target!==doc&&target!==win&&target!==doc.documentElement&&target!==doc.body?target:win;
+  const x=source===win?win.scrollX:source.scrollLeft||0,y=source===win?win.scrollY:source.scrollTop||0,old=scrollSources.get(source);
+  scrollSources.set(source,{x,y});if(old)scrollDelta+=y-old.y;
+  sampleScroll(event);engaged=true;
+  if(scrollFrame)return;
+  scrollFrame=win.requestAnimationFrame(()=>{scrollFrame=0;if(!available()||modalOpen())return;
+   if(!scrollIntent.blocked()&&!companion.active){scrollDelta=0;return;}
+   // Speech ownership ends, motion ownership transfers without braking/reset.
+   if(!companion.active){const notice=site==='community'?pending:null;clear(true);pending=notice;}
+   companion.follow(scrollDelta);scrollDelta=0;queueArrival();
+  });
+ },{passive:true,capture:true});
+ listen(win,'resize',()=>{if(!available())return;if(companion.active)companion.follow();scrollIntent.prime(win,win.scrollX,win.scrollY);scrollIntent.geometry();invalidateScrolledTarget();if(site==='company')companyGeometryChanged();},{passive:true});
+ if(win.visualViewport)for(const event of ['resize','scroll'])listen(win.visualViewport,event,()=>{if(!available())return;if(companion.active)companion.follow();scrollIntent.geometry();invalidateScrolledTarget();if(site==='company')companyGeometryChanged();},{passive:true});
  if(site==='community'){cues.refreshCommunity();for(const event of ['input','keydown'])listen(root,event,()=>cues.refreshCommunity());}
  listen(root,'click',()=>{cues.refreshCommunity();engaged=true;if(site==='shop')later(consider,0);else if(site==='company')later(()=>{validateCompany();consider();},0);});
  // @source-start community-notice
@@ -295,5 +294,5 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
  if(initialEngaged)queueArrival();
  returnHome();
  if(initialEngaged)scrollIntent.geometry();
- return {setPaused(value){paused=value;scrollIntent.reset();scrollIntent.prime(win,win.scrollX,win.scrollY);if(value){clear();releaseShopPresence(true);}else{consider();if(!active)returnHome();}},dispose(){if(disposed)return;disposed=true;scrollIntent.dispose();clear();releaseShopPresence(true);cues.dispose();for(const id of timers)win.clearTimeout(id);timers.clear();observer?.disconnect();mutation?.disconnect();modalObserver?.disconnect();speechObserver?.disconnect();removers.forEach(fn=>fn());}};
+ return {setPaused(value){paused=value;scrollIntent.reset();scrollIntent.prime(win,win.scrollX,win.scrollY);if(value){clear();}else{consider();if(!active)returnHome();}},dispose(){if(disposed)return;disposed=true;if(scrollFrame)win.cancelAnimationFrame(scrollFrame);scrollIntent.dispose();clear();companion.dispose();cues.dispose();for(const id of timers)win.clearTimeout(id);timers.clear();observer?.disconnect();mutation?.disconnect();modalObserver?.disconnect();speechObserver?.disconnect();removers.forEach(fn=>fn());}};
 }

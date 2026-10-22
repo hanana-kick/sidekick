@@ -7,7 +7,7 @@ import { mountExampleSource, sourceScrollTop } from '../playground/example-sourc
 import { emitSourceEvent } from '../playground/example-source-event.js';
 const read = path => readFile(new URL('../'+path, import.meta.url),'utf8');
 async function actualFiles(site) {
- return Promise.all(['api-demo.html',`playground/demos/${site}.js`,`playground/demos/${site}.css`,'playground/demo-scenarios.js','playground/demo-intent.js','playground/demo-scroll-intent.js','playground/company-presentation.js','playground/api-demo.js','playground/api-demo.css'].map(async path=>{const text=await read(path);return {path,text,ranges:sourceRanges(text)};}));
+ return Promise.all(['api-demo.html',`playground/demos/${site}.js`,`playground/demos/${site}.css`,'playground/demo-scenarios.js','playground/demo-intent.js','playground/demo-scroll-intent.js','playground/demo-companion-follow.js','playground/company-presentation.js','playground/api-demo.js','playground/api-demo.css'].map(async path=>{const text=await read(path);return {path,text,ranges:sourceRanges(text)};}));
 }
 const module = { loadExampleSource: actualFiles, eventRanges };
 const tick = () => new Promise(resolve=>setTimeout(resolve,15));
