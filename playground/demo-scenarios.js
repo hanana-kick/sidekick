@@ -86,11 +86,11 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
  function sampleScroll(event){const target=event.target;const source=target&&target!==doc&&target!==win&&target!==doc.documentElement&&target!==doc.body?target:win;scrollIntent.sample(source,source===win?win.scrollX:source.scrollLeft||0,source===win?win.scrollY:source.scrollTop||0,win.innerHeight);}
  // Company validates once in companyGeometryChanged(), including its rest state.
  function invalidateScrolledTarget(){if(!active||site==='company')return;if(!inView(active)||(site==='shop'&&!currentEntry(activeEntry)))clear();}
- function returnHome(duration=0){
+ function returnHome(){
   const home=site==='community'&&root.querySelector('#th-companion-home');
   if(!home||!available()||scrollIntent.blocked()||modalOpen()||busy||pending||resting)return;
   resting=true;
-  void bot.moveToElement(home,{alignX:'left',alignY:'top',anchor:true,duration:win.matchMedia('(prefers-reduced-motion: reduce)').matches?0:duration,travel:'none'}).catch(()=>{});
+  void bot.moveToElement(home,{alignX:'left',alignY:'top',anchor:true,duration:win.matchMedia('(prefers-reduced-motion: reduce)').matches?0:550,travel:'none'}).catch(()=>{});
  }
  // A stopped companion over a different product implies a false recommendation.
  // Fade in place only after settlement; keep the hide latched through tiny tails.
@@ -143,9 +143,12 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
   busy=true;resting=false;companyRest=null;active=entry.target;activeEntry=entry;activeCompanyPlan=company;const token=++epoch;
   try{
    // @source-start present
-   const anchor=entry.anchor||entry.target,restored=releaseShopPresence();
+   // A false declaration may still be fading. Only an actually hidden
+   // renderer can relocate atomically without a visible discontinuity.
+   const hiddenRestore=Boolean(shopPresence&&bot.presence?.visible===false&&bot.presenceState==='hidden');
+   const anchor=entry.anchor||entry.target;releaseShopPresence();
    if(site==='shop')shopPresented=true;
-   const result=await bot.moveToElement(anchor,{...(company?.offset||scenarioPlacement(site,anchor.getBoundingClientRect(),bot.offsetWidth||115,bot.offsetHeight||115,win.innerWidth,win.innerHeight)),anchor:true,duration:restored||entry.quiet||win.matchMedia('(prefers-reduced-motion: reduce)').matches?0:550,travel:'none'});
+   const result=await bot.moveToElement(anchor,{...(company?.offset||scenarioPlacement(site,anchor.getBoundingClientRect(),bot.offsetWidth||115,bot.offsetHeight||115,win.innerWidth,win.innerHeight)),anchor:true,duration:hiddenRestore||win.matchMedia('(prefers-reduced-motion: reduce)').matches?0:550,travel:'none'});
    if(token!==epoch)return;
    if(result?.finished===false){abandon();return;}
    if(scrollIntent.fast()){abandon();return;}
@@ -185,7 +188,7 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
    if(companyRest?.target===target&&Math.abs(companyRest.x-offset.x)<1&&Math.abs(companyRest.y-offset.y)<1)return;
    const attempt={target,...offset},token=epoch;companyRest=attempt;resting=true;
    const releaseOwnedRest=()=>{if(token!==epoch||companyRest!==attempt)return;companyRest=null;resting=false;bot.detachAnchor();};
-   let motion;try{motion=bot.moveToElement(target,{...offset,anchor:true,duration:0,travel:'none'});}catch{releaseOwnedRest();return;}
+   let motion;try{motion=bot.moveToElement(target,{...offset,anchor:true,duration:win.matchMedia('(prefers-reduced-motion: reduce)').matches?0:550,travel:'none'});}catch{releaseOwnedRest();return;}
    void Promise.resolve(motion).then(result=>{
     if(token!==epoch||companyRest!==attempt)return;
     const latest=geometryFor(target),actual=bot.getBoundingClientRect();
@@ -288,9 +291,9 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
  listen(root,'sidekick-demo-arrival',event=>{if(!available())return;const target=root.querySelector('[data-nav="notifications"]')||root.querySelector('.th-feed-header');void present({key:'arrival-'+event.detail.id,sourceId:event.detail.kind==='mention'?'community-mention-present':'community-post-present',target:inView(target)?target:root.querySelector('.th-feed-header'),intent:event.detail.kind==='mention'?cues.copy.mention:cues.copy.post,text:event.detail.kind==='mention'?t.mention:t.post});});
  // @source-end community-notice
  listen(root,'sidekick-demo-published',()=>{if(mentionTimer||seen.has('mention'))return;mentionTimer=later(()=>{mentionTimer=0;if(available()){adapter?.simulateArrival?.('mention');seen.add('mention');}},1400);});
- listen(doc,'visibilitychange',()=>{if(doc.visibilityState==='hidden'){scrollIntent.reset();clear();for(const id of timers)win.clearTimeout(id);timers.clear();arrivalTimer=mentionTimer=0;}else if(available()){scrollIntent.prime(win,win.scrollX,win.scrollY);consider();if(!active)returnHome(0);}});
+ listen(doc,'visibilitychange',()=>{if(doc.visibilityState==='hidden'){scrollIntent.reset();clear();for(const id of timers)win.clearTimeout(id);timers.clear();arrivalTimer=mentionTimer=0;}else if(available()){scrollIntent.prime(win,win.scrollX,win.scrollY);consider();if(!active)returnHome();}});
  if(initialEngaged)queueArrival();
- returnHome(0);
+ returnHome();
  if(initialEngaged)scrollIntent.geometry();
- return {setPaused(value){paused=value;scrollIntent.reset();scrollIntent.prime(win,win.scrollX,win.scrollY);if(value){clear();releaseShopPresence(true);}else{consider();if(!active)returnHome(0);}},dispose(){if(disposed)return;disposed=true;scrollIntent.dispose();clear();releaseShopPresence(true);cues.dispose();for(const id of timers)win.clearTimeout(id);timers.clear();observer?.disconnect();mutation?.disconnect();modalObserver?.disconnect();speechObserver?.disconnect();removers.forEach(fn=>fn());}};
+ return {setPaused(value){paused=value;scrollIntent.reset();scrollIntent.prime(win,win.scrollX,win.scrollY);if(value){clear();releaseShopPresence(true);}else{consider();if(!active)returnHome();}},dispose(){if(disposed)return;disposed=true;scrollIntent.dispose();clear();releaseShopPresence(true);cues.dispose();for(const id of timers)win.clearTimeout(id);timers.clear();observer?.disconnect();mutation?.disconnect();modalObserver?.disconnect();speechObserver?.disconnect();removers.forEach(fn=>fn());}};
 }

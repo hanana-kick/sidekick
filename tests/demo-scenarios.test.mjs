@@ -279,6 +279,7 @@ test('a genuinely constrained story parks the companion on a clear visible visua
  });
  x.observe(x.root.querySelector('h2'));x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
  assert.equal(x.calls.filter(c=>c[0]==='say').length,0);assert.deepEqual(x.sourceEvents,[]);assert.equal(x.calls.filter(c=>c[0]==='move').length,1);
+ assert.equal(x.calls.filter(c=>c[0]==='move')[0][2].duration,0,'reduced-motion safety parking stays immediate');
  const rest=x.bot.getBoundingClientRect();assert.ok(rest.top>=8&&rest.bottom<=137,'parked host stays above the heading, not at an old story position');
  x.api.setPaused(true);const moves=x.calls.filter(c=>c[0]==='move').length;x.w.dispatchEvent(new x.w.Event('resize'));await flush();assert.equal(x.calls.filter(c=>c[0]==='move').length,moves);
 });
@@ -460,7 +461,7 @@ test('shop settles away from an active offer into one owned hide and returns sil
  const x=restingShop(t);x.w.matchMedia=()=>({matches:false});x.clock.scroll(0);x.clock.advance(180);await flush();assert.equal(x.calls.find(c=>c[0]==='move')[2].duration,550);assert.equal(x.sourceEvents.length,1);x.clock.advance(2000);
  x.visible(false);x.clock.scroll(500);assert.equal(x.bot.presence,null,'stop in place throughout the flick');x.clock.advance(179);assert.equal(x.bot.presence,null);x.clock.advance(1);await flush();assert.deepEqual(x.bot.presence,{visible:false});
  for(let i=1;i<=24;i++)x.clock.scroll(500+i);await flush();assert.equal(x.calls.filter(c=>c[0]==='presence'&&c[1]?.visible===false).length,1,'tiny tails do not restart the fade');
- x.visible(true);x.clock.scroll(0);x.clock.advance(180);await flush();assert.equal(x.bot.presence,null);assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[2].duration,0);assert.equal(x.calls.filter(c=>c[0]==='say').length,1,'known comparison does not narrate again');assert.equal(x.sourceEvents.length,1,'quiet reattachment is not a new narrated source action');assert.equal(x.root.querySelector('[data-demo-target]'),null);
+ x.bot.presenceState='hidden';x.visible(true);x.clock.scroll(0);x.clock.advance(180);await flush();assert.equal(x.bot.presence,null);assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[2].duration,0);assert.equal(x.calls.filter(c=>c[0]==='say').length,1,'known comparison does not narrate again');assert.equal(x.sourceEvents.length,1,'quiet reattachment is not a new narrated source action');assert.equal(x.root.querySelector('[data-demo-target]'),null);
  x.visible(false);x.clock.scroll(500);x.clock.advance(180);await flush();assert.equal(x.calls.filter(c=>c[0]==='presence'&&c[1]?.visible===false).length,2,'a later distinct departure can hide again');
 });
 for(const action of ['pause','dispose'])test(`shop ${action} synchronously restores only its own hide before manual control`,async t=>{
@@ -480,7 +481,7 @@ test('shop handoff preserves an outside presence change instead of restoring sta
 
 test('shop restores at a new useful offer without flying through unrelated products',async t=>{
  const x=restingShop(t);x.w.matchMedia=()=>({matches:false});x.clock.scroll(0);x.clock.advance(180);await flush();x.visible(false);x.clock.scroll(500);x.clock.advance(180);await flush();
- const card=x.w.document.createElement('article');card.className='muse-product';card.dataset.product='3';card.getBoundingClientRect=()=>movingRect(100,50,200,300);x.root.querySelector('#muse-product-grid').append(card);
+ x.bot.presenceState='hidden';const card=x.w.document.createElement('article');card.className='muse-product';card.dataset.product='3';card.getBoundingClientRect=()=>movingRect(100,50,200,300);x.root.querySelector('#muse-product-grid').append(card);
  x.clock.scroll(1000);x.clock.advance(180);await flush();assert.equal(x.bot.presence,null);assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[1],card);assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[2].duration,0);assert.equal(x.calls.filter(c=>c[0]==='say').length,2);assert.match(x.calls.filter(c=>c[0]==='say').at(-1)[1],/\$10/);assert.equal(x.sourceEvents.length,2);
 });
 
@@ -521,4 +522,43 @@ test('authored narrow Compare images leave room for the complete safe presentati
   assert.ok(plan,`Responsive product visual supports speech at ${width}px child width`);
   assert.ok(clearEnvelope(plan.host,plan.bubble,viewport,actual.protectedRects),'Text and control collision margins remain intact');
  }
+});
+
+// A quiet semantic action is not an invisible renderer. Movement continuity is
+// required independently of whether speech or a new source cue is appropriate.
+test('a still-visible known shop offer returns smoothly without repeating speech',async t=>{
+ const x=restingShop(t);x.w.matchMedia=()=>({matches:false});x.bot.presenceState='visible';
+ x.clock.scroll(0);x.clock.advance(180);await flush();x.clock.advance(2000);
+ x.clock.scroll(500);x.clock.advance(180);await flush();
+ assert.equal(x.bot.presence,null,'valid offer never needed hiding');
+ assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[2].duration,550);
+ assert.equal(x.calls.filter(c=>c[0]==='say').length,1);
+});
+test('returning during a shop fade cannot use hidden relocation',async t=>{
+ const x=restingShop(t);x.w.matchMedia=()=>({matches:false});x.bot.presenceState='visible';
+ x.clock.scroll(0);x.clock.advance(180);await flush();x.clock.advance(2000);
+ x.visible(false);x.clock.scroll(500);x.clock.advance(180);await flush();
+ assert.deepEqual(x.bot.presence,{visible:false},'declaration begins a fade, not proof of invisibility');
+ x.visible(true);x.clock.scroll(0);x.clock.advance(180);await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[2].duration,550);
+ assert.equal(x.calls.filter(c=>c[0]==='say').length,1);
+});
+test('normal-motion community home remains a smooth quiet return after rapid scroll',async t=>{
+ let clock;const x=setup(t,'community','<button data-nav="notifications"></button><header class="th-feed-header"></header><aside id="th-companion-home"></aside>',{},(root,w)=>{clock=controlledClock(t,w);w.matchMedia=()=>({matches:false});});
+ await flush();assert.equal(x.calls.filter(c=>c[0]==='move')[0][2].duration,550);
+ clock.scroll(500);clock.advance(180);await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='move').at(-1)[2].duration,550);
+ assert.equal(x.calls.filter(c=>c[0]==='say').length,0);
+});
+test('normal-motion company safety parking does not teleport',async t=>{
+ const x=setup(t,'company','<div class="nova-site"><section class="nova-macro" id="nova-design"><img><h2>Title</h2><p>Prose</p></section></div>',{},(root,w)=>{
+  w.matchMedia=()=>({matches:false});Object.defineProperty(w,'innerWidth',{value:464});Object.defineProperty(w,'innerHeight',{value:428});
+  root.querySelector('img').getBoundingClientRect=()=>movingRect(0,0,464,428);
+  root.querySelector('h2').getBoundingClientRect=()=>movingRect(24,145,401,130);
+  root.querySelector('p').getBoundingClientRect=()=>movingRect(24,338,401,37);return false;
+ });
+ x.w.dispatchEvent(new x.w.Event('scroll'));await flush();
+ assert.equal(x.calls.filter(c=>c[0]==='move').length,1);
+ assert.equal(x.calls.filter(c=>c[0]==='move')[0][2].duration,550);
+ assert.equal(x.calls.filter(c=>c[0]==='say').length,0);
 });
