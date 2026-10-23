@@ -1764,3 +1764,7 @@ Runtime eager/lazy asset registration, attachment-local meshes and shared WebGL/
 ### 플러그인 SDK
 
 액세서리 제작 도구는 `@hanana-kick/sidekick/plugin-sdk`에서 가져옵니다. 릴리스의 별도 `sidekick-plugin-sdk-0.18.0.zip`은 ESM/CommonJS/TypeScript를 지원하는 설치 가능한 제작 패키지입니다. [SDK 설치·검증·빌드 가이드](docs/plugin-sdk.md)에서 실제 외부 플러그인 예제를 확인하세요.
+
+## 스크롤 영역에서 자연스럽게 대기
+
+`createScrollRegions`로 활성 영역(`region`), 반응할 요소(`target`), 대기 위치(`waitAt`)를 분리합니다. 같은 영역에서는 안정적으로 머무르고, 필요한 경우 요소의 현재 위치를 따라갑니다. 수동 이동·숨김 이후에는 명시적으로 재개합니다. [API와 예제](docs/scroll-regions.md).

@@ -3,3 +3,4 @@ export * from './core.js';
 export { SidekickAvatar, defineSidekick } from './element/avatar.js';
 export * from './element/attributes.js';
 export { validateEntrance } from './element/entrance.js';
+export { createScrollRegions } from "./element/scroll-regions.js";

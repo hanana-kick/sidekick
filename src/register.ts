@@ -20,3 +20,6 @@ export { validateEntrance } from './element/entrance.js';
 export type { SpeechOptions } from './element/speech.js';
 
 export type { PluginAccessoryOptions, PluginAccessoryReference, PluginEquipResult } from './element/plugin-equipment.js';
+
+export { createScrollRegions } from "./element/scroll-regions.js";
+export type { ScrollRegion, ActiveScrollRegion, ScrollRegionsOptions, ScrollRegionsController } from "./element/scroll-regions.js";

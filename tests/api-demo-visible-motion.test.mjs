@@ -98,10 +98,10 @@ async function scrollWithReversal(page,frames=90){
  },frames);
 }
 
-function assertFollowingTrace(trace,site){
- const following=trace.calls.filter(call=>call.target==='[data-companion-follow]');
+function assertFollowingTrace(trace,site,{transition=false}={}){
+ const following=trace.calls.filter(call=>call.target==='[data-sidekick-scroll-regions]');
  const scrolling=trace.rows.filter(row=>row.stage==='scroll-down'||row.stage==='scroll-up');
- const owned=scrolling.filter(row=>row.anchor?.target==='[data-companion-follow]');
+ const owned=scrolling.filter(row=>row.anchor?.target==='[data-sidekick-scroll-regions]');
  const debug=()=>JSON.stringify({site,calls:trace.calls,marks:trace.marks,frames:trace.rows.slice(-12)});
  const speedLimit=Math.max(700,...following.map(call=>call.beforeMovement?.speed||0));
  const accelerationLimit=Math.max(2200,...following.map(call=>Math.hypot(call.beforeMovement?.acceleration.x||0,call.beforeMovement?.acceleration.y||0)));
@@ -113,11 +113,18 @@ function assertFollowingTrace(trace,site){
  assert.ok(following.length<=1+longGaps,`scroll samples must not restart movement: ${debug()}`);
  for(const call of following){
   assert.equal(call.travel,'natural');
-  assert.ok(call.duration>0,'normal motion must not snap');
+  assert.notEqual(call.duration,0,'normal motion must not explicitly snap');
   assert.ok(call.visible&&call.opacity>.98,`no hide-before-relocate shortcut: ${debug()}`);
   assert.ok(call.synchronousStep<2&&call.synchronousHostStep<2,`no synchronous public/host teleport: ${debug()}`);
  }
  assert.ok(owned.length>=40,`the live anchor must remain owned throughout scrolling: ${debug()}`);
+ for(const row of scrolling){
+  const v=row.viewport;
+  assert.ok(row.visible&&row.opacity>.98&&row.presenceState!=='hidden'&&row.presenceState!=='exiting',`companion must remain visible even outside owned samples: ${debug()}`);
+  assert.ok(row.host.x>=v.left-1&&row.host.y>=v.top-1&&row.host.right<=v.left+v.width+1&&row.host.bottom<=v.top+v.height+1,`all scrolling samples must remain inside the viewport: ${debug()}`);
+ }
+ const firstOwned=scrolling.findIndex(row=>row.anchor?.target==='[data-sidekick-scroll-regions]');
+ if(transition||!longGaps)assert.ok(scrolling.slice(firstOwned).every(row=>row.anchor?.target==='[data-sidekick-scroll-regions]'),`uninterrupted scrolling must not lose region ownership: ${debug()}`);
  for(const row of owned){
   assert.ok(row.visible&&row.opacity>.98,`companion vanished or faded while scrolling: ${debug()}`);
   assert.notEqual(row.presenceState,'hidden');
@@ -137,13 +144,20 @@ function assertFollowingTrace(trace,site){
   assert.ok(Math.hypot(owned[i].x-owned[j].x,owned[i].y-owned[j].y)<=allowance,`time-normalized public-coordinate jump: ${debug()}`);
   assert.ok(Math.hypot(owned[i].host.x-owned[j].host.x,owned[i].host.y-owned[j].host.y)<=allowance,`time-normalized rendered-host jump: ${debug()}`);
  }
- const moving=owned.filter(row=>Math.abs(row.scrollDelta)>2&&row.movement.speed>5);
- assert.ok(moving.length>=6,`locomotion must occur during scrolling, not only after it stops: ${debug()}`);
- assert.ok(owned.reduce((sum,row)=>sum+(row.hostStep||0),0)>30,'visible host must move a meaningful distance during the gesture');
- const down=owned.filter(row=>row.stage==='scroll-down'),up=owned.filter(row=>row.stage==='scroll-up');
- assert.ok(down.length&&up.length,'both scroll directions must be sampled');
- assert.ok(Math.max(...up.map(row=>row.anchor.y))-Math.min(...down.map(row=>row.anchor.y))>10,'reversal must retarget the trailing position rather than remain frozen');
- assert.ok(up.some(row=>row.movement.velocity.y>5),'the rendered companion must follow the reversed destination before scrolling ends');
+ if(transition){
+  const moving=owned.filter(row=>Math.abs(row.scrollDelta)>2&&row.movement.speed>5);
+  assert.ok(moving.length>=6,`region travel must occur while scrolling: ${debug()}`);
+  assert.ok(owned.reduce((sum,row)=>sum+(row.hostStep||0),0)>30,'visible host travels between distinct region waiting points');
+  const down=owned.filter(row=>row.stage==='scroll-down'),up=owned.filter(row=>row.stage==='scroll-up');
+  assert.ok(down.length&&up.length,'both scroll directions must be sampled');
+  assert.ok(Math.max(...owned.map(row=>row.anchor.y))-Math.min(...owned.map(row=>row.anchor.y))>100,'real region transitions must change the waiting destination');
+  assert.ok(up.some(row=>row.movement.velocity.y < -5),'reversed region transition must produce upward travel before scrolling ends');
+ }else{
+  assert.ok(Math.max(...owned.map(row=>row.anchor.y))-Math.min(...owned.map(row=>row.anchor.y))<2,'same-region waiting destination must remain stable, not trail every scroll delta');
+  const settled=owned.filter(row=>row.movement.phase==='idle'&&row.movement.speed<1&&Math.hypot(row.x-row.anchor.x,row.y-row.anchor.y)<2);
+  assert.ok(settled.length>=10,`same-region companion must actually settle during scrolling: ${debug()}`);
+  assert.ok(Math.max(...settled.map(row=>row.host.y))-Math.min(...settled.map(row=>row.host.y))<3,'rendered host stays at the settled waiting point');
+ }
  for(let i=1;i<owned.length;i++){
   const before=owned[i-1],after=owned[i],seconds=(after.t-before.t)/1000;
   if(seconds<.008||seconds>.1)continue;
@@ -154,13 +168,68 @@ function assertFollowingTrace(trace,site){
  }
 }
 
-for(const site of ['company','shop','community'])for(const viewport of [{width:1100,height:720},{width:390,height:640}])test(`${site} visibly follows sustained ${viewport.width<600?'mobile':'desktop'} scrolling and reverses continuously`,{timeout:45000},async t=>{
+for(const site of ['company','shop','community'])for(const viewport of [{width:1100,height:720},{width:390,height:640}])test(`${site} waits stably inside one ${viewport.width<600?'mobile':'desktop'} scroll region`,{timeout:45000},async t=>{
  const page=await demo(t,site,viewport);
- // The community's initial home approach must finish before measuring the
- // bounded follow profile, otherwise its previous tween has a different speed.
  await page.waitForFunction(()=>document.querySelector('#bot').movementState.phase==='idle');
+ await page.evaluate(async()=>{(await window.sidekickDemoReady).pauseScenarios(true);});
  await page.evaluate(installVisibleMotionTrace);
+ // Keep the real authored region/scenario, but extend its reading surface so
+ // both directions exercise the same region rather than a neighboring scene.
+ await page.evaluate(site=>{
+  const region=document.querySelector(site==='company'?'.nova-hero':site==='shop'?'#products':'#th-feed');
+  region.style.minHeight='6000px';
+  scrollTo({top:region.getBoundingClientRect().top+scrollY+1000,behavior:'instant'});
+ },site);
+ await page.evaluate(async()=>{(await window.sidekickDemoReady).pauseScenarios(false);});
  assertFollowingTrace(await scrollWithReversal(page),site);
+});
+
+for(const viewport of [{width:1100,height:720},{width:390,height:640}])test(`public scroll regions preserve visible physics across ${viewport.width<600?'mobile':'desktop'} transitions and reversal`,{timeout:45000},async t=>{
+ const page=await demo(t,'company',viewport);
+ await page.evaluate(async()=>{
+  const api=await window.sidekickDemoReady;api.pauseScenarios(true);api.bot.clearSpeech();
+  const root=document.querySelector('#demo-content');
+  root.innerHTML='<section id="region-a" style="height:2000px;position:relative"><h2 id="reaction-a">Read A</h2></section><section id="region-b" style="height:2000px;position:relative"><h2 id="reaction-b">Read B</h2></section>';
+  scrollTo({top:root.getBoundingClientRect().top+scrollY+1000,behavior:'instant'});
+  const {createScrollRegions}=await import('/browser/sidekick.js');
+  window.regionChanges=[];
+  window.regionController=createScrollRegions(api.bot,{regions:[
+   {id:'a',region:document.querySelector('#region-a'),target:document.querySelector('#reaction-a'),waitAt:{x:24,y:100}},
+   {id:'b',region:document.querySelector('#region-b'),target:document.querySelector('#reaction-b'),waitAt:{x:24,y:350}},
+  ],hysteresis:48,onChange:active=>window.regionChanges.push(active?.id??null)});
+ });
+ await page.waitForFunction(()=>document.querySelector('#bot').movementState.phase==='idle');
+ // Restart only the test trace, not the controller. Its persistent owned anchor
+ // and bounded motion remain observable even though the command predates trace.
+ await page.evaluate(installVisibleMotionTrace);
+ await page.evaluate(()=>{window.regionController.pause();window.regionController.resume();});
+ const trace=await scrollWithReversal(page,130);
+ assertFollowingTrace(trace,'public-api',{transition:true});
+ assert.deepEqual(await page.evaluate(()=>window.regionChanges.filter(Boolean)),['a','a','b','a']);
+ await page.evaluate(()=>window.regionController.dispose());
+});
+
+test('public region reaction target and live waiting element are independent, and manual movement keeps ownership',{timeout:45000},async t=>{
+ const page=await demo(t,'company');
+ const result=await page.evaluate(async()=>{
+  const api=await window.sidekickDemoReady;api.pauseScenarios(true);
+  const region=document.querySelector('.nova-hero');region.style.minHeight='6000px';scrollTo({top:200,behavior:'instant'});
+  const target=document.createElement('div'),wait=document.createElement('div');target.id='reaction-only';target.style.cssText='position:fixed;left:50px;top:50px;width:20px;height:20px';wait.style.cssText='position:fixed;left:220px;top:180px;width:1px;height:1px';document.body.append(target,wait);
+  const {createScrollRegions}=await import('/browser/sidekick.js');window.liveWait=wait;window.liveTarget=target;
+  window.regionController=createScrollRegions(api.bot,{regions:[{id:'read',region,target,waitAt:{element:wait}}],onChange:active=>window.reactionTarget=active?.target});
+  return window.reactionTarget===target;
+ });
+ assert.equal(result,true);
+ await page.waitForFunction(()=>Math.hypot(document.querySelector('#bot').position.x-220,document.querySelector('#bot').position.y-180)<2);
+ await page.evaluate(()=>{window.liveTarget.style.top='420px';window.regionController.refresh();});
+ await page.waitForTimeout(300);
+ assert.ok(await page.evaluate(()=>Math.hypot(document.querySelector('#bot').position.x-220,document.querySelector('#bot').position.y-180)<2),'moving a reaction target must not move the waiting destination');
+ await page.evaluate(()=>{window.liveWait.style.top='280px';window.regionController.refresh();});
+ await page.waitForFunction(()=>Math.abs(document.querySelector('#bot').position.y-280)<2);
+ await page.evaluate(async()=>{const api=await window.sidekickDemoReady;await api.bot.moveTo({x:80,y:120},{duration:0,travel:'none'});window.regionController.refresh();scrollBy({top:400,behavior:'instant'});});
+ await page.waitForTimeout(300);
+ assert.deepEqual(await page.evaluate(()=>({paused:window.regionController.paused,position:document.querySelector('#bot').position,anchor:document.querySelector('#bot').elementAnchor})),{paused:true,position:{x:80,y:120},anchor:null});
+ await page.evaluate(()=>window.regionController.dispose());
 });
 
 for(const site of ['company','shop','community'])test(`${site} respects a manually hidden companion while scrolling`,{timeout:45000},async t=>{
@@ -184,9 +253,9 @@ test('shop stays visibly nearby after its saved comparison is removed instead of
  await page.evaluate(installVisibleMotionTrace);
  await page.locator('.muse-companion-remove').click();
  await page.waitForFunction(()=>document.querySelector('#muse-wish-count').textContent==='0');
- await page.waitForFunction(()=>{const bot=document.querySelector('#bot');return bot.elementAnchor?.target.hasAttribute('data-companion-follow')&&bot.movementState.phase==='idle';});
+ await page.waitForFunction(()=>{const bot=document.querySelector('#bot');return bot.elementAnchor?.target.hasAttribute('data-sidekick-scroll-regions')&&bot.movementState.phase==='idle';});
  const trace=await page.evaluate(()=>window.visibleMotionTrace.stop());
- const followed=trace.rows.filter(row=>row.anchor?.target==='[data-companion-follow]');
+ const followed=trace.rows.filter(row=>row.anchor?.target==='[data-sidekick-scroll-regions]');
  assert.ok(followed.length>5,'departure must produce a real persistent follow, not just no speech');
  assert.ok(followed.every(row=>row.visible&&row.opacity>.98&&row.presenceState!=='hidden'),'a quiet shop companion must remain actually visible after settlement');
  const result=await page.evaluate(()=>({presence:document.querySelector('#bot').presence,speech:!!document.querySelector('[data-sidekick-speech]')}));

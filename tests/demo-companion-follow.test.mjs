@@ -205,3 +205,15 @@ test('dispose synchronously stops a pure companion follow without waiting for ta
  assert.ok(x.calls.some(call => call[0] === 'cancel'));
  assert.ok(x.calls.some(call => call[0] === 'detach'));
 });
+
+test('all authored demo sites use separate activation regions, reaction targets and waiting positions',t=>{
+ for(const site of ['company','shop','community']){
+  const x=setup(t),root=x.doc.createElement('main');x.doc.body.append(root);
+  root.innerHTML=site==='company'?'<section id="nova-design"><h2>Design</h2></section><section id="nova-sound"><button>Mode</button></section>':site==='shop'?'<section id="products"><h2>Catalog</h2></section><section id="muse-edit"><h2>Edit</h2></section>':'<form class="th-compose"><button>Post</button></form><section id="th-feed"><article class="th-post">Post</article></section>';
+  let config,resumes=0,refreshes=0,pauses=0,disposed=0;
+  const control={paused:false,resume(){resumes++;this.paused=false;},refresh(){refreshes++;},pause(){pauses++;this.paused=true;},dispose(){disposed++;}};
+  const follow=createCompanionFollow({bot:x.bot,doc:x.doc,win:x.win,root,site,createScrollRegions(bot,options){assert.equal(bot,x.bot);config=options;return control;}});
+  follow.follow(100);assert.equal(config.regions.length,2);assert.notEqual(config.regions[0].region,config.regions[0].target);assert.equal(config.regions[0].waitAt.element.style.position,'fixed');assert.match(config.regions[0].waitAt.element.style.top,/(44|60)vh/);
+  follow.follow(200);follow.settle();assert.equal(refreshes,2);assert.equal(resumes,0);follow.release();assert.equal(pauses,1);follow.follow();assert.equal(resumes,1);follow.dispose();assert.equal(disposed,1);
+ }
+});

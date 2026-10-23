@@ -320,3 +320,54 @@ test('explicit companion size has numeric native/React types and a numeric HTML 
  export const invalid = <SidekickAvatar size="120px" />;
  `, 'size-react', 'tsx');
 });
+
+test('scroll-region guide examples compile against all public browser entries', () => {
+  const guide = read('../docs/scroll-regions.md');
+  const examples = [...guide.matchAll(/```ts\n([\s\S]*?)\n```/g)].map(match => match[1]);
+  assert.equal(examples.length, 2);
+  for (const entry of ['register', 'auto', 'index']) {
+    for (const [index, example] of examples.entries()) {
+      typecheckExample(example.replaceAll('@hanana-kick/sidekick/register', `../src/${entry}.js`), `scroll-regions-${entry}-${index}`, 'mts');
+    }
+  }
+  const manifest = JSON.parse(read('../package.json'));
+  assert.ok(manifest.files.includes('docs/scroll-regions.md'));
+  for (const language of ['', '.en', '.zh-CN', '.ja']) {
+    assert.ok(read(`../README${language}.md`).includes('(docs/scroll-regions.md)'));
+  }
+});
+
+test('scroll-region consumer types separate activation, reaction and waiting with read-only state', () => {
+  typecheckExample(`
+    import { createScrollRegions, type SidekickAvatar, type ScrollRegion,
+      type ScrollRegionsOptions, type ScrollRegionsController, type ActiveScrollRegion } from '../src/register.js';
+    declare const bot: SidekickAvatar;
+    declare const section: HTMLElement;
+    declare const target: HTMLButtonElement;
+    declare const spot: HTMLElement;
+    const region: ScrollRegion = { id: 'section', region: section, target,
+      waitAt: { element: spot, alignX: 'right', alignY: 'bottom', x: 8, y: -8 } };
+    const options: ScrollRegionsOptions = { regions: [region, {
+      id: 'fixed', region: section, waitAt: { x: 24, y: 180 }
+    }], root: section, activationLine: 0.5, hysteresis: 48,
+      onChange(active: ActiveScrollRegion | null) {
+        if (active) { const element: Element = active.target; void element; }
+      }
+    };
+    const controller: ScrollRegionsController = createScrollRegions(bot, options);
+    const active: string | null = controller.activeRegion;
+    const paused: boolean = controller.paused;
+    controller.pause(); controller.refresh(); controller.resume(); controller.dispose();
+    // @ts-expect-error selection is read-only
+    controller.activeRegion = 'manual';
+    // @ts-expect-error pause state is read-only
+    controller.paused = true;
+    // @ts-expect-error positions are numeric CSS pixels, not CSS strings
+    const badPoint: ScrollRegion = { id: 'bad', region: section, waitAt: { x: '24px', y: 0 } };
+    // @ts-expect-error an activation region is an Element, not a selector
+    const badRegion: ScrollRegion = { id: 'bad', region: '#section' };
+    // @ts-expect-error a scrolling root is an Element, not Document
+    const badRoot: ScrollRegionsOptions = { regions: [region], root: document };
+    void [active, paused, badPoint, badRegion, badRoot];
+  `, 'scroll-regions-consumer', 'mts');
+});

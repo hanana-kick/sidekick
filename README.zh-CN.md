@@ -1764,3 +1764,7 @@ Runtime eager/lazy asset registration, attachment-local meshes and shared WebGL/
 ### 插件 SDK
 
 通过 `@hanana-kick/sidekick/plugin-sdk` 导入配件制作工具。发行版还包含支持 ESM/CommonJS/TypeScript 的可安装制作包 `sidekick-plugin-sdk-0.18.0.zip`。请参阅 [SDK 安装、验证和构建指南](docs/plugin-sdk.md)，了解真正的外部插件示例。
+
+## 在滚动区域内自然等待
+
+`createScrollRegions` 将激活区域（`region`）、交互目标（`target`）和等待位置（`waitAt`）分开。在同一区域内稳定停留，也可以跟随元素的实时位置。手动移动或隐藏后，需要显式恢复自动控制。[API 与示例](docs/scroll-regions.md)。

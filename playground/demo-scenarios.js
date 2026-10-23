@@ -41,10 +41,10 @@ export function captureDemoEngagement(root,win=root.ownerDocument.defaultView){
  const dispose=()=>{root.removeEventListener('click',mark,true);win.removeEventListener('scroll',mark,true);engaged=false;};
  return {take(){const value=engaged;dispose();return value;},dispose};
 }
-export function installDemoScenarios({bot,root,site,locale='en',adapter,initialEngaged=false,window:win=root.ownerDocument.defaultView}){
+export function installDemoScenarios({bot,root,site,locale='en',adapter,initialEngaged=false,createScrollRegions,window:win=root.ownerDocument.defaultView}){
  const doc=root.ownerDocument,t=scenarioCopy[locale]||scenarioCopy.en,seen=new Set(),visible=new Set();
  const cues=installIntentCues({root,site,locale});
- const companion=createCompanionFollow({bot,doc,win});
+ const companion=createCompanionFollow({bot,doc,win,root,site,createScrollRegions});
  let disposed=false,paused=false,engaged=initialEngaged,busy=false,epoch=0,active=null,activeEntry=null,resting=false,speechNode=null,pending=null,cooldown=0,arrivalTimer=0,mentionTimer=0,releaseTimer=0,pendingTimer=0;
  let companyRest=null,deliveredAt=0,shopPresented=false;const interrupted=new Set();
  let activeCompanyPlan=null,companyDeliveredAt=0,companySettling=false,companySettleTimer=0;const companyRetried=new Set();

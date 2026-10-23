@@ -36,13 +36,13 @@ const disposeSite = renderers[site](document.getElementById('demo-content'), { l
 let bot, disposeLifecycle, scenarios;
 const dispose=()=>{engagement.dispose();scenarios?.dispose();abort.abort();disposeSite?.();disposeLifecycle?.();disposeLifecycle=null;bot?.remove();};
 window.addEventListener('pagehide',event=>{if(!event.persisted)dispose();});
-import('../src/index.ts').then(({createAccessory})=>{
+import('../src/index.ts').then(({createAccessory,createScrollRegions})=>{
  bot=document.createElement('sidekick-avatar');bot.id='bot';bot.setAttribute('size','115');bot.setAttribute('placement','viewport');bot.setAttribute('interaction','none');bot.setAttribute('aria-label','Sidekick');
  // API validation intentionally requires this realm's plain objects. Clone only
  // serializable scene/actions here; live promises for lifecycle tasks stay here.
  resolveReady({
   bot,document,window,dispose,
-  startScenarios:()=>{scenarios?.dispose();scenarios=installDemoScenarios({bot,root:document.getElementById('demo-content'),site,locale,adapter:disposeSite,initialEngaged:engagement.take(),window});},
+  startScenarios:()=>{scenarios?.dispose();scenarios=installDemoScenarios({bot,root:document.getElementById('demo-content'),site,locale,adapter:disposeSite,initialEngaged:engagement.take(),createScrollRegions,window});},
   pauseScenarios:value=>scenarios?.setPaused(value),
   applySession:scene=>applyStudioSession(bot,structuredClone(scene)),
   execute:action=>executeAction(bot,structuredClone(action),createAccessory),

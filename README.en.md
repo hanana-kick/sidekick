@@ -1764,3 +1764,7 @@ Runtime eager/lazy asset registration, attachment-local meshes and shared WebGL/
 ### Plugin SDK
 
 Import accessory authoring tools from `@hanana-kick/sidekick/plugin-sdk`. The release also includes `sidekick-plugin-sdk-0.18.0.zip`, an installable ESM/CommonJS/TypeScript authoring package. See the [SDK installation, validation and build guide](docs/plugin-sdk.md) for real external plugin examples.
+
+## Wait naturally within scroll regions
+
+`createScrollRegions` separates the active section (`region`), reaction element (`target`), and waiting position (`waitAt`). Stay steady within a section or intentionally follow a live element. Resume explicitly after manual movement or hiding. [API and examples](docs/scroll-regions.md).
