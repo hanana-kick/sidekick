@@ -1,3 +1,5 @@
+import { createBodySkinBinding, validateBodyRig } from '../core/body-rig.js';
+import { computeBoneMatrices, createSkinDeformer, validateBonePose } from '../core/rigging.js';
 import { getAccessoryAttachmentFrame } from '../core/accessory-attachments.js';
 import { AccessoryPluginFitter, accessoryPluginMaterialColor } from '../core/plugin-mount.js';
 import { assertAccessoryPluginEquipmentBudget } from '../core/accessory-plugins.js';
@@ -36,6 +38,13 @@ export class AvatarRenderer {
     bodyDirections;
     bodyContour;
     bodyDeformation = '';
+    bodyNeutral = new Float32Array(0);
+    bodyRig;
+    bodyRigSource;
+    bodyRigSignature = '';
+    bodySkin;
+    bodySkinPose = '';
+    bodyBones;
     lag = new Map();
     accessoryPose = new Map();
     authoredAccessoryPose = new Set();
@@ -84,8 +93,14 @@ export class AvatarRenderer {
     render(input, state) {
         if (this.disposed || this.backend.lost)
             return;
-        if (state.pluginAccessories?.length)
+        if (state.pluginAccessories?.length) {
             assertAccessoryPluginEquipmentBudget(state.pluginAccessories);
+            for (const item of state.pluginAccessories) {
+                const geometry = item.asset.geometry;
+                if (geometry.skin && (item.asset.attachment || geometry.deformation || geometry.surfaceConnectors))
+                    throw new TypeError('Skinned plugin geometry cannot use fitted attachment, deformation, or surface connectors.');
+            }
+        }
         // Direct renderer consumers may edit the same design object between frames.
         const signature = JSON.stringify(input);
         if (signature !== this.inputSignature) {
@@ -107,22 +122,60 @@ export class AvatarRenderer {
         const aspect = this.displayAspect ?? this.canvas.width / this.canvas.height;
         const contour = state.contour ?? shapeContour({ kind: 'material', name: design.body.shape });
         const profile = state.profile ?? resolveShapeProfile(design.body.shape);
-        if (contour !== this.bodyContour) {
-            const data = bodyGeometry(contour), body = this.meshes.body;
-            // Reuse the same GPU resources; transition snapshots can have different topology.
-            body.data = { vertices: data.vertices.slice(), indices: data.indices };
-            body.count = data.indices.length;
+        const body = this.meshes.body;
+        let rigChanged = false;
+        if (state.rig !== this.bodyRigSource) {
+            const validatedRig = state.rig ? validateBodyRig(state.rig) : undefined;
+            const rigSignature = validatedRig ? JSON.stringify(validatedRig) : '';
+            rigChanged = rigSignature !== this.bodyRigSignature;
+            if (rigChanged) {
+                this.bodyRig = validatedRig;
+                this.bodyRigSignature = rigSignature;
+                this.bodySkin = undefined;
+                this.bodyBones = undefined;
+            }
+            this.bodyRigSource = state.rig;
+        }
+        const topologyChanged = contour !== this.bodyContour;
+        const neutralChanged = topologyChanged || this.bodyDeformation !== String(profile.depth);
+        const previousVertexLength = body.data.vertices.length;
+        if (topologyChanged) {
+            const data = bodyGeometry(contour);
             this.bodyDirections = data.vertices;
-            // Upload the final positions once; the old path uploaded canonical positions
-            // then immediately replaced them and also uploaded an unused direction attribute.
+            body.data = { vertices: data.vertices, indices: data.indices };
+            body.count = data.indices.length;
+            this.bodyContour = contour;
+        }
+        if (neutralChanged) {
+            this.bodyNeutral = this.bodyDirections.slice();
             for (let i = 0; i < this.bodyDirections.length; i += 6) {
                 const d = [this.bodyDirections[i], this.bodyDirections[i + 1], this.bodyDirections[i + 2]];
-                body.data.vertices.set(deformBodyPoint(design.body, d, 1, profile), i);
+                this.bodyNeutral.set(deformBodyPoint(design.body, d, 1, profile), i);
             }
-            this.backend.update(body, body.data, true, false);
-            this.bodyContour = contour;
             this.bodyDeformation = String(profile.depth);
+            this.bodySkin = undefined;
         }
+        let bodyChanged = neutralChanged || rigChanged;
+        if (this.bodyRig) {
+            const pose = mergeBonePose(state.bonePose, state.partAnimation?.bones, this.bodyRig.skeleton), poseKey = JSON.stringify(pose);
+            if (!this.bodySkin)
+                this.bodySkin = createSkinDeformer(this.bodyNeutral, createBodySkinBinding(this.bodyNeutral, this.bodyRig));
+            if (bodyChanged || poseKey !== this.bodySkinPose) {
+                body.data = { vertices: this.bodySkin.deform(pose), indices: body.data.indices, faceVertices: this.bodyNeutral };
+                if (!this.bodyBones || poseKey !== this.bodySkinPose)
+                    this.bodyBones = computeBoneMatrices(this.bodyRig.skeleton, pose);
+                this.bodySkinPose = poseKey;
+                bodyChanged = true;
+            }
+        }
+        else if (bodyChanged) {
+            body.data = { vertices: this.bodyNeutral, indices: body.data.indices };
+            this.bodySkinPose = '';
+        }
+        // Pose-only frames update one vertex buffer. Rest coordinates, topology and
+        // the generated binding are retained across idle, view and activity frames.
+        if (bodyChanged)
+            this.backend.update(body, body.data, topologyChanged, previousVertexLength === body.data.vertices.length);
         // A fixed, body-referenced frame keeps CSS/world scale independent of
         // equipment, including outgoing meshes during a fade. This is the original
         // unequipped frame with padding for the supported catalog and activity poses.
@@ -133,20 +186,24 @@ export class AvatarRenderer {
         const height = span * Math.max(1, 1 / aspect), width = height * aspect;
         this.backend.begin(orthographic(width, height));
         this.drawCount = 0;
-        const body = this.meshes.body;
-        const deformation = String(profile.depth);
-        if (this.bodyDeformation !== deformation) {
-            for (let i = 0; i < this.bodyDirections.length; i += 6) {
-                const d = [this.bodyDirections[i], this.bodyDirections[i + 1], this.bodyDirections[i + 2]];
-                body.data.vertices.set(deformBodyPoint(design.body, d, 1, profile), i);
-            }
-            this.backend.update(body, body.data, false, true);
-            this.bodyDeformation = deformation;
-        }
         // Squash is exactly the same diagonal scale used by bodyPoint. Applying it
         // in the draw matrix avoids regenerating thousands of contour normals/frame.
         const stretch = 1 / Math.sqrt(activity.squash);
-        const bodyRoot = multiply(root, transform([0, 0, 0], [0, 0, 0], [stretch, activity.squash, stretch]));
+        const squashMatrix = transform([0, 0, 0], [0, 0, 0], [stretch, activity.squash, stretch]);
+        const bodyRoot = multiply(root, squashMatrix);
+        const boneMountedRoot = (slot) => {
+            const name = this.bodyRig?.attachments?.[slot];
+            if (!name || !this.bodyBones)
+                return root;
+            const index = this.bodyRig.skeleton.bones.findIndex(bone => bone.id === name);
+            const delta = this.bodyBones.deformation[index];
+            if (delta.every((value, index) => value === (index % 5 === 0 ? 1 : 0)))
+                return root;
+            // Existing seated geometry is already squashed. Conjugation keeps bone
+            // deltas in the same neutral coordinate system as body skinning.
+            const unsquash = transform([0, 0, 0], [0, 0, 0], [1 / stretch, 1 / activity.squash, 1 / stretch]);
+            return multiply(multiply(bodyRoot, delta), unsquash);
+        };
         // Eye ink is evaluated in the body pass: it has zero depth and cannot alter alpha coverage.
         const eyes = projectEyes(design, root, pose.face, [pose.gaze[0] + activity.gaze[0], pose.gaze[1] + activity.gaze[1]], activity.squash, contour, profile);
         this.backend.opacity(1);
@@ -197,7 +254,8 @@ export class AvatarRenderer {
             this.backend.opacity(opacity * (part?.opacity ?? 1));
             const mountFrame = part && (part.position || part.scale) ? getAccessoryAttachmentFrame(design.body, accessory.slot, { squash: activity.squash, contour, profile }) : undefined;
             const deltaMatrix = mountFrame ? attachmentDelta(mountFrame.matrix, part.position, part.scale) : undefined;
-            const accessoryRoot = deltaMatrix ? multiply(root, deltaMatrix) : root;
+            const mountedRoot = boneMountedRoot(accessory.slot);
+            const accessoryRoot = deltaMatrix ? multiply(mountedRoot, deltaMatrix) : mountedRoot;
             const oldLag = this.lag.get(accessory.id) ?? [roll, 0];
             const lag = state.reduced ? [roll, 0] : spring(oldLag[0], oldLag[1], roll, state.delta, 11);
             this.lag.set(accessory.id, lag);
@@ -287,7 +345,7 @@ export class AvatarRenderer {
                 // final diagonal transform. Keep that transform on the draw matrix,
                 // avoiding a fresh vertex array and GPU upload on every breath.
                 const fittedSquash = accessory.preset === 'beret' ? 1 : activity.squash;
-                const fittedRoot = accessory.preset === 'beret' ? (deltaMatrix ? multiply(accessoryRoot, transform([0, 0, 0], [0, 0, 0], [stretch, activity.squash, stretch])) : bodyRoot) : accessoryRoot;
+                const fittedRoot = accessory.preset === 'beret' ? multiply(accessoryRoot, squashMatrix) : accessoryRoot;
                 const key = JSON.stringify([accessory.preset, fittedSquash, profile.depth, profile.beretFitTilt, profile.beretFitCenter, profile.beretFitRoom, profile.beretDrapeStrength, profile.beretFitTransition, profile.beretDrapeLimit, profile.beretFitSize, profile.beretFitOpening, profile.beretWrapStrength, profile.beretApertureX, profile.beretApertureZ, accessoryMountProfile(accessory, profile), accessory.scale, rotation]);
                 const mesh = this.meshes.beret;
                 if (this.beretContour !== contour || this.beretKey !== key) {
@@ -335,6 +393,7 @@ export class AvatarRenderer {
                 const extra = [...(part?.rotation ?? (Object.hasOwn(pose.accessories, item.id) ? pose.accessories[item.id] : undefined) ?? [0, 0, 0])];
                 this.backend.opacity(part?.opacity ?? 1);
                 let mounted, fit, lag;
+                const mountedRoot = boneMountedRoot(item.slot);
                 if (fitter) {
                     const previous = !changed && previousCache.lag || [roll, 0];
                     lag = state.reduced ? [roll, 0] : spring(previous[0], previous[1], roll, state.delta, 11);
@@ -345,24 +404,32 @@ export class AvatarRenderer {
                     // Explicit translation/scale use the public slot frame AFTER seating,
                     // retaining catalog semantics and intentionally detachable animation.
                     const frame = part && (part.position || part.scale) ? getAccessoryAttachmentFrame(design.body, item.slot, { squash: activity.squash, contour, profile }) : undefined;
-                    const parent = frame ? multiply(root, attachmentDelta(frame.matrix, part?.position, part?.scale)) : root;
+                    const parent = frame ? multiply(mountedRoot, attachmentDelta(frame.matrix, part?.position, part?.scale)) : mountedRoot;
                     mounted = multiply(parent, fit.matrix);
                 }
                 else {
                     const frame = getAccessoryAttachmentFrame(design.body, item.slot, { squash: activity.squash, contour, profile });
-                    mounted = multiply(multiply(root, frame.matrix), transform(part?.position, extra, part?.scale));
+                    mounted = multiply(multiply(mountedRoot, frame.matrix), transform(part?.position, extra, part?.scale));
                 }
-                const data = fit?.geometry ?? item.asset.geometry;
+                let data = fit?.geometry ?? item.asset.geometry;
+                const skin = changed ? item.asset.geometry.skin ? createSkinDeformer(item.asset.geometry.vertices, item.asset.geometry.skin) : undefined : previousCache.skin;
+                const skinPose = skin ? mergeBonePose(state.accessoryBonePoses?.[item.id], state.partAnimation?.accessoryBones?.[item.id], item.asset.geometry.skin.skeleton) : undefined;
+                const skinKey = skinPose ? JSON.stringify(skinPose) : undefined;
+                const skinChanged = !!skin && (changed || skinKey !== previousCache?.skinPose);
+                if (skinChanged)
+                    data = { ...data, vertices: skin.deform(skinPose) };
+                else if (skin)
+                    data = previousCache.mesh.data;
                 let cached = previousCache;
                 if (changed) {
                     const mesh = this.upload(data);
                     if (previousCache)
                         this.deleteMesh(previousCache.mesh);
-                    cached = { asset: item.asset, mesh, fitter, lag, fit };
+                    cached = { asset: item.asset, mesh, fitter, lag, fit, skin, skinPose: skinKey };
                     this.pluginMeshes.set(item.slot, cached);
                 }
                 else {
-                    if (fit?.geometry && fit !== cached.fit) {
+                    if ((fit?.geometry && fit !== cached.fit) || skinChanged) {
                         const mesh = cached.mesh;
                         this.backend.update(mesh, data, mesh.data.indices !== data.indices, mesh.data.vertices.length === data.vertices.length);
                         mesh.data = data;
@@ -370,6 +437,7 @@ export class AvatarRenderer {
                     }
                     cached.fit = fit;
                     cached.lag = lag;
+                    cached.skinPose = skinKey;
                 }
                 if (data.parts)
                     for (const range of data.parts)
@@ -382,7 +450,7 @@ export class AvatarRenderer {
         this.backend.end();
     }
     get animating() { return this.equipment.active || this.accessoryPoseTakeover.size > 0; }
-    get stats() { return { drawCalls: this.drawCount, buffers: [...Object.values(this.meshes), ...Array.from(this.catalogMeshes.values(), item => item.mesh), ...Array.from(this.pluginMeshes.values(), item => item.mesh)].reduce(count => count + (this.graphics === 'webgl2' ? 2 : 0), 0) }; }
+    get stats() { return { drawCalls: this.drawCount, buffers: [...Object.values(this.meshes), ...Array.from(this.catalogMeshes.values(), item => item.mesh), ...Array.from(this.pluginMeshes.values(), item => item.mesh)].reduce((count, mesh) => count + (this.graphics === 'webgl2' ? 2 + (mesh.data.faceVertices ? 1 : 0) : 0), 0) }; }
     /** Call immediately after render; the drawing buffer need not be preserved between frames. */
     readPixels() { return this.backend.readPixels(); }
     deleteMesh(mesh) { this.backend.deleteMesh(mesh); }
@@ -411,4 +479,11 @@ function attachmentDelta(frame, position, size) {
     for (let row = 0; row < 3; row++)
         inverse[12 + row] = -(inverse[row] * frame[12] + inverse[4 + row] * frame[13] + inverse[8 + row] * frame[14]);
     return multiply(multiply(frame, transform(position, [0, 0, 0], size)), inverse);
+}
+/** Authored tracks replace only their named channels, not the other manual channels. */
+function mergeBonePose(manual, animated, skeleton) {
+    manual = manual ? validateBonePose(manual, skeleton) : undefined;
+    animated = animated ? validateBonePose(animated, skeleton) : undefined;
+    const names = new Set([...Object.keys(manual ?? {}), ...Object.keys(animated ?? {})]);
+    return Object.fromEntries(Array.from(names, name => [name, { ...(manual && Object.hasOwn(manual, name) ? manual[name] : {}), ...(animated && Object.hasOwn(animated, name) ? animated[name] : {}) }]));
 }

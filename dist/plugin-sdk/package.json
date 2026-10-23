@@ -33,6 +33,7 @@
     "LICENSE",
     "third_party",
     "README.md",
+    "rigging.md",
     "examples",
     "release.json"
   ]

@@ -2,14 +2,16 @@ export const vertexSource = `#version 300 es
 precision highp float;
 layout(location=0) in vec3 position;
 layout(location=1) in vec3 normal;
+layout(location=2) in vec2 facePosition;
+layout(location=3) in float frontCap;
 uniform mat4 model;
 uniform mat4 projection;
 uniform vec2 faceScale;
 out float vFrontCap;
 out vec2 vFacePosition;
 void main() {
-  vFrontCap = normal.z;
-  vFacePosition = position.xy * faceScale;
+  vFrontCap = frontCap;
+  vFacePosition = facePosition * faceScale;
   gl_Position = projection * model * vec4(position, 1.0);
 }`;
 export const fragmentSource = `#version 300 es

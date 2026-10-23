@@ -1,9 +1,15 @@
+import { validateSkinBinding } from './rigging.js';
 import { ACCESSORY_SLOTS } from './design.js';
 import { MATERIAL_SHAPE_NAMES } from './shapes.js';
 import { validateAccessoryPluginDeformation, validateAccessoryPluginSurfaceConnectors } from './plugin-deformation.js';
-export const ACCESSORY_PLUGIN_LIMITS = Object.freeze({ maxVertices: 16384, maxTriangles: 32768, maxCoordinate: 16, maxParts: 32, maxFittedVertices: 2048, maxFittedTriangles: 4096, maxEquipped: 6, maxEquippedFittedVertices: 4096, maxEquippedFittedTriangles: 8192 });
+export const ACCESSORY_PLUGIN_LIMITS = Object.freeze({ maxVertices: 16384, maxTriangles: 32768, maxCoordinate: 16, maxParts: 32, maxFittedVertices: 2048, maxFittedTriangles: 4096, maxEquipped: 6, maxEquippedSkinnedVertices: 16384, maxEquippedSkinnedTriangles: 32768, maxEquippedFittedVertices: 4096, maxEquippedFittedTriangles: 8192 });
 /** Exact contact is opt-in and deliberately lower complexity than static geometry. */
 export function assertAccessoryPluginFitGeometry(geometry) {
+    const skinField = geometry && Object.getOwnPropertyDescriptor(geometry, 'skin');
+    if (skinField && !Object.hasOwn(skinField, 'value'))
+        throw new TypeError('Skin must be a data field.');
+    if (skinField?.value)
+        throw new TypeError('Skinned geometry uses slot attachment, not a fitted attachment recipe.');
     if (!geometry || !(geometry.vertices instanceof Float32Array) || !(geometry.indices instanceof Uint16Array))
         throw new TypeError('Fitted accessory geometry requires typed vertex and index buffers.');
     const counts = accessoryPluginGeometryCounts(geometry);
@@ -25,6 +31,14 @@ export function accessoryPluginGeometryCounts(geometry) {
 export function assertAccessoryPluginEquipmentBudget(items) {
     if (items.length > ACCESSORY_PLUGIN_LIMITS.maxEquipped || new Set(items.map(item => item.slot)).size !== items.length || items.some(item => !ACCESSORY_SLOTS.includes(item.slot)))
         throw new RangeError('Plugin equipment requires at most six unique valid slots.');
+    let skinVertices = 0, skinTriangles = 0;
+    for (const item of items)
+        if (item.asset.geometry.skin) {
+            skinVertices += item.asset.geometry.vertices.length / 6;
+            skinTriangles += item.asset.geometry.indices.length / 3;
+        }
+    if (skinVertices > ACCESSORY_PLUGIN_LIMITS.maxEquippedSkinnedVertices || skinTriangles > ACCESSORY_PLUGIN_LIMITS.maxEquippedSkinnedTriangles)
+        throw new RangeError('Equipped skins exceed the combined 16384 vertex / 32768 triangle budget.');
     let vertices = 0, triangles = 0;
     for (const item of items)
         if (item.asset.attachment) {
@@ -146,9 +160,16 @@ function plugin(value, expected) {
 }
 /** Validate and copy before worker transport or renderer use. Shared buffers are forbidden. */
 export function validateAccessoryPluginGeometry(value) {
-    if (!value || typeof value !== 'object')
-        throw new TypeError('Accessory plugin geometry is required.');
-    const { vertices, indices } = value;
+    if (!value || typeof value !== 'object' || ![Object.prototype, null].includes(Object.getPrototypeOf(value)))
+        throw new TypeError('Accessory plugin geometry must be a plain data object.');
+    const fields = Object.create(null);
+    for (const key of Reflect.ownKeys(value)) {
+        const field = Object.getOwnPropertyDescriptor(value, key);
+        if (typeof key !== 'string' || !['vertices', 'indices', 'parts', 'skin', 'deformation', 'surfaceConnectors', 'normalPrecision'].includes(key) || !field.enumerable || !Object.hasOwn(field, 'value'))
+            throw new TypeError('Accessory plugin geometry contains unsupported or accessor data.');
+        fields[key] = field.value;
+    }
+    const { vertices, indices } = fields;
     if (!(vertices instanceof Float32Array) || !(indices instanceof Uint16Array) || !(vertices.buffer instanceof ArrayBuffer) || !(indices.buffer instanceof ArrayBuffer))
         throw new TypeError('Accessory geometry requires non-shared Float32Array vertices and Uint16Array indices.');
     if (vertices.length < 18 || vertices.length % 6 !== 0 || vertices.length / 6 > ACCESSORY_PLUGIN_LIMITS.maxVertices)
@@ -171,14 +192,17 @@ export function validateAccessoryPluginGeometry(value) {
     for (const index of ownedIndices)
         if (index >= count)
             throw new RangeError('Accessory triangle index is outside the vertex array.');
-    const input = value;
+    const input = fields;
     if (input.normalPrecision !== undefined && input.normalPrecision !== 'float32' && input.normalPrecision !== 'float64')
         throw new TypeError('Normal precision must be float32 or float64.');
+    if (input.skin && (input.deformation || input.surfaceConnectors))
+        throw new TypeError('Skinning cannot be combined with paired deformation or surface connectors.');
+    const skin = input.skin === undefined ? undefined : validateSkinBinding(input.skin, count);
     const connectors = input.surfaceConnectors === undefined ? undefined : validateAccessoryPluginSurfaceConnectors(input.surfaceConnectors, count, ownedIndices.length);
     const ranges = input.parts === undefined ? undefined : parts(input.parts, ownedIndices.length);
     if ((ranges?.length ?? 1) + (connectors?.length ?? 0) > ACCESSORY_PLUGIN_LIMITS.maxParts)
         throw new RangeError('Composed accessory material ranges exceed the supported limits.');
-    return { vertices: ownedVertices, indices: ownedIndices, ...(ranges ? { parts: ranges } : {}),
+    return { vertices: ownedVertices, indices: ownedIndices, ...(skin ? { skin } : {}), ...(ranges ? { parts: ranges } : {}),
         ...(input.deformation === undefined ? {} : { deformation: validateAccessoryPluginDeformation(input.deformation, count) }),
         ...(connectors ? { surfaceConnectors: connectors } : {}), ...(input.normalPrecision === undefined ? {} : { normalPrecision: input.normalPrecision }),
     };
@@ -219,9 +243,9 @@ export class AccessoryPluginRegistry {
                 this.assertLive();
                 const resolved = plugin(loaded && typeof loaded === 'object' && 'default' in loaded ? loaded.default : loaded, id);
                 const authoredGeometry = await resolved.createMesh();
-                if (resolved.attachment)
-                    assertAccessoryPluginFitGeometry(authoredGeometry);
                 const geometry = validateAccessoryPluginGeometry(authoredGeometry);
+                if (resolved.attachment)
+                    assertAccessoryPluginFitGeometry(geometry);
                 if ((geometry.deformation || geometry.surfaceConnectors?.length) && !resolved.attachment)
                     throw new TypeError('Deformation and surface connectors require an attachment recipe.');
                 if (geometry.deformation && resolved.attachment?.mode !== 'eye-plane')

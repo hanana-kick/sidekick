@@ -1,4 +1,5 @@
 import { isAccessoryInstanceId } from './accessory-id.js';
+import { isBoneId } from './rigging.js';
 import type { Vec2, Vec3 } from './design.js';
 
 export interface PartKeyframe<T> { time: number; value: T }
@@ -9,8 +10,10 @@ export type PartAnimationTrack =
   | (Track<Vec2> & { target: 'face'; channel: 'uv' })
   /** Eye weights are [smile, blink], each in [0, 1]. */
   | (Track<Vec2> & { target: 'leftEye' | 'rightEye'; channel: 'weights' })
-  | (Track<Vec3> & { target: { accessory: string }; channel: 'rotation' | 'position' | 'scale' })
-  | (Track<number> & { target: { accessory: string }; channel: 'opacity' });
+  | (Track<Vec3> & { target: { accessory: string; bone?: never }; channel: 'rotation' | 'position' | 'scale' })
+  | (Track<number> & { target: { accessory: string; bone?: never }; channel: 'opacity' })
+  /** Omit accessory to address the body rig; otherwise address that accessory instance's rig. */
+  | (Track<Vec3> & { target: { bone: string; accessory?: string }; channel: 'rotation' | 'position' });
 /** Times and duration are seconds. A looping clip samples time === duration at time zero. */
 export interface PartAnimationClip { duration: number; loop?: boolean; tracks: PartAnimationTrack[] }
 export interface PartAccessorySample { rotation?: Vec3; position?: Vec3; scale?: Vec3; opacity?: number }
@@ -19,6 +22,8 @@ export interface PartAnimationSample {
   face?: Vec2;
   eyes?: { left?: { smile: number; openness: number }; right?: { smile: number; openness: number } };
   accessories: Record<string, PartAccessorySample>;
+  bones: Record<string, PartAccessorySample>;
+  accessoryBones: Record<string, Record<string, PartAccessorySample>>;
 }
 export const PART_ANIMATION_LIMITS = Object.freeze({ maxTracks: 128, maxKeyframes: 4096, maxDuration: 86400 });
 function object(value: unknown, keys: readonly string[], path: string): Record<string, unknown> {
@@ -50,6 +55,10 @@ function id(value: unknown): string {
   if (!isAccessoryInstanceId(value)) throw new TypeError('Invalid accessory animation id.');
   return value;
 }
+function boneId(value: unknown): string {
+  if (!isBoneId(value)) throw new TypeError('Invalid bone animation id.');
+  return value;
+}
 /** Strict validation and defensive copy. Call once when accepting a clip, not on every frame. */
 export function validatePartAnimation(value: unknown): PartAnimationClip {
   const input = object(value, ['duration', 'loop', 'tracks'], 'clip');
@@ -68,14 +77,25 @@ export function validatePartAnimation(value: unknown): PartAnimationClip {
       else if ((target === 'leftEye' || target === 'rightEye') && track.channel === 'weights') { length = 2; low = 0; high = 1; }
       else throw new TypeError('Unsupported part target/channel combination.');
     } else {
-      const accessory = object(track.target, ['accessory'], 'target'); target = { accessory: id(accessory.accessory) };
-      if (track.channel === 'opacity') { length = 0; low = 0; high = 1; }
-      else if (track.channel === 'scale') { length = 3; low = .01; high = 16; }
-      else if (track.channel === 'position') { length = 3; low = -16; high = 16; }
-      else if (track.channel === 'rotation') { length = 3; low = -Math.PI * 2; high = Math.PI * 2; }
-      else throw new TypeError('Unsupported accessory animation channel.');
+      const addressed = object(track.target, ['accessory', 'bone'], 'target');
+      if (Object.hasOwn(addressed, 'bone')) {
+        target = { bone: boneId(addressed.bone), ...(Object.hasOwn(addressed, 'accessory') ? { accessory: id(addressed.accessory) } : {}) };
+        if (track.channel === 'position') { length = 3; low = -16; high = 16; }
+        else if (track.channel === 'rotation') { length = 3; low = -Math.PI * 2; high = Math.PI * 2; }
+        else throw new TypeError('Unsupported bone animation channel.');
+      } else {
+        target = { accessory: id(addressed.accessory) };
+        if (track.channel === 'opacity') { length = 0; low = 0; high = 1; }
+        else if (track.channel === 'scale') { length = 3; low = .01; high = 16; }
+        else if (track.channel === 'position') { length = 3; low = -16; high = 16; }
+        else if (track.channel === 'rotation') { length = 3; low = -Math.PI * 2; high = Math.PI * 2; }
+        else throw new TypeError('Unsupported accessory animation channel.');
+      }
     }
-    const channelKey = `${typeof target === 'string' ? target : `accessory:${target.accessory}`}:${String(track.channel)}`;
+    // Encode path segments separately: valid identifiers may themselves contain ':' or '/'.
+    const channelKey = JSON.stringify(typeof target === 'string' ? ['part', target, track.channel]
+      : typeof target.bone === 'string' ? ['bone', target.accessory ?? null, target.bone, track.channel]
+      : ['accessory', target.accessory, track.channel]);
     if (channels.has(channelKey)) throw new TypeError('Each animation target/channel must be unique.'); channels.add(channelKey);
     const frames = array(track.keyframes, PART_ANIMATION_LIMITS.maxKeyframes, 'keyframes'); total += frames.length;
     if (!frames.length || total > PART_ANIMATION_LIMITS.maxKeyframes) throw new RangeError('Animation requires 1..4096 total keyframes.');
@@ -109,7 +129,11 @@ export function samplePartAnimation(clip: PartAnimationClip, time: number): Part
   if (!Number.isFinite(time)) throw new RangeError('Animation time must be finite.');
   const remainder = time % clip.duration;
   const local = clip.loop ? (remainder < 0 ? remainder + clip.duration : remainder) : Math.max(0, Math.min(clip.duration, time));
-  const result: PartAnimationSample = { accessories: Object.create(null) as Record<string, PartAccessorySample> };
+  const result: PartAnimationSample = {
+    accessories: Object.create(null) as Record<string, PartAccessorySample>,
+    bones: Object.create(null) as Record<string, PartAccessorySample>,
+    accessoryBones: Object.create(null) as Record<string, Record<string, PartAccessorySample>>,
+  };
   for (const track of clip.tracks) {
     const value = sampleTrack(track, local);
     if (track.target === 'body') result.bodyRotation = value as Vec3;
@@ -117,6 +141,12 @@ export function samplePartAnimation(clip: PartAnimationClip, time: number): Part
     else if (track.target === 'leftEye' || track.target === 'rightEye') {
       const [smile, blink] = value as Vec2;
       (result.eyes ??= {})[track.target === 'leftEye' ? 'left' : 'right'] = { smile, openness: 1 - blink };
+    } else if (typeof track.target === 'object' && typeof track.target.bone === 'string') {
+      const { bone, accessory } = track.target;
+      const bones = accessory === undefined ? result.bones
+        : result.accessoryBones[accessory] ??= Object.create(null) as Record<string, PartAccessorySample>;
+      const sample = bones[bone] ??= {};
+      sample[track.channel as 'rotation' | 'position'] = value as Vec3;
     } else {
       const target = track.target as { accessory: string };
       const sample = result.accessories[target.accessory] ??= {};

@@ -1768,3 +1768,5 @@ Runtime eager/lazy asset registration, attachment-local meshes and shared WebGL/
 ## 在滚动区域内自然等待
 
 `createScrollRegions` 将激活区域（`region`）、交互目标（`target`）和等待位置（`waitAt`）分开。在同一区域内稳定停留，也可以跟随元素的实时位置。手动移动或隐藏后，需要显式恢复自动控制。[API 与示例](docs/scroll-regions.md)。
+
+- [Bone poses, skinning, and animation presets](docs/rigging.md)

@@ -41,3 +41,6 @@ export declare function defineAccessoryGeometry(geometry: AccessoryPluginGeometr
  * snapshot. The input is not modified. Duration and keyframe times are seconds.
  */
 export declare function definePartAnimation(clip: PartAnimationClip): PartAnimationClip;
+export * from './core/rigging.js';
+export * from './core/body-rig.js';
+export * from './core/animation-presets.js';

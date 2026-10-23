@@ -123,10 +123,16 @@ export class AvatarMovement {
     const revision = ++this.revision, now = this.host.now();
     this.sample(now);
     if (revision !== this.revision) return this.result(false);
-    const previous = copyPresentation(this.presentation);
+    const previous = copyPresentation(this.presentation), pending = this.track;
     // Superseding transfers presentation ownership to the new request instead of starting a separate landing.
     if (this.track) this.complete(this.track, false, false);
     const to = this.host.constrain(target), duration = this.host.immediate() ? 0 : timing.duration;
+    // Repeating a destination transfers request ownership, not the motion clock.
+    // In particular, restarting a tween here would make frequent updates stall.
+    const sameTarget = pending && ('to' in pending ? pending.to.x === to.x && pending.to.y === to.y : pending.finished && this.point.x === to.x && this.point.y === to.y);
+    if (duration && sameTarget && ((pending.kind === 'travel' && timing.travel === 'none' && pending.duration === duration && pending.smooth === (timing.easing === 'smooth')) || pending.kind === 'settling')) {
+      return new Promise(resolve => { this.track = { ...pending, resolve, silent: false }; this.schedule(); });
+    }
     if (!duration || (to.x === this.point.x && to.y === this.point.y && Math.hypot(this.velocity.x, this.velocity.y) < 0.01 && (timing.travel !== 'natural' || Math.hypot(this.acceleration.x, this.acceleration.y) < 0.01))) {
       this.write(to);
       if (revision !== this.revision) return this.result(false);
@@ -138,10 +144,14 @@ export class AvatarMovement {
     if (timing.travel === 'natural') {
       return new Promise(resolve => {
         const distance = Math.hypot(to.x - this.point.x, to.y - this.point.y);
-        this.track = { kind: 'physical', to, start: now, last: now, accumulator: 0,
+        // Carry fractional integration time across commands, even if commands arrive
+        // faster than the 240 Hz physics tick. State continuity includes its clock.
+        const ongoing = pending?.kind === 'physical' ? pending : undefined;
+        this.track = { kind: 'physical', to, start: ongoing?.start ?? now, last: ongoing?.last ?? now, accumulator: ongoing?.accumulator ?? 0,
           maxSpeed: timing.maxSpeed,
-          acceleration: timing.acceleration, deceleration: timing.deceleration, initialDistance: Math.max(distance, 1), stopping: false, natural: timing.travel === 'natural', resolve };
-        this.progress = 0; this.phase = Math.hypot(this.velocity.x, this.velocity.y) > 0.1 ? 'flight' : 'takeoff';
+          acceleration: timing.acceleration, deceleration: timing.deceleration, initialDistance: sameTarget && ongoing ? ongoing.initialDistance : Math.max(distance, 1), stopping: false, natural: timing.travel === 'natural', resolve };
+        if (!sameTarget || !ongoing) this.progress = 0;
+        if (!ongoing || ongoing.stopping) this.phase = Math.hypot(this.velocity.x, this.velocity.y) > 0.1 ? 'flight' : 'takeoff';
         this.report(); this.schedule();
       });
     }

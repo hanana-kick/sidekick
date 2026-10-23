@@ -1,3 +1,4 @@
+import type { SkinBinding } from './rigging.js';
 import type { AccessorySlot, Vec2, Vec3 } from './design.js';
 import type { MaterialShapeName } from './shapes.js';
 import type { PairedAffineDeformation, AccessoryPluginSurfaceConnector } from './plugin-deformation.js';
@@ -6,6 +7,8 @@ export interface AccessoryPluginGeometry {
     vertices: Float32Array;
     indices: Uint16Array;
     parts?: AccessoryPluginPart[];
+    /** Optional linear blend skin in attachment-local coordinates. */
+    skin?: SkinBinding;
     deformation?: PairedAffineDeformation;
     surfaceConnectors?: AccessoryPluginSurfaceConnector[];
     normalPrecision?: 'float32' | 'float64';
@@ -85,6 +88,8 @@ export declare const ACCESSORY_PLUGIN_LIMITS: Readonly<{
     maxFittedVertices: 2048;
     maxFittedTriangles: 4096;
     maxEquipped: 6;
+    maxEquippedSkinnedVertices: 16384;
+    maxEquippedSkinnedTriangles: 32768;
     maxEquippedFittedVertices: 4096;
     maxEquippedFittedTriangles: 8192;
 }>;

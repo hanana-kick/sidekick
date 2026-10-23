@@ -106,12 +106,13 @@ export async function buildPluginSdk({ libraryDirectory = resolve(root, 'dist/li
       './package.json': './package.json',
     },
     sideEffects: false,
-    files: ['index.js', 'index.cjs', 'types', 'LICENSE', 'third_party', 'README.md', 'examples', 'release.json'],
+    files: ['index.js', 'index.cjs', 'types', 'LICENSE', 'third_party', 'README.md', 'rigging.md', 'examples', 'release.json'],
   };
   writeFileSync(join(outputDirectory, 'package.json'), JSON.stringify(sdkManifest, null, 2) + '\n');
   cpSync(join(root, 'LICENSE'), join(outputDirectory, 'LICENSE'));
   cpSync(join(root, 'third_party/material-shapes'), join(outputDirectory, 'third_party/material-shapes'), { recursive: true });
   cpSync(join(root, 'docs/plugin-sdk.md'), join(outputDirectory, 'README.md'));
+  cpSync(join(root, 'docs/rigging.md'), join(outputDirectory, 'rigging.md'));
   cpSync(join(root, 'examples/plugin-sdk'), join(outputDirectory, 'examples'), { recursive: true });
   return { name: pluginSdkPackageName, version: manifest.version, declarations };
 }

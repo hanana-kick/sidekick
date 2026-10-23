@@ -80,3 +80,7 @@ export function defineAccessoryGeometry(geometry: AccessoryPluginGeometry): Acce
 export function definePartAnimation(clip: PartAnimationClip): PartAnimationClip {
   return validatePartAnimation(clip);
 }
+
+export * from './core/rigging.js';
+export * from './core/body-rig.js';
+export * from './core/animation-presets.js';

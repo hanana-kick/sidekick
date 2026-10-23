@@ -573,7 +573,7 @@ test('an explicit hide during shop following blocks future autonomous narration 
 });
 test('normal-motion community switches from home to continuous natural follow before the scroll settles',async t=>{
  let clock;const x=setup(t,'community','<button data-nav="notifications"></button><header class="th-feed-header"></header><aside id="th-companion-home"></aside>',{},(root,w)=>{clock=controlledClock(t,w);w.matchMedia=()=>({matches:false});});
- await flush();assert.equal(contextMoves(x)[0][2].duration,550);
+ await flush();assert.equal(contextMoves(x)[0][2].duration,550);assert.equal(contextMoves(x)[0][2].travel,'natural');assert.equal(contextMoves(x)[0][2].maxSpeed,700);
  clock.scroll(500);clock.advance(16);await flush();const move=companionMoves(x)[0];assert.ok(move);assert.equal(move[2].duration,550);assert.equal(move[2].travel,'natural');assert.equal(move[2].maxSpeed,700);
  clock.advance(164);await flush();assert.equal(companionMoves(x).length,1);assert.equal(contextMoves(x).length,1);assert.equal(x.calls.filter(c=>c[0]==='say'||c[0]==='presence').length,0);
 });
@@ -587,6 +587,7 @@ test('normal-motion company safety parking does not teleport',async t=>{
  x.root.click();await flush();
  assert.equal(contextMoves(x).length,1);
  assert.equal(contextMoves(x)[0][2].duration,550);
+ assert.equal(contextMoves(x)[0][2].travel,'natural');assert.equal(contextMoves(x)[0][2].maxSpeed,700);
  assert.equal(x.calls.filter(c=>c[0]==='say').length,0);
 });
 

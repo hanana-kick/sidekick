@@ -1,4 +1,5 @@
 import { isAccessoryInstanceId } from './accessory-id.js';
+import { isBoneId } from './rigging.js';
 export const PART_ANIMATION_LIMITS = Object.freeze({ maxTracks: 128, maxKeyframes: 4096, maxDuration: 86400 });
 function object(value, keys, path) {
     if (!value || typeof value !== 'object' || Array.isArray(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value)))
@@ -34,6 +35,11 @@ function vector(value, length, low, high) {
 function id(value) {
     if (!isAccessoryInstanceId(value))
         throw new TypeError('Invalid accessory animation id.');
+    return value;
+}
+function boneId(value) {
+    if (!isBoneId(value))
+        throw new TypeError('Invalid bone animation id.');
     return value;
 }
 /** Strict validation and defensive copy. Call once when accepting a clip, not on every frame. */
@@ -72,32 +78,52 @@ export function validatePartAnimation(value) {
                 throw new TypeError('Unsupported part target/channel combination.');
         }
         else {
-            const accessory = object(track.target, ['accessory'], 'target');
-            target = { accessory: id(accessory.accessory) };
-            if (track.channel === 'opacity') {
-                length = 0;
-                low = 0;
-                high = 1;
+            const addressed = object(track.target, ['accessory', 'bone'], 'target');
+            if (Object.hasOwn(addressed, 'bone')) {
+                target = { bone: boneId(addressed.bone), ...(Object.hasOwn(addressed, 'accessory') ? { accessory: id(addressed.accessory) } : {}) };
+                if (track.channel === 'position') {
+                    length = 3;
+                    low = -16;
+                    high = 16;
+                }
+                else if (track.channel === 'rotation') {
+                    length = 3;
+                    low = -Math.PI * 2;
+                    high = Math.PI * 2;
+                }
+                else
+                    throw new TypeError('Unsupported bone animation channel.');
             }
-            else if (track.channel === 'scale') {
-                length = 3;
-                low = .01;
-                high = 16;
+            else {
+                target = { accessory: id(addressed.accessory) };
+                if (track.channel === 'opacity') {
+                    length = 0;
+                    low = 0;
+                    high = 1;
+                }
+                else if (track.channel === 'scale') {
+                    length = 3;
+                    low = .01;
+                    high = 16;
+                }
+                else if (track.channel === 'position') {
+                    length = 3;
+                    low = -16;
+                    high = 16;
+                }
+                else if (track.channel === 'rotation') {
+                    length = 3;
+                    low = -Math.PI * 2;
+                    high = Math.PI * 2;
+                }
+                else
+                    throw new TypeError('Unsupported accessory animation channel.');
             }
-            else if (track.channel === 'position') {
-                length = 3;
-                low = -16;
-                high = 16;
-            }
-            else if (track.channel === 'rotation') {
-                length = 3;
-                low = -Math.PI * 2;
-                high = Math.PI * 2;
-            }
-            else
-                throw new TypeError('Unsupported accessory animation channel.');
         }
-        const channelKey = `${typeof target === 'string' ? target : `accessory:${target.accessory}`}:${String(track.channel)}`;
+        // Encode path segments separately: valid identifiers may themselves contain ':' or '/'.
+        const channelKey = JSON.stringify(typeof target === 'string' ? ['part', target, track.channel]
+            : typeof target.bone === 'string' ? ['bone', target.accessory ?? null, target.bone, track.channel]
+                : ['accessory', target.accessory, track.channel]);
         if (channels.has(channelKey))
             throw new TypeError('Each animation target/channel must be unique.');
         channels.add(channelKey);
@@ -149,7 +175,11 @@ export function samplePartAnimation(clip, time) {
         throw new RangeError('Animation time must be finite.');
     const remainder = time % clip.duration;
     const local = clip.loop ? (remainder < 0 ? remainder + clip.duration : remainder) : Math.max(0, Math.min(clip.duration, time));
-    const result = { accessories: Object.create(null) };
+    const result = {
+        accessories: Object.create(null),
+        bones: Object.create(null),
+        accessoryBones: Object.create(null),
+    };
     for (const track of clip.tracks) {
         const value = sampleTrack(track, local);
         if (track.target === 'body')
@@ -159,6 +189,13 @@ export function samplePartAnimation(clip, time) {
         else if (track.target === 'leftEye' || track.target === 'rightEye') {
             const [smile, blink] = value;
             (result.eyes ??= {})[track.target === 'leftEye' ? 'left' : 'right'] = { smile, openness: 1 - blink };
+        }
+        else if (typeof track.target === 'object' && typeof track.target.bone === 'string') {
+            const { bone, accessory } = track.target;
+            const bones = accessory === undefined ? result.bones
+                : result.accessoryBones[accessory] ??= Object.create(null);
+            const sample = bones[bone] ??= {};
+            sample[track.channel] = value;
         }
         else {
             const target = track.target;

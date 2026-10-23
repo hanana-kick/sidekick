@@ -1768,3 +1768,5 @@ Runtime eager/lazy asset registration, attachment-local meshes and shared WebGL/
 ## スクロール領域で自然に待機
 
 `createScrollRegions` は有効な領域（`region`）、反応する要素（`target`）、待機位置（`waitAt`）を分離します。同じ領域では安定して待機し、必要なときは要素の現在位置に追従できます。手動移動や非表示の後は明示的に再開します。[API と使用例](docs/scroll-regions.md)。
+
+- [Bone poses, skinning, and animation presets](docs/rigging.md)

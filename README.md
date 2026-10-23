@@ -1637,6 +1637,8 @@ await avatar.enter({ x: 240, y: 120 }, { from: 'top', maxSpeed: 1350 });
 | `onEnterEnd` | `SidekickEventHandler<'sidekick-enter-end'>` | 입장 완료/취소 `{finished, position, presence}` |
 | `onExitEnd` | `SidekickEventHandler<'sidekick-exit-end'>` | 퇴장 완료/취소 `{finished, position, presence}` |
 
+기본 `travel: 'natural'` 이동 중 `moveTo`를 다시 호출하면 현재 위치·속도·가속도와 적분 시간을 유지한 채 최신 목적지로 선회합니다. 같은 목적지의 중복 호출은 진행률이나 착지 시간을 다시 시작하지 않습니다. 이전 호출은 `finished: false`, 최신 호출만 최종 도착 시 `finished: true`로 완료됩니다. `anchor: true`는 목표 엘리먼트의 위치 변경을 자동 추적하므로 매 프레임 다시 명령할 필요가 없습니다. 명시적 `travel: 'none'`의 서로 다른 목적지 이동은 고정 duration tween이며 관성 전환이 아닙니다.
+
 ### 엘리먼트 기준 이동
 
 `moveToElement(target: Element, options?: MoveToElementOptions): Promise<MoveResult>`는 특정 DOM 엘리먼트를 기준으로 이동합니다. React의 `SidekickAvatarRef`에서도 같은 메서드를 제공합니다.
@@ -1768,3 +1770,5 @@ Runtime eager/lazy asset registration, attachment-local meshes and shared WebGL/
 ## 스크롤 영역에서 자연스럽게 대기
 
 `createScrollRegions`로 활성 영역(`region`), 반응할 요소(`target`), 대기 위치(`waitAt`)를 분리합니다. 같은 영역에서는 안정적으로 머무르고, 필요한 경우 요소의 현재 위치를 따라갑니다. 수동 이동·숨김 이후에는 명시적으로 재개합니다. [API와 예제](docs/scroll-regions.md).
+
+- [Bone poses, skinning, and animation presets](docs/rigging.md)

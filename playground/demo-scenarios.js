@@ -93,7 +93,7 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
   const home=site==='community'&&root.querySelector('#th-companion-home');
   if(!home||companion.active||!available()||scrollIntent.blocked()||modalOpen()||busy||pending||resting)return;
   resting=true;
-  void bot.moveToElement(home,{alignX:'left',alignY:'top',anchor:true,duration:win.matchMedia('(prefers-reduced-motion: reduce)').matches?0:550,travel:'none'}).catch(()=>{});
+  void bot.moveToElement(home,{alignX:'left',alignY:'top',anchor:true,duration:win.matchMedia('(prefers-reduced-motion: reduce)').matches?0:550,travel:'natural',maxSpeed:700,acceleration:1800,deceleration:2200}).catch(()=>{});
  }
  function parkShop(){if(site==='shop'&&available()&&!modalOpen()&&!busy&&!active&&!pending)companion.follow();}
  function finishPresentation(){
@@ -173,7 +173,7 @@ export function installDemoScenarios({bot,root,site,locale='en',adapter,initialE
    if(companyRest?.target===target&&Math.abs(companyRest.x-offset.x)<1&&Math.abs(companyRest.y-offset.y)<1)return;
    const attempt={target,...offset},token=epoch;companyRest=attempt;resting=true;
    const releaseOwnedRest=()=>{if(token!==epoch||companyRest!==attempt)return;companyRest=null;resting=false;bot.detachAnchor();};
-   let motion;try{motion=bot.moveToElement(target,{...offset,anchor:true,duration:win.matchMedia('(prefers-reduced-motion: reduce)').matches?0:550,travel:'none'});}catch{releaseOwnedRest();return;}
+   let motion;try{motion=bot.moveToElement(target,{...offset,anchor:true,duration:win.matchMedia('(prefers-reduced-motion: reduce)').matches?0:550,travel:'natural',maxSpeed:700,acceleration:1800,deceleration:2200});}catch{releaseOwnedRest();return;}
    void Promise.resolve(motion).then(result=>{
     if(token!==epoch||companyRest!==attempt)return;
     const latest=geometryFor(target),actual=bot.getBoundingClientRect();

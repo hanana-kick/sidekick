@@ -225,7 +225,7 @@ export class RenderEngine {
       }
       case 'dispose': this.dispose(); return;
     }
-    if (command.kind === 'design' || command.kind === 'persist-design' || (command.kind === 'state' && (Object.hasOwn(command.state, 'partAnimation') || Object.hasOwn(command.state, 'pluginAccessories')))) this.updatePartAnimationAvailability();
+    if (command.kind === 'design' || command.kind === 'persist-design' || (command.kind === 'state' && (Object.hasOwn(command.state, 'partAnimation') || Object.hasOwn(command.state, 'pluginAccessories') || Object.hasOwn(command.state, 'rig')))) this.updatePartAnimationAvailability();
     this.dirty = true; this.wake();
     // Immediate commands acknowledge their pose even when the surface is hidden.
     this.notify({ kind: 'frame', snapshot: this.snapshot });
@@ -258,7 +258,15 @@ export class RenderEngine {
     }
     const plugins = this.state.pluginAccessories ?? [];
     const ids = new Set([...plugins.map(item => item.id), ...this.state.design.accessories.filter(item => !plugins.some(plugin => plugin.slot === item.slot)).map(item => item.id)]);
-    this.partAnimationAvailable = tracks.some(track => typeof track.target !== 'object' || ids.has(track.target.accessory));
+    this.partAnimationAvailable = tracks.some(track => {
+      const target = track.target;
+      if (typeof target !== 'object') return true;
+      if (typeof target.bone === 'string') {
+        const skeleton = target.accessory === undefined ? this.state.rig?.skeleton : plugins.find(item => item.id === target.accessory)?.asset.geometry.skin?.skeleton;
+        return skeleton?.bones.some(bone => bone.id === target.bone) ?? false;
+      }
+      return ids.has(target.accessory);
+    });
   }
   private partAnimationMoving(): boolean {
     const part = this.state.partAnimation;
@@ -340,7 +348,7 @@ export class RenderEngine {
     activityFrame.gaze = activityFrame.gaze.map((value, i) => (value + emotion.gaze[i]!) * (1 - this.attention.values[0]!)) as Vec2;
     const [yaw, pitch, roll] = this.orientation.values;
     const started = performance.now();
-    this.renderer.render(this.state.design, { partAnimation, pluginAccessories: this.state.pluginAccessories, pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, shapeWeights: this.state.pluginAccessories?.some(item => item.asset.attachment) ? shape.shapeWeights : undefined, activity: this.state.activity, instant: this.state.paused || this.state.reduced, equipmentImmediate: this.equipmentImmediate, activityFrame, travel, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', bodyOrientation: { yaw: yaw!, pitch: pitch!, roll: roll! }, zoom: this.state.zoom });
+    this.renderer.render(this.state.design, { rig: this.state.rig, bonePose: this.state.bonePose, accessoryBonePoses: this.state.accessoryBonePoses, partAnimation, pluginAccessories: this.state.pluginAccessories, pose, eyeMotion: this.timeline.eyeMotion, contour: shape.contour, profile: shape.profile, shapeWeights: this.state.pluginAccessories?.some(item => item.asset.attachment) ? shape.shapeWeights : undefined, activity: this.state.activity, instant: this.state.paused || this.state.reduced, equipmentImmediate: this.equipmentImmediate, activityFrame, travel, time: this.state.time, delta: this.rendererDelta, reduced: this.state.reduced, style: 'flat', bodyOrientation: { yaw: yaw!, pitch: pitch!, roll: roll! }, zoom: this.state.zoom });
     const duration = performance.now() - started;
     this.renderCpu.lastMs = duration; this.renderCpu.totalMs += duration; this.renderCpu.maxMs = Math.max(this.renderCpu.maxMs, duration);
     this.equipmentImmediate = false; this.dirty = false; this.frames++; this.resetPacing();

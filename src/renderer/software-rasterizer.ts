@@ -57,7 +57,7 @@ export class SoftwareRasterizer {
   }
   draw(geometry: Geometry, model: Mat4, projection: Mat4, hex: string, count = geometry.indices.length, indexOffset = 0, opacity = 1, eyes?: SoftwareEyes): void {
     if (!this.width || !this.height || opacity <= 0) return;
-    const vertices = geometry.vertices, indices = geometry.indices, matrix = multiply(projection, model);
+    const vertices = geometry.vertices, faceVertices = geometry.faceVertices ?? vertices, indices = geometry.indices, matrix = multiply(projection, model);
     const vertexCount = vertices.length / 6;
     if (this.projected.length < vertexCount * 3) this.projected = new Float64Array(vertexCount * 3);
     const points = this.projected;
@@ -96,8 +96,8 @@ export class SoftwareRasterizer {
       const za = points[a + 2]!, zb = points[b + 2]!, zc = points[c + 2]!;
       const va = ia * 6, vb = ib * 6, vc = ic * 6;
       const sx = eyes?.faceScale[0] ?? 1, sy = eyes?.faceScale[1] ?? 1;
-      const xa = vertices[va]! * sx, xb = vertices[vb]! * sx, xc = vertices[vc]! * sx;
-      const ya = vertices[va + 1]! * sy, yb = vertices[vb + 1]! * sy, yc = vertices[vc + 1]! * sy;
+      const xa = faceVertices[va]! * sx, xb = faceVertices[vb]! * sx, xc = faceVertices[vc]! * sx;
+      const ya = faceVertices[va + 1]! * sy, yb = faceVertices[vb + 1]! * sy, yc = faceVertices[vc + 1]! * sy;
       const dxX = ((by - cy) * xa + (cy - ay) * xb + (ay - by) * xc) / area;
       const dxY = ((by - cy) * ya + (cy - ay) * yb + (ay - by) * yc) / area;
       const dyX = ((cx - bx) * xa + (ax - cx) * xb + (bx - ax) * xc) / area;
@@ -109,7 +109,7 @@ export class SoftwareRasterizer {
         if (z < 0 || z > 1 || z >= this.depth[pixel]!) continue;
         this.depth[pixel] = z;
         let r = red, g = green, bl = blue;
-        if (eyes && wa * vertices[va + 5]! + wb * vertices[vb + 5]! + wc * vertices[vc + 5]! >= .00001) {
+        if (eyes && wa * faceVertices[va + 5]! + wb * faceVertices[vb + 5]! + wc * faceVertices[vc + 5]! >= .00001) {
           const fx = wa * xa + wb * xb + wc * xc, fy = wa * ya + wb * yb + wc * yc;
           let mask = 0;
           for (let eye = 0; eye < 2; eye++) {

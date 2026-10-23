@@ -32,3 +32,6 @@ export function defineAccessoryGeometry(geometry) {
 export function definePartAnimation(clip) {
     return validatePartAnimation(clip);
 }
+export * from './core/rigging.js';
+export * from './core/body-rig.js';
+export * from './core/animation-presets.js';

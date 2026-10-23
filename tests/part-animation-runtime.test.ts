@@ -38,3 +38,21 @@ test('reduced motion displays explicit clip sample without advancing on unrelate
  const f=fixture();f.engine.command({kind:'state',state:{reduced:true,partAnimation:{clip,time:.5,anchorTime:0,playing:true}}});f.step(100);assert.equal(f.renders.at(-1).partAnimation.bodyRotation[1],.25);assert.equal(f.scheduled,false);
  f.engine.command({kind:'state',state:{time:12}});f.step(200);assert.equal(f.renders.at(-1).partAnimation.bodyRotation[1],.25);assert.equal(f.scheduled,false);f.engine.dispose();
 });
+test('bone tracks use shared scheduling and become dormant when their rig is removed',()=>{
+ const f=fixture();const rig={skeleton:{bones:[{id:'root'}]},influences:[]};
+ const clip=validatePartAnimation({duration:2,loop:true,tracks:[{target:{bone:'root'},channel:'rotation',keyframes:[{time:0,value:[0,0,0]},{time:2,value:[0,0,.5]}]}]});
+ f.engine.command({kind:'state',state:{rig,bonePose:{root:{position:[.1,0,0]}},partAnimation:{clip,time:0,anchorTime:0,playing:true}}});f.step(100);f.step(200);
+ assert.equal(f.scheduled,true);assert.ok(f.renders.at(-1).partAnimation.bones.root.rotation[2]>0);assert.equal(f.renders.at(-1).bonePose.root.position[0],.1);
+ f.engine.command({kind:'state',state:{rig:undefined}});f.step(300);assert.equal(f.scheduled,false);
+ f.engine.command({kind:'state',state:{rig,reduced:true}});f.step(400);assert.equal(f.scheduled,false);
+ f.engine.command({kind:'state',state:{partAnimation:{clip,time:1,anchorTime:0,playing:false}}});f.step(500);assert.equal(f.renders.at(-1).partAnimation.bones.root.rotation[2],.25);f.engine.dispose();
+});
+test('body rig updates do not cancel independent accessory motion ownership',()=>{
+ const f=fixture();const asset={pluginId:'x',slots:['head' as const],geometry:{vertices:new Float32Array([0,0,0,0,0,1,.1,0,0,0,0,1,0,.1,0,0,0,1]),indices:new Uint16Array([0,1,2])}};
+ f.engine.command({kind:'state',state:{pluginAccessories:[{id:'x',slot:'head',color:'#ffffff',asset}]}});
+ f.engine.command({kind:'motion',target:{accessories:{x:{rotation:[0,1,0]}}},options:{duration:10000},request:1});
+ assert.equal((f.engine as any).timeline.active,true);
+ f.engine.command({kind:'state',state:{rig:{skeleton:{bones:[{id:'root'}]},influences:[]}}});
+ assert.equal((f.engine as any).timeline.active,true);
+ f.engine.command({kind:'state',state:{rig:undefined}});assert.equal((f.engine as any).timeline.active,true);f.engine.dispose();
+});

@@ -13,3 +13,6 @@ export { EMOTIONS } from './core/emotion.js';
 export * from './core/accessory-plugins.js';
 export * from './core/accessory-attachments.js';
 export * from './core/part-animation.js';
+export * from './core/rigging.js';
+export * from './core/body-rig.js';
+export * from './core/animation-presets.js';

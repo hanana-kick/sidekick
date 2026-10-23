@@ -1,3 +1,5 @@
+import type { BodyRig } from '../core/body-rig.js';
+import type { BonePose } from '../core/rigging.js';
 import type { PartAnimationClip } from '../core/part-animation.js';
 import type { PluginAccessoryOptions, PluginAccessoryReference, PluginEquipResult } from './plugin-equipment.js';
 import type { AccessoryPluginRegistry } from '../core/accessory-plugins.js';
@@ -32,6 +34,25 @@ export declare class SidekickAvatar extends HTMLElementBase {
     removeEventListener<K extends keyof SidekickEventMap>(type: K, listener: (this: SidekickAvatar, event: SidekickEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
     removeEventListener<K extends keyof HTMLElementEventMap>(type: K, listener: (this: HTMLElement, event: HTMLElementEventMap[K]) => void, options?: boolean | EventListenerOptions): void;
     removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions): void;
+    private bodyRigState?;
+    private bonePoseState;
+    private accessoryBonePoseState;
+    /** Rig configuration is runtime-only, independent of the persisted visual design. */
+    get bodyRig(): BodyRig | undefined;
+    setBodyRig(input: BodyRig | null): void;
+    private boneSkeleton;
+    /** Replace the target's local bind-relative pose and take ownership from its bone tracks. */
+    setBonePose(input: BonePose, target?: {
+        accessory: string;
+    }): void;
+    getBonePose(target?: {
+        accessory: string;
+    }): BonePose;
+    clearBonePose(target?: {
+        accessory: string;
+    }): void;
+    private removeBoneTracks;
+    private syncRig;
     private partAnimationState?;
     /** Independent local clip clock; reading never exposes mutable runtime data. */
     get partAnimation(): {
@@ -50,6 +71,7 @@ export declare class SidekickAvatar extends HTMLElementBase {
     playPartAnimation(): void;
     seekPartAnimation(seconds: number): void;
     private pluginMotionIds;
+    private pluginSkeletons;
     private pluginEquipment;
     /** Runtime plugin items are separate from catalog design JSON. Returns metadata only. */
     get pluginAccessories(): PluginAccessoryReference[];

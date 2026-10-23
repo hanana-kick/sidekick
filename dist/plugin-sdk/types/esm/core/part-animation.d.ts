@@ -22,13 +22,23 @@ export type PartAnimationTrack = (Track<Vec3> & {
 }) | (Track<Vec3> & {
     target: {
         accessory: string;
+        bone?: never;
     };
     channel: 'rotation' | 'position' | 'scale';
 }) | (Track<number> & {
     target: {
         accessory: string;
+        bone?: never;
     };
     channel: 'opacity';
+})
+/** Omit accessory to address the body rig; otherwise address that accessory instance's rig. */
+ | (Track<Vec3> & {
+    target: {
+        bone: string;
+        accessory?: string;
+    };
+    channel: 'rotation' | 'position';
 });
 /** Times and duration are seconds. A looping clip samples time === duration at time zero. */
 export interface PartAnimationClip {
@@ -56,6 +66,8 @@ export interface PartAnimationSample {
         };
     };
     accessories: Record<string, PartAccessorySample>;
+    bones: Record<string, PartAccessorySample>;
+    accessoryBones: Record<string, Record<string, PartAccessorySample>>;
 }
 export declare const PART_ANIMATION_LIMITS: Readonly<{
     maxTracks: 128;

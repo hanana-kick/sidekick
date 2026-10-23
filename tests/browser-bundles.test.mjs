@@ -15,7 +15,7 @@ test('freshness checking reproduces all six bundles with published tree-shaking 
   const root = fileURLToPath(new URL('..', import.meta.url));
   const directory = mkdtempSync(join(tmpdir(), 'sidekick-bundle-freshness-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
-  for (const path of ['LICENSE', 'package.json', 'tsconfig.json', 'tsconfig.library.json', 'src', 'third_party/material-shapes', 'scripts/build-library.mjs', 'scripts/build-browser.mjs', 'scripts/build-plugin-sdk.mjs', 'docs/plugin-sdk.md', 'examples/plugin-sdk']) {
+  for (const path of ['LICENSE', 'package.json', 'tsconfig.json', 'tsconfig.library.json', 'src', 'third_party/material-shapes', 'scripts/build-library.mjs', 'scripts/build-browser.mjs', 'scripts/build-plugin-sdk.mjs', 'docs/plugin-sdk.md', 'docs/rigging.md', 'examples/plugin-sdk']) {
     cpSync(join(root, path), join(directory, path), { recursive: true });
   }
   symlinkSync(join(root, 'node_modules'), join(directory, 'node_modules'), 'junction');

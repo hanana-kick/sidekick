@@ -22,9 +22,9 @@ test('packed core installs offline without React, Studio, or lifecycle builds', 
   for (const script of ['build', 'prepare', 'prepack', 'preinstall', 'install', 'postinstall']) assert.equal(consumer.manifest.scripts[script], undefined);
   for (const name of ['react', 'react-dom', 'vite', 'radix-ui', 'tailwindcss', 'shadcn', 'typescript']) assert.equal(existsSync(join(consumer.directory, 'node_modules', name)), false, `${name} leaked into core install`);
   const files = consumer.packed.files.map(file => file.path);
-  assert.ok(files.every(file => file === 'package.json' || file === 'LICENSE' || ['docs/accessory-plugins.md', 'docs/part-animation.md', 'docs/plugin-sdk.md', 'docs/scroll-regions.md', 'examples/accessory-plugins/badge.js'].includes(file) || file.startsWith('examples/plugin-sdk/') || /^README(?:\.(?:en|zh-CN|ja))?\.md$/.test(file) || file.startsWith('dist/library/') || file.startsWith('dist/browser/') || file.startsWith('third_party/material-shapes/')), files.join('\n'));
+  assert.ok(files.every(file => file === 'package.json' || file === 'LICENSE' || ['docs/accessory-plugins.md', 'docs/part-animation.md', 'docs/plugin-sdk.md', 'docs/scroll-regions.md', 'docs/rigging.md', 'examples/accessory-plugins/badge.js'].includes(file) || file.startsWith('examples/plugin-sdk/') || /^README(?:\.(?:en|zh-CN|ja))?\.md$/.test(file) || file.startsWith('dist/library/') || file.startsWith('dist/browser/') || file.startsWith('third_party/material-shapes/')), files.join('\n'));
   for (const file of ['README.md', 'README.en.md', 'README.zh-CN.md', 'README.ja.md']) assert.ok(files.includes(file));
-  for (const file of ['docs/accessory-plugins.md', 'docs/part-animation.md', 'docs/plugin-sdk.md', 'docs/scroll-regions.md', 'examples/accessory-plugins/badge.js']) assert.ok(files.includes(file), `${file} must ship with author documentation`);
+  for (const file of ['docs/accessory-plugins.md', 'docs/part-animation.md', 'docs/plugin-sdk.md', 'docs/scroll-regions.md', 'docs/rigging.md', 'examples/accessory-plugins/badge.js']) assert.ok(files.includes(file), `${file} must ship with author documentation`);
   assert.ok(files.includes('dist/library/react.d.ts')); 
   for (const file of ['sidekick.js', 'sidekick.iife.js', 'sidekick-react.js', 'sidekick-element.js', 'sidekick-fallback.js', 'sidekick.worker.js']) assert.ok(files.includes('dist/browser/' + file));
   assert.ok(files.includes('third_party/material-shapes/LICENSE'));
@@ -32,10 +32,10 @@ test('packed core installs offline without React, Studio, or lifecycle builds', 
   for (const entry of ['./dist/library/index.js', './dist/library/auto.js', './src/index.ts', './src/auto.ts', './dist/browser/sidekick.js', './dist/browser/sidekick.iife.js', '**/*.css']) assert.ok(consumer.manifest.sideEffects.includes(entry));
   assert.ok(!consumer.manifest.sideEffects.includes('./dist/library/register.js'));
   assert.ok(!consumer.manifest.sideEffects.includes('./dist/library/core.js'));
-  // The all-slot plugin SDK, authored assets and runtime total approximately
-  // 1,057,545 packed bytes. Keep a bounded 1.075 MB budget while
+  // The all-slot SDK plus bounded rigging/skin helpers and guide total approximately
+  // 1.105 MB packed. Keep a bounded 1.125 MB budget while
   // preserving the independent no-React/no-Studio and exact shipped-file checks.
-  assert.ok(consumer.packed.size < 1_075_000, `Unexpected packed size ${consumer.packed.size}`);
+  assert.ok(consumer.packed.size < 1_125_000, `Unexpected packed size ${consumer.packed.size}`);
   const output = consumer.run(['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
     for (const suffix of ['', '/auto', '/register', '/core']) {

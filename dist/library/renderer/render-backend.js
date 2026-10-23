@@ -90,7 +90,7 @@ class WebGLBackend {
     }
     upload(data) {
         const gl = this.gl;
-        let vao = null, buffer = null, index = null;
+        let vao = null, buffer = null, index = null, gpu;
         try {
             vao = gl.createVertexArray();
             buffer = gl.createBuffer();
@@ -106,13 +106,17 @@ class WebGLBackend {
             gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index);
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data.indices, gl.STATIC_DRAW);
+            gpu = { vao, buffer, index };
+            this.faceChart(gpu, data);
             gl.bindVertexArray(null);
             const mesh = { count: data.indices.length, data };
-            this.meshes.set(mesh, { vao, buffer, index });
+            this.meshes.set(mesh, gpu);
             return mesh;
         }
         catch (error) {
             gl.bindVertexArray(null);
+            if (gpu?.face)
+                gl.deleteBuffer(gpu.face);
             if (buffer)
                 gl.deleteBuffer(buffer);
             if (index)
@@ -121,6 +125,33 @@ class WebGLBackend {
                 gl.deleteVertexArray(vao);
             throw error;
         }
+    }
+    /** Bind neutral chart data only for skinned bodies; ordinary meshes reuse their vertex buffer. */
+    faceChart(gpu, data) {
+        const gl = this.gl;
+        if (data.faceVertices) {
+            if (!gpu.face) {
+                const buffer = gl.createBuffer();
+                if (!buffer)
+                    throw new Error('GPU face chart buffer unavailable.');
+                gpu.face = buffer;
+            }
+            gl.bindBuffer(gl.ARRAY_BUFFER, gpu.face);
+            if (gpu.faceVertices !== data.faceVertices)
+                gl.bufferData(gl.ARRAY_BUFFER, data.faceVertices, gl.STATIC_DRAW);
+        }
+        else {
+            if (gpu.face) {
+                gl.deleteBuffer(gpu.face);
+                gpu.face = undefined;
+            }
+            gl.bindBuffer(gl.ARRAY_BUFFER, gpu.buffer);
+        }
+        gpu.faceVertices = data.faceVertices;
+        gl.enableVertexAttribArray(2);
+        gl.vertexAttribPointer(2, 2, gl.FLOAT, false, 24, 0);
+        gl.enableVertexAttribArray(3);
+        gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 24, 20);
     }
     update(mesh, data, indices, reuseVertices) {
         const gpu = this.meshes.get(mesh), gl = this.gl;
@@ -134,6 +165,7 @@ class WebGLBackend {
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gpu.index);
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data.indices, gl.STATIC_DRAW);
         }
+        this.faceChart(gpu, data);
         gl.bindVertexArray(null);
     }
     begin(projection) {
@@ -171,7 +203,8 @@ class WebGLBackend {
     end() { this.gl.disable(this.gl.BLEND); this.gl.bindVertexArray(null); }
     readPixels() { const pixels = new Uint8Array(this.canvas.width * this.canvas.height * 4); this.gl.readPixels(0, 0, this.canvas.width, this.canvas.height, this.gl.RGBA, this.gl.UNSIGNED_BYTE, pixels); return pixels; }
     deleteMesh(mesh) { const gpu = this.meshes.get(mesh); if (!gpu)
-        return; this.gl.deleteBuffer(gpu.buffer); this.gl.deleteBuffer(gpu.index); this.gl.deleteVertexArray(gpu.vao); this.meshes.delete(mesh); }
+        return; this.gl.deleteBuffer(gpu.buffer); this.gl.deleteBuffer(gpu.index); if (gpu.face)
+        this.gl.deleteBuffer(gpu.face); this.gl.deleteVertexArray(gpu.vao); this.meshes.delete(mesh); }
     dispose() { for (const mesh of this.meshes.keys())
         this.deleteMesh(mesh); this.gl.deleteProgram(this.program); }
     initializationError(cause) { return new RendererInitializationError(cause); }

@@ -1,3 +1,5 @@
+import type { BodyRig } from '../core/body-rig.js';
+import type { BonePose } from '../core/rigging.js';
 import type { PartAnimationClip } from '../core/part-animation.js';
 import type { PluginAccessoryInstance } from '../element/plugin-equipment.js';
 import type { PresentationSignature } from './presentation.js';
@@ -13,6 +15,9 @@ import type { PixelBuffer, SnapshotOptions } from '../core/pixels.js';
 /** Private wire format. A generation owns exactly one transferred surface. */
 export declare const PROTOCOL_VERSION = 1;
 export interface RuntimeState {
+    rig?: BodyRig;
+    bonePose?: BonePose;
+    accessoryBonePoses?: Record<string, BonePose>;
     partAnimation?: {
         clip: PartAnimationClip;
         time: number;

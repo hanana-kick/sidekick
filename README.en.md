@@ -1637,6 +1637,8 @@ await avatar.enter({ x: 240, y: 120 }, { from: 'top', maxSpeed: 1350 });
 | `onEnterEnd` | `SidekickEventHandler<'sidekick-enter-end'>` | Entry completed/cancelled `{finished, position, presence}` |
 | `onExitEnd` | `SidekickEventHandler<'sidekick-exit-end'>` | Exit completed/cancelled `{finished, position, presence}` |
 
+During default `travel: 'natural'` movement, another `moveTo` preserves position, velocity, acceleration, and integration time while steering toward the latest destination. Duplicate destinations do not restart progress or landing. Superseded calls resolve with `finished: false`; the latest call resolves with `finished: true` on arrival. `anchor: true` automatically tracks target layout changes, without per-frame commands. Explicit `travel: 'none'` moves to different destinations remain fixed-duration tweens, not inertial transitions.
+
 ### Element-relative movement
 
 `moveToElement(target: Element, options?: MoveToElementOptions): Promise<MoveResult>` moves relative to a specific DOM element. React's `SidekickAvatarRef` exposes the same method.
@@ -1768,3 +1770,5 @@ Import accessory authoring tools from `@hanana-kick/sidekick/plugin-sdk`. The re
 ## Wait naturally within scroll regions
 
 `createScrollRegions` separates the active section (`region`), reaction element (`target`), and waiting position (`waitAt`). Stay steady within a section or intentionally follow a live element. Resume explicitly after manual movement or hiding. [API and examples](docs/scroll-regions.md).
+
+- [Bone poses, skinning, and animation presets](docs/rigging.md)

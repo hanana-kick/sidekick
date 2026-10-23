@@ -655,3 +655,76 @@ test('retargeting a plain interruption preserves its existing flight-attitude fa
  const p=f.presentations.at(-1);assert.ok(p.lift>0);f.controller.followTarget({x:100,y:600});f.at(341);
  const next=f.presentations.at(-1);assert.ok(next.lift>0&&next.lift<=p.lift,'no one-frame neutral pop');advance(f,500);assert.equal(f.presentations.at(-1).lift,0,'original 180ms fade deadline is preserved');finish(f);assert.equal((await plainMove).finished,true);
 });
+
+test('duplicate natural commands preserve the integration clock at 60, 144 and 1000 Hz', async () => {
+ for (const hz of [60,144,1000]) {
+  const reference=fixture(), repeated=fixture(), target={x:900,y:100};
+  const single=reference.controller.to(target,physics), requests=[repeated.controller.to(target,physics)];
+  for(let i=1;i<=hz;i++) {
+   const time=i*1000/hz;reference.at(time);repeated.at(time);
+   const before=repeated.controller.state;
+   requests.push(repeated.controller.to(target,physics));
+   assert.deepEqual(repeated.controller.state,before,'duplicate command keeps phase, progress and derivatives');
+   assert.deepEqual(repeated.controller.state,reference.controller.state,`trajectory diverged at ${hz} Hz`);
+   assert.equal(repeated.callbacks.size,1);
+  }
+  finish(reference);finish(repeated);await single;
+  const results=await Promise.all(requests);assert.equal(results.filter(r=>r.finished).length,1);
+  assert.equal(repeated.events.length,requests.length);assert.deepEqual(repeated.controller.position,target);
+ }
+});
+
+test('per-millisecond changing natural destinations retain time, momentum and latest request ownership',async()=>{
+ const f=fixture(), requests=[];
+ for(let time=0;time<=1000;time++) {
+  f.clock(time);requests.push(f.controller.to({x:800+time/10,y:100},physics));
+ }
+ assert.ok(f.controller.position.x>190,'sub-tick retargeting must not starve physics');
+ assert.ok(f.controller.state.speed>290);
+ finish(f);const results=await Promise.all(requests);
+ assert.equal(results.filter(r=>r.finished).length,1);assert.deepEqual(results.at(-1).position,{x:900,y:100});
+});
+
+test('duplicate plain commands keep the original easing deadline instead of restarting',async()=>{
+ for(const easing of ['linear','smooth']) {
+  const f=fixture(), requests=[f.controller.to({x:100,y:200},{...plain,easing})];
+  for(let time=1;time<100;time++) {
+   f.at(time);const before=f.controller.state;
+   requests.push(f.controller.to({x:100,y:200},{...plain,easing}));
+   assert.deepEqual(f.controller.state,before);
+  }
+  f.at(100);const results=await Promise.all(requests);
+  assert.equal(results.filter(r=>r.finished).length,1);assert.deepEqual(f.controller.position,{x:100,y:200});assert.equal(f.callbacks.size,0);
+ }
+});
+
+test('duplicate arrival command transfers the promise without popping the landing presentation',async()=>{
+ const f=fixture(), first=f.controller.to({x:100,y:200},physics);
+ while(f.controller.state.phase!=='settling')f.at(f.now+16);
+ const before=f.controller.state,presentation=f.presentations.at(-1),next=f.controller.to({x:100,y:200},physics);
+ assert.deepEqual(f.controller.state,before);assert.deepEqual(f.presentations.at(-1),presentation);
+ assert.equal((await first).finished,false);finish(f);assert.equal((await next).finished,true);assert.equal(f.events.length,2);
+});
+
+test('changing duplicate tween options still starts the requested new timing or natural mode',async()=>{
+ const f=fixture();const old=f.controller.to({x:500,y:100},{duration:1000,travel:'none'});advance(f,300);
+ const before=f.controller.state;const next=f.controller.to({x:500,y:100},physics);
+ assert.equal((await old).finished,false);assert.equal(f.controller.state.progress,0);
+ assert.deepEqual(f.controller.state.velocity,before.velocity);assert.deepEqual(f.controller.state.acceleration,before.acceleration);
+ finish(f);assert.equal((await next).finished,true);
+});
+
+test('sub-tick retargets and alternating destinations match continuous follow state',async()=>{
+ const reference=fixture(), repeated=fixture(), initial={x:800,y:400};
+ const single=reference.controller.to(initial,physics), requests=[repeated.controller.to(initial,physics)];
+ for(let time=1;time<=1500;time++) {
+  reference.at(time);repeated.at(time);
+  const target={x:Math.floor(time/90)%2?200:800,y:300+Math.sin(time/70)*100};
+  reference.controller.followTarget(target);requests.push(repeated.controller.to(target,physics));
+  for(const key of ['position','velocity','acceleration'])assert.deepEqual(repeated.controller.state[key],reference.controller.state[key]);
+  assert.ok(repeated.controller.state.speed<=300+1e-8);assert.ok(Math.hypot(...Object.values(repeated.controller.state.acceleration))<=800+1e-8);
+ }
+ reference.controller.followTarget({x:500,y:300});requests.push(repeated.controller.to({x:500,y:300},physics));
+ finish(reference);finish(repeated);await single;assert.deepEqual(repeated.controller.position,reference.controller.position);
+ assert.equal((await Promise.all(requests)).filter(r=>r.finished).length,1);
+});

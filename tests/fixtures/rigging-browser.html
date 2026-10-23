@@ -1,0 +1,23 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sidekick bone API verification</title>
+<style>body{font:16px system-ui;background:#f6f7fb;color:#172033;margin:32px}main{max-width:900px;margin:auto}.stage{height:360px;background:white;border-radius:24px;display:flex;justify-content:center;align-items:center;box-shadow:0 8px 40px #2333}sidekick-avatar{width:300px;height:300px}button{padding:12px 16px;margin:6px;border-radius:10px;border:1px solid #bbb;background:white;cursor:pointer}pre{white-space:pre-wrap;background:#e8ecf5;padding:16px;border-radius:12px}h1{font-size:26px}</style>
+<main><h1>Bone poses · shared animation clock</h1><p>Body bending keeps eye ink on its surface. The flag tip has a separate skeleton; head mounting follows the body's upper bone.</p><div class="stage"><sidekick-avatar id="bot" activity="still" tracking="off" size="256"></sidekick-avatar></div>
+<div id="controls"><button data-action="neutral">Neutral</button><button data-action="bend">Bend body</button><button data-action="flag">Bend flag</button><button data-action="play">Play both</button><button data-action="pause">Pause</button><button data-action="seek">Seek 0.5s</button><button data-action="shape">Change shape</button><button data-action="remove">Remove rig</button></div><pre id="status">Loading…</pre></main>
+<script type="module">
+import {AccessoryPluginRegistry,createDesign} from '../../dist/browser/sidekick.js';
+const bot=document.querySelector('#bot'),status=document.querySelector('#status');
+const rig={skeleton:{bones:[{id:'root'},{id:'upper',parent:'root',position:[0,.15,0]}]},influences:[{bone:'root',center:[0,-.5,0],radius:1},{bone:'upper',center:[0,.5,0],radius:1}],fallbackBone:'root',attachments:{head:'upper'}};
+const registry=new AccessoryPluginRegistry();
+registry.register({apiVersion:1,id:'fixture/flag',slots:['head'],createMesh(){return {vertices:new Float32Array([-.04,0,0,0,-1,0,.04,0,0,0,-1,0,-.04,0,.4,0,-1,0,.04,0,.4,0,-1,0,.4,0,.4,0,-1,0,.4,0,.2,0,-1,0]),indices:new Uint16Array([0,1,2,1,3,2,2,3,4,3,5,4]),skin:{skeleton:{bones:[{id:'base'},{id:'tip',parent:'base',position:[0,0,.2]}]},joints:new Uint8Array([0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0]),weights:new Float32Array([1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0])}};}});
+function report(text){status.textContent=text+'\n'+JSON.stringify({bodyPose:bot.bodyRig?bot.getBonePose():null,clip:bot.partAnimation?{time:bot.partAnimation.time,playing:bot.partAnimation.playing}:null},null,2)}
+function setup(){if(!bot.bodyRig)bot.setBodyRig(rig)}
+try{bot.design=createDesign();bot.setBodyRig(rig);await bot.equipPluginAccessory(registry,'fixture/flag',{slot:'head',id:'flag',color:'#ea407a'});report('READY: body rig + independently skinned flag');}catch(e){status.textContent='ERROR '+e.stack}
+document.querySelector('#controls').addEventListener('click',event=>{const action=event.target.dataset.action;if(!action)return;try{
+ if(action==='neutral'){setup();bot.clearPartAnimation();bot.clearBonePose();bot.clearBonePose({accessory:'flag'});}
+ if(action==='bend'){setup();bot.setBonePose({upper:{rotation:[0,0,.65]}});}
+ if(action==='flag')bot.setBonePose({tip:{rotation:[0,.8,0]}},{accessory:'flag'});
+ if(action==='play'){setup();bot.setPartAnimation({duration:2,loop:true,tracks:[{target:{bone:'upper'},channel:'rotation',interpolation:'smooth',keyframes:[{time:0,value:[0,0,0]},{time:1,value:[0,0,.6]},{time:2,value:[0,0,0]}]},{target:{accessory:'flag',bone:'tip'},channel:'rotation',keyframes:[{time:0,value:[0,0,0]},{time:1,value:[0,-.8,0]},{time:2,value:[0,0,0]}]}]});}
+ if(action==='pause')bot.pausePartAnimation();if(action==='seek'){bot.pausePartAnimation();bot.seekPartAnimation(.5);}
+ if(action==='shape'){const d=bot.design;d.body.shape=d.body.shape==='circle'?'square':'circle';bot.design=d;}
+ if(action==='remove')bot.setBodyRig(null);report(action+' OK');
+}catch(e){status.textContent='ERROR '+e.stack}});
+</script></html>

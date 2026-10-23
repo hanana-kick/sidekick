@@ -91,6 +91,7 @@ test('release SDK ZIP extracts, installs offline and interoperates with the runt
   assert.equal(sdkManifest.sideEffects, false);
   for (const field of ['dependencies', 'peerDependencies', 'devDependencies', 'scripts']) assert.equal(sdkManifest[field], undefined);
   assert.equal(readFileSync(join(sdk, 'README.md'), 'utf8'), read('docs/plugin-sdk.md'));
+  assert.equal(readFileSync(join(sdk, 'rigging.md'), 'utf8'), read('docs/rigging.md'));
   for (const file of files(join(root, 'examples/plugin-sdk'))) assert.equal(readFileSync(join(sdk, 'examples', file), 'utf8'), read('examples/plugin-sdk/' + file));
   const metadata = JSON.parse(readFileSync(join(sdk, 'release.json'), 'utf8'));
   assert.equal(metadata.sourceCommit, result.sourceCommit);

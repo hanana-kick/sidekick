@@ -119,6 +119,427 @@ All 35 shape recipes are preserved, including per-vertex corner radii/smoothing,
 mirroring, rotations, and aspect-preserving AndroidX normalized() bounds.
 
 */
+//#region core/math.js
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+const add = (a, b) => [
+	a[0] + b[0],
+	a[1] + b[1],
+	a[2] + b[2]
+];
+const scale = (a, k) => [
+	a[0] * k,
+	a[1] * k,
+	a[2] * k
+];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [
+	a[1] * b[2] - a[2] * b[1],
+	a[2] * b[0] - a[0] * b[2],
+	a[0] * b[1] - a[1] * b[0]
+];
+function normalize(v) {
+	const length = Math.hypot(...v);
+	return length > 1e-12 ? scale(v, 1 / length) : [
+		0,
+		0,
+		1
+	];
+}
+function identity() {
+	return new Float32Array([
+		1,
+		0,
+		0,
+		0,
+		0,
+		1,
+		0,
+		0,
+		0,
+		0,
+		1,
+		0,
+		0,
+		0,
+		0,
+		1
+	]);
+}
+function multiply(a, b) {
+	const out = /* @__PURE__ */ new Float32Array(16);
+	for (let col = 0; col < 4; col++) for (let row = 0; row < 4; row++) out[col * 4 + row] = a[row] * b[col * 4] + a[4 + row] * b[col * 4 + 1] + a[8 + row] * b[col * 4 + 2] + a[12 + row] * b[col * 4 + 3];
+	return out;
+}
+function transform(position = [
+	0,
+	0,
+	0
+], rotation = [
+	0,
+	0,
+	0
+], size = [
+	1,
+	1,
+	1
+]) {
+	const [x, y, z] = rotation;
+	const cx = Math.cos(x), sx = Math.sin(x), cy = Math.cos(y), sy = Math.sin(y), cz = Math.cos(z), sz = Math.sin(z);
+	const rx = new Float32Array([
+		1,
+		0,
+		0,
+		0,
+		0,
+		cx,
+		sx,
+		0,
+		0,
+		-sx,
+		cx,
+		0,
+		0,
+		0,
+		0,
+		1
+	]);
+	const ry = new Float32Array([
+		cy,
+		0,
+		-sy,
+		0,
+		0,
+		1,
+		0,
+		0,
+		sy,
+		0,
+		cy,
+		0,
+		0,
+		0,
+		0,
+		1
+	]);
+	const m = multiply(multiply(new Float32Array([
+		cz,
+		sz,
+		0,
+		0,
+		-sz,
+		cz,
+		0,
+		0,
+		0,
+		0,
+		1,
+		0,
+		0,
+		0,
+		0,
+		1
+	]), ry), rx);
+	for (let i = 0; i < 12; i++) m[i] = m[i] * size[Math.floor(i / 4)];
+	m[12] = position[0];
+	m[13] = position[1];
+	m[14] = position[2];
+	return m;
+}
+function frameMatrix(position, tangent, bitangent, normal) {
+	return new Float32Array([
+		...tangent,
+		0,
+		...bitangent,
+		0,
+		...normal,
+		0,
+		...position,
+		1
+	]);
+}
+//#endregion
+//#region core/rigging.js
+/** CPU skinning is intentionally bounded and data-only; scale is not supported. */
+const RIGGING_LIMITS = Object.freeze({
+	maxBones: 32,
+	maxVertices: 16384,
+	maxCoordinate: 16,
+	maxRotation: 16 * Math.PI,
+	influences: 4,
+	weightTolerance: 1e-5
+});
+const reservedIds = /* @__PURE__ */ new Set([...Object.getOwnPropertyNames(Object.prototype), "prototype"]);
+/** Shared by animation track validation; never allow prototype keys as bone identities. */
+function isBoneId(value) {
+	return typeof value === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._/:-]{0,127}$/.test(value) && !reservedIds.has(value);
+}
+function boneId$1(value, label) {
+	if (!isBoneId(value)) throw new TypeError(`${label} must be a safe 1–128 character bone id.`);
+	return value;
+}
+function record$1(value, label, allowed) {
+	if (!value || typeof value !== "object" || Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) throw new TypeError(`${label} must be a plain data object.`);
+	const result = Object.create(null);
+	for (const key of Reflect.ownKeys(value)) {
+		if (typeof key !== "string" || reservedIds.has(key) || allowed && !allowed.includes(key)) throw new TypeError(`${label} contains an unsupported field.`);
+		const descriptor = Object.getOwnPropertyDescriptor(value, key);
+		if (!descriptor.enumerable || !Object.hasOwn(descriptor, "value")) throw new TypeError(`${label}.${key} must be an enumerable data field, not an accessor.`);
+		result[key] = descriptor.value;
+	}
+	return result;
+}
+function bounded$4(value, min, max, label) {
+	if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max) throw new RangeError(`${label} must be finite and between ${min} and ${max}.`);
+	return value;
+}
+function vertexCount(value) {
+	if (!Number.isSafeInteger(value) || value < 1 || value > RIGGING_LIMITS.maxVertices) throw new RangeError("Skin vertex count must be between 1 and 16384.");
+}
+function dataArray$1(value, min, max, label) {
+	if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) throw new TypeError(`${label} must be a plain array.`);
+	if (value.length < min || value.length > max) throw new RangeError(`${label} must contain between ${min} and ${max} entries.`);
+	if (Reflect.ownKeys(value).length !== value.length + 1) throw new TypeError(`${label} must be dense and contain no extra fields.`);
+	const result = [];
+	for (let i = 0; i < value.length; i++) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, String(i));
+		if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, "value")) throw new TypeError(`${label}[${i}] must be a data entry, not an accessor or hole.`);
+		result.push(descriptor.value);
+	}
+	return result;
+}
+function vector$3(value, bound, label) {
+	return dataArray$1(value, 3, 3, label).map((item) => bounded$4(item, -bound, bound, label));
+}
+function boneTransform(source, label) {
+	const result = {};
+	if (source.position !== void 0) result.position = vector$3(source.position, RIGGING_LIMITS.maxCoordinate, `${label} position`);
+	if (source.rotation !== void 0) result.rotation = vector$3(source.rotation, RIGGING_LIMITS.maxRotation, `${label} rotation`);
+	return result;
+}
+/** Validate and clone. Input order is retained, including when parents follow children. */
+function validateSkeleton(value) {
+	const bones = dataArray$1(record$1(value, "Skeleton", ["bones"]).bones, 1, RIGGING_LIMITS.maxBones, "Skeleton bones").map((value) => {
+		const source = record$1(value, "Bone", [
+			"id",
+			"parent",
+			"position",
+			"rotation"
+		]);
+		const result = {
+			id: boneId$1(source.id, "Bone id"),
+			...boneTransform(source, "Bone bind")
+		};
+		if (source.parent !== void 0) result.parent = boneId$1(source.parent, "Parent bone id");
+		return result;
+	});
+	const indices = /* @__PURE__ */ new Map();
+	bones.forEach((bone, index) => {
+		if (indices.has(bone.id)) throw new TypeError(`Duplicate bone id: ${bone.id}.`);
+		indices.set(bone.id, index);
+	});
+	const visited = /* @__PURE__ */ new Set(), visiting = /* @__PURE__ */ new Set();
+	function visit(bone) {
+		if (visited.has(bone.id)) return;
+		if (visiting.has(bone.id)) throw new TypeError("Skeleton hierarchy must not contain a cycle.");
+		visiting.add(bone.id);
+		if (bone.parent !== void 0) {
+			const index = indices.get(bone.parent);
+			if (index === void 0) throw new TypeError(`Unknown parent bone: ${bone.parent}.`);
+			visit(bones[index]);
+		}
+		visiting.delete(bone.id);
+		visited.add(bone.id);
+	}
+	bones.forEach(visit);
+	return { bones };
+}
+function poseForSkeleton(value, skeleton) {
+	const source = record$1(value, "Bone pose", skeleton.bones.map((bone) => bone.id));
+	const result = {};
+	for (const id of Object.keys(source)) result[id] = boneTransform(record$1(source[id], `Bone pose ${id}`, ["position", "rotation"]), `Bone pose ${id}`);
+	return result;
+}
+/** Unknown bones, scale, executable properties, and unbounded values are rejected. */
+function validateBonePose(value, skeleton) {
+	return poseForSkeleton(value, validateSkeleton(skeleton));
+}
+const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype);
+const typedLength = Object.getOwnPropertyDescriptor(typedArrayPrototype, "length").get;
+const typedBuffer = Object.getOwnPropertyDescriptor(typedArrayPrototype, "buffer").get;
+function typedArray(value, constructor, length, label) {
+	if (!value || Object.getPrototypeOf(value) !== constructor.prototype) throw new TypeError(`${label} requires a plain ${constructor.name}.`);
+	const size = typedLength.call(value);
+	if (!(typedBuffer.call(value) instanceof ArrayBuffer)) throw new TypeError(`${label} requires a non-shared buffer.`);
+	if (size > RIGGING_LIMITS.maxVertices * 6 || length !== void 0 && size !== length) throw new RangeError(`${label} has an invalid length.`);
+	const keys = Reflect.ownKeys(value);
+	if (keys.length !== size || keys.some((key, i) => key !== String(i))) throw new TypeError(`${label} must not contain extra fields or accessors.`);
+	return value;
+}
+/** Own all rig data before registration, worker transport, or repeated evaluation. */
+function validateSkinBinding(value, count) {
+	vertexCount(count);
+	const source = record$1(value, "Skin binding", [
+		"skeleton",
+		"joints",
+		"weights"
+	]);
+	const skeleton = validateSkeleton(source.skeleton);
+	const joints = new Uint8Array(typedArray(source.joints, Uint8Array, count * 4, "Skin joints"));
+	const weights = new Float32Array(typedArray(source.weights, Float32Array, count * 4, "Skin weights"));
+	for (let vertex = 0; vertex < count; vertex++) {
+		let sum = 0;
+		for (let influence = 0; influence < 4; influence++) {
+			const index = vertex * 4 + influence;
+			if (joints[index] >= skeleton.bones.length) throw new RangeError("Skin joint index is outside the skeleton, including zero-weight entries.");
+			sum += bounded$4(weights[index], 0, 1, "Skin weight");
+		}
+		if (Math.abs(sum - 1) > RIGGING_LIMITS.weightTolerance) throw new RangeError("Skin weights for each vertex must sum to 1.");
+	}
+	return {
+		skeleton,
+		joints,
+		weights
+	};
+}
+/** Inverse of rigid T*R: transpose the rotation, then apply -R^T*t. */
+function inverseRigid(matrix) {
+	const result = identity();
+	for (let col = 0; col < 3; col++) for (let row = 0; row < 3; row++) result[col * 4 + row] = matrix[row * 4 + col];
+	for (let row = 0; row < 3; row++) result[12 + row] = -(result[row] * matrix[12] + result[4 + row] * matrix[13] + result[8 + row] * matrix[14]);
+	return result;
+}
+function worldMatrices(local, parents) {
+	const world = new Array(local.length);
+	function visit(index) {
+		if (world[index]) return world[index];
+		const parent = parents[index];
+		const result = parent < 0 ? new Float32Array(local[index]) : multiply(visit(parent), local[index]);
+		world[index] = result;
+		return result;
+	}
+	local.forEach((_, index) => visit(index));
+	return world;
+}
+function compileSkeleton(skeleton) {
+	const indices = new Map(skeleton.bones.map((bone, index) => [bone.id, index]));
+	const parents = skeleton.bones.map((bone) => bone.parent === void 0 ? -1 : indices.get(bone.parent));
+	const bindLocal = skeleton.bones.map((bone) => transform(bone.position, bone.rotation));
+	const bindWorld = worldMatrices(bindLocal, parents);
+	return {
+		skeleton,
+		parents,
+		bindLocal,
+		bindWorld,
+		inverseBind: bindWorld.map(inverseRigid)
+	};
+}
+function neutralPose(pose) {
+	return Object.values(pose).every((value) => (!value.position || value.position.every((v) => v === 0)) && (!value.rotation || value.rotation.every((v) => v === 0)));
+}
+function posedMatrices(compiled, pose) {
+	const neutral = neutralPose(pose);
+	const local = compiled.skeleton.bones.map((bone, index) => {
+		const delta = pose[bone.id];
+		return !delta || neutral ? new Float32Array(compiled.bindLocal[index]) : multiply(compiled.bindLocal[index], transform(delta.position, delta.rotation));
+	});
+	const world = worldMatrices(local, compiled.parents);
+	const deformation = world.map((matrix, index) => neutral ? identity() : multiply(matrix, compiled.inverseBind[index]));
+	return {
+		local,
+		world,
+		bindWorld: compiled.bindWorld,
+		inverseBind: compiled.inverseBind,
+		deformation
+	};
+}
+/** All arrays retain the authored bone order. Matrices are column-major, matching math.ts. */
+function computeBoneMatrices(skeleton, pose = {}) {
+	const owned = validateSkeleton(skeleton);
+	return posedMatrices(compileSkeleton(owned), poseForSkeleton(pose, owned));
+}
+/** World means skeleton/model-local space, before the accessory or avatar model matrix. */
+function getBoneTransform(skeleton, id, pose = {}, space = "world") {
+	if (space !== "world" && space !== "local") throw new TypeError("Bone transform space must be world or local.");
+	boneId$1(id, "Bone id");
+	const owned = validateSkeleton(skeleton), index = owned.bones.findIndex((bone) => bone.id === id);
+	if (index < 0) throw new TypeError(`Unknown bone: ${id}.`);
+	return posedMatrices(compileSkeleton(owned), poseForSkeleton(pose, owned))[space][index];
+}
+function ownVertices(value) {
+	const input = typedArray(value, Float32Array, void 0, "Skin vertices");
+	if (input.length % 6 !== 0) throw new RangeError("Skin vertices require a position/normal stride of 6.");
+	vertexCount(input.length / 6);
+	const vertices = new Float32Array(input);
+	for (let index = 0; index < vertices.length; index += 6) {
+		for (let axis = 0; axis < 3; axis++) bounded$4(vertices[index + axis], -RIGGING_LIMITS.maxCoordinate, RIGGING_LIMITS.maxCoordinate, "Skin vertex position");
+		const normalLength = Math.hypot(vertices[index + 3], vertices[index + 4], vertices[index + 5]);
+		if (!Number.isFinite(normalLength) || Math.abs(normalLength - 1) > .001) throw new RangeError("Skin vertex normals must be finite unit vectors.");
+	}
+	return vertices;
+}
+function deformVertices(vertices, binding, matrices, out) {
+	for (let index = 0, vertex = 0; index < vertices.length; index += 6, vertex++) {
+		const x = vertices[index], y = vertices[index + 1], z = vertices[index + 2];
+		const nx = vertices[index + 3], ny = vertices[index + 4], nz = vertices[index + 5];
+		let px = 0, py = 0, pz = 0, rx = 0, ry = 0, rz = 0, total = 0;
+		let strongest = -1, fallbackX = nx, fallbackY = ny, fallbackZ = nz;
+		for (let influence = 0; influence < 4; influence++) {
+			const slot = vertex * 4 + influence, weight = binding.weights[slot];
+			if (weight === 0) continue;
+			const matrix = matrices[binding.joints[slot]];
+			px += weight * (matrix[0] * x + matrix[4] * y + matrix[8] * z + matrix[12]);
+			py += weight * (matrix[1] * x + matrix[5] * y + matrix[9] * z + matrix[13]);
+			pz += weight * (matrix[2] * x + matrix[6] * y + matrix[10] * z + matrix[14]);
+			const tx = matrix[0] * nx + matrix[4] * ny + matrix[8] * nz;
+			const ty = matrix[1] * nx + matrix[5] * ny + matrix[9] * nz;
+			const tz = matrix[2] * nx + matrix[6] * ny + matrix[10] * nz;
+			rx += weight * tx;
+			ry += weight * ty;
+			rz += weight * tz;
+			total += weight;
+			if (weight > strongest) {
+				strongest = weight;
+				fallbackX = tx;
+				fallbackY = ty;
+				fallbackZ = tz;
+			}
+		}
+		let normalLength = Math.hypot(rx, ry, rz);
+		if (normalLength < 1e-8) {
+			rx = fallbackX;
+			ry = fallbackY;
+			rz = fallbackZ;
+			normalLength = Math.hypot(rx, ry, rz);
+		}
+		out[index] = px / total;
+		out[index + 1] = py / total;
+		out[index + 2] = pz / total;
+		out[index + 3] = rx / normalLength;
+		out[index + 4] = ry / normalLength;
+		out[index + 5] = rz / normalLength;
+	}
+	return out;
+}
+/** Validate once and cache the owned neutral mesh, binding, inverse bind, and output buffer. */
+function createSkinDeformer(vertices, binding) {
+	const neutral = ownVertices(vertices), owned = validateSkinBinding(binding, neutral.length / 6);
+	const compiled = compileSkeleton(owned.skeleton), output = new Float32Array(neutral.length);
+	return { deform(pose = {}, out = output) {
+		const checkedPose = poseForSkeleton(pose, owned.skeleton);
+		if (out !== output) typedArray(out, Float32Array, neutral.length, "Skin output");
+		if (typedLength.call(out) !== neutral.length) throw new RangeError("Skin output has an invalid or detached length.");
+		if (neutralPose(checkedPose)) {
+			Float32Array.prototype.set.call(out, neutral);
+			return out;
+		}
+		return deformVertices(neutral, owned, posedMatrices(compiled, checkedPose).deformation, out);
+	} };
+}
+/** One-shot safe skinning; use createSkinDeformer for repeated animation frames. */
+function skinVertices(vertices, binding, pose = {}, out) {
+	return createSkinDeformer(vertices, binding).deform(pose, out);
+}
+//#endregion
 //#region core/shapes.js
 /** All 35 official Material Design expressive shapes, using camelCase API names. */
 const MATERIAL_SHAPE_NAMES = Object.freeze([
@@ -211,7 +632,7 @@ function object$2(value, path) {
 	if (Object.getOwnPropertySymbols(value).length) throw new TypeError(`${path}: symbol keys are unsupported.`);
 	return value;
 }
-function keys$1(value, allowed, path) {
+function keys$2(value, allowed, path) {
 	for (const key of Object.keys(value)) if (!allowed.includes(key)) throw new TypeError(`${path}.${key}: unsupported shape field.`);
 }
 function materialName(value, path) {
@@ -238,22 +659,22 @@ function parseShape(input) {
 		const shape = object$2(value, path);
 		switch (shape.kind) {
 			case "ellipse":
-				keys$1(shape, ["kind"], path);
+				keys$2(shape, ["kind"], path);
 				return { kind: "ellipse" };
 			case "material":
-				keys$1(shape, ["kind", "name"], path);
+				keys$2(shape, ["kind", "name"], path);
 				return {
 					kind: "material",
 					name: materialName(shape.name, `${path}.name`)
 				};
 			case "preset":
-				keys$1(shape, ["kind", "name"], path);
+				keys$2(shape, ["kind", "name"], path);
 				return {
 					kind: "preset",
 					name: preset(shape.name, `${path}.name`)
 				};
 			case "rounded-polygon": {
-				keys$1(shape, [
+				keys$2(shape, [
 					"kind",
 					"sides",
 					"rounding",
@@ -269,7 +690,7 @@ function parseShape(input) {
 				};
 			}
 			case "morph":
-				keys$1(shape, [
+				keys$2(shape, [
 					"kind",
 					"from",
 					"to",
@@ -304,7 +725,7 @@ Object.freeze({
 		};
 	},
 	roundedPolygon(sides, options = {}) {
-		keys$1(object$2(options, "shape.options"), ["rounding", "rotation"], "shape.options");
+		keys$2(object$2(options, "shape.options"), ["rounding", "rotation"], "shape.options");
 		return parseShape({
 			kind: "rounded-polygon",
 			sides,
@@ -11552,7 +11973,7 @@ const BERET_FIT_PROFILES = {
 	]
 };
 /** A complete fit record is built independently for each accessory and shape. */
-function defaults$1(shape, depth, eyes, beretU, beretTilt, beretScale = 1, haloHeight = .22, glassesScale = 1) {
+function defaults$2(shape, depth, eyes, beretU, beretTilt, beretScale = 1, haloHeight = .22, glassesScale = 1) {
 	const [width, height, spacing, offsetY] = eyes;
 	const [mouthY, neckY, size, leftEarV, rightEarV, earSize, mouthTilt, neckTilt] = LOWER_ACCESSORY_FITS[shape];
 	const tie = BOW_TIE_FITS[shape];
@@ -11752,211 +12173,211 @@ function defaults$1(shape, depth, eyes, beretU, beretTilt, beretScale = 1, haloH
 * None of these internal choices changes the Material catalog XY contour.
 */
 const DEFAULT_SHAPE_PROFILES = Object.freeze({
-	circle: defaults$1("circle", 1, [
+	circle: defaults$2("circle", 1, [
 		1.04,
 		1.04,
 		1.02,
 		0
 	], 0, -.06),
-	square: defaults$1("square", .9, [
+	square: defaults$2("square", .9, [
 		1,
 		1,
 		1,
 		0
 	], 0, 0),
-	slanted: defaults$1("slanted", .82, [
+	slanted: defaults$2("slanted", .82, [
 		.96,
 		1,
 		.94,
 		0
 	], -.1, 0),
-	arch: defaults$1("arch", .9, [
+	arch: defaults$2("arch", .9, [
 		1,
 		1.04,
 		.96,
 		-.04
 	], 0, -.04),
-	fan: defaults$1("fan", .82, [
+	fan: defaults$2("fan", .82, [
 		.92,
 		.94,
 		.9,
 		-.04
 	], -.38, .06, .9),
-	arrow: defaults$1("arrow", .7, [
+	arrow: defaults$2("arrow", .7, [
 		.86,
 		.88,
 		.8,
 		-.06
 	], 0, 0, .94),
-	semiCircle: defaults$1("semiCircle", .86, [
+	semiCircle: defaults$2("semiCircle", .86, [
 		.92,
 		.78,
 		1,
 		-.02
 	], 0, -.04),
-	oval: defaults$1("oval", .88, [
+	oval: defaults$2("oval", .88, [
 		.86,
 		.94,
 		.82,
 		0
 	], .3, -.02, .94),
-	pill: defaults$1("pill", 1, [
+	pill: defaults$2("pill", 1, [
 		.96,
 		1.02,
 		.94,
 		0
 	], .1, -.04),
-	triangle: defaults$1("triangle", .72, [
+	triangle: defaults$2("triangle", .72, [
 		.82,
 		.86,
 		.78,
 		-.18
 	], 0, 0, .94),
-	diamond: defaults$1("diamond", .78, [
+	diamond: defaults$2("diamond", .78, [
 		.88,
 		.98,
 		.82,
 		-.04
 	], 0, 0, .94),
-	clamShell: defaults$1("clamShell", .9, [
+	clamShell: defaults$2("clamShell", .9, [
 		1.04,
 		.76,
 		1.02,
 		-.02
 	], 0, 0),
-	pentagon: defaults$1("pentagon", .84, [
+	pentagon: defaults$2("pentagon", .84, [
 		.98,
 		.98,
 		.94,
 		-.04
 	], 0, 0),
-	gem: defaults$1("gem", .84, [
+	gem: defaults$2("gem", .84, [
 		.98,
 		1,
 		.96,
 		-.02
 	], 0, -.04),
-	verySunny: defaults$1("verySunny", .58, [
+	verySunny: defaults$2("verySunny", .58, [
 		.84,
 		.86,
 		.84,
 		-.02
 	], 0, 0, .94, .24),
-	sunny: defaults$1("sunny", .66, [
+	sunny: defaults$2("sunny", .66, [
 		.92,
 		.94,
 		.9,
 		-.02
 	], 0, 0),
-	cookie4Sided: defaults$1("cookie4Sided", .82, [
+	cookie4Sided: defaults$2("cookie4Sided", .82, [
 		.94,
 		.98,
 		.88,
 		0
 	], .41, 0, .94),
-	cookie6Sided: defaults$1("cookie6Sided", .78, [
+	cookie6Sided: defaults$2("cookie6Sided", .78, [
 		.98,
 		.98,
 		.96,
 		0
 	], 0, -.04),
-	cookie7Sided: defaults$1("cookie7Sided", .76, [
+	cookie7Sided: defaults$2("cookie7Sided", .76, [
 		.96,
 		.98,
 		.94,
 		0
 	], 0, -.04),
-	cookie9Sided: defaults$1("cookie9Sided", .7, [
+	cookie9Sided: defaults$2("cookie9Sided", .7, [
 		.98,
 		1,
 		.96,
 		0
 	], 0, -.04),
-	cookie12Sided: defaults$1("cookie12Sided", .68, [
+	cookie12Sided: defaults$2("cookie12Sided", .68, [
 		1,
 		1,
 		.98,
 		0
 	], 0, -.04),
-	ghostish: defaults$1("ghostish", .9, [
+	ghostish: defaults$2("ghostish", .9, [
 		1,
 		1.04,
 		.96,
 		.02
 	], 0, -.04),
-	clover4Leaf: defaults$1("clover4Leaf", .92, [
+	clover4Leaf: defaults$2("clover4Leaf", .92, [
 		.9,
 		.92,
 		.88,
 		-.02
 	], .35, 0, .94),
-	clover8Leaf: defaults$1("clover8Leaf", .78, [
+	clover8Leaf: defaults$2("clover8Leaf", .78, [
 		.94,
 		.96,
 		.92,
 		0
 	], .22, 0, .94),
-	burst: defaults$1("burst", .52, [
+	burst: defaults$2("burst", .52, [
 		.82,
 		.84,
 		.82,
 		-.02
 	], 0, 0, .94, .24),
-	softBurst: defaults$1("softBurst", .64, [
+	softBurst: defaults$2("softBurst", .64, [
 		.88,
 		.9,
 		.88,
 		-.02
 	], 0, 0),
-	boom: defaults$1("boom", .52, [
+	boom: defaults$2("boom", .52, [
 		.72,
 		.72,
 		.64,
 		-.08
 	], 0, 0, .92, .24),
-	softBoom: defaults$1("softBoom", .72, [
+	softBoom: defaults$2("softBoom", .72, [
 		.78,
 		.8,
 		.72,
 		-.08
 	], 0, 0, .92, .24),
-	flower: defaults$1("flower", .84, [
+	flower: defaults$2("flower", .84, [
 		.88,
 		.9,
 		.86,
 		-.02
 	], 0, 0, .94),
-	puffy: defaults$1("puffy", 1.08, [
+	puffy: defaults$2("puffy", 1.08, [
 		.96,
 		.96,
 		.92,
 		0
 	], .22, 0, .94),
-	puffyDiamond: defaults$1("puffyDiamond", 1, [
+	puffyDiamond: defaults$2("puffyDiamond", 1, [
 		.9,
 		.94,
 		.84,
 		-.02
 	], 0, 0, .94),
-	pixelCircle: defaults$1("pixelCircle", .74, [
+	pixelCircle: defaults$2("pixelCircle", .74, [
 		1,
 		1,
 		.98,
 		0
 	], 0, 0),
-	pixelTriangle: defaults$1("pixelTriangle", .68, [
+	pixelTriangle: defaults$2("pixelTriangle", .68, [
 		.82,
 		.84,
 		.7,
 		-.04
 	], -.36, 0, .9, .22, .86),
-	bun: defaults$1("bun", 1, [
+	bun: defaults$2("bun", 1, [
 		.88,
 		.82,
 		.78,
 		-.04
 	], 0, 0),
-	heart: defaults$1("heart", .9, [
+	heart: defaults$2("heart", .9, [
 		.9,
 		.92,
 		.88,
@@ -12133,145 +12554,6 @@ Object.freeze([
 ]);
 createEyeState(), createEyeState();
 //#endregion
-//#region core/math.js
-const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-const add = (a, b) => [
-	a[0] + b[0],
-	a[1] + b[1],
-	a[2] + b[2]
-];
-const scale = (a, k) => [
-	a[0] * k,
-	a[1] * k,
-	a[2] * k
-];
-const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const cross = (a, b) => [
-	a[1] * b[2] - a[2] * b[1],
-	a[2] * b[0] - a[0] * b[2],
-	a[0] * b[1] - a[1] * b[0]
-];
-function normalize(v) {
-	const length = Math.hypot(...v);
-	return length > 1e-12 ? scale(v, 1 / length) : [
-		0,
-		0,
-		1
-	];
-}
-function identity() {
-	return new Float32Array([
-		1,
-		0,
-		0,
-		0,
-		0,
-		1,
-		0,
-		0,
-		0,
-		0,
-		1,
-		0,
-		0,
-		0,
-		0,
-		1
-	]);
-}
-function multiply(a, b) {
-	const out = /* @__PURE__ */ new Float32Array(16);
-	for (let col = 0; col < 4; col++) for (let row = 0; row < 4; row++) out[col * 4 + row] = a[row] * b[col * 4] + a[4 + row] * b[col * 4 + 1] + a[8 + row] * b[col * 4 + 2] + a[12 + row] * b[col * 4 + 3];
-	return out;
-}
-function transform(position = [
-	0,
-	0,
-	0
-], rotation = [
-	0,
-	0,
-	0
-], size = [
-	1,
-	1,
-	1
-]) {
-	const [x, y, z] = rotation;
-	const cx = Math.cos(x), sx = Math.sin(x), cy = Math.cos(y), sy = Math.sin(y), cz = Math.cos(z), sz = Math.sin(z);
-	const rx = new Float32Array([
-		1,
-		0,
-		0,
-		0,
-		0,
-		cx,
-		sx,
-		0,
-		0,
-		-sx,
-		cx,
-		0,
-		0,
-		0,
-		0,
-		1
-	]);
-	const ry = new Float32Array([
-		cy,
-		0,
-		-sy,
-		0,
-		0,
-		1,
-		0,
-		0,
-		sy,
-		0,
-		cy,
-		0,
-		0,
-		0,
-		0,
-		1
-	]);
-	const m = multiply(multiply(new Float32Array([
-		cz,
-		sz,
-		0,
-		0,
-		-sz,
-		cz,
-		0,
-		0,
-		0,
-		0,
-		1,
-		0,
-		0,
-		0,
-		0,
-		1
-	]), ry), rx);
-	for (let i = 0; i < 12; i++) m[i] = m[i] * size[Math.floor(i / 4)];
-	m[12] = position[0];
-	m[13] = position[1];
-	m[14] = position[2];
-	return m;
-}
-function frameMatrix(position, tangent, bitangent, normal) {
-	return new Float32Array([
-		...tangent,
-		0,
-		...bitangent,
-		0,
-		...normal,
-		0,
-		...position,
-		1
-	]);
-}
-//#endregion
 //#region core/plugin-deformation.js
 /** Small, data-only operations. No expression interpreter or catalog selector. */
 const ACCESSORY_PLUGIN_DEFORMATION_LIMITS = Object.freeze({
@@ -12289,7 +12571,7 @@ function object$1(value, label) {
 	if (prototype !== Object.prototype && prototype !== null) throw new TypeError(`${label} must be a plain object.`);
 	return value;
 }
-function keys(value, allowed, label) {
+function keys$1(value, allowed, label) {
 	if (Reflect.ownKeys(value).some((key) => typeof key !== "string" || !allowed.includes(key))) throw new TypeError(`${label} contains unsupported fields.`);
 }
 function bounded$1(value, min, max, label) {
@@ -12317,7 +12599,7 @@ function reduction(value) {
 }
 function material(value) {
 	const source = object$1(value, "Connector material");
-	keys(source, ["color", "multiplier"], "Connector material");
+	keys$1(source, ["color", "multiplier"], "Connector material");
 	const result = {};
 	if (source.color !== void 0) {
 		if (typeof source.color !== "string" || !/^#[0-9a-f]{6}$/i.test(source.color)) throw new TypeError("Connector material color must be #RRGGBB.");
@@ -12329,7 +12611,7 @@ function material(value) {
 /** Exact public landmark contract; malformed arrays must never produce a NaN frame. */
 function validateAccessoryPluginEyeMeasurements(value) {
 	const source = object$1(value, "Neutral eye measurements");
-	keys(source, [
+	keys$1(source, [
 		"left",
 		"right",
 		"size"
@@ -12344,7 +12626,7 @@ function validateAccessoryPluginEyeMeasurements(value) {
 function validateAccessoryPluginDeformation(value, vertexCount) {
 	integer(vertexCount, 1, ACCESSORY_PLUGIN_DEFORMATION_LIMITS.maxVertices, "Affine vertex count");
 	const source = object$1(value, "Accessory deformation");
-	keys(source, [
+	keys$1(source, [
 		"kind",
 		"eyeBlend",
 		"basePositions",
@@ -12354,7 +12636,7 @@ function validateAccessoryPluginDeformation(value, vertexCount) {
 	if (!Array.isArray(source.channels) || source.channels.length < 1 || source.channels.length > ACCESSORY_PLUGIN_DEFORMATION_LIMITS.maxChannels) throw new RangeError("Affine channels must contain between 1 and 8 measurements.");
 	const channels = Array.from(source.channels, (item) => {
 		const channel = object$1(item, "Affine channel");
-		keys(channel, [
+		keys$1(channel, [
 			"measurement",
 			"combine",
 			"factors",
@@ -12378,15 +12660,15 @@ function validateAccessoryPluginDeformation(value, vertexCount) {
 /** Named coefficients keep authoring readable; names do not enter the runtime recipe. */
 function createPairedAffineDeformation(value) {
 	const source = object$1(value, "Affine authoring");
-	keys(source, ["channels", "vertices"], "Affine authoring");
+	keys$1(source, ["channels", "vertices"], "Affine authoring");
 	const named = object$1(source.channels, "Named affine channels"), names = Object.keys(named);
-	keys(named, names, "Named affine channels");
+	keys$1(named, names, "Named affine channels");
 	if (names.length < 1 || names.length > ACCESSORY_PLUGIN_DEFORMATION_LIMITS.maxChannels || names.some((name) => !/^[A-Za-z][A-Za-z0-9_]{0,31}$/.test(name))) throw new TypeError("Provide 1–8 short named affine channels.");
 	if (!Array.isArray(source.vertices)) throw new TypeError("Affine authoring vertices must be an array.");
 	const count = integer(source.vertices.length, 1, ACCESSORY_PLUGIN_DEFORMATION_LIMITS.maxVertices, "Affine vertex count");
 	const channels = names.map((name) => {
 		const channel = object$1(named[name], "Named affine channel");
-		keys(channel, ["combine", "factors"], "Named affine channel");
+		keys$1(channel, ["combine", "factors"], "Named affine channel");
 		return {
 			measurement: "eye-size",
 			combine: reduction(channel.combine),
@@ -12398,7 +12680,7 @@ function createPairedAffineDeformation(value) {
 	for (let index = 0; index < count; index++) {
 		const item = source.vertices[index];
 		const vertex = object$1(item, "Affine authored vertex");
-		keys(vertex, [
+		keys$1(vertex, [
 			"eyeBlend",
 			"basePosition",
 			"coefficients"
@@ -12407,7 +12689,7 @@ function createPairedAffineDeformation(value) {
 		if (vertex.basePosition !== void 0) basePositions.set(vector$2(vertex.basePosition, 3, -16, 16, "Affine base position"), index * 3);
 		if (vertex.coefficients === void 0) continue;
 		const coefficients = object$1(vertex.coefficients, "Named vertex coefficients");
-		keys(coefficients, names, "Named vertex coefficients");
+		keys$1(coefficients, names, "Named vertex coefficients");
 		names.forEach((name, channelIndex) => {
 			if (Object.hasOwn(coefficients, name) && coefficients[name] !== void 0) channels[channelIndex].coefficients.set(vector$2(coefficients[name], 3, -16, 16, "Affine coefficient"), index * 3);
 		});
@@ -12428,7 +12710,7 @@ function validateAccessoryPluginSurfaceConnectors(value, baseVertexCount, baseIn
 	let vertices = baseVertexCount, indices = baseIndexCount;
 	return Array.from(value, (item) => {
 		const source = object$1(item, "Surface connector");
-		keys(source, [
+		keys$1(source, [
 			"kind",
 			"to",
 			"radius",
@@ -12463,6 +12745,8 @@ const ACCESSORY_PLUGIN_LIMITS = Object.freeze({
 	maxFittedVertices: 2048,
 	maxFittedTriangles: 4096,
 	maxEquipped: 6,
+	maxEquippedSkinnedVertices: 16384,
+	maxEquippedSkinnedTriangles: 32768,
 	maxEquippedFittedVertices: 4096,
 	maxEquippedFittedTriangles: 8192
 });
@@ -12579,8 +12863,22 @@ function parts(value, count) {
 }
 /** Validate and copy before worker transport or renderer use. Shared buffers are forbidden. */
 function validateAccessoryPluginGeometry(value) {
-	if (!value || typeof value !== "object") throw new TypeError("Accessory plugin geometry is required.");
-	const { vertices, indices } = value;
+	if (!value || typeof value !== "object" || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) throw new TypeError("Accessory plugin geometry must be a plain data object.");
+	const fields = Object.create(null);
+	for (const key of Reflect.ownKeys(value)) {
+		const field = Object.getOwnPropertyDescriptor(value, key);
+		if (typeof key !== "string" || ![
+			"vertices",
+			"indices",
+			"parts",
+			"skin",
+			"deformation",
+			"surfaceConnectors",
+			"normalPrecision"
+		].includes(key) || !field.enumerable || !Object.hasOwn(field, "value")) throw new TypeError("Accessory plugin geometry contains unsupported or accessor data.");
+		fields[key] = field.value;
+	}
+	const { vertices, indices } = fields;
 	if (!(vertices instanceof Float32Array) || !(indices instanceof Uint16Array) || !(vertices.buffer instanceof ArrayBuffer) || !(indices.buffer instanceof ArrayBuffer)) throw new TypeError("Accessory geometry requires non-shared Float32Array vertices and Uint16Array indices.");
 	if (vertices.length < 18 || vertices.length % 6 !== 0 || vertices.length / 6 > ACCESSORY_PLUGIN_LIMITS.maxVertices) throw new RangeError("Accessory geometry vertex count exceeds the supported limits.");
 	if (indices.length < 3 || indices.length % 3 !== 0 || indices.length / 3 > ACCESSORY_PLUGIN_LIMITS.maxTriangles) throw new RangeError("Accessory geometry triangle count exceeds the supported limits.");
@@ -12595,14 +12893,17 @@ function validateAccessoryPluginGeometry(value) {
 	}
 	const count = ownedVertices.length / 6;
 	for (const index of ownedIndices) if (index >= count) throw new RangeError("Accessory triangle index is outside the vertex array.");
-	const input = value;
+	const input = fields;
 	if (input.normalPrecision !== void 0 && input.normalPrecision !== "float32" && input.normalPrecision !== "float64") throw new TypeError("Normal precision must be float32 or float64.");
+	if (input.skin && (input.deformation || input.surfaceConnectors)) throw new TypeError("Skinning cannot be combined with paired deformation or surface connectors.");
+	const skin = input.skin === void 0 ? void 0 : validateSkinBinding(input.skin, count);
 	const connectors = input.surfaceConnectors === void 0 ? void 0 : validateAccessoryPluginSurfaceConnectors(input.surfaceConnectors, count, ownedIndices.length);
 	const ranges = input.parts === void 0 ? void 0 : parts(input.parts, ownedIndices.length);
 	if ((ranges?.length ?? 1) + (connectors?.length ?? 0) > ACCESSORY_PLUGIN_LIMITS.maxParts) throw new RangeError("Composed accessory material ranges exceed the supported limits.");
 	return {
 		vertices: ownedVertices,
 		indices: ownedIndices,
+		...skin ? { skin } : {},
 		...ranges ? { parts: ranges } : {},
 		...input.deformation === void 0 ? {} : { deformation: validateAccessoryPluginDeformation(input.deformation, count) },
 		...connectors ? { surfaceConnectors: connectors } : {},
@@ -12655,6 +12956,10 @@ function id(value) {
 	if (!isAccessoryInstanceId(value)) throw new TypeError("Invalid accessory animation id.");
 	return value;
 }
+function boneId(value) {
+	if (!isBoneId(value)) throw new TypeError("Invalid bone animation id.");
+	return value;
+}
 /** Strict validation and defensive copy. Call once when accepting a clip, not on every frame. */
 function validatePartAnimation(value) {
 	const input = object(value, [
@@ -12692,26 +12997,56 @@ function validatePartAnimation(value) {
 				high = 1;
 			} else throw new TypeError("Unsupported part target/channel combination.");
 		} else {
-			target = { accessory: id(object(track.target, ["accessory"], "target").accessory) };
-			if (track.channel === "opacity") {
-				length = 0;
-				low = 0;
-				high = 1;
-			} else if (track.channel === "scale") {
-				length = 3;
-				low = .01;
-				high = 16;
-			} else if (track.channel === "position") {
-				length = 3;
-				low = -16;
-				high = 16;
-			} else if (track.channel === "rotation") {
-				length = 3;
-				low = -Math.PI * 2;
-				high = Math.PI * 2;
-			} else throw new TypeError("Unsupported accessory animation channel.");
+			const addressed = object(track.target, ["accessory", "bone"], "target");
+			if (Object.hasOwn(addressed, "bone")) {
+				target = {
+					bone: boneId(addressed.bone),
+					...Object.hasOwn(addressed, "accessory") ? { accessory: id(addressed.accessory) } : {}
+				};
+				if (track.channel === "position") {
+					length = 3;
+					low = -16;
+					high = 16;
+				} else if (track.channel === "rotation") {
+					length = 3;
+					low = -Math.PI * 2;
+					high = Math.PI * 2;
+				} else throw new TypeError("Unsupported bone animation channel.");
+			} else {
+				target = { accessory: id(addressed.accessory) };
+				if (track.channel === "opacity") {
+					length = 0;
+					low = 0;
+					high = 1;
+				} else if (track.channel === "scale") {
+					length = 3;
+					low = .01;
+					high = 16;
+				} else if (track.channel === "position") {
+					length = 3;
+					low = -16;
+					high = 16;
+				} else if (track.channel === "rotation") {
+					length = 3;
+					low = -Math.PI * 2;
+					high = Math.PI * 2;
+				} else throw new TypeError("Unsupported accessory animation channel.");
+			}
 		}
-		const channelKey = `${typeof target === "string" ? target : `accessory:${target.accessory}`}:${String(track.channel)}`;
+		const channelKey = JSON.stringify(typeof target === "string" ? [
+			"part",
+			target,
+			track.channel
+		] : typeof target.bone === "string" ? [
+			"bone",
+			target.accessory ?? null,
+			target.bone,
+			track.channel
+		] : [
+			"accessory",
+			target.accessory,
+			track.channel
+		]);
 		if (channels.has(channelKey)) throw new TypeError("Each animation target/channel must be unique.");
 		channels.add(channelKey);
 		const frames = array(track.keyframes, PART_ANIMATION_LIMITS.maxKeyframes, "keyframes");
@@ -12764,7 +13099,11 @@ function samplePartAnimation(clip, time) {
 	if (!Number.isFinite(time)) throw new RangeError("Animation time must be finite.");
 	const remainder = time % clip.duration;
 	const local = clip.loop ? remainder < 0 ? remainder + clip.duration : remainder : Math.max(0, Math.min(clip.duration, time));
-	const result = { accessories: Object.create(null) };
+	const result = {
+		accessories: Object.create(null),
+		bones: Object.create(null),
+		accessoryBones: Object.create(null)
+	};
 	for (const track of clip.tracks) {
 		const value = sampleTrack(track, local);
 		if (track.target === "body") result.bodyRotation = value;
@@ -12775,6 +13114,11 @@ function samplePartAnimation(clip, time) {
 				smile,
 				openness: 1 - blink
 			};
+		} else if (typeof track.target === "object" && typeof track.target.bone === "string") {
+			const { bone, accessory } = track.target;
+			const bones = accessory === void 0 ? result.bones : result.accessoryBones[accessory] ??= Object.create(null);
+			const sample = bones[bone] ??= {};
+			sample[track.channel] = value;
 		} else {
 			const target = track.target;
 			const sample = result.accessories[target.accessory] ??= {};
@@ -13743,6 +14087,228 @@ function attachmentPointToBody(frame, point) {
 	return frame.position.map((value, i) => value + frame.scale * (frame.tangent[i] * point[0] + frame.bitangent[i] * point[1] + frame.normal[i] * point[2]));
 }
 //#endregion
+//#region core/body-rig.js
+function plain(value, name) {
+	if (!value || typeof value !== "object" || Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) throw new TypeError(`${name} must be a plain data object.`);
+	const result = Object.create(null);
+	for (const key of Reflect.ownKeys(value)) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, key);
+		if (typeof key !== "string" || !descriptor.enumerable || !Object.hasOwn(descriptor, "value")) throw new TypeError(`${name} requires enumerable data fields, not symbols or accessors.`);
+		result[key] = descriptor.value;
+	}
+	return result;
+}
+function keys(input, allowed, name) {
+	if (Object.keys(input).some((key) => !allowed.includes(key))) throw new TypeError(`${name} contains unsupported fields.`);
+}
+function dataArray(value, min, max, name) {
+	if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) throw new TypeError(`${name} must be a plain array.`);
+	if (value.length < min || value.length > max) throw new RangeError(`${name} requires ${min}–${max} entries.`);
+	if (Reflect.ownKeys(value).length !== value.length + 1) throw new TypeError(`${name} must be dense, without extra fields.`);
+	return Array.from({ length: value.length }, (_, index) => {
+		const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+		if (!descriptor || !descriptor.enumerable || !Object.hasOwn(descriptor, "value")) throw new TypeError(`${name} entries must be data, not accessors or holes.`);
+		return descriptor.value;
+	});
+}
+/** Validate and own all mutable input, suitable for worker messages and later author edits. */
+function validateBodyRig(value) {
+	const input = plain(value, "Body rig");
+	keys(input, [
+		"skeleton",
+		"influences",
+		"fallbackBone",
+		"attachments"
+	], "Body rig");
+	const skeleton = validateSkeleton(input.skeleton), names = new Set(skeleton.bones.map((bone) => bone.id));
+	const boneName = (value) => {
+		if (typeof value !== "string" || !names.has(value)) throw new TypeError("Body rig references an unknown bone.");
+		return value;
+	};
+	const seen = /* @__PURE__ */ new Set();
+	const influences = dataArray(input.influences, 0, RIGGING_LIMITS.maxBones, "Body influences").map((value) => {
+		const field = plain(value, "Body influence");
+		keys(field, [
+			"bone",
+			"center",
+			"radius"
+		], "Body influence");
+		const bone = boneName(field.bone);
+		if (seen.has(bone)) throw new TypeError("Body influences must name unique bones.");
+		seen.add(bone);
+		const center = dataArray(field.center, 3, 3, "Body influence center");
+		if (!center.every((v) => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 16)) throw new RangeError("Body influence center requires three finite coordinates within 16 units.");
+		if (typeof field.radius !== "number" || !Number.isFinite(field.radius) || field.radius <= 0 || field.radius > 32) throw new RangeError("Body influence radius must be positive and at most 32 units.");
+		return {
+			bone,
+			center,
+			radius: field.radius
+		};
+	});
+	const fallbackBone = input.fallbackBone === void 0 ? void 0 : boneName(input.fallbackBone);
+	let attachments;
+	if (input.attachments !== void 0) {
+		const map = plain(input.attachments, "Body attachments");
+		keys(map, ACCESSORY_SLOTS, "Body attachments");
+		attachments = Object.fromEntries(Object.entries(map).map(([slot, bone]) => [slot, boneName(bone)]));
+	}
+	return {
+		skeleton,
+		influences,
+		...fallbackBone === void 0 ? {} : { fallbackBone },
+		...attachments === void 0 ? {} : { attachments }
+	};
+}
+/** Select the four strongest compact quadratic fields, normalize, and use a rigid fallback outside. */
+function createBodySkinBinding(vertices, input) {
+	const rig = validateBodyRig(input);
+	if (!vertices || Object.getPrototypeOf(vertices) !== Float32Array.prototype) throw new TypeError("Body skin requires a plain Float32Array.");
+	const typed = Object.getPrototypeOf(Float32Array.prototype);
+	const length = Object.getOwnPropertyDescriptor(typed, "length").get.call(vertices);
+	if (!(Object.getOwnPropertyDescriptor(typed, "buffer").get.call(vertices) instanceof ArrayBuffer) || length < 6 || length > RIGGING_LIMITS.maxVertices * 6 || length % 6 !== 0) throw new RangeError("Body skin requires 1–16384 interleaved position/normal vertices.");
+	const vertexKeys = Reflect.ownKeys(vertices);
+	if (vertexKeys.length !== length || vertexKeys.some((key, i) => key !== String(i))) throw new TypeError("Body skin vertices cannot contain extra fields or accessors.");
+	if (!Float32Array.prototype.every.call(vertices, Number.isFinite)) throw new TypeError("Body skin vertices must be finite.");
+	const count = length / 6, joints = new Uint8Array(count * 4), weights = new Float32Array(count * 4);
+	const names = new Map(rig.skeleton.bones.map((bone, index) => [bone.id, index]));
+	const fields = rig.influences.map((field) => ({
+		...field,
+		joint: names.get(field.bone)
+	}));
+	const fallback = names.get(rig.fallbackBone ?? rig.skeleton.bones[0].id);
+	for (let vertex = 0; vertex < count; vertex++) {
+		const at = vertex * 6, offset = vertex * 4;
+		const strongest = [];
+		for (const field of fields) {
+			const distance = Math.hypot(vertices[at] - field.center[0], vertices[at + 1] - field.center[1], vertices[at + 2] - field.center[2]);
+			const weight = Math.max(0, 1 - distance / field.radius) ** 2;
+			if (!weight) continue;
+			const rank = strongest.findIndex((other) => weight > other.weight);
+			if (rank < 0) {
+				if (strongest.length < 4) strongest.push({
+					joint: field.joint,
+					weight
+				});
+			} else {
+				strongest.splice(rank, 0, {
+					joint: field.joint,
+					weight
+				});
+				if (strongest.length > 4) strongest.pop();
+			}
+		}
+		if (!strongest.length) {
+			joints[offset] = fallback;
+			weights[offset] = 1;
+			continue;
+		}
+		const total = strongest.reduce((sum, field) => sum + field.weight, 0);
+		strongest.forEach((field, index) => {
+			joints[offset + index] = field.joint;
+			weights[offset + index] = field.weight / total;
+		});
+	}
+	return {
+		skeleton: rig.skeleton,
+		joints,
+		weights
+	};
+}
+//#endregion
+//#region core/animation-presets.js
+const PART_ANIMATION_PRESET_LIMITS = Object.freeze({
+	minDuration: .05,
+	maxDuration: 60,
+	maxIntensity: 1
+});
+const defaults = {
+	nod: .8,
+	shake: .7,
+	wiggle: .9,
+	blink: .24
+};
+function readOptions(value) {
+	if (!value || typeof value !== "object" || Array.isArray(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) throw new TypeError("Preset options must be a plain data object.");
+	for (const key of Reflect.ownKeys(value)) {
+		const field = Object.getOwnPropertyDescriptor(value, key);
+		if (typeof key !== "string" || ![
+			"duration",
+			"intensity",
+			"loop"
+		].includes(key) || !field.enumerable || !Object.hasOwn(field, "value")) throw new TypeError("Preset options contain unsupported or accessor data.");
+	}
+	const options = value;
+	if (Object.hasOwn(options, "duration") && (typeof options.duration !== "number" || !Number.isFinite(options.duration) || options.duration < PART_ANIMATION_PRESET_LIMITS.minDuration || options.duration > PART_ANIMATION_PRESET_LIMITS.maxDuration)) throw new RangeError("Preset duration must be finite and within 0.05..60 seconds.");
+	if (Object.hasOwn(options, "intensity") && (typeof options.intensity !== "number" || !Number.isFinite(options.intensity) || options.intensity < 0 || options.intensity > PART_ANIMATION_PRESET_LIMITS.maxIntensity)) throw new RangeError("Preset intensity must be finite and within 0..1.");
+	if (Object.hasOwn(options, "loop") && typeof options.loop !== "boolean") throw new TypeError("Preset loop must be boolean.");
+	return options;
+}
+/** Create an ordinary, validated clip with neutral endpoints. No rig or separate player is required. */
+function createPartAnimationPreset(name, options = {}) {
+	if (typeof name !== "string" || !Object.hasOwn(defaults, name)) throw new TypeError("Unknown part animation preset.");
+	const input = readOptions(options);
+	const duration = input.duration ?? defaults[name], intensity = input.intensity ?? 1;
+	let tracks;
+	if (name === "blink") {
+		const keys = [
+			[0, 0],
+			[.45, 1],
+			[.85, 0],
+			[1, 0]
+		];
+		tracks = ["leftEye", "rightEye"].map((target) => ({
+			target,
+			channel: "weights",
+			interpolation: "smooth",
+			keyframes: keys.map(([time, amount]) => ({
+				time: time * duration,
+				value: [0, amount * intensity]
+			}))
+		}));
+	} else {
+		const axis = name === "nod" ? 0 : name === "shake" ? 1 : 2;
+		tracks = [{
+			target: "body",
+			channel: "rotation",
+			interpolation: "smooth",
+			keyframes: (name === "nod" ? [
+				[0, 0],
+				[.35, .22],
+				[.7, -.07],
+				[1, 0]
+			] : name === "shake" ? [
+				[0, 0],
+				[.2, .3],
+				[.5, -.3],
+				[.8, .15],
+				[1, 0]
+			] : [
+				[0, 0],
+				[.2, .2],
+				[.5, -.2],
+				[.8, .12],
+				[1, 0]
+			]).map(([time, amount]) => {
+				const value = [
+					0,
+					0,
+					0
+				];
+				value[axis] = intensity === 0 ? 0 : amount * intensity;
+				return {
+					time: time * duration,
+					value
+				};
+			})
+		}];
+	}
+	return validatePartAnimation({
+		duration,
+		loop: input.loop ?? false,
+		tracks
+	});
+}
+//#endregion
 //#region plugin-sdk.js
 /**
 * Type-check a plugin definition while preserving its inferred ID, slots, custom
@@ -13770,4 +14336,4 @@ function definePartAnimation(clip) {
 	return validatePartAnimation(clip);
 }
 //#endregion
-export { ACCESSORY_ATTACHMENT_POINTS, ACCESSORY_PLUGIN_DEFORMATION_LIMITS, ACCESSORY_PLUGIN_LIMITS, ACCESSORY_SLOTS, PART_ANIMATION_LIMITS, attachmentPointToBody, createPairedAffineDeformation, defineAccessoryGeometry, defineAccessoryPlugin, definePartAnimation, getAccessoryAttachmentFrame, getAccessoryAttachmentFrames, getAccessoryPluginAttachmentFrame, getAccessoryPluginEyeMeasurements, resolveAccessoryPluginMount, samplePartAnimation, validateAccessoryPluginAttachment, validateAccessoryPluginDeformation, validateAccessoryPluginEyeMeasurements, validateAccessoryPluginGeometry, validateAccessoryPluginSurfaceConnectors, validatePartAnimation };
+export { ACCESSORY_ATTACHMENT_POINTS, ACCESSORY_PLUGIN_DEFORMATION_LIMITS, ACCESSORY_PLUGIN_LIMITS, ACCESSORY_SLOTS, PART_ANIMATION_LIMITS, PART_ANIMATION_PRESET_LIMITS, RIGGING_LIMITS, attachmentPointToBody, computeBoneMatrices, createBodySkinBinding, createPairedAffineDeformation, createPartAnimationPreset, createSkinDeformer, defineAccessoryGeometry, defineAccessoryPlugin, definePartAnimation, getAccessoryAttachmentFrame, getAccessoryAttachmentFrames, getAccessoryPluginAttachmentFrame, getAccessoryPluginEyeMeasurements, getBoneTransform, isBoneId, resolveAccessoryPluginMount, samplePartAnimation, skinVertices, validateAccessoryPluginAttachment, validateAccessoryPluginDeformation, validateAccessoryPluginEyeMeasurements, validateAccessoryPluginGeometry, validateAccessoryPluginSurfaceConnectors, validateBodyRig, validateBonePose, validatePartAnimation, validateSkeleton, validateSkinBinding };

@@ -1,5 +1,9 @@
 import type { Vec3 } from '../core/design.js';
-export interface Geometry { vertices: Float32Array; indices: Uint16Array }
+export interface Geometry {
+  vertices: Float32Array; indices: Uint16Array;
+  /** Optional neutral position/normal chart for eye ink on a skinned body. */
+  faceVertices?: Float32Array;
+}
 export function sphere(longitudes = 32, latitudes = 22, capsule = false): Geometry {
   const vertices: number[] = [], indices: number[] = [];
   for (let y = 0; y <= latitudes; y++) for (let x = 0; x <= longitudes; x++) {

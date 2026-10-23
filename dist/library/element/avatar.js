@@ -1,3 +1,5 @@
+import { validateBodyRig } from '../core/body-rig.js';
+import { validateBonePose } from '../core/rigging.js';
 import { validatePartAnimation } from '../core/part-animation.js';
 import { PluginEquipmentController } from './plugin-equipment.js';
 import { SpeechController } from './speech.js';
@@ -39,6 +41,54 @@ export class SidekickAvatar extends HTMLElementBase {
         super.addEventListener(type, listener, options); }
     removeEventListener(type, listener, options) { if (listener)
         super.removeEventListener(type, listener, options); }
+    bodyRigState;
+    bonePoseState = Object.create(null);
+    accessoryBonePoseState = Object.create(null);
+    /** Rig configuration is runtime-only, independent of the persisted visual design. */
+    get bodyRig() { return this.bodyRigState && structuredClone(this.bodyRigState); }
+    setBodyRig(input) {
+        const rig = input === null ? undefined : validateBodyRig(input);
+        this.bodyRigState = rig;
+        this.bonePoseState = Object.create(null);
+        this.removeBoneTracks();
+        this.syncRig();
+    }
+    boneSkeleton(target) {
+        if (target !== undefined && (!target || typeof target !== 'object' || ![Object.prototype, null].includes(Object.getPrototypeOf(target)) || Reflect.ownKeys(target).length !== 1 || !Object.hasOwn(Object.getOwnPropertyDescriptor(target, 'accessory') ?? {}, 'value') || typeof target.accessory !== 'string'))
+            throw new TypeError('Bone target must contain an accessory instance id.');
+        const skeleton = target === undefined ? this.bodyRigState?.skeleton : this.pluginEquipment.instances().find(item => item.id === target.accessory)?.asset.geometry.skin?.skeleton;
+        if (!skeleton)
+            throw new RangeError('The target has no skeleton.');
+        return skeleton;
+    }
+    /** Replace the target's local bind-relative pose and take ownership from its bone tracks. */
+    setBonePose(input, target) {
+        const pose = validateBonePose(input, this.boneSkeleton(target));
+        if (target)
+            this.accessoryBonePoseState[target.accessory] = pose;
+        else
+            this.bonePoseState = pose;
+        this.removeBoneTracks(target?.accessory);
+        this.syncRig();
+    }
+    getBonePose(target) {
+        this.boneSkeleton(target);
+        return structuredClone(target ? this.accessoryBonePoseState[target.accessory] ?? {} : this.bonePoseState);
+    }
+    clearBonePose(target) { this.setBonePose({}, target); }
+    removeBoneTracks(accessory) {
+        const state = this.partAnimationState;
+        if (!state)
+            return;
+        const tracks = state.clip.tracks.filter(track => !(typeof track.target === 'object' && typeof track.target.bone === 'string' && track.target.accessory === accessory));
+        if (tracks.length === state.clip.tracks.length)
+            return;
+        this.partAnimationState = tracks.length ? { ...state, clip: { ...state.clip, tracks } } : undefined;
+        this.syncPartAnimation();
+    }
+    syncRig() {
+        this.send({ kind: 'state', state: { rig: structuredClone(this.bodyRigState), bonePose: structuredClone(this.bonePoseState), accessoryBonePoses: structuredClone(this.accessoryBonePoseState) } });
+    }
     partAnimationState;
     /** Independent local clip clock; reading never exposes mutable runtime data. */
     get partAnimation() {
@@ -67,8 +117,16 @@ export class SidekickAvatar extends HTMLElementBase {
     validatePartAnimationTargets(clip) {
         const known = new Set([...this.configuration.accessories.map(item => item.id), ...this.pluginEquipment.references().map(item => item.id)]);
         for (const track of clip.tracks)
-            if (typeof track.target === 'object' && !known.has(track.target.accessory))
-                throw new RangeError(`액세서리 ${track.target.accessory}가 없습니다.`);
+            if (typeof track.target === 'object') {
+                const target = track.target;
+                if (typeof target.bone === 'string') {
+                    const skeleton = this.boneSkeleton(target.accessory === undefined ? undefined : { accessory: target.accessory });
+                    if (!skeleton.bones.some(bone => bone.id === target.bone))
+                        throw new RangeError(`Unknown bone: ${target.bone}.`);
+                }
+                else if (!known.has(target.accessory))
+                    throw new RangeError(`액세서리 ${target.accessory}가 없습니다.`);
+            }
     }
     clearPartAnimation() { this.partAnimationState = undefined; this.syncPartAnimation(); }
     pausePartAnimation() {
@@ -94,15 +152,30 @@ export class SidekickAvatar extends HTMLElementBase {
         this.syncPartAnimation();
     }
     pluginMotionIds = new Set();
+    pluginSkeletons = new Map();
     pluginEquipment = new PluginEquipmentController(pluginAccessories => {
         if (pluginAccessories.some(item => this.configuration.accessories.some(builtin => builtin.id === item.id)))
             throw new RangeError('Plugin and catalog accessory instance ids must be unique.');
         this.send({ kind: 'state', state: { pluginAccessories } });
         const ids = new Set(pluginAccessories.map(item => item.id));
+        const skeletons = new Map(pluginAccessories.map(item => [item.id, JSON.stringify(item.asset.geometry.skin?.skeleton) ?? '']));
+        const changedSkeletons = [...this.pluginSkeletons].filter(([id, signature]) => skeletons.get(id) !== signature).map(([id]) => id);
+        for (const id of changedSkeletons) {
+            delete this.accessoryBonePoseState[id];
+            this.removeBoneTracks(id);
+        }
+        this.pluginSkeletons = skeletons;
+        if (changedSkeletons.length)
+            this.syncRig();
         const removed = [...this.pluginMotionIds].filter(id => !ids.has(id));
         this.validator.removeAccessories(removed);
-        for (const id of removed)
+        for (const id of removed) {
             delete this.currentPose.accessories[id];
+            delete this.accessoryBonePoseState[id];
+            this.removeBoneTracks(id);
+        }
+        if (removed.length)
+            this.syncRig();
         this.pluginMotionIds = ids;
     });
     /** Runtime plugin items are separate from catalog design JSON. Returns metadata only. */
@@ -1906,7 +1979,7 @@ export class SidekickAvatar extends HTMLElementBase {
     }
     runtimeState() {
         const rect = this.getBoundingClientRect();
-        return { partAnimation: structuredClone(this.partAnimationState), pluginAccessories: this.pluginEquipment.instances(), renderer: this.rendererPreference, emotionEyeOverrides: { ...this.emotionEyeOverrides }, emotion: { emotion: this.emotionState.emotion, intensity: this.emotionState.intensity }, attention: this.behaviorAttention, travel: this.travelPresentation, design: this.design, bodyOrientation: this.bodyOrientation, zoom: this.zoom, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
+        return { rig: structuredClone(this.bodyRigState), bonePose: structuredClone(this.bonePoseState), accessoryBonePoses: structuredClone(this.accessoryBonePoseState), partAnimation: structuredClone(this.partAnimationState), pluginAccessories: this.pluginEquipment.instances(), renderer: this.rendererPreference, emotionEyeOverrides: { ...this.emotionEyeOverrides }, emotion: { emotion: this.emotionState.emotion, intensity: this.emotionState.intensity }, attention: this.behaviorAttention, travel: this.travelPresentation, design: this.design, bodyOrientation: this.bodyOrientation, zoom: this.zoom, pose: this.pose, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, time: this.elapsed, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze, width: rect.width, height: rect.height, dpr: this.ownerDocument.defaultView?.devicePixelRatio ?? 1 };
     }
     syncState() {
         this.send({ kind: 'state', state: { attention: this.behaviorAttention, activity: this.activity, paused: this.paused, reduced: this.reduced, active: this.connected && !this.presenceHidden && this.visible && !this.ownerDocument.hidden, gaze: [...this.gazeTarget], trackingMode: this.trackingMode, trackedGaze: this.gesturing ? undefined : this.trackedGaze } });

@@ -1,3 +1,5 @@
+import type { BodyRig } from '../core/body-rig.js';
+import type { BonePose } from '../core/rigging.js';
 import type { PartAnimationSample } from '../core/part-animation.js';
 import type { ShapeWeights } from '../core/shape-motion.js';
 import type { PluginAccessoryInstance } from '../element/plugin-equipment.js';
@@ -10,6 +12,10 @@ import type { ShapeContour } from '../core/contours.js';
 import type { RendererOptions } from './render-backend.js';
 export interface RenderState {
     partAnimation?: PartAnimationSample;
+    /** Immutable rig snapshot. Direct renderer clients must replace the object to change it. */
+    rig?: BodyRig;
+    bonePose?: BonePose;
+    accessoryBonePoses?: Record<string, BonePose>;
     pluginAccessories?: readonly PluginAccessoryInstance[];
     pose: Pose;
     activity: Activity;
@@ -49,6 +55,13 @@ export declare class AvatarRenderer {
     private bodyDirections;
     private bodyContour?;
     private bodyDeformation;
+    private bodyNeutral;
+    private bodyRig?;
+    private bodyRigSource?;
+    private bodyRigSignature;
+    private bodySkin?;
+    private bodySkinPose;
+    private bodyBones?;
     private lag;
     private accessoryPose;
     private authoredAccessoryPose;
