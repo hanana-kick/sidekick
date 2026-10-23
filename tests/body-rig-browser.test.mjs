@@ -2,6 +2,7 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
 import { createAppServer } from '../scripts/serve.mjs';
 let browser, server, origin;
@@ -104,6 +105,13 @@ for (const backend of ['worker', 'main']) for (const graphics of ['webgl2', 'can
       const bare = await capture();
       bot.setBodyRig({ skeleton: { bones: [{ id: 'root', position: [0, .4, 0] }] }, influences: [], attachments: { eyes: 'root' } });
       const bound = await capture();
+      // Measure body and eye translation without an occluding accessory. A
+      // color centroid of the remaining white pixels is not a body transform.
+      bot.setBonePose({ root: { position: [.25, 0, 0] } });
+      const bareMoved = await capture();
+      const bodyShift = center(bareMoved, 'body').x - center(bound, 'body').x;
+      const eyeShift = center(bareMoved, 'ink').x - center(bound, 'ink').x;
+      bot.clearBonePose();
       const registry = new AccessoryPluginRegistry();
       registry.register({ apiVersion: 1, id: 'test/public-bone-badge', slots: ['eyes'], createMesh: () => ({
         vertices: new Float32Array([-.14, -.1, .04, 0, 0, 1, .14, -.1, .04, 0, 0, 1, 0, .15, .04, 0, 0, 1]), indices: new Uint16Array([0, 1, 2]),
@@ -112,13 +120,25 @@ for (const backend of ['worker', 'main']) for (const graphics of ['webgl2', 'can
       await bot.equipPluginAccessory(registry, 'test/public-bone-badge', { slot: 'eyes', id: 'badge', color: '#ff00ff' });
       const neutral = await capture();
       bot.setBonePose({ root: { position: [.25, 0, 0] } }); const moved = await capture();
-      const bodyShift = center(moved, 'body').x - center(neutral, 'body').x;
       const badgeShift = center(moved, 'badge').x - center(neutral, 'badge').x;
-      const eyeShift = center(moved, 'ink').x - center(neutral, 'ink').x;
       bot.setBonePose({ tip: { position: [.12, 0, 0] } }, { accessory: 'badge' });
       const pluginMoved = await capture();
       const pluginShift = center(pluginMoved, 'badge').x - center(moved, 'badge').x;
-      const pluginBodyShift = center(pluginMoved, 'body').x - center(moved, 'body').x;
+      // The badge stays strictly inside the body. Compare every alpha sample,
+      // not a white-color centroid distorted by the badge moving over it.
+      const sameSilhouette = (a, b) => a.width === b.width && a.height === b.height && a.pixels.every((v, i) => i % 4 !== 3 || v === b.pixels[i]);
+      const mountedSilhouette = sameSilhouette(bareMoved, moved);
+      const pluginSilhouette = sameSilhouette(bareMoved, pluginMoved);
+      const png = image => {
+        const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+        const rgba = new Uint8ClampedArray(image.pixels.length);
+        for (let y = 0; y < image.height; y++) rgba.set(image.pixels.subarray(y * image.width * 4, (y + 1) * image.width * 4), (image.height - 1 - y) * image.width * 4);
+        // Runtime captures are premultiplied; ImageData expects straight RGB.
+        for (let i = 0; i < rgba.length; i += 4) if (rgba[i + 3] > 0) for (let c = 0; c < 3; c++) rgba[i + c] = Math.round(rgba[i + c] * 255 / rgba[i + 3]);
+        canvas.getContext('2d').putImageData(new ImageData(rgba, image.width, image.height), 0, 0);
+        return canvas.toDataURL('image/png').split(',')[1];
+      };
+      const evidence = Object.fromEntries(Object.entries({ bound, bareMoved, neutral, moved, pluginMoved }).map(([name, image]) => [name, png(image)]));
       const manualPoses = { body: bot.getBonePose(), plugin: bot.getBonePose({ accessory: 'badge' }) };
       bot.clearBonePose(); bot.clearBonePose({ accessory: 'badge' }); bot.seek(0);
       const reset = await capture();
@@ -142,20 +162,26 @@ for (const backend of ['worker', 'main']) for (const graphics of ['webgl2', 'can
       bot.paused = false; bot.playPartAnimation();
       return {
         neutralRig: equal(bare, bound), reset: equal(neutral, reset),
-        bodyPixels: center(neutral, 'body').count, badgePixels: center(neutral, 'badge').count, eyePixels: center(neutral, 'ink').count,
-        bodyShift, badgeShift, eyeShift, pluginShift, pluginBodyShift, manualPoses,
+        bodyPixels: center(bound, 'body').count, badgePixels: center(neutral, 'badge').count, eyePixels: center(bound, 'ink').count,
+        bodyShift, badgeShift, eyeShift, pluginShift, mountedSilhouette, pluginSilhouette, manualPoses, evidence,
         seekChanged: !equal(first, later), seekReplayed: equal(first, replay),
         pausedStable: equal(paused, pausedAfterGlobalSeek), pausedClock, resumedClock,
         resumeChanged: !equal(paused, resumed), globalSeekReplayed: equal(paused, globalReplay),
         frames: bot.diagnostics.frames, modes,
       };
     });
+    const artifactDirectory = `artifacts/body-rig-${backend}-${graphics}`;
+    await mkdir(artifactDirectory, { recursive: true });
+    for (const [name, png] of Object.entries(sampled.evidence)) await writeFile(`${artifactDirectory}/${name}.png`, Buffer.from(png, 'base64'));
+    const { evidence, ...metrics } = sampled;
+    await writeFile(`${artifactDirectory}/metrics.json`, JSON.stringify(metrics, null, 2));
+    t.diagnostic(JSON.stringify(metrics));
     assert.equal(sampled.neutralRig, true); assert.equal(sampled.reset, true);
     assert.ok(sampled.bodyPixels > 1000); assert.ok(sampled.badgePixels > 10); assert.ok(sampled.eyePixels > 20);
-    assert.ok(sampled.badgePixels / sampled.bodyPixels < .03, 'badge occlusion is a small fraction of the white-body centroid sample');
+    assert.equal(sampled.mountedSilhouette, true, 'mounted badge remains inside the independently captured body silhouette');
     assert.ok(sampled.bodyShift > 10); assert.ok(Math.abs(sampled.badgeShift - sampled.bodyShift) < 1.5, 'mounted badge follows its body bone');
     assert.ok(Math.abs(sampled.eyeShift - sampled.bodyShift) < 1.5, 'eye ink follows the deformed body chart');
-    assert.ok(sampled.pluginShift > 5); assert.ok(Math.abs(sampled.pluginBodyShift) < 1, 'plugin-local bone does not move the body');
+    assert.ok(sampled.pluginShift > 5); assert.equal(sampled.pluginSilhouette, true, 'plugin-local bone leaves every body silhouette alpha sample unchanged');
     assert.deepEqual(sampled.manualPoses, { body: { root: { position: [.25, 0, 0] } }, plugin: { tip: { position: [.12, 0, 0] } } });
     assert.equal(sampled.seekChanged, true); assert.equal(sampled.seekReplayed, true); assert.equal(sampled.pausedStable, true);
     assert.equal(sampled.pausedClock.playing, false); assert.equal(sampled.pausedClock.time, .5);
