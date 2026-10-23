@@ -1,10 +1,10 @@
-name: Animation visual QA
+name: Scroll region browser probe
 on:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  visual:
+  probe:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -15,13 +15,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:all
-      - run: node node_modules/playwright-core/cli.js install --with-deps chromium ffmpeg
-      - run: xvfb-run -a node --test --test-concurrency=1 tests/animation-continuity-browser.test.mjs tests/presence-continuity-browser.test.mjs
+      - run: node node_modules/playwright-core/cli.js install --with-deps chromium
+      - run: xvfb-run -a node --test --test-concurrency=1 tests/api-demo-visible-motion.test.mjs
         env:
           SIDEKICK_HEADED: '1'
           SIDEKICK_SCREENSHOTS: artifacts
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
-          name: animation-visuals
+          name: scroll-region-probe
           path: artifacts/
